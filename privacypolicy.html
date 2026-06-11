@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy â€” BudgetBuddy</title>
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/utilities.css">
+    <style>
+        :root{--bg:#0f1117;--surface:#1a1d27;--surface-hover:#242736;--border:#374151;--text:#e4e4e7;--text-dim:#9ca3af;--green:#22c55e;--green-bg:rgba(34,197,94,0.1);--red:#ef4444;--red-bg:rgba(239,68,68,0.1);--blue:#3b82f6;--blue-bg:rgba(59,130,246,0.1);--accent:#8b5cf6;--shadow:rgba(0,0,0,0.3)}
+        [data-theme="light"]{--bg:#f8fafc;--surface:#fff;--surface-hover:#f1f5f9;--border:#cbd5e1;--text:#1e293b;--text-dim:#475569;--green:#16a34a;--green-bg:rgba(22,163,74,0.1);--red:#dc2626;--red-bg:rgba(220,38,38,0.1);--blue:#2563eb;--blue-bg:rgba(37,99,235,0.1);--accent:#7c3aed;--shadow:rgba(0,0,0,0.05)}
+
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;transition:background-color .3s,color .3s}
+
+        *:focus{outline:none}
+        *:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+        main{flex:1;max-width:800px;width:100%;margin:0 auto;padding:3rem 2rem}
+
+        .page-title{font-size:2rem;font-weight:700;margin-bottom:.5rem}
+        .page-subtitle{color:var(--text-dim);font-size:1rem;margin-bottom:2.5rem}
+
+        .section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:2rem;margin-bottom:1.5rem;transition:background-color .3s,border-color .3s}
+        .section:hover{border-color:var(--accent)}
+        .section-title{font-size:1.2rem;font-weight:600;margin-bottom:1rem;color:var(--accent)}
+        .section-body{line-height:1.7;color:var(--text)}
+        .section-body p{margin-bottom:1rem}
+        .section-body p:last-child{margin-bottom:0}
+        .section-body ul{margin-left:1.5rem;margin-bottom:1rem;line-height:1.7}
+        .section-body li{margin-bottom:.35rem}
+
+        .highlight-box{border-radius:8px;padding:1.25rem 1.5rem;margin:1.25rem 0}
+        .highlight-box.green{background:var(--green-bg);border:1px solid var(--green)}
+        .highlight-box.green strong{color:var(--green)}
+        .highlight-box.blue{background:var(--blue-bg);border:1px solid var(--blue)}
+        .highlight-box.blue strong{color:var(--blue)}
+
+        .contact-box{background:var(--surface-hover);border-radius:8px;padding:1rem 1.5rem;margin-top:1rem;font-size:.9rem}
+        .contact-box a{color:var(--accent);text-decoration:none}
+        .contact-box a:hover{text-decoration:underline}
+
+        @media(max-width:600px){main{padding:2rem 1.5rem}.page-title{font-size:1.5rem}.section{padding:1.5rem}}
+            .scroll-top-btn{position:fixed;right:1.5rem;bottom:1.5rem;width:48px;height:48px;border:0;border-radius:50%;background:var(--accent);color:#fff;font-size:1.5rem;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:9999;opacity:0;visibility:hidden;transform:translateY(16px);transition:opacity .25s,visibility .25s,transform .25s,background .2s}
+        .scroll-top-btn.show{opacity:1;visibility:visible;transform:translateY(0)}
+        .scroll-top-btn:hover{background:#7c3aed;transform:translateY(-3px)}
+        .scroll-top-btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+    </style>
+</head>
+<body>
+    <a href="#main" class="skip-link">Skip to main content</a>
+    <header class="app-header">
+        <a href="index.html" class="logo">Budget<span>Buddy</span></a>
+
+        <div class="header-controls">
+            <div class="theme-toggle-group" role="group" aria-label="Theme selection">
+                <button class="theme-opt" data-theme-val="light" onclick="window.setTheme('light')" aria-label="Light mode" data-tooltip="Light Theme">&#9728;&#65039;</button>
+                <button class="theme-opt active" data-theme-val="system" onclick="window.setTheme('system')" aria-label="System default" data-tooltip="System Default">&#128187;</button>
+                <button class="theme-opt" data-theme-val="dark" onclick="window.setTheme('dark')" aria-label="Dark mode" data-tooltip="Dark Theme">&#127769;</button>
+            </div>
+
+            <div class="auth-buttons footer-page-actions">
+                <a href="login.html" class="btn-text" data-tooltip="Log In">Log In</a>
+                <a href="index.html" class="btn-text footer-back-btn" data-tooltip="Back to App">Back to App</a>
+            </div>
+        </div>
+    </header>
+
+    <main id="main">
+        <h1 class="page-title">Privacy Policy</h1>
+        <p class="page-subtitle">Last updated: June 2026</p>
+
+        <div class="section">
+            <h2 class="section-title">Our Promise to You</h2>
+            <div class="section-body">
+                <p>BudgetBuddy is built with privacy as a core principle, not an afterthought. Your financial data is some of the most sensitive information in your life, and we treat it that way.</p>
+                <div class="highlight-box green">
+                    <strong>Simple truth:</strong> Your data belongs to you. We don't sell it, and we can't read your budget. When you sign in, Buddy Cloud is the default protection path and stores only an encrypted vault that requires your recovery key.
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">No Trackers or Advertising Cookies</h2>
+            <div class="section-body">
+                <p>BudgetBuddy is designed to avoid third-party tracking. We do <strong>not</strong> use:</p>
+                <ul>
+                    <li><strong>Tracking cookies</strong> - including advertising or cross-site tracking cookies</li>
+                    <li><strong>Analytics scripts</strong> - including Google Analytics, Mixpanel, or similar services</li>
+                    <li><strong>Advertising trackers</strong> - including ad networks, retargeting pixels, or conversion pixels</li>
+                    <li><strong>Fingerprinting</strong> - including browser, device, or canvas fingerprinting</li>
+                </ul>
+                <p>You can review network activity in your browser's developer tools to confirm that BudgetBuddy does not send requests to tracking or advertising services.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">What We Store and Where</h2>
+            <div class="section-body">
+                <p>BudgetBuddy has two storage modes: signed-in Buddy Cloud protection and browser-only storage.</p>
+                <ul>
+                    <li><strong>Signed in:</strong> Buddy Cloud is the default protection path. Your budget is encrypted on your device before upload, then stored as an encrypted vault.</li>
+                    <li><strong>Browser-only:</strong> If you use BudgetBuddy without signing in, budget data stays only in that browser's localStorage.</li>
+                    <li>No servers store readable financial information, transactions, balances, budgets, categories, descriptions, notes, or amounts.</li>
+                </ul>
+                <p><strong>Note on browser-only budgets:</strong> Clearing browser data, site data, storage, or using privacy-cleanup tools can remove a browser-only budget. BudgetBuddy cannot recover browser-only budgets after browser/device storage is lost. Signing in uses Buddy Cloud as the default encrypted backup path.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Buddy Cloud Sync</h2>
+            <div class="section-body">
+                <p>Buddy Cloud is the default protection path for signed-in BudgetBuddy accounts. Free Tier includes two active synced browsers. Premium adds Multi-Device Sync Plus for unlimited active synced browsers.</p>
+                <ul>
+                    <li><strong>Enabled by signing in:</strong> Signing in means BudgetBuddy will use Buddy Cloud to protect your budget by default. You can still use BudgetBuddy without signing in, but browser-only budgets have no recovery support if local storage is lost.</li>
+                    <li><strong>Encrypted before upload:</strong> Your budget is encrypted on your device before it leaves. The server stores encrypted blobs, not readable transactions, balances, budgets, categories, descriptions, notes, or amounts.</li>
+                    <li><strong>Encrypted version history:</strong> If you use Cloud Version History, BudgetBuddy stores encrypted vault snapshots so you can restore a previous budget version. Free accounts keep the newest encrypted safety snapshot. Premium accounts keep the newest 10 encrypted snapshots. Snapshot contents are encrypted client-side before storage. Associated metadata may include snapshot timestamps, schema/encryption version, checksum, and restore/sync status text.</li>
+                    <li><strong>Recovery key required:</strong> Your Buddy Cloud recovery key decrypts your cloud budget on another device. Store it somewhere safe. If you lose this key and no signed-in device still has access, we cannot recover or decrypt your synced budget for you.</li>
+                    <li><strong>Minimal sync metadata:</strong> To enforce the Free Tier two-browser limit, we store opaque hashes of locally generated sync slot tokens and sync slot timestamps. We do not store device names, user agents, IP-derived locations, or readable budget data for this feature.</li>
+                    <li><strong>Device management metadata:</strong> If you use Account &gt; Devices, BudgetBuddy keeps privacy-minimal browser access records so you can revoke known browsers. These records contain opaque browser hashes and timestamps only. They do not contain device names, browser user agents, IP-derived locations, transaction data, balances, budgets, categories, descriptions, notes, amounts, or recovery keys.</li>
+                    <li><strong>You control it:</strong> You can use browser-only mode by not signing in, export your data, sign out and clear this browser, or reset Buddy Cloud for your account.</li>
+                </ul>
+                <div class="highlight-box blue">
+                    <strong>Important:</strong> Signing in is your consent for BudgetBuddy to protect your budget with Buddy Cloud by default. The cloud provider receives encrypted vault data only; BudgetBuddy does not hold your recovery key and cannot read your budget.
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Third Parties</h2>
+            <div class="section-body">
+                <p>BudgetBuddy uses minimal third-party services. Here is the complete list:</p>
+                <ul>
+                    <li><strong>Authentication providers</strong> (e.g., Google, Apple) â€” When you choose "Sign in with Google" or "Sign in with Apple," those companies verify your identity. They only share your email address and a unique ID with us â€” nothing else.</li>
+                    <li><strong>Cloud infrastructure</strong> (for signed-in Buddy Cloud accounts) â€” Our hosting provider stores encrypted data on our behalf. They cannot read your budget because it is encrypted before it reaches their servers.</li>
+                    <li><strong>Payments</strong> (Stripe) - Payments are processed by Stripe. BudgetBuddy does not receive or store full card numbers. Stripe receives payment, device, fraud-prevention, and checkout data under Stripe's privacy and legal terms.</li>
+                </ul>
+                <p>Our infrastructure and payment providers may be subject to U.S. federal, state, local, or other lawful requests, including legal process such as subpoenas or court orders. If legally required, the information available to provide would be limited to account, billing, operational metadata, encrypted vault data, and encrypted version-history snapshots if present. BudgetBuddy does not hold your Buddy Cloud recovery key and cannot decrypt your synced budget contents.</p>
+                <p>We will <strong>never</strong>:</p>
+                <ul>
+                    <li>Sell your data to anyone, for any reason</li>
+                    <li>Share your data with advertisers or data brokers</li>
+                    <li>Allow third parties to access your decrypted information</li>
+                    <li>Use your data to train AI models or machine learning systems</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Your Rights</h2>
+            <div class="section-body">
+                <p>You have the right to:</p>
+                <ul>
+                    <li><strong>Access</strong> â€” View all data stored in the app at any time (it's your data)</li>
+                    <li><strong>Export</strong> â€” Download all your data in a portable format</li>
+                    <li><strong>Delete</strong> â€” Clear your data locally or from the cloud at any time</li>
+                    <li><strong>Use browser-only mode</strong> â€” Use BudgetBuddy without signing in, with no recovery support if local browser storage is lost</li>
+                    <li><strong>Leave</strong> â€” Delete your account and all associated data permanently</li>
+                </ul>
+                <p>We don't make any of this difficult. No phone trees, no "please allow 30 days," no retention periods. Your data, your decision.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Data Security</h2>
+            <div class="section-body">
+                <p>We take security seriously, even though we hold minimal data:</p>
+                <ul>
+                    <li>All data in transit is protected with TLS/HTTPS encryption</li>
+                    <li>Cloud-synced data is encrypted end-to-end before leaving your device</li>
+                    <li>Authentication credentials are never stored in plain text</li>
+                    <li>We follow industry-standard security practices</li>
+                </ul>
+                <p>That said, no system is perfectly secure. We encourage you to:</p>
+                <ul>
+                    <li>Use a strong, unique password for your account</li>
+                    <li>Keep your device locked with a PIN, password, or biometric</li>
+                    <li>Clear browser data on shared or public devices</li>
+                    <li>Export regular backups of your financial data</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Children's Privacy</h2>
+            <div class="section-body">
+                <p>BudgetBuddy is not intended for children under 13. We do not knowingly collect data from minors. If we learn that a child under 13 has created an account, we will delete it promptly.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">International Users</h2>
+            <div class="section-body">
+                <p>BudgetBuddy is designed to comply with privacy regulations worldwide, including GDPR (Europe), CCPA (California), and PIPEDA (Canada). Regardless of where you live, you have the same rights outlined in this policy.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Changes to This Policy</h2>
+            <div class="section-body">
+                <p>We may update this policy as the app evolves (especially when cloud sync launches). When we do:</p>
+                <ul>
+                    <li>We will notify you clearly within the app</li>
+                    <li>We will update the "Last updated" date at the top of this page</li>
+                    <li>Material changes will require your explicit consent before taking effect</li>
+                    <li>We will never quietly weaken your privacy protections</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Questions?</h2>
+            <div class="section-body">
+                <p>Privacy shouldn't be confusing. If anything in this policy is unclear, or if you have concerns about how your data is handled, please reach out:</p>
+                <div class="contact-box">
+                    <strong>Contact:</strong> <a href="mailto:support@budget-buddy.io">support@budget-buddy.io</a>
+                </div>
+            </div>
+        </div>
+    </main>
+    <footer>
+        <div class="footer-main">
+            <a href="changelog.html" class="footer-btn-pill">v1.0 Changelog</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="featurerequest.html" class="footer-link">Feature Request</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="privacypolicy.html" class="footer-link">Privacy Policy</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="roadmap.html" class="footer-link">Roadmap</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="support.html" class="footer-link">Support</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="terms.html" class="footer-link">Terms of Service</a>
+        </div>
+        <div class="copyright-text">
+            &copy; 2026 BudgetBuddy. Open source under the <a href="#" onclick="event.preventDefault(); window.openLicenseModal()" class="footer-link">MIT License</a>.
+        </div>
+    </footer>
+    <!-- MIT License Modal -->
+    <div class="modal-overlay" id="licenseModal" role="dialog" aria-modal="true" aria-labelledby="licenseModalTitle" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:2000;display:none;justify-content:center;align-items:center" onclick="if(event.target===this)window.closeLicenseModal()">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;width:90%;max-width:600px;box-shadow:0 20px 40px rgba(0,0,0,0.4);position:relative;max-height:80vh;overflow-y:auto">
+            <button id="licenseCloseBtn" aria-label="Close license dialog" onclick="window.closeLicenseModal()" style="position:absolute;top:1rem;right:1rem;background:transparent;border:none;color:var(--text-dim);font-size:1.5rem;cursor:pointer;line-height:1" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text-dim)'">&times;</button>
+            <h3 id="licenseModalTitle" style="font-size:1.25rem;font-weight:700;margin-bottom:1.5rem;color:var(--text)">MIT License</h3>
+            <div style="color:var(--text-dim);font-size:0.85rem;line-height:1.7">
+                <p style="margin-bottom:1rem"><strong style="color:var(--text)">Copyright &copy; 2026 BudgetBuddy</strong></p>
+                <p style="margin-bottom:1rem">Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</p>
+                <p style="margin-bottom:1rem">The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p>
+                <p>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
+            </div>
+            <div style="margin-top:1.5rem;text-align:right">
+                <button onclick="window.closeLicenseModal()" style="padding:0.75rem 2rem;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer">Close</button>
+            </div>
+        </div>
+    </div>
+<script>
+        function applyTheme(mode){
+            var root=document.documentElement;
+            var sysDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+            root.setAttribute('data-theme',mode==='system'?(sysDark?'dark':'light'):mode);
+            localStorage.setItem('bb_theme_mode',mode);
+            document.querySelectorAll('.theme-opt').forEach(function(b){b.classList.toggle('active',b.dataset.themeVal===mode)});
+        }
+        window.setTheme=applyTheme;
+        applyTheme(localStorage.getItem('bb_theme_mode')||'system');
+        document.querySelectorAll('.theme-opt').forEach(function(b){b.addEventListener('click',function(){applyTheme(this.dataset.themeVal)})});
+        window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){if(localStorage.getItem('bb_theme_mode')==='system')applyTheme('system')});
+    </script>
+    <button type="button" id="scrollTopBtn" class="scroll-top-btn" aria-label="Back to top" onclick="window.scrollToTop()">↑</button>
+<script>
+        window.scrollToTop = window.scrollToTop || function() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+        window.addEventListener('scroll', function() {
+            var btn = document.getElementById('scrollTopBtn');
+            if (btn) btn.classList.toggle('show', window.scrollY > 300);
+        });
+    </script>
+<script>
+        (function(){
+            var lastLicenseTrigger = null;
+
+            window.openLicenseModal = function(){
+                var modal = document.getElementById('licenseModal');
+                var closeBtn = document.getElementById('licenseCloseBtn');
+                lastLicenseTrigger = document.activeElement;
+                modal.style.display = 'flex';
+                modal.classList.add('active');
+                if (closeBtn) closeBtn.focus();
+            };
+
+            window.closeLicenseModal = function(){
+                var modal = document.getElementById('licenseModal');
+                modal.classList.remove('active');
+                modal.style.display = 'none';
+                if (lastLicenseTrigger && typeof lastLicenseTrigger.focus === 'function') {
+                    lastLicenseTrigger.focus();
+                }
+            };
+
+            document.addEventListener('keydown', function(event){
+                var modal = document.getElementById('licenseModal');
+                if (event.key === 'Escape' && modal && (modal.style.display === 'flex' || modal.classList.contains('active'))) {
+                    window.closeLicenseModal();
+                }
+            });
+        })();
+    </script>
+    <script src="js/staticPageTheme.js"></script>
+</body>
+</html>

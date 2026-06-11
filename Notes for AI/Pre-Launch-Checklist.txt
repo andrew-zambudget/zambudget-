@@ -1,0 +1,81 @@
+# 🚀 PRE-LAUNCH CHECKLIST (Critical Infrastructure)
+# STATUS: TO DO BEFORE LAUNCH DAY
+# PRIORITY: HIGH
+# NOTE: These items prevent "silent failures" and protect your privacy branding.
+
+============================================================================
+1. ANALYTICS (Privacy-First Tracking)
+============================================================================
+- [ ] Tool Selection: Install Plausible or Umami (Open Source, No Cookies, GDPR-ready)
+  - AVOID Google Analytics (Too heavy, hurts privacy brand)
+- [ ] Trackable Events (Minimum Viable):
+  - Page Views (Landing vs. App Load)
+  - CTA Clicks ("Start Budgeting Free")
+  - Waitlist Signups ("Cloud Sync")
+- [ ] Implementation: Add script tag to <head> of landing.html only.
+
+============================================================================
+2. ERROR MONITORING (Catch Silent Bugs)
+============================================================================
+- [ ] Tool Setup: Create Sentry.io account (Free Tier)
+- [ ] Integration: Add Sentry SDK script to js/main.js
+- [ ] Goal: Automatically capture JS errors, browser versions, and stack traces
+- [ ] Why: Users won't report bugs; they will just leave. This finds them for you.
+
+============================================================================
+3. FEEDBACK LOOP (Direct User Connection)
+================================================================ 
+- [ ] Bug Report Path: Link "Report a Bug" in footer → GitHub Issues or Typeform
+- [ ] Feature Request: Ensure featurerequest.html actually submits data (Form backend?)
+- [ ] Community Link: Add Discord/Email link for direct support
+- [ ] Rule: Make it easier to tell you something is broken than to leave.
+
+============================================================================
+4. PERFORMANCE AUDIT (Speed & Quality)
+============================================================================
+- [ ] Run Lighthouse Audit (Chrome DevTools > Lighthouse Tab)
+- [ ] Target Scores: Performance ≥ 90, Accessibility ≥ 90
+- [ ] Fixes Needed:
+  - Compress all images (use TinyPNG/WebP format)
+  - Minify CSS/JS if necessary
+  - Remove unused code blocks
+- [ ] Why: Slow load times = lost users on launch day.
+
+============================================================================
+5. LEGAL MINIMUMS (Trust & Protection)
+============================================================================
+- [ ] Verify Content: Privacy Policy & Terms of Service pages MUST exist and have text
+- [ ] Key Statement to Include (Copy/Paste this):
+  "BudgetBuddy stores budget data locally by default. If you enable free
+   Buddy Cloud, your budget is encrypted on your device before upload,
+   and we cannot read transactions, balances, budgets, categories,
+   descriptions, notes, or amounts."
+- [ ] Placement: Put this statement in the Hero section, Footer, and Privacy Page.
+- [ ] Why: This is your #1 differentiator against paid apps.
+
+============================================================================
+6. VISUAL IDENTITY (Professional Polish)
+============================================================================
+- [ ] Favicon: Create a simple .ico/.png (e.g., a 💰 emoji or stylized 'B')
+- [ ] Open Graph Tags (Social Sharing):
+  - og:title: "BudgetBuddy — Free Open-Source Budget Tracker"
+  - og:description: "Track expenses, crush debt, build savings. No subs. No tracking."
+  - og:image: assets/og-image.png (1200x630px screenshot)
+  - twitter:card: summary_large_image
+- [ ] Why: Ensures your link looks good when shared on Twitter/LinkedIn/Discord.
+
+============================================================================
+ESTIMATED TIME TO COMPLETE
+============================================================================
+Total Time: ~2.5 Hours
+Impact: Prevents silent user loss, protects reputation, ensures professional look.
+
+============================================================================
+IMPLEMENTATION ORDER
+============================================================================
+1. Legal (Write the copy)
+2. Visuals (Favicon + OG tags)
+3. Analytics (Plausible)
+4. Errors (Sentry)
+5. Feedback (Link setup)
+6. Audit (Lighthouse run)

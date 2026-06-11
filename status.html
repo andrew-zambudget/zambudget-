@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operational Status - BudgetBuddy</title>
+    <style>
+        :root{--bg:#0f1117;--surface:#1a1d27;--surface-hover:#242736;--border:#2a2d3a;--text:#e4e4e7;--text-dim:#71717a;--green:#22c55e;--green-bg:rgba(34,197,94,0.1);--red:#ef4444;--red-bg:rgba(239,68,68,0.1);--yellow:#eab308;--yellow-bg:rgba(234,179,8,0.1);--blue:#3b82f6;--blue-bg:rgba(59,130,246,0.1);--accent:#8b5cf6}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+        header{padding:1.25rem 2rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface)}
+        .logo{font-size:1.4rem;font-weight:700;letter-spacing:-.5px}.logo span{color:var(--accent)}
+        .back-link{color:var(--text-dim);text-decoration:none;font-size:.9rem;transition:color .2s}.back-link:hover{color:var(--accent)}
+        main{flex:1;max-width:800px;width:100%;margin:0 auto;padding:3rem 2rem}
+        .policy-header{margin-bottom:2.5rem}
+        .policy-title{font-size:2rem;font-weight:700;margin-bottom:.5rem}
+        .policy-subtitle{color:var(--text-dim);font-size:1rem}
+        .policy-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:2rem;margin-bottom:1.5rem}
+        .section-title{font-size:1.25rem;font-weight:600;margin-bottom:1rem;color:var(--accent)}
+        .section-content{line-height:1.7;color:var(--text)}
+        .section-content p{margin-bottom:1rem}
+        .section-content p:last-child{margin-bottom:0}
+
+        /* Status Banner */
+        .status-banner{text-align:center;padding:2.5rem;border-radius:12px;margin-bottom:2rem;border:1px solid var(--border);background:var(--surface)}
+        .status-indicator{display:inline-flex;align-items:center;gap:.75rem;font-size:1.5rem;font-weight:700;margin-bottom:.5rem}
+        .status-dot{width:16px;height:16px;border-radius:50%;display:inline-block;animation:pulse 2s infinite}
+        .status-dot.online{background:var(--green);box-shadow:0 0 12px var(--green)}
+        .status-dot.offline{background:var(--red);box-shadow:0 0 12px var(--red)}
+        .status-dot.degraded{background:var(--yellow);box-shadow:0 0 12px var(--yellow)}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+        .status-label-online{color:var(--green)}
+        .status-label-offline{color:var(--red)}
+        .status-label-degraded{color:var(--yellow)}
+        .status-message{color:var(--text-dim);font-size:.95rem;margin-top:.5rem}
+
+        /* Service List */
+        .service-row{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;border-bottom:1px solid var(--border)}
+        .service-row:last-child{border-bottom:none}
+        .service-name{font-weight:500;font-size:.95rem}
+        .service-status{display:flex;align-items:center;gap:.5rem;font-size:.85rem;font-weight:600}
+        .service-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+        .service-dot.online{background:var(--green)}
+        .service-dot.offline{background:var(--red)}
+        .service-dot.degraded{background:var(--yellow)}
+
+        /* Uptime Bar with Labels */
+        .uptime-container {
+            margin-top: .5rem;
+        }
+        .uptime-bar{
+            display:flex;
+            gap:2px;
+            height:30px;
+            border-radius:4px;
+            overflow:hidden;
+            margin-bottom: 0.5rem;
+        }
+        .uptime-day{
+            flex:1;
+            border-radius:2px;
+            position:relative;
+            cursor:pointer;
+            transition: opacity 0.2s;
+        }
+        .uptime-day:hover{opacity:.8}
+        .uptime-day.online{background:var(--green)}
+        .uptime-day.offline{background:var(--red)}
+        .uptime-day.degraded{background:var(--yellow)}
+
+        /* Date Markers */
+        .uptime-labels {
+            display: flex;
+            gap: 2px;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            justify-content: space-between;
+            margin-top: 0.2rem;
+        }
+        .uptime-label {
+            flex: 1;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .uptime-legend{display:flex;gap:1.5rem;margin-top:.75rem;font-size:.75rem;color:var(--text-dim)}
+        .legend-item{display:flex;align-items:center;gap:.35rem}
+        .legend-dot{width:8px;height:8px;border-radius:50%}
+
+        .last-checked{color:var(--text-dim);font-size:.8rem;margin-top:1.5rem;text-align:center}
+
+        footer{padding:2rem;border-top:1px solid var(--border);text-align:center;color:var(--text-dim);font-size:.8rem;background:var(--surface);margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:1rem}
+        .footer-main{display:flex;flex-wrap:wrap;justify-content:center;gap:1.5rem;align-items:center}
+        .footer-link{color:var(--text-dim);text-decoration:none;transition:color .2s}.footer-link:hover{color:var(--accent)}
+        .version-badge{background:var(--border);padding:.2rem .6rem;border-radius:4px;font-size:.7rem;font-weight:600;color:var(--text)}
+        .copyright-text{width:100%;border-top:1px solid var(--border);padding-top:1rem;font-size:.75rem}
+        @media(max-width:600px){main{padding:2rem 1.5rem}.policy-title{font-size:1.5rem}.policy-section{padding:1.5rem}}
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">Budget<span>Buddy</span></div>
+    <a href="index.html" class="back-link">← Back to App</a>
+</header>
+
+<main>
+
+  <button aria-label="Search">
+  <svg aria-hidden="true" focusable="false" width="24" height="24" viewBox="0 0 24 24">
+    <path d="M21 20l-5.8-5.8a7 7 0 10-1.4 1.4L20 21zM10 16a6 6 0 110-12 6 6 0 010 12z"/>
+  </svg>
+</button>
+    <div class="policy-header">
+        <h1 class="policy-title">Operational Status</h1>
+        <p class="policy-subtitle">Real-time service availability</p>
+    </div>
+
+    <!-- STATUS BANNER -->
+    <div class="status-banner">
+        <div class="status-indicator">
+            <span class="status-dot online" id="bannerDot"></span>
+            <span class="status-label-online" id="bannerLabel">All Systems Operational</span>
+        </div>
+        <div class="status-message" id="bannerMessage">Everything is running smoothly.</div>
+    </div>
+
+    <!-- SERVICE DETAILS -->
+    <div class="policy-section">
+        <h2 class="section-title">Service Details</h2>
+        <div class="service-row">
+            <div class="service-name">📊 Budget Tracker</div>
+            <div class="service-status"><span class="service-dot online"></span> Online</div>
+        </div>
+        <div class="service-row">
+            <div class="service-name">💾 Local Storage</div>
+            <div class="service-status"><span class="service-dot online"></span> Online</div>
+        </div>
+        <div class="service-row">
+            <div class="service-name">📱 Web Application</div>
+            <div class="service-status"><span class="service-dot online"></span> Online</div>
+        </div>
+        <div class="service-row">
+            <div class="service-name">🔒 Data Encryption</div>
+            <div class="service-status"><span class="service-dot online"></span> Online</div>
+        </div>
+    </div>
+
+    <!-- UPTIME HISTORY WITH DATE MARKERS -->
+    <div class="policy-section">
+        <h2 class="section-title">Uptime History</h2>
+        <p style="color:var(--text-dim);font-size:.85rem;margin-bottom:1rem;">Last 30 days</p>
+
+        <div class="uptime-container">
+            <!-- The Colored Bars -->
+            <div class="uptime-bar" id="uptimeBar">
+                <!-- Day 1 (Oldest) -->
+                <div class="uptime-day online" title="Apr 30 - Online"></div>
+                <div class="uptime-day online" title="May 1 - Online"></div>
+                <div class="uptime-day online" title="May 2 - Online"></div>
+                <div class="uptime-day online" title="May 3 - Online"></div>
+                <div class="uptime-day online" title="May 4 - Online"></div>
+                <div class="uptime-day online" title="May 5 - Online"></div>
+                <div class="uptime-day online" title="May 6 - Online"></div>
+                <div class="uptime-day online" title="May 7 - Online"></div>
+                <div class="uptime-day online" title="May 8 - Online"></div>
+                <div class="uptime-day online" title="May 9 - Online"></div>
+                <div class="uptime-day online" title="May 10 - Online"></div>
+                <div class="uptime-day online" title="May 11 - Online"></div>
+                <div class="uptime-day online" title="May 12 - Online"></div>
+                <div class="uptime-day online" title="May 13 - Online"></div>
+                <div class="uptime-day online" title="May 14 - Online"></div>
+                <div class="uptime-day online" title="May 15 - Online"></div>
+                <div class="uptime-day online" title="May 16 - Online"></div>
+                <div class="uptime-day online" title="May 17 - Online"></div>
+                <div class="uptime-day online" title="May 18 - Online"></div>
+                <div class="uptime-day online" title="May 19 - Online"></div>
+                <div class="uptime-day online" title="May 20 - Online"></div>
+                <div class="uptime-day online" title="May 21 - Online"></div>
+                <div class="uptime-day online" title="May 22 - Online"></div>
+                <div class="uptime-day online" title="May 23 - Online"></div>
+                <div class="uptime-day online" title="May 24 - Online"></div>
+                <div class="uptime-day online" title="May 25 - Online"></div>
+                <div class="uptime-day online" title="May 26 - Online"></div>
+                <div class="uptime-day online" title="May 27 - Online"></div>
+                <div class="uptime-day online" title="May 28 - Online"></div>
+                <div class="uptime-day online" title="May 29 - Online"></div>
+            </div>
+
+            <!-- The Date Labels (Aligned perfectly with bars above) -->
+            <div class="uptime-labels">
+                <div class="uptime-label">Apr 30</div>
+                <div class="uptime-label">May 3</div>
+                <div class="uptime-label">May 6</div>
+                <div class="uptime-label">May 9</div>
+                <div class="uptime-label">May 12</div>
+                <div class="uptime-label">May 15</div>
+                <div class="uptime-label">May 18</div>
+                <div class="uptime-label">May 21</div>
+                <div class="uptime-label">May 24</div>
+                <div class="uptime-label">May 27</div>
+                <div class="uptime-label">May 29</div>
+            </div>
+        </div>
+
+        <div class="uptime-legend">
+            <div class="legend-item"><span class="legend-dot" style="background:var(--green)"></span> Online</div>
+            <div class="legend-item"><span class="legend-dot" style="background:var(--yellow)"></span> Degraded</div>
+            <div class="legend-item"><span class="legend-dot" style="background:var(--red)"></span> Offline</div>
+        </div>
+    </div>
+
+    <div class="last-checked" id="lastChecked"></div>
+</main>
+
+<footer>
+    <div class="footer-main">
+        <span class="version-badge">v1.0</span>
+        <a href="index.html" class="footer-link">Back to App</a>
+        <a href="privacypolicy.html" class="footer-link">Privacy Policy</a>
+        <a href="terms.html" class="footer-link">Terms of Service</a>
+        <a href="status.html" class="footer-link">Operational Status</a>
+    </div>
+    <div class="copyright-text">&copy; 2026 BudgetBuddy. All rights reserved.</div>
+</footer>
+
+<script>
+document.getElementById('lastChecked').textContent='Last checked: '+new Date().toLocaleString();
+</script>
+
+</body>
+</html>

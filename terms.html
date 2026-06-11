@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms of Service â€” BudgetBuddy</title>
+    <style>
+        :root{--bg:#0f1117;--surface:#1a1d27;--surface-hover:#242736;--border:#374151;--text:#e4e4e7;--text-dim:#9ca3af;--green:#22c55e;--green-bg:rgba(34,197,94,0.1);--red:#ef4444;--red-bg:rgba(239,68,68,0.1);--blue:#3b82f6;--blue-bg:rgba(59,130,246,0.1);--accent:#8b5cf6;--shadow:rgba(0,0,0,0.3)}
+        [data-theme="light"]{--bg:#f8fafc;--surface:#fff;--surface-hover:#f1f5f9;--border:#cbd5e1;--text:#1e293b;--text-dim:#475569;--green:#16a34a;--green-bg:rgba(22,163,74,0.1);--red:#dc2626;--red-bg:rgba(220,38,38,0.1);--blue:#2563eb;--blue-bg:rgba(37,99,235,0.1);--accent:#7c3aed;--shadow:rgba(0,0,0,0.05)}
+
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;transition:background-color .3s,color .3s}
+
+        *:focus{outline:none}
+        *:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+        .skip-link{position:absolute;left:1rem;top:0;transform:translateY(-120%);background:var(--accent);color:#fff;padding:.75rem 1rem;border-radius:0 0 8px 8px;text-decoration:none;font-weight:700;z-index:999}
+        .skip-link:focus{transform:translateY(0)}
+
+        .app-header{padding:1rem 2rem;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:space-between;transition:background-color .3s,border-color .3s}
+        .logo{font-size:1.5rem;font-weight:700;letter-spacing:-.5px;color:var(--text);text-decoration:none;display:flex;align-items:center;gap:0.5rem}
+        .logo span{color:var(--accent)}
+        .logo:hover{opacity:0.9}
+        .header-controls{display:flex;align-items:center;gap:1rem}
+        .icon-btn{background:transparent;border:1px solid var(--border);color:var(--text-dim);border-radius:8px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s}
+        .icon-btn:hover{color:var(--text);background:var(--surface-hover);border-color:var(--accent)}
+        .auth-buttons{display:flex;align-items:center;gap:.75rem}
+        .footer-page-actions{flex-wrap:wrap;justify-content:flex-end}
+        .btn-text{color:var(--text-dim);text-decoration:none;border:1px solid transparent;border-radius:6px;padding:.45rem .75rem;font-size:.85rem;font-weight:600;line-height:1;transition:color .2s,background .2s,border-color .2s}
+        .btn-text:hover{color:var(--text);background:var(--surface-hover);border-color:var(--border)}
+        .footer-back-btn{color:#fff;background:var(--accent);border-color:var(--accent);box-shadow:0 2px 6px rgba(0,0,0,.16)}
+        .footer-back-btn:hover{color:#fff;background:var(--accent);border-color:var(--accent);opacity:.92}
+        .static-auth-signed-in{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 34%,var(--border));background:color-mix(in srgb,var(--accent) 9%,transparent)}
+
+        .theme-toggle-group{display:flex;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:2px;gap:2px}
+        .theme-opt{background:transparent;border:none;color:var(--text-dim);padding:.3rem .6rem;border-radius:16px;cursor:pointer;font-size:.85rem;transition:all .2s}
+        .theme-opt:hover{color:var(--text)}
+        .theme-opt.active{background:var(--surface-hover);color:var(--text);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,0.1)}
+
+        main{flex:1;max-width:800px;width:100%;margin:0 auto;padding:3rem 2rem}
+
+        .page-title{font-size:2rem;font-weight:700;margin-bottom:.5rem}
+        .page-subtitle{color:var(--text-dim);font-size:1rem;margin-bottom:2.5rem}
+
+        .section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:2rem;margin-bottom:1.5rem;transition:background-color .3s,border-color .3s}
+        .section:hover{border-color:var(--accent)}
+        .section-title{font-size:1.2rem;font-weight:600;margin-bottom:1rem;color:var(--accent)}
+        .section-body{line-height:1.7;color:var(--text)}
+        .section-body p{margin-bottom:1rem}
+        .section-body p:last-child{margin-bottom:0}
+        .section-body ul{margin-left:1.5rem;margin-bottom:1rem;line-height:1.7}
+        .section-body li{margin-bottom:.35rem}
+
+        .highlight-box{border-radius:8px;padding:1.25rem 1.5rem;margin:1.25rem 0}
+        .highlight-box.blue{background:var(--blue-bg);border:1px solid var(--blue)}
+        .highlight-box.blue strong{color:var(--blue)}
+
+        .contact-box{background:var(--surface-hover);border-radius:8px;padding:1rem 1.5rem;margin-top:1rem;font-size:.9rem}
+        .contact-box a{color:var(--accent);text-decoration:none}
+        .contact-box a:hover{text-decoration:underline}
+
+        footer{padding:2rem;border-top:1px solid var(--border);text-align:center;color:var(--text-dim);font-size:.8rem;background:var(--surface);margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:.75rem;transition:background-color .3s,border-color .3s}
+        .footer-main{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:0}
+        .footer-btn-pill{background:var(--accent);color:#fff;padding:.25rem .85rem;border-radius:20px;font-size:.75rem;font-weight:600;text-decoration:none;transition:opacity .2s,transform .1s,box-shadow .2s;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,.1)}
+        .footer-btn-pill:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 4px 8px rgba(0,0,0,.15)}
+        .footer-link{color:var(--text-dim);text-decoration:none;transition:color .2s;padding:.25rem 0;font-size:.8rem;font-weight:500}
+        .footer-link:hover{color:var(--accent);text-decoration:underline}
+        .footer-dot{color:var(--border);margin:0 .75rem;user-select:none;font-size:.8rem}
+        .copyright-text{font-size:.75rem;line-height:1.4}
+
+        @media(max-width:600px){main{padding:2rem 1.5rem}.page-title{font-size:1.5rem}.section{padding:1.5rem}}
+            .scroll-top-btn{position:fixed;right:1.5rem;bottom:1.5rem;width:48px;height:48px;border:0;border-radius:50%;background:var(--accent);color:#fff;font-size:1.5rem;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:9999;opacity:0;visibility:hidden;transform:translateY(16px);transition:opacity .25s,visibility .25s,transform .25s,background .2s}
+        .scroll-top-btn.show{opacity:1;visibility:visible;transform:translateY(0)}
+        .scroll-top-btn:hover{background:#7c3aed;transform:translateY(-3px)}
+        .scroll-top-btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+    </style>
+</head>
+<body>
+    <a href="#main" class="skip-link">Skip to main content</a>
+    <header class="app-header">
+        <a href="index.html" class="logo">Budget<span>Buddy</span></a>
+
+        <div class="header-controls">
+            <div class="theme-toggle-group" role="group" aria-label="Theme selection">
+                <button class="theme-opt" data-theme-val="light" onclick="window.setTheme('light')" aria-label="Light mode" data-tooltip="Light Theme">&#9728;&#65039;</button>
+                <button class="theme-opt active" data-theme-val="system" onclick="window.setTheme('system')" aria-label="System default" data-tooltip="System Default">&#128187;</button>
+                <button class="theme-opt" data-theme-val="dark" onclick="window.setTheme('dark')" aria-label="Dark mode" data-tooltip="Dark Theme">&#127769;</button>
+            </div>
+
+            <div class="auth-buttons footer-page-actions">
+                <a href="login.html" class="btn-text" data-tooltip="Log In">Log In</a>
+                <a href="index.html" class="btn-text footer-back-btn" data-tooltip="Back to App">Back to App</a>
+            </div>
+        </div>
+    </header>
+
+    <main id="main">
+        <h1 class="page-title">Terms of Service</h1>
+        <p class="page-subtitle">Last updated: June 2026</p>
+
+        <div class="section">
+            <h2 class="section-title">Welcome to BudgetBuddy</h2>
+            <div class="section-body">
+                <p>By using BudgetBuddy, you agree to these terms. We've kept this straightforward because your budgeting time is valuable.</p>
+                <div class="highlight-box blue">
+                    <strong>Simple rule:</strong> Use this app responsibly. It's a tool to help you track your money, not a financial advisor.
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Your Responsibility</h2>
+            <div class="section-body">
+                <p>You are responsible for the data you enter into BudgetBuddy. Please ensure that:</p>
+                <ul>
+                    <li>You have the right to enter this financial information</li>
+                    <li>The information is accurate to the best of your knowledge</li>
+                    <li>You don't use this app for illegal activities or fraud</li>
+                </ul>
+                <p>If you use BudgetBuddy without signing in, your budget is stored only in this browser. Clearing browser data, clearing site data, using privacy-cleanup tools, or losing access to this device can permanently remove browser-only data. BudgetBuddy cannot provide recovery support for browser-only budgets after local browser/device storage is lost. Signing in uses Buddy Cloud as the default encrypted backup path.</p>
+                <p>We're not liable for any financial decisions you make based on the data in this app.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">No Financial Advice</h2>
+            <div class="section-body">
+                <p>BudgetBuddy is a tracking tool only. We do not provide:</p>
+                <ul>
+                    <li>Financial advice or investment recommendations</li>
+                    <li>Tax guidance or accounting services</li>
+                    <li>Guarantees about your financial future</li>
+                </ul>
+                <p>Always consult a qualified professional for serious financial decisions.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">App Availability</h2>
+            <div class="section-body">
+                <p>We strive to keep BudgetBuddy working, but we can't guarantee:</p>
+                <ul>
+                    <li>100% uptime or zero bugs</li>
+                    <li>That your data will never be lost (always backup important info!)</li>
+                    <li>Compatibility with every browser or device forever</li>
+                </ul>
+                <p>We may update or discontinue the app at any time without notice.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Data Ownership</h2>
+            <div class="section-body">
+                <p>You own all the data you enter. If you sign in, Buddy Cloud protects your budget by default with an encrypted cloud vault that BudgetBuddy cannot decrypt without your recovery key. If you use BudgetBuddy without signing in, your budget remains browser-only.</p>
+                <ul>
+                    <li>Browser-only data can be removed by clearing browser or site data, and BudgetBuddy cannot recover it after local storage is lost</li>
+                    <li>Buddy Cloud data is encrypted on your device before upload and remains unreadable to BudgetBuddy</li>
+                    <li>You're responsible for saving your recovery key and exporting backups if you want additional recoverability</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Open Source License</h2>
+            <div class="section-body">
+                <p>BudgetBuddy is released under the <strong>MIT License</strong>. This means:</p>
+                <ul>
+                    <li>You can use, copy, modify, and distribute this software freely</li>
+                    <li>The software is provided "as is" without warranty of any kind</li>
+                    <li>The authors are not liable for any claims or damages arising from the software</li>
+                </ul>
+                <p>For the full license text, visit <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">opensource.org/licenses/MIT</a>.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Changes to These Terms</h2>
+            <div class="section-body">
+                <p>We might update these terms occasionally. If we make significant changes, we'll notify you in the app. Continued use after changes means you accept the new terms.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Questions?</h2>
+            <div class="section-body">
+                <p>If you have any questions about these Terms of Service, please reach out:</p>
+                <div class="contact-box">
+                    <strong>Contact:</strong> <a href="mailto:support@budget-buddy.io">support@budget-buddy.io</a>
+                </div>
+            </div>
+        </div>
+    </main>
+    <footer>
+        <div class="footer-main">
+            <a href="changelog.html" class="footer-btn-pill">v1.0 Changelog</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="featurerequest.html" class="footer-link">Feature Request</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="privacypolicy.html" class="footer-link">Privacy Policy</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="roadmap.html" class="footer-link">Roadmap</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="support.html" class="footer-link">Support</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="terms.html" class="footer-link">Terms of Service</a>
+        </div>
+        <div class="copyright-text">
+            &copy; 2026 BudgetBuddy. Open source under the <a href="#" onclick="event.preventDefault(); window.openLicenseModal()" class="footer-link">MIT License</a>.
+        </div>
+    </footer>
+    <!-- MIT License Modal -->
+    <div class="modal-overlay" id="licenseModal" role="dialog" aria-modal="true" aria-labelledby="licenseModalTitle" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:2000;display:none;justify-content:center;align-items:center" onclick="if(event.target===this)window.closeLicenseModal()">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;width:90%;max-width:600px;box-shadow:0 20px 40px rgba(0,0,0,0.4);position:relative;max-height:80vh;overflow-y:auto">
+            <button id="licenseCloseBtn" aria-label="Close license dialog" onclick="window.closeLicenseModal()" style="position:absolute;top:1rem;right:1rem;background:transparent;border:none;color:var(--text-dim);font-size:1.5rem;cursor:pointer;line-height:1" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text-dim)'">&times;</button>
+            <h3 id="licenseModalTitle" style="font-size:1.25rem;font-weight:700;margin-bottom:1.5rem;color:var(--text)">MIT License</h3>
+            <div style="color:var(--text-dim);font-size:0.85rem;line-height:1.7">
+                <p style="margin-bottom:1rem"><strong style="color:var(--text)">Copyright &copy; 2026 BudgetBuddy</strong></p>
+                <p style="margin-bottom:1rem">Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</p>
+                <p style="margin-bottom:1rem">The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p>
+                <p>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
+            </div>
+            <div style="margin-top:1.5rem;text-align:right">
+                <button onclick="window.closeLicenseModal()" style="padding:0.75rem 2rem;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer">Close</button>
+            </div>
+        </div>
+    </div>
+<script>
+        function applyTheme(mode){
+            var root=document.documentElement;
+            var sysDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+            root.setAttribute('data-theme',mode==='system'?(sysDark?'dark':'light'):mode);
+            localStorage.setItem('bb_theme_mode',mode);
+            document.querySelectorAll('.theme-opt').forEach(function(b){b.classList.toggle('active',b.dataset.themeVal===mode)});
+        }
+        window.setTheme = applyTheme;
+        applyTheme(localStorage.getItem('bb_theme_mode')||'system');
+        document.querySelectorAll('.theme-opt').forEach(function(b){b.addEventListener('click',function(){applyTheme(this.dataset.themeVal)})});
+        window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){if(localStorage.getItem('bb_theme_mode')==='system')applyTheme('system')});
+    </script>
+    <button type="button" id="scrollTopBtn" class="scroll-top-btn" aria-label="Back to top" onclick="window.scrollToTop()">↑</button>
+<script>
+        window.scrollToTop = window.scrollToTop || function() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+        window.addEventListener('scroll', function() {
+            var btn = document.getElementById('scrollTopBtn');
+            if (btn) btn.classList.toggle('show', window.scrollY > 300);
+        });
+    </script>
+<script>
+        (function(){
+            var lastLicenseTrigger = null;
+
+            window.openLicenseModal = function(){
+                var modal = document.getElementById('licenseModal');
+                var closeBtn = document.getElementById('licenseCloseBtn');
+                lastLicenseTrigger = document.activeElement;
+                modal.style.display = 'flex';
+                modal.classList.add('active');
+                if (closeBtn) closeBtn.focus();
+            };
+
+            window.closeLicenseModal = function(){
+                var modal = document.getElementById('licenseModal');
+                modal.classList.remove('active');
+                modal.style.display = 'none';
+                if (lastLicenseTrigger && typeof lastLicenseTrigger.focus === 'function') {
+                    lastLicenseTrigger.focus();
+                }
+            };
+
+            document.addEventListener('keydown', function(event){
+                var modal = document.getElementById('licenseModal');
+                if (event.key === 'Escape' && modal && (modal.style.display === 'flex' || modal.classList.contains('active'))) {
+                    window.closeLicenseModal();
+                }
+            });
+        })();
+    </script>
+    <script src="js/staticPageTheme.js"></script>
+</body>
+</html>

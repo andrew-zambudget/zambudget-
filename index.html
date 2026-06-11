@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BudgetBuddy — Manage Your Budget</title>
+
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/category-items.css">
+    <link rel="stylesheet" href="css/modals.css">
+    <link rel="stylesheet" href="css/utilities.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <a href="#main" class="skip-link">Skip to main content</a>
+    <noscript>
+        <div class="noscript-fallback">
+            <h3>JavaScript Required</h3>
+            <p>BudgetBuddy runs entirely in your browser. Please enable JavaScript to use this application.</p>
+        </div>
+    </noscript>
+    <header class="app-header">
+        <a href="index.html" class="logo">Budget<span>Buddy</span></a>
+
+        <div class="header-controls">
+            <button class="icon-btn" id="settingsBtn" onclick="window.openSettingsModal()" aria-label="Settings" data-tooltip="Settings">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            </button>
+
+            <div class="theme-toggle-group" role="group" aria-label="Theme selection">
+                <button class="theme-opt" data-theme-val="light" onclick="window.setTheme('light')" aria-label="Light mode" data-tooltip="Light Theme">☀️</button>
+                <button class="theme-opt active" data-theme-val="system" onclick="window.setTheme('system')" aria-label="System default" data-tooltip="System Default">💻</button>
+                <button class="theme-opt" data-theme-val="dark" onclick="window.setTheme('dark')" aria-label="Dark mode" data-tooltip="Dark Theme">🌙</button>
+            </div>
+
+            <div class="sync-status-wrap">
+                <button type="button" id="syncStatusBtn" class="sync-status-indicator sync-status-local" onclick="window.openSyncHistoryPanel(event)" aria-label="Buddy Cloud sync status: Saved partially. Open sync history." aria-haspopup="dialog" aria-expanded="false" aria-controls="syncHistoryPanel" data-tooltip="Saved partially">
+                    <span class="sync-status-mark" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="M17.5 19H8a5 5 0 0 1-.86-9.93A6.5 6.5 0 0 1 19.42 11.5H20a3.75 3.75 0 0 1 0 7.5h-2.5"></path>
+                        </svg>
+                    </span>
+                    <span id="syncStatusText" class="sr-only">Saved partially</span>
+                </button>
+                <div class="sync-history-panel sync-history-popover" id="syncHistoryPanel" role="dialog" aria-modal="false" aria-labelledby="syncHistoryTitle" aria-hidden="true" hidden>
+                    <div class="sync-history-header">
+                        <div>
+                            <div class="sync-history-kicker">Buddy Cloud</div>
+                            <h2 id="syncHistoryTitle" class="sync-history-title">Sync History</h2>
+                            <div class="help-text">Last 5 save and sync events.</div>
+                        </div>
+                        <span id="syncHistoryStatusBadge" class="sync-history-badge sync-history-badge-local">Partial</span>
+                    </div>
+                    <div id="syncHistoryList" class="sync-history-list" role="log" aria-labelledby="syncHistoryTitle" aria-live="polite">
+                        <div class="sync-history-empty">No sync activity yet.</div>
+                    </div>
+                    <div class="sync-cloud-nudge" id="syncCloudNudge" role="note">
+                        <div class="sync-cloud-nudge-title">Saved partially</div>
+                        <p>Clearing browser or site data can remove a browser-only budget. Sign in to protect it with Buddy Cloud.</p>
+                    </div>
+                    <div class="sync-cloud-actions" id="syncCloudActions" aria-label="Buddy Cloud controls">
+                        <button type="button" class="sync-cloud-btn sync-cloud-primary" id="syncEnableBtn" onclick="window.enableBuddyCloudSync(event)">Set Up</button>
+                        <button type="button" class="sync-cloud-btn" id="syncKeyBtn" onclick="window.showBuddyCloudRecoveryKey(event)">Recovery Key</button>
+                        <div class="sync-cloud-footer">
+                            <span class="sync-device-count-fineprint" id="syncDeviceCountFineprint">Free - Device 0 of 2</span>
+                            <button type="button" class="sync-cloud-btn sync-cloud-manual" id="syncManualBtn" onclick="window.manualBuddyCloudSync(event)" hidden>Sync now</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auth-buttons">
+                <a href="login.html" class="btn-text" data-tooltip="Log In">Log In</a>
+            </div>
+        </div>
+    </header>
+
+    <main id="main">
+      <div class="summary-grid zbb-workflow-grid">
+        <div class="card zbb-card zbb-summary-card is-collapsed" id="zbbSummaryCard">
+            <div class="zbb-summary-header">
+                <div class="zbb-summary-copy">
+                    <div class="card-label">Budget Snapshot</div>
+                    <h2 class="zbb-summary-title">Money at a glance</h2>
+                    <p class="zbb-summary-subtitle">One place for income, assignments, and budget health.</p>
+                </div>
+                <button type="button" id="zbbSummaryToggle" class="zbb-summary-toggle" onclick="window.toggleZBBSummary()" aria-controls="zbbSummaryBody" aria-expanded="false" aria-label="Show budget snapshot">
+                    <span class="zbb-summary-toggle-text">+</span>
+                </button>
+            </div>
+
+            <div class="zbb-summary-body" id="zbbSummaryBody" aria-hidden="true" inert>
+            <div class="zbb-summary-metrics">
+                <section class="zbb-summary-metric">
+                    <div class="card-label">Monthly Income</div>
+                    <div class="money-container" tabindex="0" role="button" aria-label="Show Monthly Income amount. Currently hidden for privacy." aria-pressed="false" data-reveal-label="Monthly Income">
+                        <div class="shimmer-overlay"></div>
+                        <div class="card-value neutral blur-value" id="zbbIncome">$0.00</div>
+                        <div class="reveal-tooltip">Tap to Reveal</div>
+                    </div>
+                    <div class="card-subtext">Money available to assign jobs.</div>
+                </section>
+
+                <section class="zbb-summary-metric">
+                    <div class="card-label">To Be Budgeted</div>
+                    <div class="money-container" tabindex="0" role="button" aria-label="Show To Be Budgeted amount. Currently hidden for privacy." aria-pressed="false" data-reveal-label="To Be Budgeted">
+                        <div class="shimmer-overlay"></div>
+                        <div class="card-value blur-value" id="zbbTBB">$0.00</div>
+                        <div class="reveal-tooltip">Tap to Reveal</div>
+                    </div>
+                    <div class="zbb-progress-container" aria-hidden="true">
+                        <div class="zbb-progress-fill" id="zbbAssignedBar"></div>
+                    </div>
+                    <div class="card-subtext" id="zbbTBBSub">Every dollar needs a job. Give them one!</div>
+                </section>
+
+                <section class="zbb-summary-metric">
+                    <div class="card-label">Assigned Funds</div>
+                    <div class="money-container" tabindex="0" role="button" aria-label="Show Assigned Funds amount. Currently hidden for privacy." aria-pressed="false" data-reveal-label="Assigned Funds">
+                        <div class="shimmer-overlay"></div>
+                        <div class="card-value neutral blur-value" id="zbbAssigned">$0.00</div>
+                        <div class="reveal-tooltip">Tap to Reveal</div>
+                    </div>
+                    <div class="card-subtext">Dollars planned. Ready for spending.</div>
+                </section>
+            </div>
+
+                <div class="zbb-status-panel">
+                    <div class="status-icon" id="zbbStatusIcon">⚠️</div>
+                    <div class="zbb-status-copy">
+                        <div class="card-label">Budget Status</div>
+                        <div class="card-subtext status-text" id="zbbStatusText">Fix Left to Budget before tracking.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+        <div class="content-grid">
+            <div class="category-panel">
+                <div class="category-form-title">
+                    <span>Manage Categories</span>
+                    <button id="toggleQuickAddLink" onclick="window.toggleQuickAddScroller()" class="btn-small" aria-expanded="false" aria-controls="quickAddGrid">Show Quick Add</button>
+                </div>
+
+                <div class="quick-add-scroll-wrapper">
+                    <div class="quick-add-scroll" id="quickAddGrid"></div>
+                </div>
+
+                <div class="sort-control-bar" id="sortControlBar">
+                    <span class="sort-cat-count" id="sortCatCount">0 categories</span>
+                    <span class="sort-label">Sort</span>
+                    <div class="sort-dropdown-wrapper">
+                        <select id="categorySortSelect" class="sort-select" onchange="window.applyCategorySort()" aria-label="Sort categories">
+                            <option value="alpha_asc">A→Z</option>
+                            <option value="alpha_desc">Z→A</option>
+                            <option value="spending_high">$$$</option>
+                            <option value="spending_low">$</option>
+                            <option value="created_new">Newest</option>
+                            <option value="created_old">Oldest</option>
+                        </select>
+                        <div class="sort-arrow" aria-hidden="true">▼</div>
+                    </div>
+                </div>
+
+                <div class="category-list" id="categoryList" role="list"></div>
+            </div>
+
+            <div class="command-center-card">
+                <div class="command-tabs" role="tablist" aria-label="Budget sections">
+                    <button type="button" class="cmd-tab" onclick="window.switchTab('income')" id="tab-income" role="tab" aria-controls="view-income" aria-selected="false">Income</button>
+                    <button type="button" class="cmd-tab" onclick="window.switchTab('savings')" id="tab-savings" role="tab" aria-controls="view-savings" aria-selected="false">Savings</button>
+                    <button type="button" class="cmd-tab" onclick="window.switchTab('debt')" id="tab-debt" role="tab" aria-controls="view-debt" aria-selected="false">Debt</button>
+                    <button type="button" class="cmd-tab active" onclick="window.switchTab('add')" id="tab-add" role="tab" aria-controls="view-add" aria-selected="true">Add</button>
+                    <button type="button" class="cmd-tab" onclick="window.switchTab('recent')" id="tab-recent" role="tab" aria-controls="view-recent" aria-selected="false">Recent</button>
+                </div>
+
+                <div class="command-view-container" style="flex: 1; overflow: hidden; position: relative;">
+
+                    <div id="view-income" class="cmd-view" role="tabpanel" aria-labelledby="tab-income">
+                        <div class="income-overview-panel" style="display: flex; flex-direction: column; height: 100%;">
+                            <div class="income-total-summary" aria-label="Total income">
+                                <div class="income-total-header">
+                                    <div>
+                                        <div class="income-overview-title">Total Income:</div>
+                                    </div>
+                                    <div class="income-total-amount">
+                                        <span id="incomeTotalLogged">$0.00</span>
+                                        <span class="income-total-of">of</span>
+                                        <span id="incomeTotalExpected">$0.00</span>
+                                    </div>
+                                </div>
+                                <div class="progress-bar-container income-total-progress" id="incomeTotalProgressTrack" role="group" aria-label="Total income progress percentages">
+                                    <div id="incomeTotalProgress" class="progress-bar-fill" aria-hidden="true"></div>
+                                    <button type="button" id="incomeTotalProgressFillBtn" class="progress-segment-hit progress-fill-hit" aria-label="Show logged income percentage" aria-pressed="false" disabled></button>
+                                    <button type="button" id="incomeTotalProgressTrackBtn" class="progress-segment-hit progress-track-hit" aria-label="Show expected income percentage" aria-pressed="false" disabled></button>
+                                    <span class="income-progress-tick" style="--divider-left: 10%;" aria-hidden="true"></span>
+                                    <span class="income-progress-tick" style="--divider-left: 20%;" aria-hidden="true"></span>
+                                    <span class="income-progress-tick" style="--divider-left: 30%;" aria-hidden="true"></span>
+                                    <span class="income-progress-tick" style="--divider-left: 40%;" aria-hidden="true"></span>
+                                    <span class="income-progress-tick income-progress-tick-strong" style="--divider-left: 50%;" aria-hidden="true"></span>
+                                    <span class="income-progress-tick" style="--divider-left: 60%;" aria-hidden="true"></span>
+                                    <span class="income-progress-tick" style="--divider-left: 70%;" aria-hidden="true"></span>
+                                    <span class="income-progress-tick" style="--divider-left: 80%;" aria-hidden="true"></span>
+                                    <span class="income-progress-tick" style="--divider-left: 90%;" aria-hidden="true"></span>
+                                    <span class="progress-end-label progress-start">0%</span>
+                                    <span class="progress-end-label progress-end">100%</span>
+                                    <span id="incomeTotalProgressFillPct" class="progress-hover-label progress-fill-label" aria-hidden="true">0%</span>
+                                    <span id="incomeTotalProgressTrackPct" class="progress-hover-label progress-track-label" aria-hidden="true">100%</span>
+                                </div>
+                                <div id="incomeTotalCelebration" class="income-total-celebration" role="button" tabindex="0" aria-live="polite" aria-atomic="true" aria-label="Hide Positive Affirmation" onclick="window.hideIncomeCelebration(event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); window.hideIncomeCelebration(event);}" hidden>
+                                    <div class="income-total-celebration-ring" aria-hidden="true">
+                                        <span class="income-total-celebration-icon">✓</span>
+                                    </div>
+                                    <div class="income-total-celebration-copy">
+                                        <div class="income-total-celebration-heading">
+                                            <div class="income-total-celebration-title">Income fully accounted for</div>
+                                        </div>
+                                        <div id="incomeTotalCelebrationQuote" class="income-total-celebration-subtitle">I have accounted for every dollar, and I am in total control of my financial future.</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="income-breakdown-container" style="flex: 1; overflow-y: auto;">
+                                <div id="incomeBreakdown" class="income-breakdown"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="view-savings" class="cmd-view" role="tabpanel" aria-labelledby="tab-savings">
+                        <div class="income-overview-panel" style="display: flex; flex-direction: column; height: 100%;">
+                            <div class="savings-total-summary" aria-label="Total savings progress">
+                                <div class="savings-header">
+                                    <div>
+                                        <div id="savingsFundTitle" class="income-overview-title savings-fund-title">
+                                            <button type="button" id="emergencyFundMonthsDisplay" class="emergency-fund-month-display" onclick="window.openEmergencyFundMonthsEdit(event)" aria-label="Edit emergency fund months. Choose how many months this emergency fund should cover." aria-haspopup="listbox" aria-expanded="false" data-tooltip="Click to edit emergency fund months" hidden>3</button>
+                                            <span id="emergencyFundMonthsEditor" class="emergency-fund-month-editor" aria-hidden="true" hidden>
+                                                <select id="emergencyFundMonthsSelect" class="emergency-fund-month-select" aria-label="Emergency fund months" onchange="window.saveEmergencyFundMonths(this.value)" onblur="window.closeEmergencyFundMonthsEdit()" onkeydown="if(event.key==='Escape'){event.preventDefault(); window.closeEmergencyFundMonthsEdit();}">
+                                                    <option value="3">3</option>
+                                                    <option value="4">4</option>
+                                                    <option value="5">5</option>
+                                                    <option value="6">6</option>
+                                                </select>
+                                            </span>
+                                            <span id="savingsFundTitleText">Emergency Fund:</span>
+                                        </div>
+                                    </div>
+                                    <div class="savings-total">
+                                        <div class="savings-total-line">
+                                            <label id="savingsTotalDisplay" class="savings-amount savings-current-edit" role="button" tabindex="0" aria-label="Edit current emergency fund amount" aria-expanded="false" data-tooltip="Click to edit." onclick="window.openSavingsCurrentAmountEdit(event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); window.openSavingsCurrentAmountEdit(event);}">
+                                                <span id="savingsCurrentAmountText" class="savings-current-display">$0.00</span>
+                                                <span id="savingsCurrentEditor" class="savings-current-editor" aria-hidden="true">
+                                                    <span id="savingsCurrentSymbol" class="savings-current-currency">$</span>
+                                                    <input type="text" id="savingsCurrentAmountInput" class="savings-current-input" inputmode="decimal" value="0.00" tabindex="-1" aria-label="Current emergency fund amount" oninput="window.sanitizeMoneyInput(this)" onchange="window.saveSavingsCurrentAmount({ closeEditor: true })" onfocus="window.openSavingsCurrentAmountEdit(event, false); this.value=this.value.replace(/,/g, ''); this.select()" onblur="window.saveSavingsCurrentAmount({ closeEditor: true })" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.saveSavingsCurrentAmount({ closeEditor: true }); this.blur();} if(event.key==='Escape'){event.preventDefault(); window.cancelSavingsCurrentAmountEdit(); this.blur();}">
+                                                </span>
+                                            </label>
+                                            <span class="income-total-of">of</span>
+                                            <span id="savingsGoalDisplay" class="savings-goal">$1,000.00</span>
+                                            <label id="emergencyGoalEdit" class="savings-goal-edit" role="button" tabindex="0" aria-label="Edit emergency fund target amount" aria-expanded="false" hidden data-tooltip="Click to edit." onclick="window.handleEmergencyFundGoalClick(event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); window.handleEmergencyFundGoalClick(event);}">
+                                                <span id="emergencyGoalAmountText" class="savings-goal-display">$1,000.00</span>
+                                                <span id="emergencyGoalEditor" class="savings-goal-editor" aria-hidden="true">
+                                                    <span id="emergencyGoalSymbol" class="savings-goal-currency">$</span>
+                                                    <input type="text" id="emergencyFundGoalInput" class="savings-goal-input" inputmode="decimal" value="" tabindex="-1" placeholder="3-6 month target" aria-label="Emergency fund target amount" oninput="window.sanitizeMoneyInput(this)" onchange="window.saveEmergencyFundGoal({ closeEditor: true })" onfocus="window.openEmergencyFundGoalEdit(event, false); this.value=this.value.replace(/,/g, ''); this.select()" onblur="window.saveEmergencyFundGoal({ closeEditor: true })" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.saveEmergencyFundGoal({ closeEditor: true }); this.blur();} if(event.key==='Escape'){event.preventDefault(); window.cancelEmergencyFundGoalEdit(); this.blur();}">
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="savings-progress-row">
+                                    <div class="savings-progress-bar" role="progressbar" aria-label="Total savings progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                                        <div id="globalSavingsBar" class="savings-bar-fill" style="width: 0%;"></div>
+                                        <span class="income-progress-tick" style="--divider-left: 10%;" aria-hidden="true"></span>
+                                        <span class="income-progress-tick" style="--divider-left: 20%;" aria-hidden="true"></span>
+                                        <span class="income-progress-tick" style="--divider-left: 30%;" aria-hidden="true"></span>
+                                        <span class="income-progress-tick" style="--divider-left: 40%;" aria-hidden="true"></span>
+                                        <span class="income-progress-tick income-progress-tick-strong" style="--divider-left: 50%;" aria-hidden="true"></span>
+                                        <span class="income-progress-tick" style="--divider-left: 60%;" aria-hidden="true"></span>
+                                        <span class="income-progress-tick" style="--divider-left: 70%;" aria-hidden="true"></span>
+                                        <span class="income-progress-tick" style="--divider-left: 80%;" aria-hidden="true"></span>
+                                        <span class="income-progress-tick" style="--divider-left: 90%;" aria-hidden="true"></span>
+                                        <span class="progress-end-label progress-start">0%</span>
+                                        <span class="progress-end-label progress-end">100%</span>
+                                    </div>
+                                    <div id="globalSavingsPercent" class="savings-percent">0.0% Funded</div>
+                                </div>
+                            </div>
+
+                            <div class="savings-buckets-grid" id="savingsBucketsGrid" style="flex: 1; overflow-y: auto;"></div>
+                        </div>
+                    </div>
+
+                    <div id="view-debt" class="cmd-view" role="tabpanel" aria-labelledby="tab-debt">
+                        <div class="income-overview-panel" style="display: flex; flex-direction: column; height: 100%;">
+                            <div id="debtBreakdown" class="debt-list" style="flex: 1; overflow-y: auto;"></div>
+                        </div>
+                    </div>
+
+                    <div id="view-add" class="cmd-view active" role="tabpanel" aria-labelledby="tab-add">
+                                            <div class="mobile-close-bar">
+                                                <span class="close-title">Add Transaction</span>
+                                                <button type="button" class="close-btn" onclick="window.closeMobileAddOverlay()" aria-label="Close add transaction screen">Close</button>
+                                            </div>
+                                            <form class="form-panel add-transaction-form" id="addTxForm" aria-label="Add Transaction Form" onsubmit="event.preventDefault(); window.submitTransaction();" novalidate>
+
+                                                <!-- 1. Minimalist Type Toggle -->
+                                                <div class="type-toggle-v2" role="group" aria-label="Transaction Type">
+                                                    <button type="button" id="btnExpense" class="type-btn-v2 active-expense-v2" onclick="window.setType('expense')" aria-pressed="true">Expense</button>
+                                                    <button type="button" id="btnIncome" class="type-btn-v2" onclick="window.setType('income')" aria-pressed="false">Deposit</button>
+                                                </div>
+
+                                                <!-- 2. Hero Amount (With Morph Feedback) -->
+                                                                            <div class="hero-amount-container" id="heroAmountContainer">
+                                                                                <div id="heroInputWrapper" style="display: flex; justify-content: center; align-items: center; width: 100%;">
+                                                                                    <label for="txAmount" class="sr-only">Transaction amount</label>
+                                                                                    <span class="hero-currency" id="heroCurrencyBadge" aria-hidden="true">$</span>
+                                                                                    <input type="text" id="txAmount" name="amount" class="hero-amount-input" inputmode="decimal" placeholder="0.00" autocomplete="off" aria-describedby="txAmountError" aria-invalid="false" required>
+                                                                                </div>
+                                                                                <div id="txAmountError" class="add-field-error" role="alert"></div>
+
+                                                                                <!-- The Morph Feedback (Hidden by default) -->
+                                                                                <div id="heroFeedbackWrapper" style="display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%;">
+                                                                                    <div id="heroFeedbackText" class="hero-feedback-text">$0.00 Left in Category</div>
+                                                                                    <button type="button" id="heroUndoBtn" class="hero-undo-btn" onclick="window.undoLastTransaction()">⟲ Undo</button>
+                                                                                </div>
+                                                                            </div>
+
+                                                <!-- 3. Category Selector (Horizontal Scroll) -->
+                                                <div class="add-form-group add-category-picker" style="margin-bottom: 1rem;">
+                                                    <label id="txCategoryLabel">Category</label>
+                                                    <div class="horizontal-scroll-container" id="addTxCategoryContainer" role="group" aria-labelledby="txCategoryLabel" aria-describedby="txCategoryError">
+                                                        <!-- Categories injected here by JS -->
+                                                    </div>
+                                                    <input type="hidden" id="txCategory" name="category" required aria-describedby="txCategoryError">
+                                                    <div id="txCategoryError" class="add-field-error" role="alert"></div>
+                                                </div>
+
+                                                <!-- 4. Description & Smart Suggestions -->
+                                                <div class="add-form-group" style="margin-bottom: 1rem;">
+                                                    <label for="txDescription">Description</label>
+                                                    <input type="text" id="txDescription" name="description" class="form-input" placeholder="" autocomplete="off" aria-label="Transaction description" aria-describedby="txDescriptionError" aria-invalid="false" required>
+                                                    <div id="txDescriptionError" class="add-field-error" role="alert"></div>
+
+                                                    <!-- Smart Suggestions Row -->
+                                                    <div class="horizontal-scroll-container suggestion-chips-container" id="smartSuggestionsRow" style="display: none;">
+                                                        <!-- Chips injected here by JS -->
+                                                    </div>
+                                                </div>
+
+                                                <!-- 5. Progressive Disclosure Toggle -->
+                                                <button type="button" id="toggleDetailsBtn" class="toggle-details-btn" onclick="window.toggleTxDetails()" aria-expanded="false" aria-controls="txHiddenDetails">
+                                                    Add More Details <span id="detailsToggleIcon">▼</span>
+                                                </button>
+
+                                                <!-- 6. Hidden Details (Date, Payment, Notes) -->
+                                                <div id="txHiddenDetails" class="hidden-details-drawer">
+                                                    <div class="add-form-group add-date-group">
+                                                        <label for="txDateNative">Date</label>
+                                                        <div class="add-date-shell">
+                                                            <input type="date" id="txDateNative" class="form-input add-date-native" onchange="window.handleDateChange(event)" aria-describedby="txDateError">
+                                                        </div>
+                                                        <div id="txDateError" class="add-field-error" role="alert"></div>
+                                                        <input type="hidden" id="txDateHidden" name="date" value="">
+                                                    </div>
+
+                                                    <div class="add-form-group">
+                                                        <label for="txPaymentMethod">Payment Method</label>
+                                                        <select id="txPaymentMethod" name="paymentMethod" class="payment-method-select">
+                                                            <option value="card">💳 Credit/Debit Card</option>
+                                                            <option value="cash">💵 Cash</option>
+                                                            <option value="bank">🏦 Bank Transfer</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div class="add-form-group">
+                                                        <label for="txNotes">Notes</label>
+                                                        <textarea id="txNotes" name="notes" class="notes-textarea" maxlength="54" placeholder="Add a quick note..."></textarea>
+                                                    </div>
+                                                </div>
+
+                                                <!-- 7. Sticky Save Button -->
+                                                <div class="sticky-save-wrapper">
+                                                    <button type="submit" id="submitBtn" class="btn-create hero-save-btn">Save Transaction</button>
+                                                </div>
+                                                <div id="addTxStatus" class="sr-only" role="status" aria-live="polite"></div>
+                                            </form>
+                                        </div>
+
+                    <div id="view-recent" class="cmd-view" role="tabpanel" aria-labelledby="tab-recent">
+                        <div class="recent-workspace">
+                            <div class="recent-header">
+                                <div>
+                                    <div class="income-overview-title">Recent Transactions</div>
+                                </div>
+                                <div class="recent-header-actions">
+                                    <button type="button" class="recent-ghost-btn" onclick="window.openRecentOverviewPanel()" aria-label="Open transaction overview">Overview</button>
+                                    <button type="button" id="recentBulkToggleBtn" class="recent-ghost-btn" onclick="window.toggleRecentBulkMode()" aria-pressed="false">Select</button>
+                                </div>
+                            </div>
+
+                            <div class="recent-toolbar">
+                                <div class="tx-filters recent-filter-row" role="group" aria-label="Filter transactions">
+                                    <button type="button" class="tag-pill active" data-filter="all" onclick="window.filterTransactions('all')" aria-pressed="true">All</button>
+                                    <button type="button" class="tag-pill" data-filter="expense" onclick="window.filterTransactions('expense')" aria-pressed="false">Expenses</button>
+                                    <button type="button" class="tag-pill" data-filter="income" onclick="window.filterTransactions('income')" aria-pressed="false">Income</button>
+                                    <button type="button" class="tag-pill" data-filter="savings" onclick="window.filterTransactions('savings')" aria-pressed="false">Savings</button>
+                                    <button type="button" class="tag-pill" data-filter="debt" onclick="window.filterTransactions('debt')" aria-pressed="false">Debt</button>
+                                </div>
+
+                                <div id="recentSearchWrap" class="recent-search-wrap">
+                                    <button type="button" id="recentSearchToggle" class="recent-search-toggle" onclick="window.toggleRecentSearch()" aria-label="Open transaction search" aria-expanded="false" aria-controls="txSearch">
+                                        <span aria-hidden="true">⌕</span>
+                                    </button>
+                                    <input type="search" id="txSearch" class="recent-search-input" placeholder="Search transactions" oninput="window.filterRecentTransactions()" onblur="window.handleRecentSearchBlur()" aria-label="Search recent transactions">
+                                </div>
+                            </div>
+
+                            <div id="recentBulkPanel" class="recent-bulk-panel" hidden>
+                                <div>
+                                    <div class="recent-bulk-title">Bulk Edit</div>
+                                    <div class="recent-bulk-subtitle"><span id="recentSelectedCount">0</span> selected</div>
+                                </div>
+                                <div class="recent-bulk-actions">
+                                    <button type="button" id="recentBulkSelectBtn" class="recent-ghost-btn" onclick="window.selectVisibleTransactions()">Select Visible</button>
+                                    <button type="button" id="recentBulkDeleteBtn" class="recent-danger-btn" onclick="window.bulkDeleteRecentTransactions()" hidden>Delete Selected</button>
+                                </div>
+                            </div>
+
+                            <div id="recentTxList" class="recent-tx-list recent-tx-scroll" role="list" aria-live="polite">
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="recent-overview-overlay" id="recentOverviewOverlay" onclick="window.closeRecentOverviewPanel()" aria-hidden="true"></div>
+        <aside class="recent-overview-panel" id="recentOverviewPanel" role="dialog" aria-modal="false" aria-labelledby="recentOverviewTitle" aria-hidden="true">
+            <div class="recent-overview-head">
+                <div>
+                    <div id="recentOverviewTitle" class="recent-overview-title">Transaction Overview</div>
+                    <div id="recentOverviewScope" class="recent-overview-scope">All transactions</div>
+                </div>
+                <button type="button" class="recent-overview-close" onclick="window.closeRecentOverviewPanel()" aria-label="Close transaction overview">&times;</button>
+            </div>
+
+            <div class="recent-overview-total">
+                <span>Net Activity</span>
+                <strong id="recentOverviewNet">$0.00</strong>
+            </div>
+
+            <div class="recent-overview-grid">
+                <div class="recent-overview-stat">
+                    <span>Total</span>
+                    <strong id="recentOverviewTotal">0</strong>
+                </div>
+                <div class="recent-overview-stat">
+                    <span>Income</span>
+                    <strong id="recentOverviewIncome">$0.00</strong>
+                </div>
+                <div class="recent-overview-stat">
+                    <span>Expenses</span>
+                    <strong id="recentOverviewExpense">$0.00</strong>
+                </div>
+                <div class="recent-overview-stat">
+                    <span>Savings</span>
+                    <strong id="recentOverviewSavings">$0.00</strong>
+                </div>
+                <div class="recent-overview-stat">
+                    <span>Debt</span>
+                    <strong id="recentOverviewDebt">$0.00</strong>
+                </div>
+                <div class="recent-overview-stat">
+                    <span>Selected</span>
+                    <strong id="recentOverviewSelected">0</strong>
+                </div>
+            </div>
+
+            <div class="recent-overview-section-title">Latest Activity</div>
+            <div id="recentOverviewList" class="recent-overview-list"></div>
+        </aside>
+
+        <div class="modal-overlay" id="settingsModal" onclick="window.closeModalOnOutsideClick(event)">
+                    <div class="modal-box modal-box-medium" role="dialog" aria-modal="true" aria-label="Settings">
+                        <button type="button" class="modal-close" onclick="window.closeSettingsModal()" aria-label="Close Settings">&times;</button>
+
+                        <div class="modal-body">
+                            <div class="settings-header">
+                                <div class="icon-large" aria-hidden="true">⚙️</div>
+                                <h3 class="modal-title mb-sm">App Settings</h3>
+                                <p class="settings-subtitle">Set your defaults once so new transactions stay consistent.</p>
+                            </div>
+
+                            <form id="settingsForm" onsubmit="event.preventDefault(); window.saveSettings();">
+                                <div class="form-group">
+                                    <label for="currencySelect">Currency Symbol</label>
+                                    <select id="currencySelect" class="payment-method-select">
+                                        <option value="$">$ (USD, CAD, AUD)</option>
+                                        <option value="€">€ (EUR)</option>
+                                        <option value="£">£ (GBP)</option>
+                                        <option value="¥">¥ (JPY, CNY)</option>
+                                        <option value="₹">₹ (INR)</option>
+                                        <option value="">None</option>
+                                    </select>
+                                    <div class="help-text">Shown throughout balances, budgets, and totals.</div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="defaultTypeSelect">Default Transaction Type</label>
+                                    <select id="defaultTypeSelect" class="payment-method-select">
+                                        <option value="expense">Expense</option>
+                                        <option value="income">Income</option>
+                                    </select>
+                                    <div class="help-text">Preselected when you start a new transaction.</div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="defaultPaymentSelect">Default Payment Method</label>
+                                    <select id="defaultPaymentSelect" class="payment-method-select">
+                                        <option value="">None</option>
+                                        <option value="cash">💵 Cash</option>
+                                        <option value="card">💳 Credit/Debit Card</option>
+                                        <option value="bank">🏦 Bank Transfer</option>
+                                        <option value="digital">📱 Digital Wallet</option>
+                                        <option value="check">📝 Check</option>
+                                    </select>
+                                    <div class="help-text">Optional shortcut for faster data entry.</div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="summaryViewSelect">Budget Snapshot Display</label>
+                                    <select id="summaryViewSelect" class="payment-method-select">
+                                        <option value="open">Always Open</option>
+                                        <option value="collapsed">Start Collapsed</option>
+                                    </select>
+                                    <div class="help-text">Choose how the dashboard snapshot opens when the app loads. You can still collapse or expand it anytime.</div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Accent Color</label>
+                                    <div class="accent-picker" role="radiogroup" aria-label="Accent color">
+                                        <label class="accent-swatch-option" style="--swatch-color:#14b8a6">
+                                            <input type="radio" name="accentColor" value="teal">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Teal</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#3b82f6">
+                                            <input type="radio" name="accentColor" value="blue">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Blue</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#22c55e">
+                                            <input type="radio" name="accentColor" value="green">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Green</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#f59e0b">
+                                            <input type="radio" name="accentColor" value="amber">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Amber</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#f43f5e">
+                                            <input type="radio" name="accentColor" value="rose">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Rose</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#6366f1">
+                                            <input type="radio" name="accentColor" value="indigo">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Indigo</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#64748b">
+                                            <input type="radio" name="accentColor" value="slate">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Slate</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#f97316">
+                                            <input type="radio" name="accentColor" value="orange">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Orange</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#06b6d4">
+                                            <input type="radio" name="accentColor" value="cyan">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Cyan</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#0ea5e9">
+                                            <input type="radio" name="accentColor" value="sky">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Sky</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#84cc16">
+                                            <input type="radio" name="accentColor" value="lime">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Lime</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#10b981">
+                                            <input type="radio" name="accentColor" value="emerald">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Emerald</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#ef4444">
+                                            <input type="radio" name="accentColor" value="red">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Red</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#ec4899">
+                                            <input type="radio" name="accentColor" value="pink">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Pink</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#71717a">
+                                            <input type="radio" name="accentColor" value="zinc">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Zinc</span>
+                                        </label>
+                                    </div>
+                                    <div class="help-text">Changes buttons, focus rings, highlights, and progress accents.</div>
+                                </div>
+
+                                <div class="form-group settings-data-tools">
+                                    <label>Transaction Data</label>
+                                    <div class="settings-csv-actions">
+                                        <button type="button" class="btn-cancel" onclick="window.exportTransactions()">Export CSV</button>
+                                        <button type="button" class="btn-create" onclick="document.getElementById('csvImportInput')?.click()">Import CSV</button>
+                                        <input type="file" id="csvImportInput" class="settings-csv-input" accept=".csv,text/csv" onchange="window.importTransactionsFromCSV(event)">
+                                    </div>
+                                    <div class="help-text">Move transaction history in or out with CSV files.</div>
+                                </div>
+
+                                <div class="modal-actions">
+                                    <button type="button" class="btn-cancel" onclick="window.closeSettingsModal()">Cancel</button>
+                                    <button type="submit" class="btn-create">Save Settings</button>
+                                </div>
+                            </form>
+
+                            <div class="danger-zone">
+                                <div class="flex items-center gap-sm mb-sm">
+                                    <div class="icon-lg" aria-hidden="true">⚠️</div>
+                                    <div>
+                                        <p class="text-red">Danger Zone</p>
+                                        <div class="help-text">Erase all transactions, categories, and settings. This cannot be undone.</div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-outline-danger" onclick="window.openResetModal()">Erase All Data</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-overlay" id="accountModal" onclick="window.closeModalOnOutsideClick(event)">
+                    <div class="modal-box modal-box-medium" role="dialog" aria-modal="false" aria-labelledby="accountModalTitle" onclick="event.stopPropagation()">
+                        <button type="button" class="modal-close" onclick="window.closeAccountModal()" aria-label="Close account management">&times;</button>
+
+                        <div class="account-profile mb-lg">
+                            <div class="account-profile-main">
+                            <div class="icon-large" id="accountModalAvatar" aria-label="Signed in account">👤</div>
+                            <div class="account-profile-copy">
+                            <h3 id="accountModalTitle" class="modal-title mb-sm">Welcome</h3>
+                            <p id="accountModalEmail" class="sr-only" hidden>Signed in</p>
+                                    <div class="account-badge-row">
+                                        <div id="accountBillingStatus" class="account-billing-status">Free Tier</div>
+                                        <div id="accountTimeGreetingDock" class="account-time-greeting account-time-greeting-dock" aria-label="Midday money">
+                                            <span class="account-time-greeting-icon" aria-hidden="true"></span>
+                                            <span>Midday money</span>
+                                        </div>
+                                    </div>
+                            </div>
+                            </div>
+                            <div id="accountRecoveryStatus" class="account-recovery-status" hidden></div>
+                        </div>
+
+                        <div class="account-actions">
+                            <div class="account-action-grid" aria-label="Account actions">
+                                <button type="button" id="accountUpgradeBtn" class="account-action-tile account-action-upgrade" onclick="window.startStripeCheckout(event)">
+                                    <span class="account-action-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" focusable="false"><path d="M12 3l2.7 5.47 6.03.88-4.36 4.25 1.03 6-5.4-2.84-5.4 2.84 1.03-6-4.36-4.25 6.03-.88L12 3z"></path></svg>
+                                    </span>
+                                    <span class="account-action-label">Upgrade</span>
+                                </button>
+                                <button type="button" class="account-action-tile account-action-sync" onclick="event.stopPropagation(); window.closeAccountModal(); window.openSyncHistoryPanel(event)">
+                                    <span class="account-action-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" focusable="false"><path d="M17.5 19H8a5 5 0 0 1-.86-9.93A6.5 6.5 0 0 1 19.42 11.5H20a3.75 3.75 0 0 1 0 7.5h-2.5"></path><path d="M9 15l3-3 3 3"></path><path d="M12 12v8"></path></svg>
+                                    </span>
+                                    <span class="account-action-label">Sync</span>
+                                </button>
+                                <button type="button" class="account-action-tile account-action-devices" onclick="window.openBuddyCloudDeviceManagement(event)">
+                                    <span class="account-action-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" focusable="false"><rect x="4" y="5" width="16" height="11" rx="2"></rect><path d="M8 21h8"></path><path d="M12 16v5"></path><path d="M9 9h6"></path><path d="M9 12h4"></path></svg>
+                                    </span>
+                                    <span class="account-action-label">Devices</span>
+                                </button>
+                                <button type="button" class="account-action-tile account-action-settings" onclick="window.handleAccountSettings(event)">
+                                    <span class="account-action-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" focusable="false"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"></path><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6l-.1.1a2 2 0 0 1-3.8 0l-.1-.1a1.7 1.7 0 0 0-1-.6 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1l-.1-.1a2 2 0 0 1 0-3.8l.1-.1a1.7 1.7 0 0 0 .6-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6l.1-.1a2 2 0 0 1 3.8 0l.1.1a1.7 1.7 0 0 0 1 .6 1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.22.36.42.69.6 1l.1.1a2 2 0 0 1 0 3.8l-.1.1c-.18.31-.38.64-.6 1z"></path></svg>
+                                    </span>
+                                    <span class="account-action-label">Settings</span>
+                                </button>
+                                <button type="button" id="accountPasswordBtn" class="account-action-tile account-action-password" onclick="window.handleResetPassword(event)">
+                                    <span class="account-action-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" focusable="false"><path d="M15 7a4 4 0 1 0-3.46 3.97L4 18.5V21h2.5l1-1H10v-2.5l1-1h2.5l2.53-2.53A4 4 0 0 0 15 7z"></path><path d="M14.5 6.5h.01"></path></svg>
+                                    </span>
+                                    <span class="account-action-label">Password</span>
+                                </button>
+                                <button type="button" class="account-action-tile account-action-support" onclick="window.handleAccountSupport(event)">
+                                    <span class="account-action-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" focusable="false"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path><path d="M8 9h8"></path><path d="M8 13h5"></path></svg>
+                                    </span>
+                                    <span class="account-action-label">Support</span>
+                                </button>
+                            </div>
+                            <button type="button" class="account-logout-btn" onclick="window.handleLogout(event)">Secure Sign Out</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-overlay" id="deleteTxModal">
+                    <div class="modal-box modal-box-medium" role="dialog" aria-modal="true" aria-label="Delete Transaction">
+                        <button type="button" class="modal-close" onclick="window.closeDeleteTxModal()" aria-label="Close Modal">&times;</button>
+
+                        <div class="text-center mb-lg">
+                            <div class="icon-large" aria-hidden="true">🗑️</div>
+                            <h3 class="modal-title mb-sm">Delete Transaction?</h3>
+
+                            <div class="warning-box">
+                                <div class="warning-title">⚠️ Irreversible Action</div>
+                                <p>
+                                    This will permanently delete
+                                    <strong id="deleteTxDesc">this transaction</strong>
+                                    for <strong id="deleteTxAmt">$0.00</strong>.
+                                    This action cannot be undone.
+                                </p>
+                            </div>
+
+                            <div class="text-muted mt-sm" aria-live="polite">
+                                Closing in <span id="deleteTxTimer" class="font-bold">30</span>s...
+                            </div>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="button" class="btn-cancel" onclick="window.closeDeleteTxModal()">Cancel</button>
+                            <button type="button" id="deleteTxConfirmBtn" class="btn-danger" onclick="window.executeTxDelete()">Delete Forever</button>
+                        </div>
+
+                        <div class="border-top pt-md mt-md flex items-center gap-sm">
+                            <input type="checkbox" id="deleteTxSkipWarn">
+                            <label for="deleteTxSkipWarn" class="text-sm text-muted cursor-pointer">Don't show this warning again (until reset)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-overlay" id="resetConfirmModal">
+                    <div class="modal-box modal-box-medium" role="dialog" aria-modal="true" aria-label="Factory Reset">
+                        <button type="button" class="modal-close" onclick="window.closeResetModal()" aria-label="Close Modal">&times;</button>
+
+                        <div class="text-center mb-lg">
+                            <div class="icon-large" aria-hidden="true">🚨</div>
+                            <h3 class="modal-title mb-sm">Erase Everything?</h3>
+
+                            <div class="warning-box">
+                                <div class="warning-title">⚠️ Complete Factory Reset</div>
+                                <p>
+                                    This will instantly delete <strong>all transactions, categories, and settings</strong>.
+                                    Your app will be completely wiped clean. This action absolutely cannot be undone.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="button" class="btn-cancel" onclick="window.closeResetModal()">Cancel</button>
+                            <button type="button" class="btn-danger" onclick="window.executeFactoryReset()">Wipe My Data</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-overlay" id="deleteCategoryModal" onclick="window.closeModalOnOutsideClick(event)">
+                    <div class="modal-box modal-box-medium" role="dialog" aria-modal="true" aria-label="Delete Category" onclick="event.stopPropagation()">
+                        <button type="button" class="modal-close" onclick="window.closeDeleteCategoryModal()" aria-label="Close Modal">&times;</button>
+
+                        <div class="text-center mb-lg">
+                            <div class="icon-large" aria-hidden="true">🗑️</div>
+                            <h3 class="modal-title mb-sm">Delete Category?</h3>
+
+                            <div class="warning-box category-delete-warning">
+                                <div class="warning-title">⚠️ Warning</div>
+                                <p class="category-delete-warning-lead">
+                                    <strong id="deleteCatName">This category</strong> has <strong id="deleteTxCount">0</strong> transaction<span id="deleteTxS">s</span> tied to it.
+                                </p>
+                                <ul class="category-delete-warning-list">
+                                    <li>The category will be removed from your budget.</li>
+                                    <li id="deleteNoTxImpact">No transactions or totals will be deleted.</li>
+                                    <li id="deleteTxStayLine">The tied transaction<span id="deleteTxSDetail">s</span> will stay in Recent Activity.</li>
+                                    <li id="deleteTxUncatLine">Any tied transactions will become Uncategorized until you move or delete them.</li>
+                                </ul>
+                                <button type="button" id="deleteMoveTransactionsBtn" class="category-delete-move-btn" onclick="window.openCategoryDeleteMoveModal(event)">Move transactions now</button>
+                            </div>
+
+                            <div class="text-muted mt-sm" aria-live="polite">
+                                Auto-closing in <span id="deleteTimer" class="font-bold">30</span>s...
+                            </div>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="button" class="btn-cancel" onclick="window.closeDeleteCategoryModal()">Cancel</button>
+                            <button type="button" class="btn-danger" onclick="window.executeCategoryDelete()">Delete Category</button>
+                        </div>
+
+                        <div class="border-top pt-md mt-md flex items-center gap-sm">
+                            <input type="checkbox" id="deleteSkipWarn">
+                            <label for="deleteSkipWarn" class="text-sm text-muted cursor-pointer">Don't show this category delete warning again</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-overlay" id="deleteIncomeSourceModal" onclick="window.closeModalOnOutsideClick(event)">
+                    <div class="modal-box modal-box-medium" role="dialog" aria-modal="true" aria-label="Delete Income Source" onclick="event.stopPropagation()">
+                        <button type="button" class="modal-close" onclick="window.closeDeleteIncomeSourceModal()" aria-label="Close Modal">&times;</button>
+
+                        <div class="text-center mb-lg">
+                            <div class="icon-large" aria-hidden="true">🗑️</div>
+                            <h3 class="modal-title mb-sm">Delete Income Source?</h3>
+
+                            <div class="warning-box">
+                                <div class="warning-title">⚠️ Warning</div>
+                                <p>
+                                    Are you sure you want to delete <strong id="deleteIncomeSourceName">this income source</strong>?
+                                </p>
+                                <p style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-dim);">
+                                    You have <strong id="deleteIncomeTxCount">0</strong> income transaction<span id="deleteIncomeTxS">s</span> tied to this. Deleting the income source will not delete those transactions, but they will lose this tag.
+                                </p>
+                            </div>
+
+                            <div class="text-muted mt-sm" aria-live="polite">
+                                Auto-closing in <span id="deleteIncomeTimer" class="font-bold">30</span>s...
+                            </div>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="button" class="btn-cancel" onclick="window.closeDeleteIncomeSourceModal()">Cancel</button>
+                            <button type="button" class="btn-danger" onclick="window.executeIncomeSourceDelete()">Delete Forever</button>
+                        </div>
+
+                        <div class="border-top pt-md mt-md flex items-center gap-sm">
+                            <input type="checkbox" id="deleteIncomeSkipWarn">
+                            <label for="deleteIncomeSkipWarn" class="text-sm text-muted cursor-pointer">Don't show this warning again</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="incomeSourceModal" class="modal-overlay" onclick="window.closeModalOnOutsideClick(event)">
+                    <div class="modal-box modal-box-medium" role="dialog" aria-modal="true" aria-labelledby="incomeSourceModalTitle" onclick="event.stopPropagation()">
+                        <button type="button" class="modal-close" onclick="window.closeIncomeSourceModal()" aria-label="Close income source form">&times;</button>
+
+                        <h3 id="incomeSourceModalTitle" class="modal-title mb-lg">Create Income Source</h3>
+
+                        <form id="incomeSourceForm" onsubmit="event.preventDefault(); window.saveIncomeSource();">
+                            <input type="hidden" id="incomeSourceOriginalName" value="">
+
+                            <div class="income-source-header-row category-name-icon-row mb-lg">
+                                <div class="add-form-group category-name-field">
+                                    <label for="incomeSourceName">Income Source</label>
+                                    <div class="autocomplete-wrapper" style="position: relative; width: 100%;">
+                                        <input type="text" id="incomeSourceName" class="form-input" maxlength="24" placeholder="e.g., Paycheck" autocomplete="off" aria-describedby="incomeSourceNameTooltip" required style="width: 100%; box-sizing: border-box; padding-right: 3.5rem;">
+                                        <span id="incomeSourceNameCharCount" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: var(--text-dim); pointer-events: none; font-weight: 600;">0/24</span>
+                                    </div>
+                                    <div id="incomeSourceNameTooltip" class="category-name-tooltip" role="tooltip" hidden>Allowed characters: any standard character except line breaks. Max 24 characters.</div>
+                                </div>
+
+                                <div class="add-form-group income-frequency-field">
+                                    <label for="incomeSourceFrequency">Pay Frequency</label>
+                                    <select id="incomeSourceFrequency" class="form-input income-source-frequency-select">
+                                        <option value="">Select frequency</option>
+                                        <option value="daily">Daily</option>
+                                        <option value="weekly" selected>Weekly</option>
+                                        <option value="bi-weekly">Bi-Weekly</option>
+                                        <option value="monthly">Monthly</option>
+                                        <option value="yearly">Yearly</option>
+                                    </select>
+                                </div>
+
+                                <div class="add-form-group category-icon-field">
+                                    <label for="incomeSourceIcon">Icon</label>
+                                    <input type="text" id="incomeSourceIcon" class="form-input icon-picker-trigger" placeholder="💵" maxlength="2" readonly inputmode="none" aria-label="Choose income source icon" style="width: 100%; box-sizing: border-box;">
+                                </div>
+                            </div>
+
+                            <div class="income-source-amount-row mb-lg">
+                                <div class="add-form-group">
+                                    <label for="incomeSourcePlanned">Expected Amount</label>
+                                    <div class="budgeted-input-shell">
+                                        <span id="incomeSourcePlannedSymbol">$</span>
+                                        <input type="number" id="incomeSourcePlanned" class="form-input" min="0" step="0.01" placeholder="0.00">
+                                    </div>
+                                </div>
+
+                                <div class="add-form-group" id="incomeSourceLoggedGroup">
+                                    <label for="incomeSourceLogged">Initial Logged Amount</label>
+                                    <div class="budgeted-input-shell">
+                                        <span id="incomeSourceLoggedSymbol">$</span>
+                                        <input type="number" id="incomeSourceLogged" class="form-input" min="0" step="0.01" placeholder="0.00">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="modal-actions">
+                                <button type="button" class="btn-cancel" onclick="window.closeIncomeSourceModal()">Cancel</button>
+                                <button type="submit" id="incomeSourceSubmitBtn" class="btn-create">Save</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="categoryModal" class="modal-overlay" onclick="window.closeModalOnOutsideClick(event)">
+                    <div class="modal-box modal-box-medium" role="dialog" aria-modal="true" aria-labelledby="categoryModalTitle" onclick="event.stopPropagation()">
+                        <button type="button" class="category-sheet-drag-handle" aria-label="Drag category form up or down" aria-controls="categoryForm" aria-expanded="false" onpointerdown="window.startCategorySheetDrag(event)" onkeydown="window.handleCategorySheetHandleKey(event)">
+                            <span aria-hidden="true"></span>
+                        </button>
+                        <button type="button" class="modal-close" onclick="window.closeCategoryModal()" aria-label="Close category form">&times;</button>
+
+                        <h3 id="categoryModalTitle" class="modal-title mb-lg">Create Category</h3>
+
+                        <section id="existingCategoryPreview" class="existing-category-preview" aria-labelledby="existingCategoryPreviewTitle">
+                            <div class="existing-category-preview-header">
+                                <div>
+                                    <div id="existingCategoryPreviewTitle" class="existing-category-preview-title">Existing Categories</div>
+                                    <div id="existingCategoryPreviewCount" class="existing-category-preview-count">0 categories</div>
+                                </div>
+                            </div>
+                            <div id="existingCategoryPreviewList" class="existing-category-preview-list" role="list"></div>
+                        </section>
+
+                        <form id="categoryForm" onsubmit="event.preventDefault(); window.saveCategory();">
+                            <input type="hidden" id="catEditOriginalName" value="">
+
+                            <div class="category-name-icon-row mb-lg">
+                                <div class="add-form-group category-name-field">
+                                    <label for="catInputName">Category Name</label>
+                                    <div class="autocomplete-wrapper" style="position: relative; width: 100%;">
+                                        <input type="text" id="catInputName" class="form-input autocomplete-input" maxlength="24" placeholder="" autocomplete="off" aria-describedby="catNameTooltip" required style="width: 100%; box-sizing: border-box; padding-right: 3.5rem;">
+                                        <span id="catNameCharCount" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: var(--text-dim); pointer-events: none; font-weight: 600;">0/24</span>
+                                        <div id="catAutocompleteList" class="autocomplete-dropdown" style="display: none;"></div>
+                                    </div>
+                                    <div id="catNameTooltip" class="category-name-tooltip" role="tooltip" hidden>Allowed characters: any standard character except line breaks. Max 24 characters.</div>
+                                </div>
+                                <div class="add-form-group category-icon-field">
+                                    <label for="catInputIcon">Icon</label>
+                                    <input type="text" id="catInputIcon" class="form-input icon-picker-trigger" placeholder="📁" maxlength="2" required readonly inputmode="none" aria-label="Choose category icon" style="width: 100%; box-sizing: border-box;">
+                                </div>
+                            </div>
+
+                            <div class="add-form-group mb-lg">
+                                <label for="catInputBudget">Budgeted</label>
+                                <div class="budgeted-input-shell">
+                                    <span id="catBudgetSymbol">$</span>
+                                    <input type="number" id="catInputBudget" class="form-input" min="0" step="0.01" placeholder="0.00">
+                                </div>
+                            </div>
+
+                            <div class="modal-actions">
+                                <button type="button" class="btn-cancel" onclick="window.closeCategoryModal()">Cancel</button>
+                                <button type="submit" class="btn-create">Save</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                                <div class="drill-down-overlay" id="categoryDrillDownOverlay" onclick="window.closeCategoryDrillDown()"></div>
+                                <div class="drill-down-panel" id="categoryDrillDownPanel">
+                                    <button class="btn-close-panel" onclick="window.closeCategoryDrillDown()">×</button>
+
+                                    <div class="drill-down-hero">
+                                        <div class="drill-down-icon" id="drillDownIcon">📁</div>
+                                        <h2 class="drill-down-title" id="drillDownTitle">Category Name</h2>
+                                    </div>
+
+                                    <div class="drill-down-metrics">
+                                                            <div id="zbbMessage" class="zbb-message">Set a budget to get started</div>
+
+                                                            <div class="metric-group">
+                                                                <span class="metric-label">Budgeted</span>
+                                                                <div class="inline-edit-wrapper" id="budgetEditWrapper" title="Click to edit budget">
+                                                                    <div id="drillDownBudgetText" class="metric-value editable-text">$0.00</div>
+                                                                    <div id="drillDownBudgetInputContainer" style="display: none;" class="metric-input-wrapper">
+                                                                        <span class="currency-symbol" id="drillDownSymbol">$</span>
+                                                                        <input type="number" id="drillDownBudget" class="metric-value-input" min="0" step="0.01" placeholder="0.00">
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="metric-group empty-spacer"></div>
+
+                                                            <div class="metric-group">
+                                                                <button type="button" id="drillDownToggleMetric" class="drill-down-metric-toggle" onclick="window.toggleDrillDownMetric()" aria-label="Show amount left">
+                                                                    <span class="metric-label" id="drillDownToggleLabel">Spent</span>
+                                                                    <span class="metric-value" id="drillDownTotal">$0.00</span>
+                                                                </button>
+                                                            </div>
+
+                                                            <div class="progress-bar-container" id="drillDownProgressTrack" role="group" aria-label="Income progress percentages">
+                                                                <div id="drillDownProgress" class="progress-bar-fill" aria-hidden="true"></div>
+                                                                <button type="button" id="drillDownProgressFillBtn" class="progress-segment-hit progress-fill-hit" aria-label="Show logged percentage" aria-pressed="false" disabled></button>
+                                                                <button type="button" id="drillDownProgressTrackBtn" class="progress-segment-hit progress-track-hit" aria-label="Show expected percentage" aria-pressed="false" disabled></button>
+                                                                <span class="progress-end-label progress-start">0%</span>
+                                                                <span class="progress-end-label progress-end">100%</span>
+                                                                <span id="drillDownProgressFillPct" class="progress-hover-label progress-fill-label" aria-hidden="true">0%</span>
+                                                                <span id="drillDownProgressTrackPct" class="progress-hover-label progress-track-label" aria-hidden="true">100%</span>
+                                                            </div>
+                                                        </div>
+
+                                    <div class="drill-down-actions">
+                                        <button class="btn-drill-action" id="drillDownEditBtn">
+                                            ✏️ Edit
+                                        </button>
+                                        <button class="btn-drill-action btn-drill-danger" id="drillDownDeleteBtn">
+                                            🗑️ Delete
+                                        </button>
+                                    </div>
+
+                                    <div class="drill-down-history">
+                                        <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--border); margin-bottom: 1rem; padding-bottom: 0.5rem;">
+                                            <h3 class="history-title" style="border: none; margin-bottom: 0; padding-bottom: 0;">Recent Activity</h3>
+                                            <button id="drillDownLogExpenseBtn" style="background: transparent; border: none; color: var(--accent); font-weight: 600; cursor: pointer; font-size: 0.85rem; transition: color 0.2s ease;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--accent)'">
+                                                + Log Expense
+                                            </button>
+                                        </div>
+                                        <div id="drillDownTxList" class="drill-down-tx-list">
+                                            </div>
+                                    </div>
+                                </div>
+
+                                <!-- MIT License Modal -->
+                                <div class="modal-overlay" id="licenseModal" role="dialog" aria-modal="true" aria-labelledby="licenseModalTitle" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:2000;display:none;justify-content:center;align-items:center" onclick="if(event.target===this)window.closeLicenseModal()">
+                                    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;width:90%;max-width:600px;box-shadow:0 20px 40px rgba(0,0,0,0.4);position:relative;max-height:80vh;overflow-y:auto">
+                                        <button id="licenseCloseBtn" aria-label="Close license dialog" onclick="window.closeLicenseModal()" style="position:absolute;top:1rem;right:1rem;background:transparent;border:none;color:var(--text-dim);font-size:1.5rem;cursor:pointer;line-height:1" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text-dim)'">&times;</button>
+                                        <h3 id="licenseModalTitle" style="font-size:1.25rem;font-weight:700;margin-bottom:1.5rem;color:var(--text)">MIT License</h3>
+                                        <div style="color:var(--text-dim);font-size:0.85rem;line-height:1.7">
+                                            <p style="margin-bottom:1rem"><strong style="color:var(--text)">Copyright &copy; 2026 BudgetBuddy</strong></p>
+                                            <p style="margin-bottom:1rem">Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</p>
+                                            <p style="margin-bottom:1rem">The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p>
+                                            <p>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
+                                        </div>
+                                        <div style="margin-top:1.5rem;text-align:right">
+                                            <button onclick="window.closeLicenseModal()" style="padding:0.75rem 2rem;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer">Close</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-overlay" id="notesModal" onclick="window.closeModalOnOutsideClick(event)"></div>
+                                <div class="modal-overlay" id="accessibilityModal" onclick="window.closeAccModalOnOutsideClick(event)"></div>
+                                <div class="modal-overlay" id="profileModal"></div>
+
+                                <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+                                <div id="quickAddConfirmBar" class="floating-confirm-bar" role="dialog" aria-modal="true">
+                                    <div id="quickAddConfirmText" class="quick-add-confirm-text">Add Category?</div>
+                                    <div class="quick-add-confirm-actions">
+                                        <button type="button" class="btn-create" onclick="window.confirmQuickAdd()">Confirm</button>
+                                        <button type="button" class="btn-cancel" onclick="window.cancelQuickAdd()">Cancel</button>
+                                    </div>
+                                </div>
+                    </main>
+
+        <footer>
+        <div class="footer-main">
+            <a href="changelog.html" class="footer-btn-pill">v1.0 Changelog</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="featurerequest.html" class="footer-link">Feature Request</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="privacypolicy.html" class="footer-link">Privacy Policy</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="roadmap.html" class="footer-link">Roadmap</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="support.html" class="footer-link">Support</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="terms.html" class="footer-link">Terms of Service</a>
+        </div>
+        <div class="copyright-text">
+            &copy; 2026 BudgetBuddy. Open source under the <a href="#" onclick="event.preventDefault(); window.openLicenseModal()" class="footer-link">MIT License</a>.
+        </div>
+    </footer>
+
+    <button type="button" id="scrollTopBtn" class="scroll-top-btn" aria-label="Back to top" onclick="window.scrollToTop()">↑</button>
+
+    <script>
+        (function(){
+            var lastLicenseTrigger = null;
+
+            window.openLicenseModal = function(){
+                var modal = document.getElementById('licenseModal');
+                var closeBtn = document.getElementById('licenseCloseBtn');
+                lastLicenseTrigger = document.activeElement;
+                modal.style.display = 'flex';
+                modal.classList.add('active');
+                if (closeBtn) closeBtn.focus();
+            };
+
+            window.closeLicenseModal = function(){
+                var modal = document.getElementById('licenseModal');
+                modal.classList.remove('active');
+                modal.style.display = 'none';
+                if (lastLicenseTrigger && typeof lastLicenseTrigger.focus === 'function') {
+                    lastLicenseTrigger.focus();
+                }
+            };
+
+            document.addEventListener('keydown', function(event){
+                var modal = document.getElementById('licenseModal');
+                if (event.key === 'Escape' && modal && (modal.style.display === 'flex' || modal.classList.contains('active'))) {
+                    window.closeLicenseModal();
+                }
+            });
+
+            window.scrollToTop = window.scrollToTop || function() {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
+            window.addEventListener('scroll', function() {
+                var btn = document.getElementById('scrollTopBtn');
+                if (btn) btn.classList.toggle('show', window.scrollY > 300);
+            });
+        })();
+    </script>
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

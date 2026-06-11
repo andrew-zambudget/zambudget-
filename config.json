@@ -1,0 +1,8 @@
+{
+    "supabaseUrl": "https://cmfnmhqyeipgtjktbouk.supabase.co",
+    "supabaseAnonKey": "sb_publishable_GjXcYblhAQc1sSAKkRju4A_UE-hwe_a",
+    "billingEnabled": true,
+    "billingMode": "beta-live",
+    "stripePublishableKey": "pk_live_51TgY37JYNoBMRccPpUFvBz98h3S4xR6kjXoBrkRBE1vAqJKRn2ibwOOn43RWveESBYABwlm0La1pssz8SqJkdZQL00DEn1kVb5",
+    "stripePremiumPriceId": "price_1TgrnvJYNoBMRccPPRxiOOid"
+}

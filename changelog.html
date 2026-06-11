@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <!-- PRODUCTION UPGRADE: Theme color adapts to mobile browser chrome -->
+    <meta name="theme-color" content="#0f1117" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)">
+    <title>Changelog - BudgetBuddy</title>
+    <style>
+        :root{--bg:#0f1117;--surface:#1a1d27;--surface-hover:#242736;--border:#374151;--text:#e4e4e7;--text-dim:#9ca3af;--green:#22c55e;--red:#ef4444;--accent:#8b5cf6;--blue:#3b82f6;--yellow:#f59e0b;--purple:#a855f7}
+        [data-theme="light"]{--bg:#f8fafc;--surface:#fff;--surface-hover:#f1f5f9;--border:#cbd5e1;--text:#1e293b;--text-dim:#475569;--green:#16a34a;--red:#dc2626;--accent:#7c3aed;--blue:#2563eb;--yellow:#d97706;--purple:#9333ea}
+
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column; -webkit-font-smoothing: antialiased;}
+        .skip-link{position:absolute;left:1rem;top:0;transform:translateY(-120%);background:var(--accent);color:#fff;padding:.75rem 1rem;border-radius:0 0 8px 8px;text-decoration:none;font-weight:700;z-index:9999}
+        .skip-link:focus{transform:translateY(0); outline: 2px solid #fff; outline-offset: 2px;}
+
+        /* --- HEADER --- */
+        .app-header{padding:1rem 2rem;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+        .logo{font-size:1.5rem;font-weight:700;letter-spacing:-.5px;color:var(--text);text-decoration:none;display:flex;align-items:center;gap:0.5rem; border-radius: 4px;}
+        .logo:focus-visible{outline: 2px solid var(--accent); outline-offset: 4px;}
+        .logo span{color:var(--accent)}
+        .header-controls{display:flex;align-items:center;gap:1rem}
+        .icon-btn{background:transparent;border:1px solid var(--border);color:var(--text-dim);border-radius:8px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s; touch-action: manipulation;}
+        .icon-btn:hover{color:var(--text);background:var(--surface-hover);border-color:var(--accent)}
+        .icon-btn:focus-visible{outline: 2px solid var(--accent); outline-offset: 2px;}
+        
+        .theme-toggle-group{display:flex;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:2px;gap:2px}
+        .theme-opt{background:transparent;border:none;color:var(--text-dim);padding:.3rem .6rem;border-radius:16px;cursor:pointer;font-size:.85rem;transition:all .2s; touch-action: manipulation;}
+        .theme-opt:hover{color:var(--text)}
+        .theme-opt.active{background:var(--surface-hover);color:var(--text);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,0.1)}
+        .theme-opt:focus-visible{outline: 2px solid var(--accent); outline-offset: -2px;}
+        
+        .auth-buttons{display:flex;align-items:center;gap:.75rem}
+        .footer-page-actions{flex-wrap:wrap;justify-content:flex-end}
+        .btn-text{color:var(--text-dim);text-decoration:none;border:1px solid transparent;border-radius:6px;padding:.45rem .75rem;font-size:.85rem;font-weight:600;line-height:1;transition:color .2s,background .2s,border-color .2s; touch-action: manipulation;}
+        .btn-text:hover{color:var(--text);background:var(--surface-hover);border-color:var(--border)}
+        .btn-text:focus-visible{outline: 2px solid var(--accent); outline-offset: 2px;}
+        .footer-back-btn{color:#fff;background:var(--accent);border-color:var(--accent);box-shadow:0 2px 6px rgba(0,0,0,.16)}
+        .footer-back-btn:hover{color:#fff;background:var(--accent);border-color:var(--accent);opacity:.92}
+        .static-auth-signed-in{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 34%,var(--border));background:color-mix(in srgb,var(--accent) 9%,transparent)}
+
+        /* --- CONTROLS & LEGEND --- */
+        .controls-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;gap:1rem;flex-wrap:wrap}
+
+        /* Legend Styles */
+        .legend-bar{display:flex;gap:1rem;flex-wrap:wrap;align-items:center;font-size:0.8rem;color:var(--text-dim)}
+        .legend-item{display:flex;align-items:center;gap:0.4rem}
+        .legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+        .dot-feature{background:var(--accent)}
+        .dot-security{background:var(--green)}
+        .dot-ui{background:var(--blue)}
+        .dot-perf{background:var(--yellow)}
+        .dot-fix{background:var(--red)}
+        .legend-label{font-weight:500}
+
+        /* Toggle Switch */
+        .toggle-wrapper{display:flex;align-items:center;gap:0.75rem}
+        .toggle-label{font-size:0.8rem;font-weight:500}
+        .toggle-switch{position:relative;width:44px;height:24px;cursor:pointer; touch-action: manipulation;}
+        .toggle-switch input{opacity:0;width:0;height:0}
+        .toggle-slider{position:absolute;inset:0;background:var(--border);border-radius:24px;transition:background 0.3s}
+        .toggle-slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)}
+        .toggle-switch input:checked+.toggle-slider{background:var(--accent)}
+        .toggle-switch input:checked+.toggle-slider::before{transform:translateX(20px)}
+        .toggle-switch input:focus-visible+.toggle-slider{outline:2px solid var(--accent);outline-offset:3px}
+
+        /* --- MAIN --- */
+        main{flex:1;max-width:800px;width:100%;margin:0 auto;padding:3rem 1.5rem}
+
+        .page-title{font-size:2rem;font-weight:700;margin-bottom:0.5rem}
+        .page-subtitle{color:var(--text-dim);font-size:1.1rem;margin-bottom:2.5rem}
+
+        /* --- RELEASE CARD --- */
+        .release-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:2rem;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);position:relative}
+        .release-card:hover{border-color:rgba(139,92,246,0.4);box-shadow:0 4px 20px rgba(0,0,0,0.15)}
+
+        .card-header{padding:1.5rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none; touch-action: manipulation;}
+        .card-header:hover .version-title{color:var(--accent)}
+        .card-header:focus-visible{outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 16px;}
+
+        .version-meta{display:flex;align-items:center;gap:1rem}
+        .version-dot{width:12px;height:12px;border-radius:50%;background:var(--accent);flex-shrink:0;position:relative}
+        .version-dot.live{background:var(--green);box-shadow:0 0 12px var(--green);animation:pulse-dot 2s infinite}
+        @keyframes pulse-dot{0%,100%{box-shadow:0 0 12px rgba(34,197,94,0.6)}50%{box-shadow:0 0 20px rgba(34,197,94,0.9)}}
+        .version-dot.archived{background:var(--text-dim);box-shadow:none;animation:none}
+
+        .version-title{font-size:1.25rem;font-weight:700;transition:color 0.2s}
+        .version-date{font-size:0.85rem;color:var(--text-dim);font-weight:500;margin-top:0.1rem}
+
+        .expand-icon{font-size:1.25rem;color:var(--text-dim);transition:transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),color 0.2s;flex-shrink:0}
+        .release-card.active .expand-icon{transform:rotate(180deg);color:var(--accent)}
+
+        /* --- EXPANDED CONTENT --- */
+        .card-body{max-height:0;overflow:hidden;transition:max-height 0.4s ease-out}
+        .release-card.active .card-body{max-height:6500px;transition:max-height 0.6s ease-in}
+
+        .card-content{padding:0 1.5rem 1.5rem;border-top:1px solid var(--border);padding-top:1.5rem}
+        .intro-text{color:var(--text-dim);margin-bottom:1.5rem;line-height:1.7;font-size:0.95rem}
+
+        /* --- TAG GROUPS --- */
+        .tag-container{display:grid;gap:1.5rem}
+        .tag-group{display:flex;flex-direction:column;gap:0.5rem}
+        .tag-label{font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);font-weight:700;margin-bottom:0.25rem;padding-left:0.25rem}
+
+        .tag-item{display:flex;align-items:flex-start;gap:0.75rem;padding:0.85rem 1rem;background:var(--bg);border-radius:10px;border:1px solid transparent;border-left:4px solid transparent;transition:all 0.2s}
+        .tag-item:hover{transform:translateX(4px);border-color:var(--border);border-left-color:inherit}
+
+        /* Tag Color Coding */
+        .tag-feature{border-left-color:var(--accent);background:linear-gradient(135deg,rgba(139,92,246,0.08),transparent 60%)}
+        .tag-feature:hover{border-left-color:var(--accent);background:linear-gradient(135deg,rgba(139,92,246,0.14),transparent 60%)}
+
+        .tag-security{border-left-color:var(--green);background:linear-gradient(135deg,rgba(34,197,94,0.08),transparent 60%)}
+        .tag-security:hover{border-left-color:var(--green);background:linear-gradient(135deg,rgba(34,197,94,0.14),transparent 60%)}
+
+        .tag-ui{border-left-color:var(--blue);background:linear-gradient(135deg,rgba(59,130,246,0.08),transparent 60%)}
+        .tag-ui:hover{border-left-color:var(--blue);background:linear-gradient(135deg,rgba(59,130,246,0.14),transparent 60%)}
+
+        .tag-perf{border-left-color:var(--yellow);background:linear-gradient(135deg,rgba(245,158,11,0.08),transparent 60%)}
+        .tag-perf:hover{border-left-color:var(--yellow);background:linear-gradient(135deg,rgba(245,158,11,0.14),transparent 60%)}
+
+        .tag-fix{border-left-color:var(--red);background:linear-gradient(135deg,rgba(239,68,68,0.08),transparent 60%)}
+        .tag-fix:hover{border-left-color:var(--red);background:linear-gradient(135deg,rgba(239,68,68,0.14),transparent 60%)}
+
+        .tag-icon{font-size:1.2rem;flex-shrink:0;margin-top:0.05rem}
+        .tag-text{font-size:0.95rem;font-weight:600;color:var(--text)}
+        .tag-detail{font-size:0.85rem;color:var(--text-dim);margin-top:0.3rem;display:block;line-height:1.5}
+
+        /* --- FOOTER --- */
+        footer{padding:2rem;border-top:1px solid var(--border);text-align:center;color:var(--text-dim);font-size:.8rem;background:var(--surface);margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:0.75rem}
+        .footer-main{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:0}
+        .footer-btn-pill{background:var(--accent);color:#fff;padding:0.25rem 0.85rem;border-radius:20px;font-size:0.75rem;font-weight:600;text-decoration:none;transition:opacity 0.2s,transform 0.1s,box-shadow 0.2s;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.1); touch-action: manipulation;}
+        .footer-btn-pill:hover{opacity:0.9;transform:translateY(-1px);box-shadow:0 4px 8px rgba(0,0,0,0.15)}
+        .footer-btn-pill:focus-visible{outline: 2px solid var(--accent); outline-offset: 2px;}
+        .footer-link{color:var(--text-dim);text-decoration:none;transition:color .2s;padding:0.25rem 0;font-size:0.8rem;font-weight:500; border-radius: 4px;}
+        .footer-link:hover{color:var(--accent);text-decoration:underline}
+        .footer-link:focus-visible{outline: 2px solid var(--accent); outline-offset: 2px;}
+        .footer-dot{color:var(--border);margin:0 0.75rem;user-select:none;font-size:0.8rem}
+        .copyright-text{font-size:0.75rem;line-height:1.4}
+
+        /* --- MODAL SCROLL BEHAVIOR --- */
+        .modal-content-area { overscroll-behavior: contain; }
+
+        @media(max-width:768px){
+            .app-header{padding:1rem;flex-wrap:wrap;gap:.75rem}
+            main{padding:2rem 1rem}
+            .controls-bar{flex-direction:column;align-items:flex-start}
+            .legend-bar{width:100%;justify-content:flex-start}
+            .card-header{flex-direction:column;align-items:flex-start;gap:0.75rem}
+            .expand-icon{align-self:flex-end;position:absolute;right:1.5rem;top:1.5rem}
+            .tag-item{padding:0.75rem}
+        }
+        
+        .scroll-top-btn{position:fixed;right:1.5rem;bottom:1.5rem;width:48px;height:48px;border:0;border-radius:50%;background:var(--accent);color:#fff;font-size:1.5rem;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:999;opacity:0;visibility:hidden;transform:translateY(16px);transition:opacity .25s,visibility .25s,transform .25s,background .2s; touch-action: manipulation;}
+        .scroll-top-btn.show{opacity:1;visibility:visible;transform:translateY(0)}
+        .scroll-top-btn:hover{background:#7c3aed;transform:translateY(-3px)}
+        .scroll-top-btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+        
+        /* Reduce motion support */
+        @media (prefers-reduced-motion: reduce) {
+            *, ::before, ::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+        }
+    </style>
+</head>
+<body>
+    <a href="#main" class="skip-link">Skip to main content</a>
+    <header class="app-header">
+        <a href="index.html" class="logo">Budget<span>Buddy</span></a>
+
+        <div class="header-controls">
+            <div class="theme-toggle-group" role="group" aria-label="Theme selection">
+                <button type="button" class="theme-opt" data-theme-val="light" onclick="window.setTheme('light')" aria-label="Light mode" title="Light Theme">&#9728;&#65039;</button>
+                <button type="button" class="theme-opt active" data-theme-val="system" onclick="window.setTheme('system')" aria-label="System default" title="System Default">&#128187;</button>
+                <button type="button" class="theme-opt" data-theme-val="dark" onclick="window.setTheme('dark')" aria-label="Dark mode" title="Dark Theme">&#127769;</button>
+            </div>
+
+            <div class="auth-buttons footer-page-actions">
+                <a href="login.html" class="btn-text" title="Log In">Log In</a>
+                <a href="index.html" class="btn-text footer-back-btn" title="Back to App">Back to App</a>
+            </div>
+        </div>
+    </header>
+
+    <main id="main">
+        <h1 class="page-title">Release Notes</h1>
+        <p class="page-subtitle">The story of BudgetBuddy, one commit at a time.</p>
+
+        <!-- Controls & Legend -->
+        <div class="controls-bar">
+            <!-- Color Coded Legend -->
+            <div class="legend-bar">
+                <div class="legend-item"><div class="legend-dot dot-feature" aria-hidden="true"></div><span class="legend-label">Features</span></div>
+                <div class="legend-item"><div class="legend-dot dot-security" aria-hidden="true"></div><span class="legend-label">Security</span></div>
+                <div class="legend-item"><div class="legend-dot dot-ui" aria-hidden="true"></div><span class="legend-label">UI/UX</span></div>
+                <div class="legend-item"><div class="legend-dot dot-perf" aria-hidden="true"></div><span class="legend-label">Performance</span></div>
+                <div class="legend-item"><div class="legend-dot dot-fix" aria-hidden="true"></div><span class="legend-label">Fixes</span></div>
+            </div>
+
+            <!-- Expand All Toggle -->
+            <div class="toggle-wrapper">
+                <span class="toggle-label">Expand All</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="expandToggle" aria-label="Expand all release notes" onchange="toggleAllCards(this.checked)">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- ===== VERSION 1.0 ===== -->
+        <div class="release-card active" data-version="v1.0">
+            <div class="card-header" role="button" tabindex="0" aria-expanded="true" aria-controls="release-v1-body" onclick="toggleCard(this.closest('.release-card'))" onkeydown="handleCardHeaderKeydown(event, this.closest('.release-card'))">
+                <div class="version-meta">
+                    <div class="version-dot live" aria-hidden="true"></div>
+                    <div>
+                        <div class="version-title">v1.0 - "The Foundation + Buddy Cloud"</div>
+                        <div class="version-date">May 31, 2026 launch; June 10-11, 2026 production hardening</div>
+                    </div>
+                </div>
+                <div class="expand-icon" aria-hidden="true">▼</div>
+            </div>
+
+            <div class="card-body" id="release-v1-body">
+                <div class="card-content">
+                    <p class="intro-text">
+                        The official launch. Months of late-night debugging, three complete UI rewrites, and one very persistent localStorage bug later — BudgetBuddy is real. Privacy-first, Buddy Cloud protected by default for signed-in users, and actually enjoyable to use.
+                    </p>
+
+                    <div class="tag-container">
+                        <!-- V1 PRODUCTION REPORT -->
+                        <div class="tag-group">
+                            <div class="tag-label">v1.0 Production Report</div>
+
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">☁️</span>
+                                <div>
+                                    <div class="tag-text">Buddy Cloud Sync moved into v1 production prep</div>
+                                    <span class="tag-detail">Buddy Cloud is now the core free backup and sync path for BudgetBuddy. It supports encrypted cloud vault upload/download, conflict handling, recovery-key import, and a reset path for users who lose the recovery key and need to start their cloud vault over.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">💻</span>
+                                <div>
+                                    <div class="tag-text">Multi-Device Sync Plus added to Buddy Cloud</div>
+                                    <span class="tag-detail">Free Tier now supports two active synced browsers/devices at a time. Premium unlocks unlimited Buddy Cloud device syncs. The app uses privacy-minimal sync slot hashes and timestamps for the Free limit, without storing device names, user agents, IP-derived locations, or readable budget data.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">🕘</span>
+                                <div>
+                                    <div class="tag-text">Cloud Version History added to Buddy Cloud</div>
+                                    <span class="tag-detail">Buddy Cloud now keeps encrypted vault snapshots so users can restore an earlier saved budget version, such as a previous day. Free accounts keep the newest encrypted safety snapshot, while Premium keeps the newest 10 encrypted snapshots. Snapshots are encrypted client-side with the same recovery-key model before storage, and restoring a snapshot happens locally before uploading the restored encrypted vault as current.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">🔒</span>
+                                <div>
+                                    <div class="tag-text">Zero-readable-budget cloud architecture</div>
+                                    <span class="tag-detail">Budget contents are encrypted in the browser before sync using AES-GCM. Transactions, balances, budgets, categories, descriptions, notes, and amounts are inside the encrypted vault payload. The server keeps only operational metadata needed for sync, such as timestamps, schema/encryption version, and checksum.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">🗝️</span>
+                                <div>
+                                    <div class="tag-text">Recovery key safety model</div>
+                                    <span class="tag-detail">First-time Buddy Cloud setup now starts a 72-hour recovery-key grace period instead of blocking onboarding. Recovery-key reveal now requires a short login-verification guardrail when Supabase supports it, falls back to local unlock when needed, auto-locks after 5 minutes or tab hide, and still enforces key safety before risky actions such as clearing the browser, signing out all devices, or resetting Buddy Cloud. PIN/passkey-protected local key storage is marked as a top v1.1 priority.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">🧭</span>
+                                <div>
+                                    <div class="tag-text">Priority Recovery Tools</div>
+                                    <span class="tag-detail">Added guided Buddy Cloud Recovery Help with human-readable sync status, recovery-key checks, version-conflict guidance, device-limit guidance, diagnostic export routing, and safe reset direction. BudgetBuddy still cannot recover or decrypt a lost recovery key, but the app now gives users clearer next steps before they panic or reset unnecessarily.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">♻️</span>
+                                <div>
+                                    <div class="tag-text">Reset Buddy Cloud replaces destructive account deletion</div>
+                                    <span class="tag-detail">The lost-key recovery path now deletes the encrypted Buddy Cloud vault and encrypted version-history snapshots for the signed-in account, keeps the Supabase login intact, clears this browser, and lets the user create a fresh vault with a new recovery key. Full auth-user deletion was removed from the normal reset flow after Supabase returned database-level delete errors, and normal Buddy Cloud reset no longer depends on billing-profile reads.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">🧪</span>
+                                <div>
+                                    <div class="tag-text">Live beta billing guard added</div>
+                                    <span class="tag-detail">Premium billing now has an explicit config switch. For beta, <code>billingEnabled</code> is false, so Upgrade and billing-portal actions stay visible but cannot redirect to Stripe until checkout, webhooks, portal management, and cancellation paths are intentionally verified for live billing.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-ui">
+                                <span class="tag-icon" aria-hidden="true">🧩</span>
+                                <div>
+                                    <div class="tag-text">Account Management redesign</div>
+                                    <span class="tag-detail">The account menu now has a left-aligned identity header, local avatar fallback, welcome message, Free Tier/Premium badge, time-of-day greeting, two-row action grid, Devices, Settings, Support, and OAuth-aware password reset visibility.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-ui">
+                                <span class="tag-icon" aria-hidden="true">✨</span>
+                                <div>
+                                    <div class="tag-text">Time-of-day account greeting</div>
+                                    <span class="tag-detail">Added a small right-side account badge with Coffee budgeter, Midday money, or Night budgeter based on local browser time. The night state includes a moon icon, glow, and subtle looping starfield animation. The morning Coffee budgeter state now has matching motion with a warm glow, drifting light dots, and a subtle animated coffee icon.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">🛟</span>
+                                <div>
+                                    <div class="tag-text">Opt-in local diagnostics</div>
+                                    <span class="tag-detail">Diagnostics moved into Account Settings and now require explicit confirmation before generating a local JSON report. The report is not uploaded automatically, does not opt users into tracking or future diagnostics, and excludes budget contents, transactions, balances, budgets, categories, descriptions, notes, amounts, recovery keys, access tokens, email, and transaction counts.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">🖥️</span>
+                                <div>
+                                    <div class="tag-text">Device and session controls simplified</div>
+                                    <span class="tag-detail">Devices is now focused on session risk and sign-out behavior. Known BudgetBuddy browsers are listed using privacy-minimal browser hashes and timestamps, with browser-icon rows, right-aligned individual sign-out controls, and a separate full-width Sign Out All Devices action. Logout, revoked-browser cleanup, Buddy Cloud reset, and Sign Out All Devices now show a Clearing Session screen while local storage, session storage, accessible cookies, and stale page state are cleared before refresh. Manual upload/download controls only appear when Buddy Cloud detects competing changes on another device.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-ui">
+                                <span class="tag-icon" aria-hidden="true">🎛️</span>
+                                <div>
+                                    <div class="tag-text">Account management modal flow polished</div>
+                                    <span class="tag-detail">Buddy Cloud account-management dialogs now transition smoothly between Devices, Privacy Details, sign-out confirmations, and Back actions. Device sign-out rows give immediate visual feedback, confirmation screens return users to the Devices list instead of dead-ending the flow, and reduced-motion preferences are respected.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">⚖️</span>
+                                <div>
+                                    <div class="tag-text">Privacy and legal review notes added</div>
+                                    <span class="tag-detail">Privacy copy and production notes now distinguish encrypted budget contents from operational metadata. The checklist flags legal review for account/auth records, sync timestamps, schema/encryption version, checksums, billing records, and lawful-provider request language.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-fix">
+                                <span class="tag-icon" aria-hidden="true">🛠️</span>
+                                <div>
+                                    <div class="tag-text">OAuth password reset gating</div>
+                                    <span class="tag-detail">OAuth-only users no longer see the Password tile in Account Management. The reset handler is also guarded directly, so password reset cannot be triggered for accounts that do not have a Supabase email/password identity.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-ui">
+                                <span class="tag-icon" aria-hidden="true">🛟</span>
+                                <div>
+                                    <div class="tag-text">Support page and footer-page headers finalized</div>
+                                    <span class="tag-detail">Added a dedicated Support page, wired Account Management Support to it, removed broken or disabled public footer actions, and tightened footer-linked page headers so they expose only theme controls, live signed-in status, and a styled Back to App button. Static page headers now inherit the saved theme and accent color from the main app, and footer-linked pages no longer carry the Settings control. The support path points users toward Recovery Help, Devices, Version History, Diagnostics, and the beta support email without asking for recovery keys.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- FEATURES -->
+                        <div class="tag-group">
+                            <div class="tag-label">✨ New Features</div>
+
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">📂</span>
+                                <div>
+                                    <div class="tag-text">Deep Drill-Down Views</div>
+                                    <span class="tag-detail">Click any category to see budget vs. actual spending, inline budget editing (just click the "Budgeted" row), quick emoji shortcuts for fast entry, and a full transaction history — all without leaving the screen.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">🌙</span>
+                                <div>
+                                    <div class="tag-text">3-Way Theme Engine</div>
+                                    <span class="tag-detail">Light, Dark, or follow your OS. The toggle lives in the header and your preference persists across sessions. System preference changes are detected in real-time.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">💰</span>
+                                <div>
+                                    <div class="tag-text">Income Breakdown Panel</div>
+                                    <span class="tag-detail">A dedicated section that shows where your money comes from — each income source, its total, and its percentage of overall income. Updates instantly as you add transactions.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">🗃️</span>
+                                <div>
+                                    <div class="tag-text">10 Quick-Add Categories</div>
+                                    <span class="tag-detail">Housing, Food & Dining, Transportation, Entertainment, Subscriptions, Shopping, Health, Education, Savings, and Debt — all one tap away with preset icons.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SECURITY -->
+                        <div class="tag-group">
+                            <div class="tag-label">🔒 Security & Auth</div>
+
+                            <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">🛡️</span>
+                                <div>
+                                    <div class="tag-text">Supabase Authentication</div>
+                                    <span class="tag-detail">Full email/password auth powered by Supabase. Sessions persist across tabs and browser restarts. Unauthorized users are redirected to the login page — no ghost sessions.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">🔑</span>
+                                <div>
+                                    <div class="tag-text">Password Recovery Flow</div>
+                                    <span class="tag-detail">"Forgot Password?" link on the login page triggers a Supabase email with a secure reset link. Users land on a dedicated reset page to choose a new password. Minimum 6 characters enforced.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">🚪</span>
+                                <div>
+                                    <div class="tag-text">Clean Logout & Redirect</div>
+                                    <span class="tag-detail">Logging out destroys the Supabase session server-side and redirects to login. No stale tokens, no "ghost" logged-in state if someone hits the back button.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- UI/UX -->
+                        <div class="tag-group">
+                            <div class="tag-label">🎨 UI/UX Polish</div>
+
+                            <div class="tag-item tag-ui">
+                                <span class="tag-icon" aria-hidden="true">🖼️</span>
+                                <div>
+                                    <div class="tag-text">Avatar Dropdown Menu</div>
+                                    <span class="tag-detail">Replaced the clunky "Log In / Sign Up" text links with a single, color-coded avatar circle. Click it to reveal your display name, email, profile editor, and logout — all in a smooth, animated dropdown.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-ui">
+                                <span class="tag-icon" aria-hidden="true">👤</span>
+                                <div>
+                                    <div class="tag-text">Editable Display Name</div>
+                                    <span class="tag-detail">Click "Profile" in the avatar dropdown to set a custom display name. Stored in Supabase user_metadata so it syncs across devices. Your avatar initial updates instantly.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-ui">
+                                <span class="tag-icon" aria-hidden="true">📱</span>
+                                <div>
+                                    <div class="tag-text">Mobile-First Responsive Layout</div>
+                                    <span class="tag-detail">The dashboard grid collapses cleanly on phones. Quick-add categories reflow to 3 columns. Transaction list is scrollable. Drill-down modal goes full-width. No horizontal scrolling — ever.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-ui">
+                                <span class="tag-icon" aria-hidden="true">🌈</span>
+                                <div>
+                                    <div class="tag-text">Rainbow Accent Bar</div>
+                                    <span class="tag-detail">That thin gradient strip at the top of the page? It's a 4px tall status symbol. Purple → Green → Blue. Subtle, but it ties the whole design together.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PERFORMANCE -->
+                        <div class="tag-group">
+                            <div class="tag-label">⚡ Performance</div>
+
+                            <div class="tag-item tag-perf">
+                                <span class="tag-icon" aria-hidden="true">🚀</span>
+                                <div>
+                                    <div class="tag-text">Zero-Dependency Rendering</div>
+                                    <span class="tag-detail">No React, no Vue, no virtual DOM. Pure vanilla JS with direct DOM manipulation. The result? Sub-50ms renders for hundreds of transactions. The app weighs in at a single HTML file.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-perf">
+                                <span class="tag-icon" aria-hidden="true">💾</span>
+                                <div>
+                                    <div class="tag-text">Instant Local Persistence</div>
+                                    <span class="tag-detail">Every transaction and category is saved to localStorage immediately. No "Save" button needed. No network delay. Your data is there even if you close the tab accidentally.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- FIXES -->
+                        <div class="tag-group">
+                            <div class="tag-label">🔧 Precision Fixes</div>
+
+                            <div class="tag-item tag-fix">
+                                <span class="tag-icon" aria-hidden="true">🐞</span>
+                                <div>
+                                    <div class="tag-text">Fixed: Layout Shift on Browser Back Gesture</div>
+                                    <span class="tag-detail">When navigating back from the login page using a trackpad swipe or Alt+Left, the browser would restore the page from bfcache with stale layout calculations — causing the entire UI to shift off-center. Fixed by adding a <code>pageshow</code> event listener that detects bfcache restoration and forces a full layout recalculation via <code>display: none</code> → reflow → <code>display: ''</code>. Also set <code>scrollRestoration = 'manual'</code> to prevent scroll position conflicts.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-fix">
+                                <span class="tag-icon" aria-hidden="true">🐞</span>
+                                <div>
+                                    <div class="tag-text">Fixed: Custom Categories Missing from Dropdown</div>
+                                    <span class="tag-detail">The transaction form's category <code>&lt;select&gt;</code> only showed the 12 built-in options. Custom categories were being added to the array but never re-rendered into the dropdown. Fixed by calling <code>updateCategoryDropdown()</code> after every category creation and deletion, and preserving the previously selected value across re-renders.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-fix">
+                                <span class="tag-icon" aria-hidden="true">🐞</span>
+                                <div>
+                                    <div class="tag-text">Fixed: Duplicate Category Creation</div>
+                                    <span class="tag-detail">Clicking a quick-add button twice would create two identical categories. Fixed by adding a case-insensitive duplicate check (<code>name.toLowerCase()</code>) before pushing to the array. Now shows a toast: "Category already exists!"</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-fix">
+                                <span class="tag-icon" aria-hidden="true">🐞</span>
+                                <div>
+                                    <div class="tag-text">Fixed: Delete Category Left Orphan Transactions</div>
+                                    <span class="tag-detail">Deleting a category removed it from the list but left its transactions floating in the ledger with no matching category. Fixed by filtering out transactions that belong to the deleted category before removing it. The confirmation dialog now tells you exactly how many transactions will be removed.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-fix">
+                                <span class="tag-icon" aria-hidden="true">🐞</span>
+                                <div>
+                                    <div class="tag-text">Fixed: Auth State Ignored on Dashboard Load</div>
+                                    <span class="tag-detail">The login page set the Supabase session correctly, but the main dashboard had zero Supabase code — it never checked if you were actually logged in. The header always showed "Log In / Sign Up" regardless. Fixed by adding <code>initSupabase()</code> to the DOMContentLoaded handler, which calls <code>sb.auth.getSession()</code> and conditionally renders the avatar or sign-in link.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-fix">
+                                <span class="tag-icon" aria-hidden="true">🐞</span>
+                                <div>
+                                    <div class="tag-text">Fixed: Password Field Cleared on Failed Login</div>
+                                    <span class="tag-detail">If you typoed your password, the login form cleared both the email and password fields — annoying if you have a long email. Fixed by only clearing the password field on error, keeping the email intact for a retry.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MIT License Modal -->
+        <div class="modal-overlay" id="licenseModal" role="dialog" aria-modal="true" aria-labelledby="licenseModalTitle" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:2000;display:none;justify-content:center;align-items:center" onclick="if(event.target===this)closeLicenseModal()">
+            <div class="modal-content-area" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;width:90%;max-width:600px;box-shadow:0 20px 40px rgba(0,0,0,0.4);position:relative;max-height:80vh;overflow-y:auto">
+                <button type="button" id="licenseCloseBtn" aria-label="Close license dialog" onclick="closeLicenseModal()" style="position:absolute;top:1rem;right:1rem;background:transparent;border:none;color:var(--text-dim);font-size:1.5rem;cursor:pointer;line-height:1; touch-action: manipulation;" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text-dim)'">×</button>
+                <h3 id="licenseModalTitle" style="font-size:1.25rem;font-weight:700;margin-bottom:1.5rem;color:var(--text)">MIT License</h3>
+                <div style="color:var(--text-dim);font-size:0.85rem;line-height:1.7">
+                    <p style="margin-bottom:1rem"><strong style="color:var(--text)">Copyright &copy; 2026 BudgetBuddy</strong></p>
+                    <p style="margin-bottom:1rem">Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</p>
+                    <p style="margin-bottom:1rem">The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p>
+                    <p>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
+                </div>
+                <div style="margin-top:1.5rem;text-align:right">
+                    <button type="button" onclick="closeLicenseModal()" style="padding:0.75rem 2rem;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer; touch-action: manipulation;">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== VERSION 0.9 ===== -->
+        <div class="release-card" data-version="v0.9">
+            <div class="card-header" role="button" tabindex="0" aria-expanded="false" aria-controls="release-v09-body" onclick="toggleCard(this.closest('.release-card'))" onkeydown="handleCardHeaderKeydown(event, this.closest('.release-card'))">
+                <div class="version-meta">
+                    <div class="version-dot archived" aria-hidden="true"></div>
+                    <div>
+                        <div class="version-title">v0.9 — "Beta Test"</div>
+                        <div class="version-date">May 25, 2026 · Archived</div>
+                    </div>
+                </div>
+                <div class="expand-icon" aria-hidden="true">▼</div>
+            </div>
+
+            <div class="card-body" id="release-v09-body" hidden>
+                <div class="card-content">
+                    <p class="intro-text">
+                        The final beta. Tested by real humans who actually budget. Their feedback shaped every feature in v1.0.
+                    </p>
+                    <div class="tag-container">
+                        <div class="tag-group">
+                            <div class="tag-label">✨ Features</div>
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">📊</span>
+                                <div>
+                                    <div class="tag-text">Income Overview Section</div>
+                                    <span class="tag-detail">Added a visual breakdown of income sources below the main dashboard. Shows each source, its total, and percentage of overall income.</span>
+                                </div>
+                            </div>
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">🗑️</span>
+                                <div>
+                                    <div class="tag-text">Skip Delete Confirmation</div>
+                                    <span class="tag-detail">Added a "Don't remind me again" option on delete confirmations for power users who don't want the extra click every time.</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tag-group">
+                            <div class="tag-label">🔧 Precision Fixes</div>
+                            <div class="tag-item tag-fix">
+                                <span class="tag-icon" aria-hidden="true">🐞</span>
+                                <div>
+                                    <div class="tag-text">Fixed: Date Formatting Inconsistency</div>
+                                    <span class="tag-detail">Some dates showed as "5/31/2026" while others displayed "May 31". Standardized all dates to the friendlier "May 31" format using <code>toLocaleDateString('en-US', {month:'short', day:'numeric'})</code>.</span>
+                                </div>
+                            </div>
+                            <div class="tag-item tag-fix">
+                                <span class="tag-icon" aria-hidden="true">🐞</span>
+                                <div>
+                                    <div class="tag-text">Fixed: Negative Balance Display</div>
+                                    <span class="tag-detail">When expenses exceeded income, the balance showed as "$-123.45" instead of "-$123.45". The dollar sign was on the wrong side of the minus. Rewrote <code>formatMoney()</code> to handle negative values correctly.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+    <footer>
+        <div class="footer-main">
+            <a href="changelog.html" class="footer-btn-pill">v1.0 Changelog</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="featurerequest.html" class="footer-link">Feature Request</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="privacypolicy.html" class="footer-link">Privacy Policy</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="roadmap.html" class="footer-link">Roadmap</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="support.html" class="footer-link">Support</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="terms.html" class="footer-link">Terms of Service</a>
+        </div>
+        <div class="copyright-text">
+            &copy; 2026 BudgetBuddy. Open source under the <a href="#" onclick="event.preventDefault(); window.openLicenseModal()" class="footer-link">MIT License</a>.
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script>
+        function applyTheme(mode) {
+            const root = document.documentElement;
+            const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            root.setAttribute('data-theme', mode === 'system' ? (sysDark ? 'dark' : 'light') : mode);
+            localStorage.setItem('bb_theme_mode', mode);
+            
+            document.querySelectorAll('.theme-opt').forEach(function(btn) {
+                btn.classList.toggle('active', btn.dataset.themeVal === mode);
+            });
+        }
+
+        window.setTheme = applyTheme;
+        applyTheme(localStorage.getItem('bb_theme_mode') || 'system');
+        
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+            if (localStorage.getItem('bb_theme_mode') === 'system') applyTheme('system');
+        });
+
+        // === TOGGLE INDIVIDUAL CARD ===
+        function toggleCard(card) {
+            card.classList.toggle('active');
+            updateCardA11y(card);
+            saveToggleState();
+        }
+
+        function handleCardHeaderKeydown(event, card) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                toggleCard(card);
+            }
+        }
+
+        function updateCardA11y(card) {
+            const header = card.querySelector('.card-header');
+            const body = card.querySelector('.card-body');
+            if (header) header.setAttribute('aria-expanded', card.classList.contains('active') ? 'true' : 'false');
+            if (body) body.hidden = !card.classList.contains('active');
+        }
+
+        // === TOGGLE ALL CARDS ===
+        function toggleAllCards(expanded) {
+            document.querySelectorAll('.release-card').forEach(function(card) {
+                if (expanded) {
+                    card.classList.add('active');
+                } else {
+                    card.classList.remove('active');
+                }
+                updateCardA11y(card);
+            });
+            saveToggleState();
+        }
+
+        // === PERSIST TOGGLE STATE ===
+        function saveToggleState() {
+            const states = {};
+            document.querySelectorAll('.release-card').forEach(function(card) {
+                const version = card.getAttribute('data-version');
+                states[version] = card.classList.contains('active');
+            });
+            localStorage.setItem('bb_changelog_state', JSON.stringify(states));
+
+            // Update the "Expand All" toggle to match
+            let allExpanded = true;
+            document.querySelectorAll('.release-card').forEach(function(card) {
+                if (!card.classList.contains('active')) allExpanded = false;
+            });
+            document.getElementById('expandToggle').checked = allExpanded;
+        }
+
+        // === RESTORE TOGGLE STATE ON LOAD ===
+        (function() {
+            const saved = localStorage.getItem('bb_changelog_state');
+            if (saved) {
+                try {
+                    const states = JSON.parse(saved);
+                    document.querySelectorAll('.release-card').forEach(function(card) {
+                        const version = card.getAttribute('data-version');
+                        if (states[version] !== undefined) {
+                            if (states[version]) {
+                                card.classList.add('active');
+                            } else {
+                                card.classList.remove('active');
+                            }
+                        }
+                    });
+
+                    // Sync the "Expand All" toggle
+                    let allExpanded = true;
+                    document.querySelectorAll('.release-card').forEach(function(card) {
+                        if (!card.classList.contains('active')) allExpanded = false;
+                    });
+                    document.getElementById('expandToggle').checked = allExpanded;
+                } catch(e) {
+                    console.error("Failed to parse changelog state", e);
+                }
+            } else {
+                // First visit: sync toggle with default state
+                let allExpanded = true;
+                document.querySelectorAll('.release-card').forEach(function(card) {
+                    if (!card.classList.contains('active')) allExpanded = false;
+                });
+                document.getElementById('expandToggle').checked = allExpanded;
+            }
+        })();
+
+        // === MODAL CONTROL WITH FOCUS TRAPPING ===
+        let lastFocusedElement;
+        
+        function openLicenseModal() {
+            lastFocusedElement = document.activeElement;
+            const modal = document.getElementById('licenseModal');
+            modal.style.display = 'flex';
+            modal.setAttribute('aria-hidden', 'false');
+            
+            // Prevent background scrolling
+            document.body.style.overflow = 'hidden';
+            document.getElementById('licenseCloseBtn').focus();
+        }
+        
+        function closeLicenseModal() {
+            const modal = document.getElementById('licenseModal');
+            modal.style.display = 'none';
+            modal.setAttribute('aria-hidden', 'true');
+            
+            // Restore background scrolling
+            document.body.style.overflow = '';
+            
+            // Return focus to trigger element
+            if (lastFocusedElement) {
+                lastFocusedElement.focus();
+            }
+        }
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && document.getElementById('licenseModal').style.display === 'flex') {
+                closeLicenseModal();
+            }
+        });
+
+        document.querySelectorAll('.release-card').forEach(updateCardA11y);
+
+        // Scroll to top
+        window.scrollToTop = window.scrollToTop || function() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+        
+        window.addEventListener('scroll', function() {
+            const btn = document.getElementById('scrollTopBtn');
+            if (btn) btn.classList.toggle('show', window.scrollY > 300);
+        });
+    </script>
+    <button type="button" id="scrollTopBtn" class="scroll-top-btn" aria-label="Back to top" onclick="window.scrollToTop()">↑</button>
+    <script src="js/staticPageTheme.js"></script>
+</body>
+</html>

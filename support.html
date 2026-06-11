@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support - BudgetBuddy</title>
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/utilities.css">
+    <style>
+        :root{--bg:#0f1117;--surface:#1a1d27;--surface-hover:#242736;--border:#374151;--text:#e4e4e7;--text-dim:#9ca3af;--green:#22c55e;--green-bg:rgba(34,197,94,0.1);--red:#ef4444;--red-bg:rgba(239,68,68,0.1);--blue:#3b82f6;--blue-bg:rgba(59,130,246,0.1);--accent:#8b5cf6;--shadow:rgba(0,0,0,0.3)}
+        [data-theme="light"]{--bg:#f8fafc;--surface:#fff;--surface-hover:#f1f5f9;--border:#cbd5e1;--text:#1e293b;--text-dim:#475569;--green:#16a34a;--green-bg:rgba(22,163,74,0.1);--red:#dc2626;--red-bg:rgba(220,38,38,0.1);--blue:#2563eb;--blue-bg:rgba(37,99,235,0.1);--accent:#7c3aed;--shadow:rgba(0,0,0,0.05)}
+
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;transition:background-color .3s,color .3s}
+        *:focus{outline:none}
+        *:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+        .skip-link{position:absolute;left:1rem;top:0;transform:translateY(-120%);background:var(--accent);color:#fff;padding:.75rem 1rem;border-radius:0 0 8px 8px;text-decoration:none;font-weight:700;z-index:999}
+        .skip-link:focus{transform:translateY(0)}
+
+        main{flex:1;max-width:880px;width:100%;margin:0 auto;padding:3rem 2rem}
+        .page-title{font-size:2rem;font-weight:700;margin-bottom:.5rem}
+        .page-subtitle{color:var(--text-dim);font-size:1rem;margin-bottom:2.25rem;line-height:1.6}
+        .support-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin-bottom:1.5rem}
+        .support-card,.section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;transition:background-color .3s,border-color .3s}
+        .support-card:hover,.section:hover{border-color:var(--accent)}
+        .support-card h2,.section-title{font-size:1.05rem;font-weight:700;margin-bottom:.65rem;color:var(--text)}
+        .support-card p,.section-body{color:var(--text-dim);font-size:.92rem;line-height:1.65}
+        .support-card a,.section a{color:var(--accent);font-weight:700;text-decoration:none}
+        .support-card a:hover,.section a:hover{text-decoration:underline}
+        .section{margin-bottom:1.5rem}
+        .section-title{color:var(--accent);font-size:1.15rem}
+        .section-body ul{margin-left:1.25rem;margin-top:.75rem}
+        .section-body li{margin-bottom:.45rem}
+        .warning-box{background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:1rem 1.25rem;color:var(--text);margin-top:1rem;font-size:.9rem;line-height:1.6}
+        .contact-box{background:var(--surface-hover);border-radius:10px;padding:1rem 1.25rem;margin-top:1rem;font-size:.92rem;line-height:1.6}
+        .contact-box a{color:var(--accent);font-weight:700;text-decoration:none}
+        .contact-box a:hover{text-decoration:underline}
+        footer{padding:2rem;border-top:1px solid var(--border);text-align:center;color:var(--text-dim);font-size:.8rem;background:var(--surface);margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:.75rem;transition:background-color .3s,border-color .3s}
+        .footer-main{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:0}
+        .footer-btn-pill{background:var(--accent);color:#fff;padding:.25rem .85rem;border-radius:20px;font-size:.75rem;font-weight:600;text-decoration:none;transition:opacity .2s,transform .1s,box-shadow .2s;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,.1)}
+        .footer-btn-pill:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 4px 8px rgba(0,0,0,.15)}
+        .footer-link{color:var(--text-dim);text-decoration:none;transition:color .2s;padding:.25rem 0;font-size:.8rem;font-weight:500}
+        .footer-link:hover{color:var(--accent);text-decoration:underline}
+        .footer-dot{color:var(--border);margin:0 .75rem;user-select:none;font-size:.8rem}
+        .copyright-text{font-size:.75rem;line-height:1.4}
+        @media(max-width:720px){main{padding:2rem 1rem}.support-grid{grid-template-columns:1fr}.page-title{font-size:1.65rem}.footer-page-actions{flex-wrap:wrap;justify-content:flex-end}}
+    </style>
+</head>
+<body>
+    <a href="#main" class="skip-link">Skip to main content</a>
+    <header class="app-header">
+        <a href="index.html" class="logo">Budget<span>Buddy</span></a>
+
+        <div class="header-controls">
+            <div class="theme-toggle-group" role="group" aria-label="Theme selection">
+                <button class="theme-opt" data-theme-val="light" onclick="window.setTheme('light')" aria-label="Light mode" data-tooltip="Light Theme">&#9728;&#65039;</button>
+                <button class="theme-opt active" data-theme-val="system" onclick="window.setTheme('system')" aria-label="System default" data-tooltip="System Default">&#128187;</button>
+                <button class="theme-opt" data-theme-val="dark" onclick="window.setTheme('dark')" aria-label="Dark mode" data-tooltip="Dark Theme">&#127769;</button>
+            </div>
+
+            <div class="auth-buttons footer-page-actions">
+                <a href="login.html" class="btn-text" data-tooltip="Log In">Log In</a>
+                <a href="index.html" class="btn-text footer-back-btn" data-tooltip="Back to App">Back to App</a>
+            </div>
+        </div>
+    </header>
+
+    <main id="main">
+        <h1 class="page-title">Support</h1>
+        <p class="page-subtitle">Use these paths when Buddy Cloud needs attention. BudgetBuddy support can help with status, devices, diagnostics, and reset steps, but cannot read your budget or recover a lost recovery key.</p>
+
+        <div class="support-grid" aria-label="Support topics">
+            <section class="support-card">
+                <h2>Recovery key help</h2>
+                <p>Open <a href="index.html">BudgetBuddy</a>, then go to Account &gt; Settings &gt; Recovery Help to import a saved key or start the lost-key reset flow.</p>
+            </section>
+            <section class="support-card">
+                <h2>Paused sync or device limit</h2>
+                <p>Open Account &gt; Devices to review active browsers, replace a Free device slot, or sign out stale sessions.</p>
+            </section>
+            <section class="support-card">
+                <h2>Version history</h2>
+                <p>Open Account &gt; Settings &gt; Version History to review encrypted snapshots. Use restore only if you know which version you need or support directed you there.</p>
+            </section>
+            <section class="support-card">
+                <h2>Diagnostics</h2>
+                <p>Open Account &gt; Settings &gt; Diagnostics to create a local report. Review the JSON file before sending it to support.</p>
+            </section>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">Before You Contact Support</h2>
+            <div class="section-body">
+                <p>Include what you were trying to do, the exact Buddy Cloud status shown in the app, and whether you recently signed out, reset Buddy Cloud, changed devices, or restored a snapshot.</p>
+                <ul>
+                    <li>Do not send your recovery key.</li>
+                    <li>Do not send budget exports unless support specifically asks for one.</li>
+                    <li>Diagnostics exclude budget contents, transactions, balances, recovery keys, access tokens, and email.</li>
+                </ul>
+                <div class="warning-box">
+                    BudgetBuddy support will never ask for your Buddy Cloud recovery key. Anyone with account access plus that key can decrypt the synced budget.
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Contact</h2>
+            <div class="section-body">
+                <p>For beta support, send a concise description and attach the diagnostic report only if you already reviewed it.</p>
+                <div class="contact-box">
+                    Email: <a href="mailto:support@budget-buddy.io">support@budget-buddy.io</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-main">
+            <a href="changelog.html" class="footer-btn-pill">v1.0 Changelog</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="featurerequest.html" class="footer-link">Feature Request</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="privacypolicy.html" class="footer-link">Privacy Policy</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="roadmap.html" class="footer-link">Roadmap</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="support.html" class="footer-link">Support</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="terms.html" class="footer-link">Terms of Service</a>
+        </div>
+        <div class="copyright-text">
+            &copy; 2026 BudgetBuddy. Open source under the <a href="#" onclick="event.preventDefault(); window.openLicenseModal()" class="footer-link">MIT License</a>.
+        </div>
+    </footer>
+
+    <div class="modal-overlay" id="licenseModal" role="dialog" aria-modal="true" aria-labelledby="licenseModalTitle" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:2000;display:none;justify-content:center;align-items:center" onclick="if(event.target===this)window.closeLicenseModal()">
+        <div class="modal-box" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;position:relative">
+            <button type="button" class="modal-close" onclick="window.closeLicenseModal()" aria-label="Close" style="position:absolute;right:1rem;top:1rem;background:transparent;border:0;color:var(--text-dim);font-size:1.5rem;cursor:pointer">&times;</button>
+            <h3 id="licenseModalTitle" style="font-size:1.25rem;font-weight:700;margin-bottom:1.5rem;color:var(--text)">MIT License</h3>
+            <div style="font-family:monospace;font-size:.85rem;line-height:1.6;color:var(--text-dim);white-space:pre-wrap">MIT License
+
+Copyright (c) 2026 BudgetBuddy
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.</div>
+        </div>
+    </div>
+
+    <script>
+        function applyTheme(mode){
+            const root=document.documentElement;
+            const sysDark=window.matchMedia('(prefers-color-scheme: dark)').matches;
+            root.setAttribute('data-theme',mode==='system'?(sysDark?'dark':'light'):mode);
+            localStorage.setItem('bb_theme_mode',mode);
+            document.querySelectorAll('.theme-opt').forEach(function(b){b.classList.toggle('active',b.dataset.themeVal===mode)});
+        }
+        window.setTheme=applyTheme;
+        applyTheme(localStorage.getItem('bb_theme_mode')||'system');
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){if(localStorage.getItem('bb_theme_mode')==='system')applyTheme('system')});
+
+        window.openLicenseModal=function(){
+            const modal=document.getElementById('licenseModal');
+            if(modal) modal.style.display='flex';
+        };
+        window.closeLicenseModal=function(){
+            const modal=document.getElementById('licenseModal');
+            if(modal) modal.style.display='none';
+        };
+        document.addEventListener('keydown',function(event){
+            if(event.key==='Escape') window.closeLicenseModal();
+        });
+    </script>
+    <script src="js/staticPageTheme.js"></script>
+</body>
+</html>

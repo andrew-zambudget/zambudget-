@@ -1,0 +1,77 @@
+# 🛡️ CORE_FEATURES_GUARDRAILS
+# STATUS: IMMUTABLE / FREE_TIER_BASELINE
+# WARNING: Do not modify, remove, gate, or suggest changes to these features 
+#          unless explicitly instructed by the user with "BREAK_GUARDRAIL" flag.
+
+## MISSION_STATEMENT
+BudgetBuddy exists to provide a budgeting tool that can be used by anyone, with all core budgeting features available and a seamless experience. Privacy-first infrastructure and Buddy Cloud should reduce risk without creating paywalls around essential budgeting workflows.
+
+## LOCAL_ONLY_SUPPORT_POLICY
+Local-only budgets are allowed for privacy and offline use, but BudgetBuddy provides no recovery support for budgets saved only in browser/device storage. If a user clears browser data, clears site data, uses privacy-cleanup tools, loses access to the device/browser profile, or otherwise deletes local storage, BudgetBuddy cannot restore that local-only budget. Buddy Cloud and exports are the supported recovery paths.
+
+## 1. TRANSACTION_MANAGEMENT_ENGINE
+- [MUST_IMPLEMENT] Add New Transaction (Dedicated Form)
+- [MUST_IMPLEMENT] Toggle: Income vs. Expense
+- [MUST_IMPLEMENT] Data Fields:
+  - Description (Required Text)
+  - Amount (Custom Numpad Interface)
+  - Date (Custom Non-Native Picker)
+  - Payment Method (Dropdown: Cash/Card/Bank/Digital/Check/Other)
+  - Notes (Optional, Max 54 Chars)
+  - Tagging System (Income/Savings/Debt/Transaction)
+- [MUST_IMPLEMENT] List Management:
+  - View Recent Transactions
+  - Filter by Type (All/Income/Savings/Expense)
+  - Delete Transaction (Safety Modal + Countdown Timer)
+
+## 2. CATEGORY_SYSTEM_ORGANIZATION
+- [MUST_IMPLEMENT] Manual Category Creation
+- [MUST_IMPLEMENT] Quick Add Scroller (Rapid Assignment)
+- [MUST_IMPLEMENT] Sorting Algorithms (6 Types):
+  - Alphabetical Asc/Desc
+  - Spending Volume High/Low
+  - Chronological New/Old
+- [MUST_IMPLEMENT] Safety Checks:
+  - Force Deletion Warning (Show Tx Count)
+  - "Don't Show Again" Preference (Session-based)
+
+## 3. FINANCIAL_AGGREGATION_MATH
+- [MUST_IMPLEMENT] Dashboard Summary (Real-time):
+  - Total Balance (Net Worth)
+  - Total Income
+  - Total Expenses
+  - Transaction Count
+- [MUST_IMPLEMENT] Savings Tracking:
+  - Multiple Buckets/Goals
+  - Global Progress Visualization (%)
+  - Visual Progress Bars
+  - Quick Deposit Buttons (+$50/$100/$250/$500)
+  - Custom Deposit Modal
+- [MUST_IMPLEMENT] Debt Tracking:
+  - Debt List View
+  - Payoff Plan Visualization
+
+## 4. DATA_PORTABILITY_OWNERSHIP
+- [MUST_IMPLEMENT] CSV Export (Full History, One-Click)
+- [MUST_IMPLEMENT] Local Persistence (Browser localStorage only)
+  - CONSTRAINT: No server-side requirement for these features.
+
+## 5. INTERFACE_NAVIGATION_CONTROL
+- [MUST_IMPLEMENT] Tabbed Command Center Views:
+  - Income Overview
+  - Savings Goals
+  - Debt Plan
+  - Add Transaction
+  - Recent Transactions
+- [MUST_IMPLEMENT] Modal System:
+  - Settings
+  - Destructive Action Confirmations
+  - Item Creation
+- [MUST_IMPLEMENT] Toast Notifications (Action Feedback)
+
+---
+## ⚠️ RESTRICTION PROTOCOL
+- These features constitute the **FREE TIER BASELINE**.
+- They MUST remain accessible without login, account creation, or payment.
+- They MUST NOT be refactored into "Premium" features without explicit user command.
+- Any attempt to limit functionality here (e.g., "limit to 50 transactions") violates system integrity unless overridden.
