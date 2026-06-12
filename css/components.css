@@ -4013,6 +4013,9 @@ input.error, select.error {
     font-size: 0.78rem;
     font-weight: 600;
     line-height: 1.28;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
 }
 
 .buddy-cloud-devices-modal .buddy-cloud-device-current {

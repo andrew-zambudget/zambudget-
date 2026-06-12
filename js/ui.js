@@ -2199,9 +2199,19 @@ function isBrowserAccessSyncSlotActive(row = {}, syncSlots = getBuddyCloudActive
 function formatBrowserAccessDeviceStatus(row = {}, syncSlots = getBuddyCloudActiveSyncSlotRowsForDevices()) {
     const baseStatus = formatBrowserAccessStatus(row);
     if (row.revoked_at) return baseStatus;
-    if (isBrowserAccessSyncSlotActive(row, syncSlots)) return `${baseStatus} \u00b7 Sync active`;
-    if (row.sync_slot_hash) return `${baseStatus} \u00b7 Sync slot inactive`;
+    if (isBrowserAccessSyncSlotActive(row, syncSlots)) return `${baseStatus}\nSync active`;
+    if (row.sync_slot_hash) return `${baseStatus}\nSync slot inactive`;
     return baseStatus;
+}
+
+function buildBrowserAccessStatusHtml(status = '') {
+    const lines = String(status || '')
+        .split('\n')
+        .map(line => line.trim())
+        .filter(Boolean);
+    return lines.length
+        ? lines.map(line => `<span>${esc(line)}</span>`).join('')
+        : '<span>Active status unknown</span>';
 }
 
 function getUnmatchedSyncSlotRows(activeBrowserRows = []) {
@@ -2496,7 +2506,7 @@ function buildBrowserAccessDeviceListHtml(context = {}, { includeGlobalSignOut =
                     <span class="buddy-cloud-device-icon" aria-hidden="true">${getBrowserAccessIconSvg()}</span>
                     <span class="buddy-cloud-device-copy">
                         <strong>${esc(label)}</strong>
-                        <span>${esc(status)}</span>
+                        ${buildBrowserAccessStatusHtml(status)}
                     </span>
                 </div>
                 ${action}
