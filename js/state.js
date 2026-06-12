@@ -13,6 +13,7 @@ let state = {
         emergencyFundMonths: 3,
         emergencyFundGoalOverride: false,
         emergencyFundInteracted: false,
+        overrideDebtEmergencyFundLock: false,
         dashboardSummaryCollapsed: true,
         treatSavingsAsIncomeInZbb: false,
         treatSavingsAsTotalIncome: false,
@@ -72,6 +73,7 @@ function applyLoadedPayload(parsed = {}) {
         : 3;
     state.settings.emergencyFundGoalOverride = Boolean(state.settings.emergencyFundGoalOverride);
     state.settings.emergencyFundInteracted = Boolean(state.settings.emergencyFundInteracted);
+    state.settings.overrideDebtEmergencyFundLock = parsed.settings?.overrideDebtEmergencyFundLock === true;
     state.settings.treatSavingsAsTotalIncome = parsed.settings?.treatSavingsAsTotalIncome === true;
     state.settings.treatSavingsAsIncomeInZbb = false;
 }
@@ -517,6 +519,8 @@ export const hasEmergencyFundGoalOverride = () => Boolean(state.settings.emergen
 export const setEmergencyFundGoalOverride = (val) => { state.settings.emergencyFundGoalOverride = Boolean(val); save(); };
 export const hasEmergencyFundInteraction = () => Boolean(state.settings.emergencyFundInteracted);
 export const setEmergencyFundInteracted = (val = true) => { state.settings.emergencyFundInteracted = Boolean(val); save(); };
+export const getOverrideDebtEmergencyFundLock = () => Boolean(state.settings.overrideDebtEmergencyFundLock);
+export const setOverrideDebtEmergencyFundLock = (val) => { state.settings.overrideDebtEmergencyFundLock = Boolean(val); save(); };
 export const setEmergencyFundGoal = (val, hasOverride = false) => {
     state.settings.savingsGoal = Math.max(1000, parseFloat(val) || 1000);
     state.settings.emergencyFundGoalOverride = Boolean(hasOverride);

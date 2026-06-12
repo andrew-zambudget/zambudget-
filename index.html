@@ -165,6 +165,14 @@
                     <div class="quick-add-scroll" id="quickAddGrid"></div>
                 </div>
 
+                <div class="category-calendar-row">
+                    <button type="button" id="categoryCalendarMonthBtn" class="category-calendar-month-btn" onclick="window.openBudgetCalendarFromCategory()" aria-label="Open budget calendar">
+                        <span class="category-calendar-eyebrow">Budget Month</span>
+                        <strong id="categoryCalendarMonthLabel">Month</strong>
+                        <span class="category-calendar-action">Calendar</span>
+                    </button>
+                </div>
+
                 <div class="sort-control-bar" id="sortControlBar">
                     <span class="sort-cat-count" id="sortCatCount">0 categories</span>
                     <span class="sort-label">Sort</span>
@@ -187,11 +195,11 @@
 
             <div class="command-center-card">
                 <div class="command-tabs" role="tablist" aria-label="Budget sections">
+                    <button type="button" class="cmd-tab cmd-tab-hidden-calendar" onclick="window.switchTab('calendar')" id="tab-calendar" role="tab" aria-controls="view-calendar" aria-selected="false" tabindex="-1">Calendar</button>
                     <button type="button" class="cmd-tab" onclick="window.switchTab('income')" id="tab-income" role="tab" aria-controls="view-income" aria-selected="false">Income</button>
                     <button type="button" class="cmd-tab" onclick="window.switchTab('savings')" id="tab-savings" role="tab" aria-controls="view-savings" aria-selected="false">Savings</button>
                     <button type="button" class="cmd-tab" onclick="window.switchTab('debt')" id="tab-debt" role="tab" aria-controls="view-debt" aria-selected="false">Debt</button>
                     <button type="button" class="cmd-tab active" onclick="window.switchTab('add')" id="tab-add" role="tab" aria-controls="view-add" aria-selected="true">Add</button>
-                    <button type="button" class="cmd-tab" onclick="window.switchTab('calendar')" id="tab-calendar" role="tab" aria-controls="view-calendar" aria-selected="false">Calendar</button>
                     <button type="button" class="cmd-tab" onclick="window.switchTab('recent')" id="tab-recent" role="tab" aria-controls="view-recent" aria-selected="false">Recent</button>
                 </div>
 
@@ -640,6 +648,21 @@
                                 </div>
 
                                 <div class="form-group">
+                                    <label>Override the $1,000 emergency fund lock while debt exists?</label>
+                                    <div class="settings-radio-row" role="radiogroup" aria-label="Override the emergency fund lock while debt exists">
+                                        <label class="checkbox-label">
+                                            <input type="radio" name="overrideDebtSavingsLock" id="overrideDebtSavingsLockNo" value="no">
+                                            <span>No</span>
+                                        </label>
+                                        <label class="checkbox-label">
+                                            <input type="radio" name="overrideDebtSavingsLock" id="overrideDebtSavingsLockYes" value="yes">
+                                            <span>Yes</span>
+                                        </label>
+                                    </div>
+                                    <div class="help-text">Default is No. Choose Yes if you want to fund a larger emergency fund before debt is gone.</div>
+                                </div>
+
+                                <div class="form-group">
                                     <label>Accent Color</label>
                                     <div class="accent-picker" role="radiogroup" aria-label="Accent color">
                                         <label class="accent-swatch-option" style="--swatch-color:#14b8a6">
@@ -1072,8 +1095,8 @@
                                     <button class="btn-close-panel" onclick="window.closeCategoryDrillDown()">×</button>
 
                                     <div class="drill-down-hero">
-                                        <div class="drill-down-icon" id="drillDownIcon">📁</div>
-                                        <h2 class="drill-down-title" id="drillDownTitle">Category Name</h2>
+                                        <div class="drill-down-icon drill-down-edit-target" id="drillDownIcon" role="button" tabindex="0" title="Edit icon">📁</div>
+                                        <h2 class="drill-down-title drill-down-edit-target" id="drillDownTitle" role="button" tabindex="0" title="Edit name">Category Name</h2>
                                     </div>
 
                                     <div class="drill-down-metrics">

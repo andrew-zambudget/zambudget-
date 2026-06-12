@@ -3865,6 +3865,7 @@ export function renderCategoryList() {
     const countEl = document.getElementById('sortCatCount');
     if (!listContainer) return;
     syncCategorySortSelect();
+    syncCategoryCalendarMonthLabel();
 
     // Grab all categories, but ONLY keep the ones that are NOT income
         const allCategories = State.getCategories() || [];
@@ -4439,6 +4440,14 @@ function hasActiveDebt() {
     return categories.some(c => c.type === 'debt' && (parseFloat(c.balance) || 0) > 0);
 }
 
+function shouldOverrideDebtEmergencyFundLock() {
+    return State.getOverrideDebtEmergencyFundLock ? State.getOverrideDebtEmergencyFundLock() : false;
+}
+
+function isDebtEmergencyFundLockActive() {
+    return hasActiveDebt() && !shouldOverrideDebtEmergencyFundLock();
+}
+
 function getMonthlyEmergencyFundBase() {
     const categories = State.getCategories ? State.getCategories() : [];
     return categories.reduce((sum, cat) => {
@@ -4473,13 +4482,14 @@ function getSavingsFundStage(totalSavings) {
     const monthlyEmergencyFundBase = getMonthlyEmergencyFundBase();
     const recommendedEmergencyGoal = Math.max(STARTER_EMERGENCY_FUND_GOAL, monthlyEmergencyFundBase * emergencyFundMonths);
     const debtIsActive = hasActiveDebt();
+    const debtLockActive = debtIsActive && !shouldOverrideDebtEmergencyFundLock();
     const goalOverride = hasEmergencyFundGoalOverride();
-    const isStarterFund = !hasUserInteraction && !debtIsActive && !goalOverride;
+    const isStarterFund = !hasUserInteraction && !debtLockActive && !goalOverride;
     const emergencyGoal = goalOverride
         ? Math.max(STARTER_EMERGENCY_FUND_GOAL, parseFloat(savedGoal) || STARTER_EMERGENCY_FUND_GOAL)
         : (isStarterFund ? STARTER_EMERGENCY_FUND_GOAL : recommendedEmergencyGoal);
-    const countedSavings = debtIsActive ? Math.min(totalSavings, STARTER_EMERGENCY_FUND_GOAL) : totalSavings;
-    const isEmergencyFund = !debtIsActive;
+    const countedSavings = debtLockActive ? Math.min(totalSavings, STARTER_EMERGENCY_FUND_GOAL) : totalSavings;
+    const isEmergencyFund = !debtLockActive;
 
     return {
         isEmergencyFund,
@@ -4492,6 +4502,8 @@ function getSavingsFundStage(totalSavings) {
         goalOverride,
         isStarterFund,
         hasActiveDebt: debtIsActive,
+        debtLockActive,
+        debtLockOverridden: debtIsActive && !debtLockActive,
         countedSavings
     };
 }
@@ -4547,7 +4559,7 @@ window.showDebtLockedSavingsMessage = function(event) {
 
 function wouldExceedDebtSavingsCap(nextSavingsAmount) {
     const nextAmount = parseFloat(nextSavingsAmount) || 0;
-    return hasActiveDebt() && nextAmount > STARTER_EMERGENCY_FUND_GOAL + 0.005;
+    return isDebtEmergencyFundLockActive() && nextAmount > STARTER_EMERGENCY_FUND_GOAL + 0.005;
 }
 
 function getSavingsTransactionDelta(tx) {
@@ -4844,7 +4856,7 @@ window.withdrawEmergencyFund = function(event) {
 function applyDebtLockedSavingsState(fundStage) {
     const symbol = State.getSymbol ? State.getSymbol() : '$';
     const message = getDebtLockedEmergencyFundMessage(symbol);
-    const isLocked = Boolean(fundStage?.hasActiveDebt);
+    const isLocked = Boolean(fundStage?.debtLockActive);
     const currentEl = document.getElementById('savingsTotalDisplay');
     const goalEl = document.getElementById('savingsGoalDisplay');
 
@@ -5298,7 +5310,7 @@ function renderSavingsFundTitle(fundStage) {
 
 window.openEmergencyFundMonthsEdit = function(event) {
     event?.preventDefault?.();
-    if (hasActiveDebt()) {
+    if (isDebtEmergencyFundLockActive()) {
         window.showDebtLockedSavingsMessage(event);
         return;
     }
@@ -5333,7 +5345,7 @@ window.closeEmergencyFundMonthsEdit = function() {
 };
 
 window.saveEmergencyFundMonths = function(value) {
-    if (hasActiveDebt()) {
+    if (isDebtEmergencyFundLockActive()) {
         window.showDebtLockedSavingsMessage();
         renderSavingsTab();
         return;
@@ -5460,7 +5472,7 @@ window.saveEmergencyFundGoal = function(options = {}) {
     const shouldCloseEditor = options?.closeEditor !== false;
     const fundStage = getSavingsFundStage(getTotalSavingsAmount());
 
-    if (hasActiveDebt()) {
+    if (isDebtEmergencyFundLockActive()) {
         window.showDebtLockedSavingsMessage();
         setEmergencyFundGoalDisplay(fundStage.emergencyGoal, { forceInput: true });
         setEmergencyFundGoalEditMode(false);
@@ -8518,6 +8530,29 @@ window.openCategoryDrillDown = function(categoryName, categoryIcon) {
     // 1. Identify what type of category we are clicking
     const targetCategory = categories.find(c => c.name === categoryName) || { type: 'expense' };
     const catType = targetCategory.type || 'expense'; // Will be 'expense', 'income', 'savings', or 'debt'
+    const currentIcon = targetCategory.icon || categoryIcon || '';
+    const openDrillDownEditor = () => {
+        window.closeCategoryDrillDown();
+        if (catType === 'income') {
+            window.openAddSourceModal(categoryName);
+        } else {
+            window.openCategoryModal('edit', categoryName, currentIcon);
+        }
+    };
+    const bindDrillDownEditTarget = (el, label) => {
+        if (!el) return;
+        el.title = label;
+        el.setAttribute('aria-label', label);
+        el.onclick = openDrillDownEditor;
+        el.onkeydown = (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            openDrillDownEditor();
+        };
+    };
+
+    bindDrillDownEditTarget(document.getElementById('drillDownIcon'), `Edit ${categoryName} icon`);
+    bindDrillDownEditTarget(document.getElementById('drillDownTitle'), `Edit ${categoryName} name`);
 
     // 2. Sum up ONLY the transactions that match this category's type
     const totalAmount = getCategoryTransactionSummary(categoryName, catType).total;
@@ -8552,14 +8587,7 @@ window.openCategoryDrillDown = function(categoryName, categoryIcon) {
     const logActionBtn = document.getElementById('drillDownLogExpenseBtn');
 
     if (editBtn) {
-        editBtn.onclick = () => {
-            window.closeCategoryDrillDown();
-            if (catType === 'income') {
-                window.openAddSourceModal(categoryName);
-            } else {
-                window.openCategoryModal('edit', categoryName, categoryIcon);
-            }
-        };
+        editBtn.onclick = openDrillDownEditor;
     }
 
     if (deleteBtn) {
@@ -9040,6 +9068,7 @@ export function openSettingsModal() {
     const defPayment = State.getDefaultPayment ? State.getDefaultPayment() : '';
     const summaryView = State.getDashboardSummaryCollapsed && State.getDashboardSummaryCollapsed() ? 'collapsed' : 'open';
     const treatSavingsAsIncome = shouldTreatSavingsAsIncome();
+    const overrideDebtLock = State.getOverrideDebtEmergencyFundLock ? State.getOverrideDebtEmergencyFundLock() : false;
 
     const currencySelect = document.getElementById('currencySelect');
     const typeSelect = document.getElementById('defaultTypeSelect');
@@ -9047,6 +9076,8 @@ export function openSettingsModal() {
     const summarySelect = document.getElementById('summaryViewSelect');
     const savingsAsIncomeYes = document.getElementById('zbbSavingsAsIncomeYes');
     const savingsAsIncomeNo = document.getElementById('zbbSavingsAsIncomeNo');
+    const overrideDebtLockYes = document.getElementById('overrideDebtSavingsLockYes');
+    const overrideDebtLockNo = document.getElementById('overrideDebtSavingsLockNo');
     const savedAccent = localStorage.getItem(ACCENT_THEME_KEY) || 'teal';
 
     if (currencySelect) currencySelect.value = currentCurrency;
@@ -9055,6 +9086,8 @@ export function openSettingsModal() {
     if (summarySelect) summarySelect.value = summaryView;
     if (savingsAsIncomeYes) savingsAsIncomeYes.checked = treatSavingsAsIncome;
     if (savingsAsIncomeNo) savingsAsIncomeNo.checked = !treatSavingsAsIncome;
+    if (overrideDebtLockYes) overrideDebtLockYes.checked = overrideDebtLock;
+    if (overrideDebtLockNo) overrideDebtLockNo.checked = !overrideDebtLock;
     applyAccentTheme(savedAccent);
 
     renderSyncHistory();
@@ -9072,12 +9105,14 @@ export function saveSettings() {
     const paymentSelect = document.getElementById('defaultPaymentSelect');
     const summarySelect = document.getElementById('summaryViewSelect');
     const savingsAsIncomeYes = document.getElementById('zbbSavingsAsIncomeYes');
+    const overrideDebtLockYes = document.getElementById('overrideDebtSavingsLockYes');
     const accentSelect = document.querySelector('input[name="accentColor"]:checked');
 
     if (currencySelect && State.setSymbol) State.setSymbol(currencySelect.value);
     if (typeSelect && State.setDefaultType) State.setDefaultType(typeSelect.value);
     if (paymentSelect && State.setDefaultPayment) State.setDefaultPayment(paymentSelect.value);
     if (savingsAsIncomeYes && State.setTreatSavingsAsIncomeInZbb) State.setTreatSavingsAsIncomeInZbb(savingsAsIncomeYes.checked);
+    if (overrideDebtLockYes && State.setOverrideDebtEmergencyFundLock) State.setOverrideDebtEmergencyFundLock(overrideDebtLockYes.checked);
     if (accentSelect) setAccentTheme(accentSelect.value);
     if (summarySelect && State.setDashboardSummaryCollapsed) {
         const collapsed = summarySelect.value === 'collapsed';
@@ -9845,6 +9880,119 @@ export function renderDebtTab() {
     const actionArea = document.getElementById('debtActionArea');
     if (!breakdownEl) return;
 
+    {
+        const allCategories = State.getCategories() || [];
+        const symbol = State.getSymbol ? State.getSymbol() : '$';
+        const debtSources = allCategories.filter(c => c.type === 'debt');
+        const activeDebts = debtSources
+            .filter(d => (parseFloat(d.balance) || 0) > 0)
+            .sort((a, b) => (parseFloat(a.balance) || 0) - (parseFloat(b.balance) || 0));
+        const paidOffDebts = debtSources
+            .filter(d => (parseFloat(d.balance) || 0) <= 0)
+            .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+        const sortedDebts = [...activeDebts, ...paidOffDebts];
+        const totalDebt = activeDebts.reduce((sum, debt) => sum + (parseFloat(debt.balance) || 0), 0);
+        const totalMin = activeDebts.reduce((sum, debt) => sum + (parseFloat(debt.minPayment) || 0), 0);
+        const nextDue = activeDebts
+            .filter(debt => debt.dueDate)
+            .slice()
+            .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))[0];
+        const nextDueText = nextDue ? `${nextDue.name} ${formatDate(nextDue.dueDate)}` : 'No due date';
+        const formatDebtApr = value => {
+            const parsed = parseFloat(value);
+            if (!Number.isFinite(parsed)) return '0%';
+            return `${Number.isInteger(parsed) ? parsed.toFixed(0) : parsed.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}%`;
+        };
+        const headerHtml = `
+            <div class="debt-summary-card">
+                <div>
+                    <div class="income-overview-title">Debt Plan</div>
+                    <div class="debt-summary-subtitle">${activeDebts.length} active · ${paidOffDebts.length} paid off</div>
+                </div>
+                <button type="button" class="btn-primary-dashed debt-add-btn" onclick="window.openAddDebtModal()">+ Add Debt</button>
+            </div>
+        `;
+
+        if (debtSources.length === 0) {
+            breakdownEl.innerHTML = `
+                <section class="debt-workspace">
+                    ${headerHtml}
+                    <div class="debt-empty-state">
+                        <div class="debt-empty-icon" aria-hidden="true">✓</div>
+                        <h3>No debt accounts yet</h3>
+                        <p>Add a balance when you want BudgetBuddy to track payoff progress.</p>
+                        <button type="button" class="btn-create" onclick="window.openAddDebtModal()">Add Debt</button>
+                    </div>
+                </section>
+            `;
+            return;
+        }
+
+        const debtCardsHtml = sortedDebts.map(debt => {
+            const balance = Math.max(0, parseFloat(debt.balance) || 0);
+            const startingBalance = Math.max(balance, parseFloat(debt.startingBalance) || balance);
+            const isPaidOff = balance <= 0;
+            const paidPercent = startingBalance > 0
+                ? Math.min(Math.max(((startingBalance - balance) / startingBalance) * 100, 0), 100)
+                : 100;
+            const remainingPercent = 100 - paidPercent;
+            const safeIcon = (debt.icon && String(debt.icon).trim() !== '') ? debt.icon : (isPaidOff ? '✓' : '💳');
+            const dueText = debt.dueDate ? `Due ${formatDate(debt.dueDate)}` : 'No due date';
+            const metaText = isPaidOff
+                ? 'Paid in full'
+                : `Min ${symbol}${formatMoney(debt.minPayment || 0)} · APR ${formatDebtApr(debt.apr)}`;
+
+            return `
+                <div class="category-item debt-card ${isPaidOff ? 'debt-card-paid' : 'debt-card-active'}" role="button" tabindex="0" onclick="window.openCategoryDrillDown(${jsArg(debt.name)}, ${jsArg(debt.icon || '')})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); window.openCategoryDrillDown(${jsArg(debt.name)}, ${jsArg(debt.icon || '')});}" aria-label="Open ${esc(debt.name)} debt details">
+                    <div class="debt-card-main">
+                        <div class="category-icon-box debt-card-icon">
+                            <span class="category-icon debt-card-icon-symbol">${esc(safeIcon)}</span>
+                        </div>
+                        <div class="category-body debt-card-copy">
+                            <div class="debt-card-name">${esc(debt.name)}</div>
+                            <div class="debt-card-meta">${esc(metaText)}</div>
+                            <div class="debt-card-due">${esc(dueText)}</div>
+                        </div>
+                        <div class="debt-card-balance">
+                            <div class="debt-card-balance-label">${isPaidOff ? 'Status' : 'Balance'}</div>
+                            <div class="debt-card-balance-value blur-value">${isPaidOff ? 'Paid' : `${symbol}${formatMoney(balance)}`}</div>
+                        </div>
+                    </div>
+                    <div class="debt-progress-track" aria-label="${esc(debt.name)} ${paidPercent.toFixed(0)} percent paid off">
+                        <div class="debt-progress-fill" style="width: ${paidPercent}%;"></div>
+                        <span class="debt-progress-remaining" style="width: ${remainingPercent}%;"></span>
+                    </div>
+                    <div class="debt-card-footer">
+                        <span>${paidPercent.toFixed(0)}% paid</span>
+                        <button type="button" class="debt-card-action" onclick="event.stopPropagation(); window.triggerDebtPayment(${jsArg(debt.name)}, ${Number(debt.minPayment || 0)})">${isPaidOff ? 'Review' : 'Log Payment'}</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        breakdownEl.innerHTML = `
+            <section class="debt-workspace">
+                ${headerHtml}
+                <div class="debt-summary-grid" aria-label="Debt summary">
+                    <div class="debt-summary-stat">
+                        <span>Total Balance</span>
+                        <strong>${symbol}${formatMoney(totalDebt)}</strong>
+                    </div>
+                    <div class="debt-summary-stat">
+                        <span>Monthly Minimums</span>
+                        <strong>${symbol}${formatMoney(totalMin)}</strong>
+                    </div>
+                    <div class="debt-summary-stat">
+                        <span>Next Due</span>
+                        <strong>${esc(nextDueText)}</strong>
+                    </div>
+                </div>
+                <div class="debt-card-list">${debtCardsHtml}</div>
+            </section>
+        `;
+        return;
+    }
+
     const categories = State.getCategories() || [];
     const symbol = State.getSymbol ? State.getSymbol() : '$';
 
@@ -9962,11 +10110,15 @@ window.openAddDebtModal = function() {
 
     const modal = document.createElement('div');
     modal.id = 'addDebtModal';
-    modal.className = 'modal-overlay active';
+    modal.className = 'modal-overlay active debt-sheet-modal';
     modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: flex-end; z-index: 1000;';
+    modal.onclick = (event) => {
+        if (event.target === modal) window.closeAddDebtModal();
+    };
 
     modal.innerHTML = `
-        <div class="modal-content form-panel" style="width: 100%; max-width: 500px; background: var(--surface); border-radius: 20px 20px 0 0; padding: 1.5rem; animation: slideUp 0.3s ease-out;">
+        <div class="modal-content form-panel debt-sheet" style="width: 100%; max-width: 500px; background: var(--surface); border-radius: 20px 20px 0 0; padding: 1.5rem; animation: slideUp 0.3s ease-out;" onclick="event.stopPropagation()">
+            <div class="debt-sheet-handle" aria-hidden="true"></div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                 <h3 style="margin: 0; font-size: 1.2rem;">Add New Debt</h3>
                 <button type="button" onclick="window.closeAddDebtModal()" style="background: none; border: none; font-size: 1.5rem; color: var(--text-dim); cursor: pointer;">✕</button>
@@ -11657,15 +11809,22 @@ function setBudgetCalendarText(id, value) {
     if (el) el.textContent = value;
 }
 
+function syncCategoryCalendarMonthLabel(date = calendarCursorDate) {
+    const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+    setBudgetCalendarText('categoryCalendarMonthLabel', getBudgetCalendarMonthTitle(monthStart));
+}
+
 function renderBudgetCalendar() {
     const grid = document.getElementById('budgetCalendarGrid');
-    if (!grid) return;
 
     const symbol = State.getSymbol ? State.getSymbol() : '$';
     const monthStart = new Date(calendarCursorDate.getFullYear(), calendarCursorDate.getMonth(), 1);
     const monthEnd = new Date(calendarCursorDate.getFullYear(), calendarCursorDate.getMonth() + 1, 0);
     const gridStart = new Date(monthStart);
     gridStart.setDate(monthStart.getDate() - monthStart.getDay());
+    syncCategoryCalendarMonthLabel(monthStart);
+
+    if (!grid) return;
 
     const visibleTx = getFilteredRecentTransactions({ includeSelectedDate: false });
     const dayMap = getBudgetCalendarDayMap(visibleTx);
@@ -11771,6 +11930,14 @@ window.clearBudgetCalendarDate = function() {
 
 window.openBudgetCalendarRecent = function() {
     if (typeof window.switchTab === 'function') window.switchTab('recent');
+};
+
+window.openBudgetCalendarFromCategory = function() {
+    if (typeof window.switchTab === 'function') {
+        window.switchTab('calendar');
+    } else {
+        renderBudgetCalendar();
+    }
 };
 
 function saveTransactionArray(txArray) {
