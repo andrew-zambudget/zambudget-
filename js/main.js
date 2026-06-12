@@ -25,6 +25,7 @@ import * as State from './state.js';
 import * as UI from './ui.js';
 import * as BuddyCloud from './cloudSync.js';
 import * as DemoMode from './demoMode.js';
+import * as BudgetPrep from './budgetPrep.js';
 
 // Global Supabase variables
 window.sb = null;
@@ -85,6 +86,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (error) throw error;
                 
                 window.currentUser = session ? session.user : null;
+                if (window.currentUser) {
+                    BudgetPrep.showPreparingBudget?.({
+                        title: 'Preparing budget...',
+                        detail: 'Checking your account and encrypted sync state.'
+                    });
+                }
                 
                 // Listen for changes (like logging out)
                 window.sb.auth.onAuthStateChange(async (event, session) => {
@@ -99,23 +106,45 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                     }
 
+                    const showAuthPrep = Boolean(window.currentUser);
+                    if (showAuthPrep) {
+                        BudgetPrep.showPreparingBudget?.({
+                            title: 'Refreshing budget...',
+                            detail: 'Checking your account before updating the dashboard.'
+                        });
+                    }
+
+                    let authRefreshFailed = false;
                     try {
                         if (window.currentUser && typeof window.refreshPremiumAccess === 'function') {
+                            BudgetPrep.updatePreparingBudget?.({ detail: 'Checking Premium status and account access.' });
                             await window.refreshPremiumAccess({ silent: true });
                         } else {
                             State.setIsPro?.(false, { source: 'auth_state_change' });
                         }
 
+                        BudgetPrep.updatePreparingBudget?.({ detail: 'Checking whether this browser is still trusted.' });
                         const browserAccessOk = await UI.refreshBrowserAccessRegistry?.({ silent: true });
                         if (browserAccessOk === false) return;
+
+                        BudgetPrep.updatePreparingBudget?.({ detail: 'Opening Buddy Cloud without reading your budget.' });
                         await BuddyCloud.refreshUser(window.currentUser);
                         if (window.currentUser) {
+                            BudgetPrep.updatePreparingBudget?.({ detail: 'Confirming encrypted Buddy Cloud protection.' });
                             await UI.ensureBuddyCloudDefaultProtection?.();
                         }
                     } catch (authRefreshError) {
                         console.warn('[main.js] Auth refresh failed:', authRefreshError);
+                        authRefreshFailed = true;
+                        if (showAuthPrep) {
+                            BudgetPrep.failPreparingBudget?.({
+                                title: 'Budget refresh paused',
+                                detail: 'BudgetBuddy could not finish refreshing the signed-in budget state.'
+                            });
+                        }
                     } finally {
                         if (typeof window.updateAuthUI === 'function') window.updateAuthUI();
+                        if (showAuthPrep && !authRefreshFailed) BudgetPrep.hidePreparingBudget?.();
                     }
                 });
                 
@@ -131,18 +160,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         const demoModeState = DemoMode.prepareDemoMode?.({ user: window.currentUser });
 
         // Initialize the data engine
+        BudgetPrep.updatePreparingBudget?.({ detail: 'Loading this browser budget before cloud checks.' });
         if (State.initState) State.initState();
         appStateInitialized = true;
 
         if (window.currentUser && typeof UI.refreshPremiumAccess === 'function') {
+            BudgetPrep.updatePreparingBudget?.({ detail: 'Checking Premium status and account access.' });
             await UI.refreshPremiumAccess({ silent: true });
         } else {
             State.setIsPro?.(false, { source: 'billing_status_unavailable' });
         }
 
+        BudgetPrep.updatePreparingBudget?.({ detail: 'Checking whether this browser is still trusted.' });
         const browserAccessOk = await UI.refreshBrowserAccessRegistry?.({ silent: true });
-        if (browserAccessOk === false) return;
+        if (browserAccessOk === false) {
+            BudgetPrep.updatePreparingBudget?.({
+                title: 'Clearing this browser...',
+                detail: 'This browser was signed out from Account > Devices.'
+            });
+            return;
+        }
 
+        BudgetPrep.updatePreparingBudget?.({ detail: 'Opening Buddy Cloud without reading your budget.' });
         await BuddyCloud.init({
             supabaseClient: window.sb,
             user: window.currentUser,
@@ -159,6 +198,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // Wire up events
+        BudgetPrep.updatePreparingBudget?.({ detail: 'Wiring up budget controls.' });
         try {
             const eventModule = await import('./events.js');
             if (eventModule.initEvents) {
@@ -170,6 +210,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Call UI update after checking session to update Avatar/Login button
+        BudgetPrep.updatePreparingBudget?.({ detail: 'Painting the dashboard with the latest budget state.' });
         if (typeof window.updateAuthUI === 'function') window.updateAuthUI();
 
         // Initial render sequences safely mapped
@@ -199,12 +240,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         DemoMode.initSignedOutAccountPrompt?.({ user: window.currentUser });
 
         if (!DemoMode.isDemoModeActive?.()) {
+            BudgetPrep.updatePreparingBudget?.({ detail: 'Confirming encrypted Buddy Cloud protection.' });
             await UI.ensureBuddyCloudDefaultProtection?.();
         }
+
+        BudgetPrep.updatePreparingBudget?.({
+            title: 'Budget ready.',
+            detail: 'Dashboard is caught up. No spreadsheet panic required.'
+        });
+        BudgetPrep.hidePreparingBudget?.();
 
         console.log('[main.js] Application initialized successfully');
     } catch (err) {
         console.error('[main.js] Critical Init Error:', err);
+        if (BudgetPrep.isPreparingBudgetVisible?.()) {
+            BudgetPrep.failPreparingBudget?.({
+                title: 'Budget did not finish loading',
+                detail: 'BudgetBuddy hit a startup error before the dashboard finished preparing.'
+            });
+        }
         if (typeof UI !== 'undefined' && typeof UI.showToast === 'function') {
             UI.showToast('Failed to start application.');
         } else {
