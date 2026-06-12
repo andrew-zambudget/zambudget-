@@ -14,6 +14,7 @@ let state = {
         emergencyFundGoalOverride: false,
         emergencyFundInteracted: false,
         dashboardSummaryCollapsed: true,
+        treatSavingsAsIncomeInZbb: false,
         lastCategorySort: 'alpha_asc',
         isPro: false,
         premiumSinceUTC: '',
@@ -490,6 +491,9 @@ export const setEmergencyFundMonths = (val) => { state.settings.emergencyFundMon
 
 export const getDashboardSummaryCollapsed = () => Boolean(state.settings.dashboardSummaryCollapsed);
 export const setDashboardSummaryCollapsed = (val) => { state.settings.dashboardSummaryCollapsed = Boolean(val); save(); };
+
+export const getTreatSavingsAsIncomeInZbb = () => Boolean(state.settings.treatSavingsAsIncomeInZbb);
+export const setTreatSavingsAsIncomeInZbb = (val) => { state.settings.treatSavingsAsIncomeInZbb = Boolean(val); save(); };
 
 export const getIsPro = () => Boolean(state.settings.isPro);
 export const setIsPro = (val, metadata = {}) => {

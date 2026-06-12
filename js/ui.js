@@ -4048,17 +4048,20 @@ export function renderZBBDashboard() {
     const allTxs = State.getTransactions() || [];
     const categories = State.getCategories() || [];
     const symbol = State.getSymbol ? State.getSymbol() : '$';
+    const treatSavingsAsIncome = Boolean(State.getTreatSavingsAsIncomeInZbb?.());
 
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
+    const isCurrentMonthTx = (tx) => {
+        const txDate = new Date(tx.date || tx.createdAt);
+        return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
+    };
+    const isSavingsTx = (tx) => tx.type === 'savings' || tx.tag === 'savings';
     const monthlyIncome = allTxs
-        .filter(tx => tx.type === 'income')
-        .filter(tx => {
-            const txDate = new Date(tx.date || tx.createdAt);
-            return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
-        })
+        .filter(tx => tx.type === 'income' || (treatSavingsAsIncome && isSavingsTx(tx)))
+        .filter(isCurrentMonthTx)
         .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
 
     const budgetCategories = categories.filter(cat => cat.type !== 'income');
@@ -4066,6 +4069,8 @@ export function renderZBBDashboard() {
     const tbb = monthlyIncome - assignedFunds;
 
     incEl.textContent = `${symbol}${formatMoney(monthlyIncome)}`;
+    const incomeLabel = document.getElementById('zbbIncomeLabel');
+    if (incomeLabel) incomeLabel.textContent = treatSavingsAsIncome ? 'Monthly Income + Savings' : 'Monthly Income';
     assEl.textContent = `${symbol}${formatMoney(assignedFunds)}`;
     tbbEl.textContent = `${tbb < 0 ? '-' : ''}${symbol}${formatMoney(Math.abs(tbb))}`;
 
@@ -8876,17 +8881,20 @@ export function openSettingsModal() {
     const defType = State.getDefaultType ? State.getDefaultType() : 'expense';
     const defPayment = State.getDefaultPayment ? State.getDefaultPayment() : '';
     const summaryView = State.getDashboardSummaryCollapsed && State.getDashboardSummaryCollapsed() ? 'collapsed' : 'open';
+    const treatSavingsAsIncome = Boolean(State.getTreatSavingsAsIncomeInZbb?.());
 
     const currencySelect = document.getElementById('currencySelect');
     const typeSelect = document.getElementById('defaultTypeSelect');
     const paymentSelect = document.getElementById('defaultPaymentSelect');
     const summarySelect = document.getElementById('summaryViewSelect');
+    const savingsAsIncomeCheck = document.getElementById('zbbSavingsAsIncomeCheck');
     const savedAccent = localStorage.getItem(ACCENT_THEME_KEY) || 'teal';
 
     if (currencySelect) currencySelect.value = currentCurrency;
     if (typeSelect) typeSelect.value = defType;
     if (paymentSelect) paymentSelect.value = defPayment;
     if (summarySelect) summarySelect.value = summaryView;
+    if (savingsAsIncomeCheck) savingsAsIncomeCheck.checked = treatSavingsAsIncome;
     applyAccentTheme(savedAccent);
 
     renderSyncHistory();
@@ -8903,11 +8911,13 @@ export function saveSettings() {
     const typeSelect = document.getElementById('defaultTypeSelect');
     const paymentSelect = document.getElementById('defaultPaymentSelect');
     const summarySelect = document.getElementById('summaryViewSelect');
+    const savingsAsIncomeCheck = document.getElementById('zbbSavingsAsIncomeCheck');
     const accentSelect = document.querySelector('input[name="accentColor"]:checked');
 
     if (currencySelect && State.setSymbol) State.setSymbol(currencySelect.value);
     if (typeSelect && State.setDefaultType) State.setDefaultType(typeSelect.value);
     if (paymentSelect && State.setDefaultPayment) State.setDefaultPayment(paymentSelect.value);
+    if (savingsAsIncomeCheck && State.setTreatSavingsAsIncomeInZbb) State.setTreatSavingsAsIncomeInZbb(savingsAsIncomeCheck.checked);
     if (accentSelect) setAccentTheme(accentSelect.value);
     if (summarySelect && State.setDashboardSummaryCollapsed) {
         const collapsed = summarySelect.value === 'collapsed';
