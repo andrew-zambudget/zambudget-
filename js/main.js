@@ -236,13 +236,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (UI.applyTheme) UI.applyTheme(savedTheme);
         UI.applyAccentTheme?.(localStorage.getItem('bb_accent_color') || 'teal');
 
-        DemoMode.initDemoMode?.({ demoModeState, user: window.currentUser });
-        DemoMode.initSignedOutAccountPrompt?.({ user: window.currentUser });
-
         if (!DemoMode.isDemoModeActive?.()) {
             BudgetPrep.updatePreparingBudget?.({ detail: 'Confirming encrypted Buddy Cloud protection.' });
             await UI.ensureBuddyCloudDefaultProtection?.();
         }
+
+        DemoMode.initDemoMode?.({
+            demoModeState,
+            user: window.currentUser,
+            accountTier: State.getIsPro?.() ? 'premium' : 'free'
+        });
+        DemoMode.initSignedOutAccountPrompt?.({ user: window.currentUser });
 
         BudgetPrep.updatePreparingBudget?.({
             title: 'Budget ready.',

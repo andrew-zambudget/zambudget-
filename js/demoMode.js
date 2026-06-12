@@ -16,6 +16,9 @@ const TUTORIAL_SKIPPED_KEY = 'bb_demo_tutorial_skipped';
 const BANNER_ID = 'bbDemoModeBanner';
 const MODAL_ID = 'bbDemoEndedModal';
 const ACCOUNT_PROMPT_ID = 'bbDemoAccountPrompt';
+const SIGNED_IN_PROMPT_ID = 'bbDemoSignedInPrompt';
+const SIGNED_IN_PROMPT_TITLE_ID = 'bbDemoSignedInPromptTitle';
+const SIGNED_IN_PROMPT_BODY_ID = 'bbDemoSignedInPromptBody';
 const TUTORIAL_ID = 'bbDemoTutorial';
 const TUTORIAL_SPOTLIGHT_ID = 'bbDemoTutorialSpotlight';
 const TUTORIAL_SCRIM_ID = 'bbDemoTutorialScrim';
@@ -139,6 +142,16 @@ function clearDemoKeys() {
         ACTIVE_KEY,
         STARTED_AT_KEY,
         EXPIRES_AT_KEY,
+        BACKUP_HAS_DATA_KEY,
+        BACKUP_DATA_KEY,
+        BACKUP_UPDATED_AT_KEY
+    ].forEach(storageRemove);
+}
+
+function clearBudgetScreenBeforeDemo() {
+    [
+        BB_DATA_KEY,
+        BB_LOCAL_UPDATED_AT_KEY,
         BACKUP_HAS_DATA_KEY,
         BACKUP_DATA_KEY,
         BACKUP_UPDATED_AT_KEY
@@ -319,6 +332,17 @@ function mainSiteUrl() {
     return MAIN_SITE_URL;
 }
 
+function escapeHtml(value = '') {
+    const replacements = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    };
+    return String(value).replace(/[&<>"']/g, char => replacements[char]);
+}
+
 function completeDemo({ reason = 'ended', navigateTo = '', restart = false, showNotice = true } = {}) {
     if (countdownTimer) {
         clearInterval(countdownTimer);
@@ -345,7 +369,13 @@ export function prepareDemoMode({ user } = {}) {
     if (user && (requested || active)) {
         if (active) restorePreviousBudget();
         clearDemoKeys();
-        return { active: false, disabledForSignedInUser: true };
+        return {
+            active: false,
+            disabledForSignedInUser: true,
+            signedInDemoBlocked: true,
+            demoRequestedWhileSignedIn: requested,
+            demoWasActiveWhileSignedIn: active
+        };
     }
 
     if (active && !requested) {
@@ -505,7 +535,7 @@ function injectStyles() {
         .bb-demo-modal-overlay {
             position: fixed;
             inset: 0;
-            z-index: 2600;
+            z-index: 2700;
             display: grid;
             place-items: center;
             padding: 18px;
@@ -536,6 +566,16 @@ function injectStyles() {
             line-height: 1.55;
         }
 
+        .bb-demo-modal-note {
+            margin-top: 12px !important;
+            padding: 12px 14px;
+            color: #334155 !important;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 0.92rem;
+        }
+
         .bb-demo-modal-actions {
             display: flex;
             gap: 10px;
@@ -551,6 +591,18 @@ function injectStyles() {
         .bb-demo-modal .bb-demo-action-secondary {
             background: #f1f5f9;
             color: #0f172a;
+        }
+
+        .bb-demo-modal .bb-demo-action-danger {
+            background: #b91c1c;
+            color: #ffffff;
+        }
+
+        .bb-demo-modal .bb-demo-action:disabled {
+            cursor: wait;
+            opacity: 0.68;
+            transform: none;
+            box-shadow: none;
         }
 
         .bb-demo-tutorial-scrim {
@@ -848,6 +900,104 @@ function showEndedModal(reason = 'ended') {
     overlay.querySelector('[data-demo-ended-action="create-account"]')?.focus({ preventScroll: true });
 }
 
+function getSignedInAccountLabel(accountTier = '') {
+    const normalized = String(accountTier || '').trim().toLowerCase();
+    if (normalized === 'premium' || normalized === 'pro') return 'premium account';
+    if (normalized === 'free') return 'free account';
+    return 'BudgetBuddy account';
+}
+
+function setSignedInPromptContent({ title, body, note } = {}) {
+    const titleEl = document.getElementById(SIGNED_IN_PROMPT_TITLE_ID);
+    const bodyEl = document.getElementById(SIGNED_IN_PROMPT_BODY_ID);
+    const noteEl = document.querySelector(`#${SIGNED_IN_PROMPT_ID} [data-demo-signed-in-note]`);
+    if (title && titleEl) titleEl.textContent = title;
+    if (body && bodyEl) bodyEl.textContent = body;
+    if (note && noteEl) noteEl.textContent = note;
+}
+
+function setSignedInPromptBusy(overlay, busy = true) {
+    overlay?.querySelectorAll('[data-demo-signed-in-action]').forEach(button => {
+        button.disabled = busy;
+    });
+}
+
+async function backupSignedInBudgetBeforeDemo() {
+    const status = window.BuddyCloud?.getStatus?.() || {};
+    const canPush = Boolean(status.enabled && status.hasKey && window.BuddyCloud?.forcePush);
+    if (!canPush) {
+        throw new Error('BudgetBuddy could not confirm encrypted Buddy Cloud protection yet.');
+    }
+    await window.BuddyCloud.forcePush();
+}
+
+async function signOutAndStartDemo(overlay) {
+    setSignedInPromptBusy(overlay, true);
+    setSignedInPromptContent({
+        title: 'Preparing demo safely...',
+        body: 'BudgetBuddy is checking Buddy Cloud before it clears this browser budget screen.',
+        note: 'No sample data gets loaded until this sign-out step finishes.'
+    });
+
+    try {
+        await backupSignedInBudgetBeforeDemo();
+        if (!window.sb?.auth?.signOut) throw new Error('Sign out is not available.');
+        await window.sb.auth.signOut();
+        clearDemoKeys();
+        clearBudgetScreenBeforeDemo();
+        window.location.href = cleanAppUrl({ [DEMO_QUERY_PARAM]: '1' });
+    } catch (error) {
+        console.warn('[Demo Mode] Could not safely switch signed-in user to demo mode:', error);
+        setSignedInPromptBusy(overlay, false);
+        setSignedInPromptContent({
+            title: 'Demo start paused',
+            body: 'BudgetBuddy could not confirm the encrypted Buddy Cloud backup, so it did not sign you out or clear this browser.',
+            note: 'Try again in a moment, or stay in your real budget.'
+        });
+    }
+}
+
+function showSignedInDemoPrompt({ accountTier = '', user } = {}) {
+    if (document.getElementById(SIGNED_IN_PROMPT_ID)) return;
+
+    const accountLabel = getSignedInAccountLabel(accountTier);
+    const email = String(user?.email || '').trim();
+    const emailNote = email ? `Signed in as ${email}.` : 'Your real signed-in budget stays protected.';
+
+    const overlay = document.createElement('div');
+    overlay.id = SIGNED_IN_PROMPT_ID;
+    overlay.className = 'bb-demo-modal-overlay';
+    overlay.innerHTML = `
+        <div class="bb-demo-modal" role="dialog" aria-modal="true" aria-labelledby="${SIGNED_IN_PROMPT_TITLE_ID}">
+            <h2 id="${SIGNED_IN_PROMPT_TITLE_ID}">You are already signed in</h2>
+            <p id="${SIGNED_IN_PROMPT_BODY_ID}">You are already logged in with a ${accountLabel}. Demo mode uses temporary sample data, so BudgetBuddy needs to sign out first before opening the demo.</p>
+            <p class="bb-demo-modal-note" data-demo-signed-in-note>${escapeHtml(emailNote)}</p>
+            <div class="bb-demo-modal-actions">
+                <button type="button" class="bb-demo-action" data-demo-signed-in-action="stay">Stay in My Budget</button>
+                <button type="button" class="bb-demo-action bb-demo-action-danger" data-demo-signed-in-action="demo">Sign Out and Try Demo</button>
+                <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-signed-in-action="website">Back to Website</button>
+            </div>
+        </div>
+    `;
+
+    overlay.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-demo-signed-in-action]');
+        if (!button) return;
+
+        const action = button.getAttribute('data-demo-signed-in-action');
+        if (action === 'stay') {
+            window.location.href = cleanAppUrl();
+        } else if (action === 'website') {
+            window.location.href = mainSiteUrl();
+        } else if (action === 'demo') {
+            signOutAndStartDemo(overlay);
+        }
+    });
+
+    document.body.appendChild(overlay);
+    overlay.querySelector('[data-demo-signed-in-action="stay"]')?.focus({ preventScroll: true });
+}
+
 function renderAccountPrompt() {
     if (document.getElementById(ACCOUNT_PROMPT_ID) || isDemoModeActive()) return;
 
@@ -1072,8 +1222,13 @@ function startTutorial({ force = false } = {}) {
     }
 }
 
-export function initDemoMode({ demoModeState, user } = {}) {
+export function initDemoMode({ demoModeState, user, accountTier = '' } = {}) {
     injectStyles();
+
+    if (demoModeState?.signedInDemoBlocked) {
+        showSignedInDemoPrompt({ accountTier, user });
+        return;
+    }
 
     const endedReason = sessionGet(ENDED_NOTICE_KEY);
     if (endedReason) {
