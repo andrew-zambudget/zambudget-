@@ -178,7 +178,7 @@ const BROWSER_ACCESS_LEGACY_SELECT_COLUMNS = 'browser_hash, created_at, last_see
 const BROWSER_ACCESS_CHECK_MS = 60 * 1000;
 const BROWSER_ACCESS_OPEN_PANEL_REFRESH_MS = 5000;
 const UNMATCHED_SYNC_SLOT_AUTO_RELEASE_MS = 2 * 60 * 60 * 1000;
-const BROWSER_ACCESS_PRIVACY_COPY = 'Device management uses privacy-minimal BudgetBuddy browser access records: opaque browser hashes, existing opaque sync slot hash links, and timestamps only. No device names, user agents, IP-derived locations, or readable budget data are stored.';
+const BROWSER_ACCESS_PRIVACY_COPY = 'Device management stores only the private browser records, sync slot links, and timestamps needed to manage sign-out and Free Tier sync slots. No device names, user agents, IP-derived locations, or readable budget data are stored.';
 let syncStatusTimer = null;
 let syncSlotStatusPanelTimer = null;
 let syncSlotStatusPanelRefreshPromise = null;
@@ -2540,7 +2540,7 @@ function buildBrowserAccessDeviceListHtml(context = {}, { includeGlobalSignOut =
             <button type="button" class="buddy-cloud-action buddy-cloud-privacy-details-btn" data-action="privacy-details" data-persistent="false" aria-label="Privacy details for device management">
                 <span class="buddy-cloud-device-privacy-copy">
                     <strong>Privacy details</strong>
-                    <span>Opaque sync metadata only</span>
+                    <span>No device names or budget data</span>
                 </span>
                 <span class="buddy-cloud-device-privacy-action">View</span>
             </button>
@@ -3367,7 +3367,7 @@ async function confirmRevokeBrowserAccess(label = 'that browser') {
     const result = await showBuddyCloudModal({
         title: 'Sign Out This Browser?',
         body: `BudgetBuddy will sign out ${label} the next time it opens or refreshes BudgetBuddy.`,
-        assurance: 'We only store an opaque browser hash and timestamps for this list. No device name, user agent, IP-derived location, or readable budget data is stored.',
+        assurance: 'We only store a private browser record and timestamps for this list. No device name, user agent, IP-derived location, or readable budget data is stored.',
         warning: 'The cloud revoke is immediate. That browser clears itself the next time it contacts BudgetBuddy.',
         actions: [
             { id: 'cancel', label: 'Back', className: 'btn-cancel' },
@@ -3382,7 +3382,7 @@ async function confirmReleaseSyncSlot() {
     const result = await showBuddyCloudModal({
         title: 'Release Sync Slot?',
         body: 'This sync slot is consuming Free Tier Buddy Cloud capacity but is not matched to a known active browser access row.',
-        assurance: 'BudgetBuddy releases only the selected existing opaque sync slot hash. It does not revoke your recovery key, delete your encrypted vault, or store a new device identifier.',
+        assurance: 'BudgetBuddy releases only the selected Buddy Cloud sync slot record. It does not revoke your recovery key, delete your encrypted vault, or store a new device identifier.',
         warning: 'Release this only when no visible browser should still own the slot. A trusted browser that still has its recovery key can claim a slot again when it syncs.',
         actions: [
             { id: 'cancel', label: 'Back', className: 'btn-cancel' },
@@ -3402,7 +3402,7 @@ async function showDeviceManagementPrivacyDetails() {
         body: BROWSER_ACCESS_PRIVACY_COPY,
         assurance: 'These records only help BudgetBuddy recognize known browser access, match it to existing Buddy Cloud sync slots, and process sign-out or slot-release requests.',
         detailRows: [
-            { label: 'Stored', value: 'Opaque browser hash, existing sync slot hash link, timestamps' },
+            { label: 'Stored', value: 'Private browser record, sync slot link, timestamps' },
             { label: 'Not stored', value: 'Device names, user agents, IP location' },
             { label: 'Budget data', value: 'Never readable here' }
         ],
