@@ -173,10 +173,15 @@ const BUDDY_CLOUD_MULTI_DEVICE_LIMIT_CODE = 'BUDDY_CLOUD_MULTI_DEVICE_LIMIT';
 const BROWSER_ACCESS_TABLE = 'buddy_cloud_browser_access';
 const BROWSER_ACCESS_TOKEN_PREFIX = 'bb_browser_access_token_';
 const BROWSER_ACCESS_CHECK_MS = 60 * 1000;
+const BROWSER_ACCESS_OPEN_PANEL_REFRESH_MS = 5000;
 const BROWSER_ACCESS_PRIVACY_COPY = 'Device management uses privacy-minimal BudgetBuddy browser access records: opaque browser hashes and timestamps only. No device names, user agents, IP-derived locations, or readable budget data are stored.';
 let syncStatusTimer = null;
 let syncObserverInitialized = false;
 let browserAccessTimer = null;
+let browserAccessRealtimeChannel = null;
+let browserAccessRealtimeUserId = '';
+let browserAccessOpenPanelTimer = null;
+let browserAccessPanelRefreshPromise = null;
 let currentSyncStatus = 'local';
 let currentSyncStatusMessage = 'Saved partially';
 let syncStatusAlternateTimer = null;
@@ -1370,28 +1375,31 @@ function showBuddyCloudModal({
                 input.setSelectionRange?.(start, end);
             });
         }
-        modal.querySelectorAll('.buddy-cloud-action').forEach(button => {
-            button.addEventListener('click', async () => {
-                const input = modal.querySelector('#buddyCloudModalInput');
-                const select = modal.querySelector('#buddyCloudModalSelect');
-                const result = {
-                    action: button.dataset.action || 'ok',
-                    value: input ? input.value.trim() : select ? select.value : ''
-                };
-                button.classList.add('is-activating');
-                button.setAttribute('aria-busy', 'true');
-                button.closest('.buddy-cloud-device-row')?.classList.add('is-leaving');
-                if (button.dataset.persistent === 'true') {
-                    const handled = await onAction?.({ ...result, modal, button, input, setRecoveryKeyVisible });
-                    if (handled !== false) {
-                        button.classList.remove('is-activating');
-                        button.removeAttribute('aria-busy');
-                        button.closest('.buddy-cloud-device-row')?.classList.remove('is-leaving');
-                        return;
-                    }
+        modal.addEventListener('click', async (event) => {
+            const button = event.target instanceof Element
+                ? event.target.closest('.buddy-cloud-action')
+                : null;
+            if (!button || !modal.contains(button) || button.disabled) return;
+
+            const input = modal.querySelector('#buddyCloudModalInput');
+            const select = modal.querySelector('#buddyCloudModalSelect');
+            const result = {
+                action: button.dataset.action || 'ok',
+                value: input ? input.value.trim() : select ? select.value : ''
+            };
+            button.classList.add('is-activating');
+            button.setAttribute('aria-busy', 'true');
+            button.closest('.buddy-cloud-device-row')?.classList.add('is-leaving');
+            if (button.dataset.persistent === 'true') {
+                const handled = await onAction?.({ ...result, modal, button, input, setRecoveryKeyVisible });
+                if (handled !== false) {
+                    button.classList.remove('is-activating');
+                    button.removeAttribute('aria-busy');
+                    button.closest('.buddy-cloud-device-row')?.classList.remove('is-leaving');
+                    return;
                 }
-                finish(result);
-            });
+            }
+            finish(result);
         });
 
         document.body.appendChild(modal);
@@ -2114,6 +2122,7 @@ async function handleCurrentBrowserAccessRevoked() {
 
 export async function refreshBrowserAccessRegistry(options = {}) {
     const { silent = true } = options;
+    ensureBrowserAccessRealtimeSubscription();
     if (!window.currentUser?.id || !window.sb?.from || !crypto?.subtle) return true;
     try {
         const context = await getCurrentBrowserAccessContext();
@@ -2124,9 +2133,82 @@ export async function refreshBrowserAccessRegistry(options = {}) {
     }
 }
 
+function stopBrowserAccessRealtimeSubscription() {
+    if (browserAccessRealtimeChannel && window.sb?.removeChannel) {
+        try {
+            window.sb.removeChannel(browserAccessRealtimeChannel);
+        } catch (error) {
+            console.warn('[Device Management] Could not remove browser access realtime channel:', error);
+        }
+    }
+    browserAccessRealtimeChannel = null;
+    browserAccessRealtimeUserId = '';
+}
+
+function isMeaningfulBrowserAccessRealtimeEvent(payload = {}) {
+    if (payload.eventType === 'INSERT' || payload.eventType === 'DELETE') return true;
+    const nextRevokedAt = payload.new?.revoked_at || '';
+    const previousRevokedAt = payload.old?.revoked_at || '';
+    return Boolean(nextRevokedAt && nextRevokedAt !== previousRevokedAt);
+}
+
+async function handleBrowserAccessRealtimeEvent(payload = {}) {
+    if (!isMeaningfulBrowserAccessRealtimeEvent(payload)) return;
+
+    const nextRow = payload.new || {};
+    if (nextRow.revoked_at && nextRow.browser_hash) {
+        try {
+            const currentHash = await getBrowserAccessHash();
+            if (currentHash && nextRow.browser_hash === currentHash) {
+                await handleCurrentBrowserAccessRevoked();
+                return;
+            }
+        } catch (error) {
+            console.warn('[Device Management] Could not process browser access revoke event:', error);
+        }
+    }
+
+    await refreshOpenBrowserAccessDeviceList();
+}
+
+function ensureBrowserAccessRealtimeSubscription() {
+    const userId = window.currentUser?.id || '';
+    if (!userId || !window.sb?.channel) {
+        stopBrowserAccessRealtimeSubscription();
+        return;
+    }
+    if (browserAccessRealtimeChannel && browserAccessRealtimeUserId === userId) return;
+
+    stopBrowserAccessRealtimeSubscription();
+    browserAccessRealtimeUserId = userId;
+    browserAccessRealtimeChannel = window.sb
+        .channel(`budgetbuddy-browser-access-${userId}`)
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: BROWSER_ACCESS_TABLE,
+                filter: `user_id=eq.${userId}`
+            },
+            payload => {
+                handleBrowserAccessRealtimeEvent(payload).catch(error => {
+                    console.warn('[Device Management] Browser access realtime refresh failed:', error);
+                });
+            }
+        )
+        .subscribe(status => {
+            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                console.warn(`[Device Management] Browser access realtime ${status.toLowerCase()}; polling fallback remains active.`);
+            }
+        });
+}
+
 function startBrowserAccessWatcher() {
     if (browserAccessTimer) return;
+    ensureBrowserAccessRealtimeSubscription();
     browserAccessTimer = setInterval(() => {
+        ensureBrowserAccessRealtimeSubscription();
         refreshBrowserAccessRegistry({ silent: true });
     }, BROWSER_ACCESS_CHECK_MS);
 }
@@ -2206,6 +2288,67 @@ function buildBrowserAccessDeviceListHtml(context = {}, { includeGlobalSignOut =
             </button>
         ` : ''}
     `;
+}
+
+function buildBrowserAccessDeviceSectionHtml(context = {}, options = {}) {
+    return `
+        <div id="buddyCloudBrowserAccessSection" class="buddy-cloud-device-section" aria-live="polite">
+            ${buildBrowserAccessDeviceListHtml(context, options)}
+        </div>
+    `;
+}
+
+function stopBrowserAccessOpenPanelRefresh() {
+    if (browserAccessOpenPanelTimer) {
+        clearInterval(browserAccessOpenPanelTimer);
+        browserAccessOpenPanelTimer = null;
+    }
+}
+
+async function refreshOpenBrowserAccessDeviceList() {
+    const section = document.getElementById('buddyCloudBrowserAccessSection');
+    if (!section) {
+        stopBrowserAccessOpenPanelRefresh();
+        return false;
+    }
+    if (!window.currentUser?.id || !window.sb?.from || !crypto?.subtle) return false;
+    if (browserAccessPanelRefreshPromise) return browserAccessPanelRefreshPromise;
+
+    browserAccessPanelRefreshPromise = (async () => {
+        section.setAttribute('aria-busy', 'true');
+        try {
+            const context = await getCurrentBrowserAccessContext();
+            if (context.revoked) return false;
+            const nextHtml = buildBrowserAccessDeviceListHtml(context, { includeGlobalSignOut: true });
+            if (section.innerHTML.trim() !== nextHtml.trim()) {
+                section.innerHTML = nextHtml;
+            }
+            return true;
+        } catch (error) {
+            const fallbackContext = {
+                available: false,
+                currentHash: '',
+                rows: [],
+                error: getBrowserAccessErrorMessage(error)
+            };
+            section.innerHTML = buildBrowserAccessDeviceListHtml(fallbackContext, { includeGlobalSignOut: true });
+            return false;
+        } finally {
+            section.removeAttribute('aria-busy');
+            browserAccessPanelRefreshPromise = null;
+        }
+    })();
+
+    return browserAccessPanelRefreshPromise;
+}
+
+function startBrowserAccessOpenPanelRefresh() {
+    stopBrowserAccessOpenPanelRefresh();
+    browserAccessOpenPanelTimer = setInterval(() => {
+        refreshOpenBrowserAccessDeviceList().catch(error => {
+            console.warn('[Device Management] Open device panel refresh failed:', error);
+        });
+    }, BROWSER_ACCESS_OPEN_PANEL_REFRESH_MS);
 }
 
 async function revokeBrowserAccess(browserHash) {
@@ -3069,7 +3212,7 @@ async function showBuddyCloudDeviceManagementModal() {
         ? buildBuddyCloudConflictComparisonHtml(status)
         : '';
     const deviceListHtml = signedIn
-        ? buildBrowserAccessDeviceListHtml(browserContext, { includeGlobalSignOut: true })
+        ? buildBrowserAccessDeviceSectionHtml(browserContext, { includeGlobalSignOut: true })
         : '';
 
     const result = await showBuddyCloudModal({
@@ -3083,9 +3226,21 @@ async function showBuddyCloudDeviceManagementModal() {
             : canResolveConflict
             ? ''
             : ''),
-        actions
+        actions,
+        onReady: ({ modal }) => {
+            if (!signedIn) return;
+            startBrowserAccessOpenPanelRefresh();
+            const observer = new MutationObserver(() => {
+                if (!document.body.contains(modal)) {
+                    stopBrowserAccessOpenPanelRefresh();
+                    observer.disconnect();
+                }
+            });
+            observer.observe(document.body, { childList: true });
+        }
     });
 
+    stopBrowserAccessOpenPanelRefresh();
     return result.action;
 }
 
@@ -14574,13 +14729,19 @@ export function handleLogout(e) {
     if (e) e.preventDefault();
     const cloudStatus = window.BuddyCloud?.getStatus?.() || {};
     const needsRecoveryKeyBackup = Boolean(cloudStatus.enabled && cloudStatus.hasKey && !hasRecoveryKeyBackedUpFlag());
+    const isOutsideFreeDeviceLimit = isBuddyCloudMultiDeviceLimit(cloudStatus);
+    const noteParts = [];
+    if (needsRecoveryKeyBackup) {
+        noteParts.push('This trusted browser keeps its Buddy Cloud recovery key for your next login. Still save a backup copy somewhere safe.');
+    }
+    if (isOutsideFreeDeviceLimit) {
+        noteParts.push('Final Buddy Cloud backup will be skipped because this browser is not an active Free sync device. Sign-out still works; unsynced edits on this browser will not be uploaded.');
+    }
     closeAccountModal();
     showAccountConfirmModal({
         title: 'Log out?',
         message: 'You will be signed out of BudgetBuddy.',
-        note: needsRecoveryKeyBackup
-            ? 'This trusted browser keeps its Buddy Cloud recovery key for your next login. Still save a backup copy somewhere safe.'
-            : '',
+        note: noteParts.join(' '),
         confirmLabel: 'Secure Sign Out',
         confirmClass: 'btn-danger',
         onConfirm: executeLogout
@@ -14630,7 +14791,7 @@ function clearBudgetBuddyLocalAccountState(options = {}) {
 
 async function verifyBuddyCloudBeforeLogout() {
     const status = window.BuddyCloud?.getStatus?.() || {};
-    if (!status.signedIn || !status.enabled) return;
+    if (!status.signedIn || !status.enabled) return { backedUp: false, skipped: true, reason: 'not_enabled' };
     if (!status.hasKey || !status.canUseCloud) {
         throw new Error('Buddy Cloud backup is not available on this browser. Sign-out was stopped so local budget data is not cleared before cloud backup is verified.');
     }
@@ -14638,7 +14799,8 @@ async function verifyBuddyCloudBeforeLogout() {
         throw new Error('Review saved versions before signing out. Sign-out was stopped so Buddy Cloud does not overwrite the wrong budget.');
     }
     if (isBuddyCloudMultiDeviceLimit(status)) {
-        throw new Error('This browser cannot finish a final Buddy Cloud backup because it is outside the Free Tier sync device limit. Use This Browser Instead or upgrade before signing out.');
+        recordSyncEvent('Final Buddy Cloud backup skipped because this browser is not an active Free sync device. Sign-out is allowed.', 'local');
+        return { backedUp: false, skipped: true, reason: 'free_sync_slot_limit' };
     }
 
     recordSyncEvent('Backing up Buddy Cloud before sign-out...', 'syncing');
@@ -14646,7 +14808,8 @@ async function verifyBuddyCloudBeforeLogout() {
         await window.BuddyCloud.forcePush();
     } catch (error) {
         if (isBuddyCloudMultiDeviceLimit(error)) {
-            throw new Error('This browser cannot finish a final Buddy Cloud backup because it is outside the Free Tier sync device limit. Use This Browser Instead or upgrade before signing out.');
+            recordSyncEvent('Final Buddy Cloud backup skipped because this browser is not an active Free sync device. Sign-out is allowed.', 'local');
+            return { backedUp: false, skipped: true, reason: 'free_sync_slot_limit' };
         }
         throw error;
     }
@@ -14657,6 +14820,7 @@ async function verifyBuddyCloudBeforeLogout() {
         throw new Error('Buddy Cloud backup did not verify. Sign-out was stopped so local budget data is not cleared before cloud backup catches up.');
     }
     recordSyncEvent('Buddy Cloud backup completed before sign-out.', 'synced');
+    return { backedUp: true, skipped: false, reason: '' };
 }
 
 async function requireRecoveryKeySavedBeforeLocalClear() {
