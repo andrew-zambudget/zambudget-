@@ -56,6 +56,53 @@ const TUTORIAL_STEPS = [
         body: 'Income, savings, debt, add, and recent activity are grouped here so the app stays fast to navigate.'
     },
     {
+        selector: '#view-income .income-total-summary',
+        tab: 'income',
+        label: 'Income',
+        title: 'Track money coming in',
+        body: 'Use Income to compare expected income against deposits you have actually logged. This tells the budget how much money is available to assign.'
+    },
+    {
+        selector: '#view-savings .savings-total-summary',
+        tab: 'savings',
+        label: 'Savings',
+        title: 'Watch savings goals',
+        body: 'Use Savings for emergency funds and goals. Keep the target realistic, update the current amount, and let the progress bar show whether the plan is actually funded.'
+    },
+    {
+        selector: '#view-debt',
+        tab: 'debt',
+        label: 'Debt',
+        title: 'Keep debt visible',
+        body: 'Use Debt for balances, payoff plans, and payments you do not want to ignore. The goal is simple: know what is owed, what is due, and what progress looks like.'
+    },
+    {
+        selector: '#view-add #addTxForm',
+        tab: 'add',
+        label: 'Add',
+        title: 'Log transactions fast',
+        body: 'Use Add for expenses and deposits. Amount, category, and description are the core fields; dates, payment method, and notes are there when you need more detail.'
+    },
+    {
+        selector: '#view-recent .recent-workspace',
+        tab: 'recent',
+        label: 'Recent',
+        title: 'Review the audit trail',
+        body: 'Use Recent to search, filter, review, and clean up entries. Be careful with bulk actions on a real budget; delete only when you are sure.'
+    },
+    {
+        selector: '#syncStatusBtn',
+        label: 'Buddy Cloud',
+        title: 'Do not lose the Recovery Key',
+        body: 'If you turn on encrypted Buddy Cloud, save and download the Recovery Key immediately. Store it somewhere private and durable. If you lose it, BudgetBuddy cannot decrypt or recover your cloud budget.'
+    },
+    {
+        selector: '.btn-avatar, .auth-buttons',
+        label: 'Account',
+        title: 'Account management is real-account territory',
+        body: 'After signing in, the account menu handles billing, sync, devices, settings, password, support, and secure sign-out. Do not casually use reset, lost-key, or destructive recovery tools unless you understand the consequence.'
+    },
+    {
         selector: `#${BANNER_ID}`,
         label: 'Demo Timer',
         title: 'This is temporary sample data',
@@ -1069,6 +1116,17 @@ function getTutorialStep(index = tutorialIndex) {
     return TUTORIAL_STEPS[Math.max(0, Math.min(index, TUTORIAL_STEPS.length - 1))];
 }
 
+function applyTutorialStepContext(step = getTutorialStep()) {
+    const tab = String(step?.tab || '').trim();
+    if (!tab || typeof window.switchTab !== 'function') return;
+
+    try {
+        window.switchTab(tab);
+    } catch (error) {
+        console.warn('[Demo Mode] Could not switch tutorial tab:', error);
+    }
+}
+
 function getTutorialTarget(step = getTutorialStep()) {
     return document.querySelector(step?.selector || '') || document.querySelector('.app-header') || document.body;
 }
@@ -1130,6 +1188,7 @@ function renderTutorialStep() {
     if (!card) return;
 
     const step = getTutorialStep();
+    applyTutorialStepContext(step);
     const isFirst = tutorialIndex === 0;
     const isLast = tutorialIndex === TUTORIAL_STEPS.length - 1;
     card.innerHTML = `
