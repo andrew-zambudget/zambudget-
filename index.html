@@ -175,19 +175,21 @@
 
                 <div class="sort-control-bar" id="sortControlBar">
                     <span class="sort-cat-count" id="sortCatCount">0 categories</span>
-                    <span class="sort-label">Sort</span>
-                    <div class="sort-dropdown-wrapper">
+                    <label class="sort-field" for="categorySortSelect">
+                        <span class="sort-label">Sort by</span>
+                        <span class="sort-dropdown-wrapper">
                         <select id="categorySortSelect" class="sort-select" onchange="window.applyCategorySort()" aria-label="Sort categories">
-                            <option value="manual">Custom</option>
-                            <option value="alpha_asc">A→Z</option>
-                            <option value="alpha_desc">Z→A</option>
-                            <option value="spending_high">$$$</option>
-                            <option value="spending_low">$</option>
+                            <option value="manual">Custom order</option>
+                            <option value="alpha_asc">A to Z</option>
+                            <option value="alpha_desc">Z to A</option>
+                            <option value="spending_high">High spend</option>
+                            <option value="spending_low">Low spend</option>
                             <option value="created_new">Newest</option>
                             <option value="created_old">Oldest</option>
                         </select>
-                        <div class="sort-arrow" aria-hidden="true">▼</div>
-                    </div>
+                        <span class="sort-arrow" aria-hidden="true">&#9662;</span>
+                    </span>
+                    </label>
                 </div>
 
                 <div class="category-list" id="categoryList" role="list"></div>

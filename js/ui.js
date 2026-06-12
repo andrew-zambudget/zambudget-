@@ -3774,6 +3774,8 @@ function syncPrivacyDisplay(container, nextText = null) {
 // V2 Bulk Edit State
 let selectedCategories = new Set();
 let isCategoryEditMode = false;
+let draggedCategoryName = '';
+let draggedCategoryPosition = 0;
 
 // ==========================================
 // 1. RENDERING ENGINE
@@ -3883,11 +3885,95 @@ export function moveCategoryOrder(name, direction, event = null) {
     }
 
     selectedCategories.clear();
+    finishCategoryReorder();
+}
+
+function finishCategoryReorder() {
     syncCategorySortSelect();
     renderCategoryList();
     renderFormCategories();
     refreshOpenCategoryDrillDown();
 }
+
+export function moveCategoryToPosition(name, position, event = null) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
+    const result = State.moveCategoryToPosition?.(name, position);
+    if (!result?.success) {
+        if (window.showToast) window.showToast(result?.error || 'Category order could not be changed.');
+        return;
+    }
+
+    selectedCategories.clear();
+    finishCategoryReorder();
+}
+
+window.startCategoryDrag = function(event, name) {
+    if (!isCategoryEditMode) return;
+    if (event.target instanceof Element && event.target.closest('input, select, textarea, button:not(.category-drag-handle)')) {
+        event.preventDefault();
+        return;
+    }
+
+    draggedCategoryName = name;
+    if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', name);
+    }
+    const row = event.currentTarget?.closest?.('.category-item') || event.currentTarget;
+    draggedCategoryPosition = Number(row?.dataset?.position || 0);
+    row?.classList?.add('is-dragging-category');
+};
+
+window.dragCategoryOver = function(event) {
+    if (!isCategoryEditMode || !draggedCategoryName) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+
+    const card = event.currentTarget;
+    const rect = card.getBoundingClientRect();
+    const isAfter = event.clientY > rect.top + rect.height / 2;
+    card.classList.toggle('is-drag-over-before', !isAfter);
+    card.classList.toggle('is-drag-over-after', isAfter);
+};
+
+window.leaveCategoryDrag = function(event) {
+    event.currentTarget?.classList?.remove('is-drag-over-before', 'is-drag-over-after');
+};
+
+window.dropCategoryAt = function(event, targetName, targetPosition) {
+    if (!isCategoryEditMode || !draggedCategoryName) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const card = event.currentTarget;
+    const rect = card.getBoundingClientRect();
+    const isAfter = event.clientY > rect.top + rect.height / 2;
+    const target = Number(targetPosition || 1);
+    const source = Number(draggedCategoryPosition || 0);
+    const nextPosition = isAfter
+        ? target + (source > target ? 1 : 0)
+        : Math.max(1, target - (source && source < target ? 1 : 0));
+    const sourceName = draggedCategoryName;
+
+    draggedCategoryName = '';
+    draggedCategoryPosition = 0;
+    document.querySelectorAll('.category-item.is-dragging-category, .category-item.is-drag-over-before, .category-item.is-drag-over-after')
+        .forEach(item => item.classList.remove('is-dragging-category', 'is-drag-over-before', 'is-drag-over-after'));
+
+    if (sourceName === targetName) return;
+    moveCategoryToPosition(sourceName, nextPosition, event);
+};
+
+window.endCategoryDrag = function(event) {
+    draggedCategoryName = '';
+    draggedCategoryPosition = 0;
+    const row = event.currentTarget?.closest?.('.category-item') || event.currentTarget;
+    row?.classList?.remove('is-dragging-category');
+    document.querySelectorAll('.category-item.is-drag-over-before, .category-item.is-drag-over-after')
+        .forEach(item => item.classList.remove('is-drag-over-before', 'is-drag-over-after'));
+};
 
 export function renderCategoryList() {
     const listContainer = document.getElementById('categoryList');
@@ -3897,13 +3983,14 @@ export function renderCategoryList() {
     syncCategoryCalendarMonthLabel();
 
     // Grab all categories, but ONLY keep the ones that are NOT income
-        const allCategories = State.getCategories() || [];
-        const categories = allCategories.filter(cat =>
-    cat.type !== 'income' &&
-    cat.type !== 'debt' &&
-    cat.type !== 'savings' &&
-    cat.type !== 'sinking_fund'
-);    if (countEl) countEl.textContent = `${categories.length} categories`;
+    const allCategories = State.getCategories() || [];
+    const categories = allCategories.filter(cat =>
+        cat.type !== 'income' &&
+        cat.type !== 'debt' &&
+        cat.type !== 'savings' &&
+        cat.type !== 'sinking_fund'
+    );
+    if (countEl) countEl.textContent = `${categories.length} ${categories.length === 1 ? 'category' : 'categories'}`;
 
     // 1. EMPTY STATE
     if (categories.length === 0) {
@@ -3930,14 +4017,24 @@ export function renderCategoryList() {
         const reorderHTML = isCategoryEditMode
             ? `
                 <div class="category-reorder-controls" aria-label="Move ${esc(cat.name)}">
+                    <button type="button" class="category-drag-handle" draggable="true" ondragstart="window.startCategoryDrag(event, ${jsArg(cat.name)})" ondragend="window.endCategoryDrag(event)" onclick="event.stopPropagation()" aria-label="Drag ${esc(cat.name)} to reorder">::</button>
                     <button type="button" class="category-reorder-btn" onclick="window.moveCategoryOrder(${jsArg(cat.name)}, 'up', event)" ${index === 0 ? 'disabled' : ''} aria-label="Move ${esc(cat.name)} up">&uarr;</button>
-                    <button type="button" class="category-reorder-btn" onclick="window.moveCategoryOrder(${jsArg(cat.name)}, 'down', event)" ${index === categories.length - 1 ? 'disabled' : ''} aria-label="Move ${esc(cat.name)} down">&darr;</button>
+                    <div class="category-position-row">
+                        <div class="category-position-control">
+                            <label class="sr-only" for="cat-position-${index}">Position for ${esc(cat.name)}</label>
+                            <input id="cat-position-${index}" class="category-position-input" type="number" inputmode="numeric" min="1" max="${categories.length}" value="${index + 1}" onclick="event.stopPropagation()" onkeydown="event.stopPropagation(); if(event.key === 'Enter'){ window.moveCategoryToPosition(${jsArg(cat.name)}, this.value, event); this.blur(); }" onchange="window.moveCategoryToPosition(${jsArg(cat.name)}, this.value, event)" aria-label="Move ${esc(cat.name)} to position">
+                        </div>
+                        <button type="button" class="category-reorder-btn" onclick="window.moveCategoryOrder(${jsArg(cat.name)}, 'down', event)" ${index === categories.length - 1 ? 'disabled' : ''} aria-label="Move ${esc(cat.name)} down">&darr;</button>
+                    </div>
                 </div>
             `
             : '';
         const rowAttrs = isCategoryEditMode
             ? `onclick="const cb=this.querySelector('.bulk-select-cb'); if (cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change', { bubbles: true })); }" onkeydown="if(event.target.closest && event.target.closest('button,input,select,textarea,a')) return; if(event.key==='Enter'||event.key===' '){event.preventDefault(); this.click();}" role="button" tabindex="0" aria-label="Select ${esc(cat.name)}"`
             : `onclick="window.openCategoryDrillDown(${jsArg(cat.name)}, ${jsArg(cat.icon || '')})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); this.click();}" role="button" tabindex="0" aria-label="Open ${esc(cat.name)}"`;
+        const dragAttrs = isCategoryEditMode
+            ? `data-cat-name="${esc(cat.name)}" data-position="${index + 1}" draggable="true" ondragstart="window.startCategoryDrag(event, ${jsArg(cat.name)})" ondragover="window.dragCategoryOver(event)" ondragleave="window.leaveCategoryDrag(event)" ondrop="window.dropCategoryAt(event, ${jsArg(cat.name)}, ${index + 1})" ondragend="window.endCategoryDrag(event)"`
+            : '';
         const cursorStyle = 'pointer';
         const chevronDisplay = isCategoryEditMode ? 'none' : 'block';
 
@@ -3956,7 +4053,7 @@ export function renderCategoryList() {
         const createdDate = cat.createdAt ? formatDate(cat.createdAt.split('T')[0]) : '';
 
         return `
-        <div class="category-item" id="cat-card-${esc(cat.name.replace(/\s+/g, '-'))}" style="display: flex; align-items: center; padding-left: ${isCategoryEditMode ? '0.5rem' : '0'};" ${rowAttrs}>
+        <div class="category-item${isCategoryEditMode ? ' is-category-edit-row' : ''}" id="cat-card-${esc(cat.name.replace(/\s+/g, '-'))}" style="display: flex; align-items: center; padding-left: ${isCategoryEditMode ? '0.5rem' : '0'};" ${dragAttrs} ${rowAttrs}>
             ${checkboxHTML}
             ${reorderHTML}
             <div style="flex: 1; display: flex; align-items: center; cursor: ${cursorStyle}; transition: transform 0.1s ease; border: 1px solid transparent; padding: 0.5rem 0;">
@@ -14630,6 +14727,7 @@ window.removeIncomeSource = removeIncomeSource;
 window.toggleCategoryEditMode = toggleCategoryEditMode;
 window.toggleCategorySelection = toggleCategorySelection;
 window.moveCategoryOrder = moveCategoryOrder;
+window.moveCategoryToPosition = moveCategoryToPosition;
 window.executeBulkDelete = executeBulkDelete;
 window.confirmBulkDelete = confirmBulkDelete;
 window.cancelBulkDelete = cancelBulkDelete;

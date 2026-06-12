@@ -447,6 +447,37 @@ export const moveCategory = (name, direction = 'down') => {
     return { success: true };
 };
 
+export const moveCategoryToPosition = (name, position = 1) => {
+    const reorderable = state.categories.filter(canReorderCategory);
+    const currentPosition = reorderable.findIndex(c => c.name === name);
+    if (currentPosition < 0) {
+        return { success: false, error: 'Category not found' };
+    }
+
+    const targetPosition = Math.min(
+        reorderable.length - 1,
+        Math.max(0, (parseInt(position, 10) || 1) - 1)
+    );
+    if (targetPosition === currentPosition) {
+        return { success: true, position: currentPosition + 1 };
+    }
+
+    const [category] = reorderable.splice(currentPosition, 1);
+    reorderable.splice(targetPosition, 0, category);
+
+    let nextReorderableIndex = 0;
+    state.categories = state.categories.map(cat => {
+        if (!canReorderCategory(cat)) return cat;
+        const next = reorderable[nextReorderableIndex];
+        nextReorderableIndex += 1;
+        return next;
+    });
+
+    state.settings.lastCategorySort = 'manual';
+    save();
+    return { success: true, position: targetPosition + 1 };
+};
+
 // ==========================================
 // HIGH PERFORMANCE SORTING ENGINE
 // ==========================================
