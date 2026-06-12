@@ -47,6 +47,8 @@
         .feature-icon{font-size:1.2rem;flex-shrink:0;margin-top:0.1rem}
         .feature-text{font-size:0.95rem}
         .feature-status{font-size:0.75rem;color:var(--text-dim);margin-top:0.25rem}
+        .roadmap-note{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:8px;padding:1rem 1.15rem;margin:-1.5rem 0 2.5rem;color:var(--text-dim);line-height:1.6;font-size:0.95rem}
+        .roadmap-note strong{color:var(--text)}
 
         @media(max-width:768px){
             main{padding:2rem 1rem}
@@ -78,138 +80,142 @@
 
     <main id="main">
         <h1 class="page-title">Product Roadmap</h1>
-        <p class="page-subtitle">See what's live now and what's coming next for BudgetBuddy.</p>
+        <p class="page-subtitle">What is live, what is being tested, and what only happens if BudgetBuddy proves useful enough to continue.</p>
+
+        <div class="roadmap-note">
+            <strong>Beta direction:</strong> BudgetBuddy is being tested in public around reliability, data safety, billing, and Buddy Cloud. Continued development depends on real user feedback, whether the app is useful enough to keep entering budgets, and whether Premium support can at least cover infrastructure and continued development time.
+        </div>
 
         <div class="timeline">
-            <!-- Phase 1: Live -->
+            <!-- Phase 1: Live Beta -->
             <div class="phase-card phase-completed">
                 <div class="phase-marker" aria-hidden="true"></div>
                 <div class="phase-header">
-                    <span class="phase-badge badge-live">Live Now</span>
-                    <h2 class="phase-title">Phase 1: Core Foundation</h2>
+                    <span class="phase-badge badge-live">Live Beta</span>
+                    <h2 class="phase-title">Core Product</h2>
                 </div>
-                <p class="phase-desc">The essential tools to track your finances securely and privately. Built for speed and simplicity.</p>
+                <p class="phase-desc">The working budget app: local-first budgeting, optional signed-in cloud protection, and the core workflows needed to enter and review a real budget.</p>
                 <ul class="feature-list">
                     <li class="feature-item">
                         <span class="feature-icon" aria-hidden="true">💰</span>
                         <div>
                             <div class="feature-text">Income & Expense Tracking</div>
-                            <div class="feature-status">Fully Functional</div>
+                            <div class="feature-status">Live</div>
                         </div>
                     </li>
                     <li class="feature-item">
                         <span class="feature-icon" aria-hidden="true">📂</span>
                         <div>
-                            <div class="feature-text">Custom Categories & Budgeting</div>
-                            <div class="feature-status">Fully Functional</div>
+                            <div class="feature-text">Categories with edit mode, drag sorting, up/down controls, and position entry</div>
+                            <div class="feature-status">Live</div>
                         </div>
                     </li>
                     <li class="feature-item">
                         <span class="feature-icon" aria-hidden="true">🎛️</span>
                         <div>
-                            <div class="feature-text">Manage income, track savings, and manage debt from a single screen</div>
-                            <div class="feature-status">Fully Functional</div>
+                            <div class="feature-text">Income, Savings, Debt, Add, Recent, and Calendar workflows</div>
+                            <div class="feature-status">Live</div>
                         </div>
                     </li>
                     <li class="feature-item">
                         <span class="feature-icon" aria-hidden="true">🛡️</span>
                         <div>
-                            <div class="feature-text">Launched with privacy enabled by default: no trackers, no ads</div>
-                            <div class="feature-status">Fully Functional</div>
+                            <div class="feature-text">Privacy-first local budget storage with no trackers or ads</div>
+                            <div class="feature-status">Live</div>
                         </div>
                     </li>
                     <li class="feature-item">
                         <span class="feature-icon" aria-hidden="true">🔒</span>
                         <div>
-                            <div class="feature-text">Secure Authentication (Email/Password)</div>
-                            <div class="feature-status">Fully Functional</div>
+                            <div class="feature-text">Google OAuth and email magic-link sign-in</div>
+                            <div class="feature-status">Live; Apple sign-in paused until demand justifies it</div>
                         </div>
                     </li>
                     <li class="feature-item">
                         <span class="feature-icon" aria-hidden="true">🌙</span>
                         <div>
-                            <div class="feature-text">Dark/Light Mode & Responsive Design</div>
-                            <div class="feature-status">Fully Functional</div>
+                            <div class="feature-text">CSV transaction import/export, themes, and responsive layout</div>
+                            <div class="feature-status">Live; PDF reports remain planned</div>
                         </div>
                     </li>
                 </ul>
             </div>
 
-            <!-- Phase 2: Live v1 plus planned enhancements -->
+            <!-- Phase 2: Active Beta -->
             <div class="phase-card phase-upcoming">
                 <div class="phase-marker" aria-hidden="true"></div>
                 <div class="phase-header">
-                    <span class="phase-badge badge-next">Live v1 + Coming Enhancements</span>
-                    <h2 class="phase-title">Phase 2: Buddy Cloud & Insights</h2>
+                    <span class="phase-badge badge-next">Active Beta</span>
+                    <h2 class="phase-title">Reliability, Data Safety, and Conversion</h2>
                 </div>
-                <p class="phase-desc">Take your data everywhere and gain deeper insights into your spending habits.</p>
+                <p class="phase-desc">This is the current focus. The app needs to be trustworthy before it gets more feature work.</p>
                 <ul class="feature-list">
                     <li class="feature-item">
                         <span class="feature-icon" aria-hidden="true">☁️</span>
                         <div>
-                            <div class="feature-text">Buddy Cloud Sync</div>
-                            <div class="feature-status">Free v1 Available</div>
+                            <div class="feature-text">Buddy Cloud encrypted sync, version history, and sign-in recovery</div>
+                            <div class="feature-status">Live beta; still being stress-tested</div>
                         </div>
                     </li>
                     <li class="feature-item">
                         <span class="feature-icon" aria-hidden="true">🔐</span>
                         <div>
-                            <div class="feature-text">PIN/passkey-protected recovery key storage</div>
-                            <div class="feature-status">Top v1.1 Priority</div>
+                            <div class="feature-text">Graceful sign-out, rough logout, hard refresh, and fresh-session recovery testing</div>
+                            <div class="feature-status">Active beta QA</div>
                         </div>
                     </li>
                     <li class="feature-item">
                         <span class="feature-icon" aria-hidden="true">📊</span>
                         <div>
-                            <div class="feature-text">Interactive Charts & Spending Trends</div>
-                            <div class="feature-status">Planned</div>
+                            <div class="feature-text">Premium billing and Stripe upgrade path</div>
+                            <div class="feature-status">Live beta path; keep testing before wider promotion</div>
                         </div>
                     </li>
                     <li class="feature-item">
                         <span class="feature-icon" aria-hidden="true">📱</span>
                         <div>
-                            <div class="feature-text">Mobile App (iOS/Android)</div>
-                            <div class="feature-status">Planning</div>
+                            <div class="feature-text">GitLab and Cloudflare deployment workflow</div>
+                            <div class="feature-status">Live; auto-deploys from pushed main branch</div>
                         </div>
                     </li>
                     <li class="feature-item">
                         <span class="feature-icon" aria-hidden="true">📥</span>
                         <div>
-                            <div class="feature-text">Export Data (CSV/PDF)</div>
-                            <div class="feature-status">Planned</div>
+                            <div class="feature-text">Beta user feedback: is it useful, stable, and worth paying to keep alive?</div>
+                            <div class="feature-status">Decision input for continued development</div>
                         </div>
                     </li>
                 </ul>
             </div>
 
-            <!-- Phase 3: Future -->
+            <!-- Phase 3: If Demand Proves It -->
             <div class="phase-card phase-upcoming">
                 <div class="phase-marker" aria-hidden="true"></div>
                 <div class="phase-header">
-                    <span class="phase-badge badge-future">Future Vision</span>
-                    <h2 class="phase-title">Phase 3: Advanced Features</h2>
+                    <span class="phase-badge badge-future">Demand Driven</span>
+                    <h2 class="phase-title">Deferred Enhancements</h2>
                 </div>
-                <p class="phase-desc">Power user features and advanced security.</p>
+                <p class="phase-desc">These are not the priority until the core product proves retention, reliability, and basic cost recovery.</p>
                 <ul class="feature-list">
                     <li class="feature-item">
                         <span class="feature-icon" aria-hidden="true">🔐</span>
                         <div>
-                            <div class="feature-text">Two-Factor Authentication (2FA) & Passkeys</div>
-                            <div class="feature-status">Research</div>
+                            <div class="feature-text">PDF exports and printable reports</div>
+                            <div class="feature-status">Planned after stability work</div>
                         </div>
                     </li>
                     <li class="feature-item">
                         <span class="feature-icon" aria-hidden="true">🔄</span>
                         <div>
-                            <div class="feature-text">Recurring Transactions & Auto-Categorization</div>
-                            <div class="feature-status">Research</div>
+                            <div class="feature-text">Recurring transactions and auto-categorization</div>
+                            <div class="feature-status">Demand driven</div>
                         </div>
                     </li>
                     <li class="feature-item">
                         <span class="feature-icon" aria-hidden="true">🤖</span>
                         <div>
-                            <div class="feature-text">AI-Powered Spending Insights</div>
-                            <div class="feature-status">Ideation</div>
+                            <div class="feature-text">Charts, spending trends, mobile apps, Apple OAuth, bank imports, and AI-powered insights</div>
+                            <div class="feature-status">Only if beta demand supports the work</div>
                         </div>
                     </li>
                 </ul>
