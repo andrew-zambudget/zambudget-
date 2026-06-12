@@ -301,6 +301,43 @@ function getSyncEventStatusTooltip(status) {
     return 'Warning';
 }
 
+function normalizeSyncEventDetails(details = null) {
+    if (!details || typeof details !== 'object') return null;
+
+    const cleanText = (value, maxLength = 140) => String(value || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, maxLength);
+    const summary = cleanText(details.summary, 180);
+    const items = Array.isArray(details.items)
+        ? details.items.map(item => cleanText(item, 120)).filter(Boolean).slice(0, 5)
+        : [];
+    const note = cleanText(details.note, 120);
+
+    if (!summary && !items.length && !note) return null;
+    return { summary, items, note };
+}
+
+function renderSyncEventDetails(details = null) {
+    const normalized = normalizeSyncEventDetails(details);
+    if (!normalized) return '';
+
+    return `
+        <details class="sync-history-details">
+            <summary>Snapshot details</summary>
+            <div class="sync-history-details-body">
+                ${normalized.summary ? `<p class="sync-history-detail-summary">${esc(normalized.summary)}</p>` : ''}
+                ${normalized.items.length ? `
+                    <ul class="sync-history-detail-list">
+                        ${normalized.items.map(item => `<li>${esc(item)}</li>`).join('')}
+                    </ul>
+                ` : ''}
+                ${normalized.note ? `<div class="sync-history-detail-note">${esc(normalized.note)}</div>` : ''}
+            </div>
+        </details>
+    `;
+}
+
 function renderSyncHistory() {
     const list = document.getElementById('syncHistoryList');
     const badge = document.getElementById('syncHistoryStatusBadge');
@@ -311,10 +348,14 @@ function renderSyncHistory() {
             ? history.slice(0, SYNC_HISTORY_VISIBLE_LIMIT).map(event => {
                 const eventStatus = getSafeSyncEventStatus(event.status);
                 const eventMessage = event.message || 'Local data saved.';
+                const detailsHtml = renderSyncEventDetails(event.details);
                 return `
                 <div class="sync-history-item sync-history-item-${eventStatus}">
                     <span class="sync-history-time">${esc(formatSyncTime(event.time))}</span>
-                    <span class="sync-history-event"><span class="sync-history-status-dot sync-history-status-dot-${eventStatus}" data-tooltip="${esc(getSyncEventStatusTooltip(eventStatus))}" aria-label="${esc(getSyncEventStatusTooltip(eventStatus))}" tabindex="0"></span><span class="sync-history-event-text">${esc(eventMessage)}</span></span>
+                    <div class="sync-history-event-wrap">
+                        <span class="sync-history-event"><span class="sync-history-status-dot sync-history-status-dot-${eventStatus}" data-tooltip="${esc(getSyncEventStatusTooltip(eventStatus))}" aria-label="${esc(getSyncEventStatusTooltip(eventStatus))}" tabindex="0"></span><span class="sync-history-event-text">${esc(eventMessage)}</span></span>
+                        ${detailsHtml}
+                    </div>
                 </div>
             `}).join('')
             : '<div class="sync-history-empty">No sync activity yet.</div>';
@@ -530,17 +571,21 @@ function setSyncStatus(status = 'local', message = '') {
     syncRecoveryKeyStatusAlternation();
 }
 
-function recordSyncEvent(message, status = 'local') {
+function recordSyncEvent(message, status = 'local', details = null) {
     const requestedStatus = status === 'error' && navigator.onLine !== false && isPausedSyncMessage(message)
         ? 'paused'
         : status;
     const safeStatus = ['synced', 'local', 'syncing', 'error', 'paused'].includes(requestedStatus) ? requestedStatus : 'local';
-    const nextHistory = [{
+    const event = {
         id: generateId(),
         time: new Date().toISOString(),
         status: safeStatus,
         message: message || getSyncStatusMessage(safeStatus)
-    }, ...getSyncHistory()];
+    };
+    const normalizedDetails = normalizeSyncEventDetails(details);
+    if (normalizedDetails) event.details = normalizedDetails;
+
+    const nextHistory = [event, ...getSyncHistory()];
 
     saveSyncHistory(nextHistory);
     setSyncStatus(safeStatus, safeStatus === 'syncing' ? getSyncStatusMessage(safeStatus) : message);

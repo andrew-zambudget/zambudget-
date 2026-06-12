@@ -316,6 +316,65 @@ function formatWaitMinutes(ms = 0) {
     return `${minutes} minute${minutes === 1 ? '' : 's'}`;
 }
 
+function pluralizeSyncLabel(count, singular, plural = `${singular}s`) {
+    return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function formatSyncAmount(amount, currencySymbol = '$') {
+    const parsed = Number.parseFloat(amount);
+    if (!Number.isFinite(parsed)) return '';
+
+    return `${currencySymbol}${Math.abs(parsed).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    })}`;
+}
+
+function formatSyncDate(value = '') {
+    const normalized = String(value || '').trim();
+    const dateOnly = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const date = dateOnly
+        ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+        : new Date(normalized);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function getSyncTransactionTime(tx = {}) {
+    const value = tx?.updatedAtUTC || tx?.serverLoggedAtUTC || tx?.createdAtUTC || tx?.createdAt || tx?.date || '';
+    return getTimestampMs(value);
+}
+
+function formatSyncTransactionDetail(tx = {}, currencySymbol = '$') {
+    const cleanText = value => String(value || '').replace(/\s+/g, ' ').trim();
+    const description = cleanText(tx.description || tx.category || tx.type || 'Transaction').slice(0, 48);
+    const amount = formatSyncAmount(tx.amount, currencySymbol);
+    const type = cleanText(tx.type).slice(0, 18);
+    const date = formatSyncDate(tx.date || tx.serverLoggedAtUTC || tx.createdAtUTC || tx.createdAt);
+    const meta = [type, amount, date].filter(Boolean).join(' - ');
+
+    return meta ? `${description} (${meta})` : description;
+}
+
+function buildSyncSnapshotDetails(snapshot = {}) {
+    const transactions = Array.isArray(snapshot.transactions) ? snapshot.transactions : [];
+    const categories = Array.isArray(snapshot.categories) ? snapshot.categories : [];
+    const activeTransactions = transactions.filter(tx => !tx?.isDeleted);
+    const currencySymbol = String(snapshot.settings?.currency || '$').trim().slice(0, 4) || '$';
+    const recentTransactions = activeTransactions
+        .slice()
+        .sort((a, b) => getSyncTransactionTime(b) - getSyncTransactionTime(a))
+        .slice(0, 5)
+        .map(tx => formatSyncTransactionDetail(tx, currencySymbol))
+        .filter(Boolean);
+
+    return {
+        summary: `Snapshot included ${pluralizeSyncLabel(activeTransactions.length, 'active transaction')} and ${pluralizeSyncLabel(categories.length, 'category', 'categories')}.`,
+        items: recentTransactions,
+        note: 'Shown only on this device before encryption.'
+    };
+}
+
 function scheduleConflictGraceRetry(waitMs = CLOUD_CONFLICT_GRACE_MS) {
     clearTimeout(conflictGraceTimer);
     conflictGraceTimer = setTimeout(() => {
@@ -445,7 +504,7 @@ function rememberStatus(next = {}) {
     window.dispatchEvent(new CustomEvent('buddy-cloud-status', { detail: getStatus() }));
 }
 
-function record(message, status = 'synced') {
+function record(message, status = 'synced', details = null) {
     if (status === 'error') {
         localStorage.setItem(CLOUD_LAST_ERROR_KEY, message);
     } else if (status === 'synced' || status === 'local') {
@@ -453,11 +512,13 @@ function record(message, status = 'synced') {
     }
 
     if (typeof window.recordSyncEvent === 'function') {
-        window.recordSyncEvent(message, status);
+        window.recordSyncEvent(message, status, details);
     } else {
         try {
             const history = JSON.parse(localStorage.getItem(CLOUD_HISTORY_KEY) || '[]');
-            history.unshift({ id: Date.now(), time: new Date().toISOString(), status, message });
+            const event = { id: Date.now(), time: new Date().toISOString(), status, message };
+            if (details && typeof details === 'object') event.details = details;
+            history.unshift(event);
             localStorage.setItem(CLOUD_HISTORY_KEY, JSON.stringify(history.slice(0, CLOUD_HISTORY_LIMIT)));
         } catch {
             // Keep cloud sync independent of history rendering.
@@ -744,8 +805,9 @@ async function pushSnapshotNow(reason = 'Budget synced to Buddy Cloud.') {
         return false;
     }
 
-    record('Syncing with Buddy Cloud...', 'syncing');
     const snapshot = getLocalSnapshot();
+    const syncDetails = buildSyncSnapshotDetails(snapshot);
+    record('Syncing with Buddy Cloud...', 'syncing', syncDetails);
     const clientUpdatedAt = snapshot.meta?.localUpdatedAt || new Date().toISOString();
     const existingRemote = await fetchRemoteVault();
     await claimSyncSlot(existingRemote);
@@ -788,7 +850,7 @@ async function pushSnapshotNow(reason = 'Budget synced to Buddy Cloud.') {
     localStorage.setItem(CLOUD_LAST_PUSHED_KEY, clientUpdatedAt);
     localStorage.setItem(CLOUD_LAST_REMOTE_KEY, clientUpdatedAt);
     clearConflictState();
-    record(reason, 'synced');
+    record(reason, 'synced', syncDetails);
     return true;
 }
 
