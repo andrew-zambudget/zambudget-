@@ -630,6 +630,23 @@ function injectStyles() {
             margin-top: 18px;
         }
 
+        .bb-demo-account-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(165px, max-content));
+            justify-content: center;
+            align-items: center;
+        }
+
+        .bb-demo-account-actions .bb-demo-action {
+            min-width: 165px;
+        }
+
+        .bb-demo-account-actions [data-demo-prompt-action="website"],
+        .bb-demo-account-actions [data-demo-prompt-action="continue"] {
+            grid-column: 1 / -1;
+            justify-self: center;
+        }
+
         .bb-demo-modal .bb-demo-action {
             background: #0f766e;
             color: #ffffff;
@@ -823,6 +840,17 @@ function injectStyles() {
 
             .bb-demo-tutorial-actions {
                 flex-direction: column;
+            }
+
+            .bb-demo-account-actions {
+                grid-template-columns: 1fr;
+            }
+
+            .bb-demo-account-actions .bb-demo-action,
+            .bb-demo-account-actions [data-demo-prompt-action="website"],
+            .bb-demo-account-actions [data-demo-prompt-action="continue"] {
+                width: 100%;
+                min-width: 0;
             }
 
             .bb-demo-tutorial-nav {
@@ -1063,7 +1091,7 @@ function renderAccountPrompt() {
         <div class="bb-demo-modal" role="dialog" aria-modal="true" aria-labelledby="bbDemoAccountPromptTitle">
             <h2 id="bbDemoAccountPromptTitle">${title}</h2>
             <p>${body}</p>
-            <div class="bb-demo-modal-actions">
+            <div class="bb-demo-modal-actions bb-demo-account-actions">
                 <button type="button" class="bb-demo-action" data-demo-prompt-action="create-account">Create Free Account</button>
                 <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-prompt-action="demo">Try 5-Minute Demo</button>
                 <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-prompt-action="website">Back to Website</button>
