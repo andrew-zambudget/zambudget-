@@ -73,7 +73,12 @@
             </div>
 
             <div class="auth-buttons">
-                <a href="login.html" class="btn-text" data-tooltip="Log In">Log In</a>
+                <a href="login.html" class="btn-text login-cta" data-tooltip="Sign In">
+                    <span class="login-cta-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path></svg>
+                    </span>
+                    <span>Sign In</span>
+                </a>
             </div>
         </div>
     </header>
@@ -174,6 +179,7 @@
                     <button type="button" class="cmd-tab" onclick="window.switchTab('savings')" id="tab-savings" role="tab" aria-controls="view-savings" aria-selected="false">Savings</button>
                     <button type="button" class="cmd-tab" onclick="window.switchTab('debt')" id="tab-debt" role="tab" aria-controls="view-debt" aria-selected="false">Debt</button>
                     <button type="button" class="cmd-tab active" onclick="window.switchTab('add')" id="tab-add" role="tab" aria-controls="view-add" aria-selected="true">Add</button>
+                    <button type="button" class="cmd-tab" onclick="window.switchTab('calendar')" id="tab-calendar" role="tab" aria-controls="view-calendar" aria-selected="false">Calendar</button>
                     <button type="button" class="cmd-tab" onclick="window.switchTab('recent')" id="tab-recent" role="tab" aria-controls="view-recent" aria-selected="false">Recent</button>
                 </div>
 
@@ -387,6 +393,69 @@
                                             </form>
                                         </div>
 
+                    <div id="view-calendar" class="cmd-view" role="tabpanel" aria-labelledby="tab-calendar">
+                        <div class="calendar-workspace">
+                            <div class="calendar-header">
+                                <div>
+                                    <div class="income-overview-title">Calendar</div>
+                                    <div id="calendarScope" class="calendar-scope">All transactions</div>
+                                </div>
+                                <div class="calendar-nav" aria-label="Calendar navigation">
+                                    <button type="button" class="calendar-nav-btn" onclick="window.moveBudgetCalendarMonth(-1)" aria-label="Previous month">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 18l-6-6 6-6"></path></svg>
+                                    </button>
+                                    <button type="button" class="calendar-today-btn" onclick="window.goToBudgetCalendarToday()">Today</button>
+                                    <button type="button" class="calendar-nav-btn" onclick="window.moveBudgetCalendarMonth(1)" aria-label="Next month">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 18l6-6-6-6"></path></svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="calendar-month-row">
+                                <strong id="calendarMonthLabel">Month</strong>
+                                <button type="button" id="calendarClearDateBtn" class="recent-ghost-btn" onclick="window.clearBudgetCalendarDate()" hidden>Clear Day</button>
+                            </div>
+
+                            <div class="calendar-summary-grid" aria-label="Calendar month summary">
+                                <div class="calendar-summary-stat">
+                                    <span>Net</span>
+                                    <strong id="calendarMonthNet">$0.00</strong>
+                                </div>
+                                <div class="calendar-summary-stat">
+                                    <span>Income</span>
+                                    <strong id="calendarMonthIncome">$0.00</strong>
+                                </div>
+                                <div class="calendar-summary-stat">
+                                    <span>Outflow</span>
+                                    <strong id="calendarMonthOutflow">$0.00</strong>
+                                </div>
+                                <div class="calendar-summary-stat">
+                                    <span>Active Days</span>
+                                    <strong id="calendarActiveDays">0</strong>
+                                </div>
+                            </div>
+
+                            <div class="calendar-weekdays" aria-hidden="true">
+                                <span>Sun</span>
+                                <span>Mon</span>
+                                <span>Tue</span>
+                                <span>Wed</span>
+                                <span>Thu</span>
+                                <span>Fri</span>
+                                <span>Sat</span>
+                            </div>
+                            <div id="budgetCalendarGrid" class="calendar-grid" role="grid" aria-label="Budget activity calendar"></div>
+
+                            <div class="calendar-selected-panel" id="calendarSelectedPanel" hidden>
+                                <div>
+                                    <div class="calendar-selected-title" id="calendarSelectedTitle">Selected day</div>
+                                    <div class="calendar-selected-meta" id="calendarSelectedMeta">No transactions</div>
+                                </div>
+                                <button type="button" class="btn-create calendar-selected-action" onclick="window.openBudgetCalendarRecent()">View Recent</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div id="view-recent" class="cmd-view" role="tabpanel" aria-labelledby="tab-recent">
                         <div class="recent-workspace">
                             <div class="recent-header">
@@ -414,6 +483,11 @@
                                     </button>
                                     <input type="search" id="txSearch" class="recent-search-input" placeholder="Search transactions" oninput="window.filterRecentTransactions()" onblur="window.handleRecentSearchBlur()" aria-label="Search recent transactions">
                                 </div>
+                            </div>
+
+                            <div id="recentDateFilterBar" class="recent-date-filter-bar" hidden>
+                                <span id="recentDateFilterLabel">Selected day</span>
+                                <button type="button" class="recent-ghost-btn" onclick="window.clearBudgetCalendarDate()">Clear</button>
                             </div>
 
                             <div id="recentBulkPanel" class="recent-bulk-panel" hidden>
@@ -1075,7 +1149,12 @@
             <span class="footer-dot" aria-hidden="true">&middot;</span>
             <a href="terms.html" class="footer-link">Terms of Service</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>
-            <a href="https://gitlab.com/andrews.agent949/budget-buddy" class="footer-link" target="_blank" rel="noopener">GitLab Project</a>
+            <a href="https://gitlab.com/andrews.agent949/budget-buddy" class="footer-link footer-social-link" target="_blank" rel="noopener" aria-label="GitLab project" data-tooltip="GitLab Project">
+                <svg class="footer-social-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M23.6 9.59l-.03-.08L20.3.98a.85.85 0 0 0-.34-.4.87.87 0 0 0-1.29.49l-2.2 6.75H7.54L5.33.07a.87.87 0 0 0-1.29-.49.85.85 0 0 0-.34.4L.43 9.51l-.03.08a6.07 6.07 0 0 0 2.01 6.82l.04.03 4.98 3.73 2.46 1.86 1.5 1.13a1.01 1.01 0 0 0 1.22 0l1.5-1.13 2.46-1.86 5.01-3.75.01-.01a6.07 6.07 0 0 0 2.01-6.82z"></path>
+                </svg>
+                <span class="sr-only">GitLab Project</span>
+            </a>
         </div>
         <div class="copyright-text">
             &copy; 2026 BudgetBuddy. Open source under the <a href="#" onclick="event.preventDefault(); window.openLicenseModal()" class="footer-link">MIT License</a>.
