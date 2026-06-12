@@ -2491,7 +2491,7 @@ function buildBrowserAccessDeviceListHtml(context = {}, { includeGlobalSignOut =
             : `<button type="button" class="btn-cancel buddy-cloud-action buddy-cloud-device-signout-btn" data-action="revoke-browser:${esc(row.browser_hash || '')}" data-persistent="false">Sign Out</button>`;
 
         return `
-            <div class="buddy-cloud-device-row" role="listitem">
+            <div class="buddy-cloud-device-row${isCurrent ? ' buddy-cloud-device-row-current' : ''}" role="listitem">
                 <div class="buddy-cloud-device-main">
                     <span class="buddy-cloud-device-icon" aria-hidden="true">${getBrowserAccessIconSvg()}</span>
                     <span class="buddy-cloud-device-copy">
@@ -2508,7 +2508,7 @@ function buildBrowserAccessDeviceListHtml(context = {}, { includeGlobalSignOut =
             ? `Unmatched sync slot ${index + 1}`
             : 'Unmatched sync slot';
         return `
-            <div class="buddy-cloud-device-row" role="listitem">
+            <div class="buddy-cloud-device-row buddy-cloud-device-row-unmatched" role="listitem">
                 <div class="buddy-cloud-device-main">
                     <span class="buddy-cloud-device-icon" aria-hidden="true">${getBrowserAccessIconSvg()}</span>
                     <span class="buddy-cloud-device-copy">
@@ -2528,7 +2528,11 @@ function buildBrowserAccessDeviceListHtml(context = {}, { includeGlobalSignOut =
         </div>
         <div class="buddy-cloud-device-privacy">
             <button type="button" class="buddy-cloud-action buddy-cloud-privacy-details-btn" data-action="privacy-details" data-persistent="false" aria-label="Privacy details for device management">
-                Privacy details
+                <span class="buddy-cloud-device-privacy-copy">
+                    <strong>Privacy details</strong>
+                    <span>Opaque sync metadata only</span>
+                </span>
+                <span class="buddy-cloud-device-privacy-action">View</span>
             </button>
         </div>
         ${includeGlobalSignOut ? `
@@ -3534,6 +3538,7 @@ async function showBuddyCloudDeviceManagementModal() {
 
     const result = await showBuddyCloudModal({
         title: 'Buddy Cloud Devices',
+        modalClass: 'buddy-cloud-devices-modal',
         body: getBuddyCloudDeviceStatusCopy(),
         detailRows: syncRows,
         customHtml: `${conflictComparisonHtml}${deviceListHtml}`,
