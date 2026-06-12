@@ -445,7 +445,9 @@ function syncCloudActionButtons() {
             : hasConflict
             ? 'Review saved Buddy Cloud versions before sync continues.'
             : 'Manually check Buddy Cloud sync status.');
-        manualBtn.setAttribute('data-tooltip', getManualSyncButtonTooltip(status, { hasConflict, canUseManualSync }));
+        const manualTooltip = getManualSyncButtonTooltip(status, { hasConflict, canUseManualSync });
+        manualBtn.setAttribute('data-tooltip', manualTooltip);
+        manualBtn.setAttribute('title', manualTooltip);
     }
     if (deviceCount) {
         deviceCount.textContent = isPremium

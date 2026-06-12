@@ -3276,6 +3276,47 @@ input.error, select.error {
     font-weight: 850;
 }
 
+.sync-cloud-manual[data-tooltip] {
+    overflow: visible;
+}
+
+.sync-cloud-manual[data-tooltip]::after {
+    left: auto;
+    right: 0;
+    bottom: calc(100% + 0.42rem);
+    transform: translateY(0);
+    min-width: min(18rem, calc(100vw - 2rem));
+    max-width: min(18rem, calc(100vw - 2rem));
+    text-align: left;
+    z-index: 1820;
+}
+
+.sync-cloud-manual[data-tooltip]::before {
+    left: auto;
+    right: 0.72rem;
+    bottom: calc(100% + 0.12rem);
+    transform: translateY(0);
+    z-index: 1820;
+}
+
+.sync-cloud-manual[data-tooltip]:hover::after,
+.sync-cloud-manual[data-tooltip]:focus-visible::after,
+.sync-cloud-footer:hover .sync-cloud-manual[data-tooltip]::after,
+.sync-cloud-footer:focus-within .sync-cloud-manual[data-tooltip]::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-0.18rem);
+}
+
+.sync-cloud-manual[data-tooltip]:hover::before,
+.sync-cloud-manual[data-tooltip]:focus-visible::before,
+.sync-cloud-footer:hover .sync-cloud-manual[data-tooltip]::before,
+.sync-cloud-footer:focus-within .sync-cloud-manual[data-tooltip]::before {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0.22rem);
+}
+
 .sync-cloud-manual:hover,
 .sync-cloud-manual:focus-visible {
     background: transparent;
