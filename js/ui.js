@@ -4058,9 +4058,8 @@ export function renderZBBDashboard() {
         const txDate = new Date(tx.date || tx.createdAt);
         return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
     };
-    const isSavingsTx = (tx) => tx.type === 'savings' || tx.tag === 'savings';
     const monthlyIncome = allTxs
-        .filter(tx => tx.type === 'income' || (treatSavingsAsIncome && isSavingsTx(tx)))
+        .filter(tx => isIncomeTotalTransaction(tx, treatSavingsAsIncome))
         .filter(isCurrentMonthTx)
         .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
 
@@ -4119,6 +4118,18 @@ export function renderZBBDashboard() {
 
 function shouldTreatSavingsAsIncome() {
     return Boolean(State.getTreatSavingsAsIncomeInZbb?.());
+}
+
+function isSavingsTransaction(tx = {}) {
+    const type = String(tx?.type || '').toLowerCase();
+    const tag = String(tx?.tag || '').toLowerCase();
+    return type === 'savings' || tag === 'savings';
+}
+
+function isIncomeTotalTransaction(tx = {}, treatSavingsAsIncome = shouldTreatSavingsAsIncome()) {
+    const type = String(tx?.type || '').toLowerCase();
+    if (isSavingsTransaction(tx)) return Boolean(treatSavingsAsIncome);
+    return type === 'income';
 }
 
 function setIncomeTotalLabels(treatSavingsAsIncome = shouldTreatSavingsAsIncome()) {
@@ -5717,7 +5728,7 @@ export function renderIncomeTab() {
 
     // 1. Calculate Monthly Logged Income
     const monthlyIncome = txs
-        .filter(tx => tx.type === 'income' || (treatSavingsAsIncome && (tx.type === 'savings' || tx.tag === 'savings')))
+        .filter(tx => isIncomeTotalTransaction(tx, treatSavingsAsIncome))
         .filter(tx => {
             const txDate = new Date(tx.date || tx.createdAt);
             return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
@@ -5767,7 +5778,7 @@ export function renderIncomeTab() {
     const incomeSourceCards = visibleIncomeSources.map(src => {
         const expected = src.budget || 0;
         const logged = txs
-            .filter(tx => tx.type === 'income' && tx.category === src.name)
+            .filter(tx => isIncomeTotalTransaction(tx, false) && tx.category === src.name)
             .filter(tx => {
                 const txDate = new Date(tx.date || tx.createdAt);
                 return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
@@ -5922,7 +5933,7 @@ function legacyRenderRecentTransactionsV3() {
     const currentFilter = window.currentTxFilter || 'all';
 
     if (currentFilter === 'income') {
-        txs = txs.filter(tx => tx.type === 'income');
+        txs = txs.filter(tx => isIncomeTotalTransaction(tx, shouldTreatSavingsAsIncome()));
     }
     else if (currentFilter === 'expense') {
         // ONLY filter if they explicitly clicked the "Expense" pill
