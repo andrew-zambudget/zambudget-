@@ -177,6 +177,7 @@ const BROWSER_ACCESS_SELECT_COLUMNS = 'browser_hash, created_at, last_seen_at, r
 const BROWSER_ACCESS_LEGACY_SELECT_COLUMNS = 'browser_hash, created_at, last_seen_at, revoked_at, revoked_by_hash';
 const BROWSER_ACCESS_CHECK_MS = 60 * 1000;
 const BROWSER_ACCESS_OPEN_PANEL_REFRESH_MS = 5000;
+const UNMATCHED_SYNC_SLOT_AUTO_RELEASE_MS = 2 * 60 * 60 * 1000;
 const BROWSER_ACCESS_PRIVACY_COPY = 'Device management uses privacy-minimal BudgetBuddy browser access records: opaque browser hashes, existing opaque sync slot hash links, and timestamps only. No device names, user agents, IP-derived locations, or readable budget data are stored.';
 let syncStatusTimer = null;
 let syncSlotStatusPanelTimer = null;
@@ -2217,6 +2218,43 @@ function getUnmatchedSyncSlotRows(activeBrowserRows = []) {
         .filter(slot => slot.hash && !matchedSlotHashes.has(slot.hash));
 }
 
+function getSyncSlotActivityMs(slot = {}) {
+    const activityMs = new Date(slot.last_seen_at || slot.claimed_at || '').getTime();
+    return Number.isFinite(activityMs) ? activityMs : 0;
+}
+
+function isOldUnmatchedSyncSlot(slot = {}, nowMs = Date.now()) {
+    const activityMs = getSyncSlotActivityMs(slot);
+    return Boolean(activityMs && nowMs - activityMs >= UNMATCHED_SYNC_SLOT_AUTO_RELEASE_MS);
+}
+
+async function releaseOldUnmatchedSyncSlots(activeBrowserRows = []) {
+    if (!browserAccessSyncSlotHashSupported || !window.BuddyCloud?.releaseSyncSlotByHash) return false;
+    const oldUnmatchedSlots = getUnmatchedSyncSlotRows(activeBrowserRows)
+        .filter(slot => isOldUnmatchedSyncSlot(slot));
+    if (!oldUnmatchedSlots.length) return false;
+
+    let releasedCount = 0;
+    for (const slot of oldUnmatchedSlots) {
+        try {
+            const released = await window.BuddyCloud.releaseSyncSlotByHash(slot.hash);
+            if (released) releasedCount += 1;
+        } catch (error) {
+            console.warn('[Device Management] Could not auto-release unmatched Buddy Cloud sync slot:', error);
+        }
+    }
+
+    if (releasedCount > 0) {
+        try {
+            await window.BuddyCloud?.refreshSyncSlotStatus?.();
+        } catch (error) {
+            console.warn('[Device Management] Could not refresh Buddy Cloud sync slots after auto-release:', error);
+        }
+    }
+
+    return releasedCount > 0;
+}
+
 function formatUnmatchedSyncSlotStatus(slot = {}) {
     return `Last seen ${formatBuddyCloudReviewTime(slot.last_seen_at || slot.claimed_at || '')}`;
 }
@@ -2285,7 +2323,15 @@ export async function refreshBrowserAccessRegistry(options = {}) {
     ensureBrowserAccessRealtimeSubscription();
     if (!window.currentUser?.id || !window.sb?.from || !crypto?.subtle) return true;
     try {
+        try {
+            await window.BuddyCloud?.refreshSyncSlotStatus?.();
+        } catch (error) {
+            console.warn('[Device Management] Could not refresh Buddy Cloud sync slots before registry cleanup:', error);
+        }
         const context = await getCurrentBrowserAccessContext();
+        if (!context.revoked && context.available) {
+            await releaseOldUnmatchedSyncSlots(context.rows.filter(isBrowserAccessActive));
+        }
         return !context.revoked;
     } catch (error) {
         if (!silent && window.showToast) window.showToast(getBrowserAccessErrorMessage(error));
@@ -2527,6 +2573,9 @@ async function refreshOpenBrowserAccessDeviceList() {
             }
             const context = await getCurrentBrowserAccessContext();
             if (context.revoked) return false;
+            if (context.available) {
+                await releaseOldUnmatchedSyncSlots(context.rows.filter(isBrowserAccessActive));
+            }
             const nextHtml = buildBrowserAccessDeviceListHtml(context, { includeGlobalSignOut: true });
             if (section.innerHTML.trim() !== nextHtml.trim()) {
                 section.innerHTML = nextHtml;
@@ -3422,14 +3471,14 @@ async function showBuddyCloudDeviceManagementModal() {
     } catch (error) {
         console.warn('[Device Management] Could not refresh Buddy Cloud sync slots before opening devices:', error);
     }
-    const status = window.BuddyCloud?.getStatus?.() || {};
-    const signedIn = Boolean(status.signedIn);
-    const enabled = Boolean(status.enabled);
-    const hasKey = Boolean(status.hasKey);
-    const hasConflict = hasBuddyCloudConflict(status);
-    const hasMultiDeviceLimit = isBuddyCloudMultiDeviceLimit(status);
-    const canResolveConflict = signedIn && enabled && hasKey && hasConflict && !status.syncing;
-    const canMoveFreeSlot = signedIn && enabled && hasKey && hasMultiDeviceLimit && !status.syncing;
+    let status = window.BuddyCloud?.getStatus?.() || {};
+    let signedIn = Boolean(status.signedIn);
+    let enabled = Boolean(status.enabled);
+    let hasKey = Boolean(status.hasKey);
+    let hasConflict = hasBuddyCloudConflict(status);
+    let hasMultiDeviceLimit = isBuddyCloudMultiDeviceLimit(status);
+    let canResolveConflict = signedIn && enabled && hasKey && hasConflict && !status.syncing;
+    let canMoveFreeSlot = signedIn && enabled && hasKey && hasMultiDeviceLimit && !status.syncing;
     let browserContext = { available: false, currentHash: '', rows: [], error: '' };
     try {
         browserContext = signedIn
@@ -3441,6 +3490,19 @@ async function showBuddyCloudDeviceManagementModal() {
     const activeBrowserRows = browserContext.available
         ? browserContext.rows.filter(isBrowserAccessActive)
         : [];
+    if (browserContext.available) {
+        const releasedOldUnmatchedSlots = await releaseOldUnmatchedSyncSlots(activeBrowserRows);
+        if (releasedOldUnmatchedSlots) {
+            status = window.BuddyCloud?.getStatus?.() || status;
+            signedIn = Boolean(status.signedIn);
+            enabled = Boolean(status.enabled);
+            hasKey = Boolean(status.hasKey);
+            hasConflict = hasBuddyCloudConflict(status);
+            hasMultiDeviceLimit = isBuddyCloudMultiDeviceLimit(status);
+            canResolveConflict = signedIn && enabled && hasKey && hasConflict && !status.syncing;
+            canMoveFreeSlot = signedIn && enabled && hasKey && hasMultiDeviceLimit && !status.syncing;
+        }
+    }
     const otherBrowserRows = activeBrowserRows.filter(row => row.browser_hash !== browserContext.currentHash);
     const actions = [];
 
