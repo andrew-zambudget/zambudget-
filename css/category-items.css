@@ -1216,22 +1216,24 @@
 }
 
 .savings-buckets-grid {
-  padding: 1.5rem;
+  padding: 0.9rem 1.1rem 1.1rem;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 0.75rem;
   align-content: start;
   min-height: 0;
   overflow-y: auto;
 }
 
 #view-savings .savings-goal-card {
+  padding: 0.85rem;
+  gap: 0.48rem;
   border: 1px solid var(--border, #e2e8f0);
-  border-radius: 16px;
+  border-radius: 10px;
   background:
     radial-gradient(circle at top left, color-mix(in srgb, var(--green, #10b981) 9%, transparent), transparent 48%),
     var(--surface, #ffffff);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.05);
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -1240,8 +1242,8 @@
 
 #view-savings .savings-goal-card:hover {
   border-color: color-mix(in srgb, var(--green, #10b981) 34%, var(--border, #e2e8f0));
-  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.09);
-  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.075);
+  transform: translateY(-1px);
 }
 
 #view-savings .savings-goal-card:focus-visible {
@@ -1265,9 +1267,9 @@
 .emergency-fund-auto-card::after {
   content: '';
   position: absolute;
-  inset: auto 1rem 1rem auto;
-  width: 5rem;
-  height: 5rem;
+  inset: auto 0.75rem 0.75rem auto;
+  width: 3.7rem;
+  height: 3.7rem;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--green, #10b981) 22%, transparent);
   opacity: 0.26;
@@ -1277,21 +1279,21 @@
 .emergency-fund-card-head {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.58rem;
   min-width: 0;
 }
 
 .emergency-fund-card-icon {
   flex: 0 0 auto;
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
+  border-radius: 9px;
   background: color-mix(in srgb, var(--green, #10b981) 13%, var(--surface-hover, #f1f5f9));
   border: 1px solid color-mix(in srgb, var(--green, #10b981) 22%, var(--border, #e2e8f0));
-  font-size: 1.35rem;
+  font-size: 1.12rem;
 }
 
 .emergency-fund-card-title-wrap {
@@ -1301,7 +1303,7 @@
 
 .emergency-fund-card-title {
   color: var(--text, #0f172a);
-  font-size: 1.04rem;
+  font-size: 0.94rem;
   font-weight: 850;
   white-space: nowrap;
   overflow: hidden;
@@ -1309,21 +1311,21 @@
 }
 
 .emergency-fund-card-subtitle {
-  margin-top: 0.12rem;
+  margin-top: 0.08rem;
   color: var(--text-dim, #64748b);
-  font-size: 0.74rem;
+  font-size: 0.67rem;
   font-weight: 800;
   letter-spacing: 0.02em;
 }
 
 .emergency-fund-card-badge {
   flex: 0 0 auto;
-  padding: 0.28rem 0.52rem;
+  padding: 0.2rem 0.42rem;
   border-radius: 999px;
   background: color-mix(in srgb, var(--red, #ef4444) 10%, var(--surface, #ffffff));
   border: 1px solid color-mix(in srgb, var(--red, #ef4444) 24%, var(--border, #e2e8f0));
   color: var(--red, #ef4444);
-  font-size: 0.68rem;
+  font-size: 0.6rem;
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1333,17 +1335,39 @@
   background: linear-gradient(90deg, var(--green, #10b981), color-mix(in srgb, var(--green, #10b981) 74%, var(--blue, #2563eb))) !important;
 }
 
+#view-savings .savings-goal-card > div:first-child {
+  gap: 0.58rem !important;
+  min-width: 0;
+}
+
+#view-savings .savings-goal-card > div:first-child > div:first-child {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 9px !important;
+  font-size: 1.12rem !important;
+  flex: 0 0 36px;
+}
+
+#view-savings .savings-goal-card > div:first-child > div:nth-child(2) {
+  min-width: 0;
+  font-size: 0.94rem !important;
+  font-weight: 750 !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .savings-card-amount {
-  margin-top: 0.65rem;
+  margin-top: 0.35rem;
   color: var(--text, #0f172a);
-  font-size: 1.25rem;
+  font-size: 1.06rem;
   font-weight: 850;
   font-variant-numeric: tabular-nums;
 }
 
 .savings-card-progress {
-  height: 6px;
-  margin-top: 0.65rem;
+  height: 5px;
+  margin-top: 0.42rem;
   border-radius: 999px;
   overflow: hidden;
   background: var(--surface-hover, #f1f5f9);
@@ -1356,9 +1380,9 @@
 }
 
 .savings-card-progress-label {
-  margin-top: 0.35rem;
+  margin-top: 0.24rem;
   color: var(--text-dim, #64748b);
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   font-weight: 800;
   text-align: right;
 }
