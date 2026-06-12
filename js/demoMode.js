@@ -802,7 +802,7 @@ function showEndedModal(reason = 'ended') {
 
     const title = reason === 'expired' ? 'Demo time ended' : 'Demo cleared';
     const body = reason === 'expired'
-        ? 'The 5-minute sample session cleared itself. Your real budget is protected when you create a free account.'
+        ? 'The 5-minute sample session ended. Your real budget is protected when you create a free account.'
         : 'The sample demo data has been cleared. Create a free account to start a real budget with encrypted Buddy Cloud protection.';
 
     const overlay = document.createElement('div');
@@ -851,7 +851,7 @@ function renderAccountPrompt() {
     const title = hasLocalBudget ? 'Protect this browser budget' : 'Create a free account to start BudgetBuddy';
     const body = hasLocalBudget
         ? 'This browser already has a local budget. Create a free account for encrypted Buddy Cloud protection, or keep using this browser without recovery support.'
-        : 'Free accounts protect real budgets with encrypted Buddy Cloud and two active sync slots. Want to look around first? Try a 5-minute sample demo that clears itself.';
+        : 'Free accounts protect real budgets with encrypted Buddy Cloud and two active sync slots. Want to look around first? Try a 5-minute sample demo.';
 
     const overlay = document.createElement('div');
     overlay.id = ACCOUNT_PROMPT_ID;
