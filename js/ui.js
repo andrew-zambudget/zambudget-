@@ -8143,6 +8143,7 @@ export function executeCategoryDelete(directName = null, targetReplacement = nul
 // Global state for lazy loading within the drill-down panel
 let txScrollObserver = null;
 const TX_SCROLL_TRIGGER_ID = 'drillDownScrollTrigger';
+let openDrillDownSwipeTxId = '';
 
 /**
  * NEW HELPER: Renders the transaction list with infinite scroll.
@@ -8164,13 +8165,15 @@ function renderDrillDownTransactionHistory(categoryName, categoryType, symbol) {
     // 1. Get Data
     const allTxs = State.getTransactions() || [];
 
-    // Filter for specific category AND specific type, EXCLUDING cross-contamination tags
-    // This ensures that if you click "Groceries", you don't see savings deposits or debt payments tagged with Groceries
+    // Filter by transaction kind so expense, income, savings, and debt histories all use the same action rail.
+    const desiredKind = ['savings', 'sinking_fund', 'external'].includes(categoryType)
+        ? 'savings'
+        : categoryType;
     let categoryTransactions = allTxs.filter(tx =>
+        tx &&
+        !tx.isDeleted &&
         tx.category === categoryName &&
-        tx.type === categoryType &&
-        tx.tag !== 'savings' &&
-        tx.tag !== 'debt'
+        getTransactionKind(tx) === desiredKind
     );
 
     // 2. Sort (Newest First)
@@ -8253,12 +8256,15 @@ function createTransactionCardHTML(tx, symbol) {
     const txId = esc(String(tx.id || ''));
 
     // Use imported esc and formatDate directly if available, otherwise fallback
-    const desc = typeof window !== 'undefined' && window.esc ? window.esc(tx.description || 'Unnamed') : (tx.description || 'Unnamed');
-    const formattedDate = typeof window !== 'undefined' && window.formatDate ? window.formatDate(tx.date) : tx.date;
+    const desc = esc(tx.description || 'Unnamed');
+    const formattedDate = esc(formatDate(tx.date));
 
     return `
         <div class="subcategory-item drilldown-tx-card" data-tx-id="${txId}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg); border-radius: 8px; border: 1px solid var(--border); margin-bottom: 0.5rem;">
-            <div class="drilldown-tx-swipe-bg" aria-hidden="true">Delete</div>
+            <div class="drilldown-tx-swipe-bg">
+                <button type="button" class="drilldown-tx-swipe-btn drilldown-tx-swipe-move-btn" tabindex="-1" onclick="window.openDrillDownMoveCategoryModal(event, ${jsArg(tx.id)})" aria-label="Move ${esc(tx.description || 'transaction')}">Move</button>
+                <button type="button" class="drilldown-tx-swipe-btn drilldown-tx-swipe-delete-btn" tabindex="-1" onclick="window.deleteDrillDownTransactionFromSwipe(event, ${jsArg(tx.id)})" aria-label="Delete ${esc(tx.description || 'transaction')}">Delete</button>
+            </div>
             <div class="drilldown-tx-main">
                 <div style="font-weight: 600; font-size: 0.95rem; color: var(--text);">${desc}</div>
                 <div style="font-size: 0.75rem; color: var(--text-dim);">${formattedDate}</div>
@@ -8270,6 +8276,30 @@ function createTransactionCardHTML(tx, symbol) {
     `;
 }
 
+function closeDrillDownSwipeActions() {
+    if (!openDrillDownSwipeTxId) return;
+    openDrillDownSwipeTxId = '';
+    document.querySelectorAll('.drilldown-tx-card.is-swipe-actions-open').forEach(card => {
+        card.style.removeProperty('--drilldown-swipe-x');
+        card.classList.remove('is-swiping-delete', 'is-swipe-actions-open');
+        card.querySelectorAll('.drilldown-tx-swipe-btn').forEach(btn => { btn.tabIndex = -1; });
+    });
+}
+
+window.deleteDrillDownTransactionFromSwipe = function(event, txId) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    closeDrillDownSwipeActions();
+    openRecentDeleteTransactionModal(txId);
+};
+
+window.openDrillDownMoveCategoryModal = function(event, txId) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    closeDrillDownSwipeActions();
+    window.openRecentMoveCategoryModal(event, txId);
+};
+
 function bindDrillDownSwipeActions(listContainer) {
     const cards = listContainer.querySelectorAll('.drilldown-tx-card:not([data-swipe-bound="true"])');
     cards.forEach(card => {
@@ -8280,23 +8310,44 @@ function bindDrillDownSwipeActions(listContainer) {
         let pointerId = null;
         let isSwiping = false;
         let suppressClick = false;
+        const revealOffset = -160;
+        const revealThreshold = -58;
 
         const resetSwipe = () => {
             card.style.removeProperty('--drilldown-swipe-x');
-            card.classList.remove('is-swiping-delete');
+            card.classList.remove('is-swiping-delete', 'is-swipe-actions-open');
+            if (openDrillDownSwipeTxId === card.dataset.txId) openDrillDownSwipeTxId = '';
+            card.querySelectorAll('.drilldown-tx-swipe-btn').forEach(btn => { btn.tabIndex = -1; });
             window.setTimeout(() => { suppressClick = false; }, 0);
         };
 
         card.addEventListener('click', (event) => {
+            if (card.classList.contains('is-swipe-actions-open') && !(event.target instanceof Element && event.target.closest('.drilldown-tx-swipe-btn'))) {
+                event.preventDefault();
+                event.stopPropagation();
+                resetSwipe();
+                return;
+            }
+
             if (suppressClick) {
                 event.preventDefault();
                 event.stopPropagation();
             }
         }, true);
 
+        if (card.dataset.txId && openDrillDownSwipeTxId === card.dataset.txId) {
+            card.style.setProperty('--drilldown-swipe-x', `${revealOffset}px`);
+            card.classList.add('is-swiping-delete', 'is-swipe-actions-open');
+            card.querySelectorAll('.drilldown-tx-swipe-btn').forEach(btn => { btn.tabIndex = 0; });
+        }
+
         card.addEventListener('pointerdown', (event) => {
-            if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
+            if (event.button && event.button !== 0) return;
             if (event.target instanceof Element && event.target.closest('button, input, select, textarea, a')) return;
+
+            if (openDrillDownSwipeTxId && openDrillDownSwipeTxId !== card.dataset.txId) {
+                closeDrillDownSwipeActions();
+            }
 
             pointerId = event.pointerId;
             startX = event.clientX;
@@ -8318,7 +8369,7 @@ function bindDrillDownSwipeActions(listContainer) {
             if (!isSwiping) return;
             event.preventDefault();
             currentX = event.clientX;
-            const offset = Math.max(-132, Math.min(0, deltaX));
+            const offset = Math.max(revealOffset, Math.min(0, deltaX));
             card.style.setProperty('--drilldown-swipe-x', `${offset}px`);
             card.classList.toggle('is-swiping-delete', offset < -18);
         });
@@ -8328,18 +8379,17 @@ function bindDrillDownSwipeActions(listContainer) {
 
             const deltaX = currentX - startX;
             const txId = card.dataset.txId;
-            const shouldDelete = isSwiping && deltaX < -118;
+            const shouldReveal = isSwiping && deltaX < revealThreshold;
             suppressClick = isSwiping;
             pointerId = null;
             isSwiping = false;
 
-            if (shouldDelete && txId) {
-                card.style.setProperty('--drilldown-swipe-x', '-132px');
-                card.classList.add('is-swiping-delete');
-                window.setTimeout(() => {
-                    resetSwipe();
-                    openRecentDeleteTransactionModal(txId);
-                }, 120);
+            if (shouldReveal && txId) {
+                openDrillDownSwipeTxId = txId;
+                card.style.setProperty('--drilldown-swipe-x', `${revealOffset}px`);
+                card.classList.add('is-swiping-delete', 'is-swipe-actions-open');
+                card.querySelectorAll('.drilldown-tx-swipe-btn').forEach(btn => { btn.tabIndex = 0; });
+                window.setTimeout(() => { suppressClick = false; }, 0);
                 return;
             }
 
@@ -8350,6 +8400,21 @@ function bindDrillDownSwipeActions(listContainer) {
         card.addEventListener('pointercancel', endSwipe);
     });
 }
+
+document.addEventListener('pointerdown', (event) => {
+    if (!openDrillDownSwipeTxId) return;
+    const target = event.target;
+    const openCard = target instanceof Element ? target.closest('.drilldown-tx-card') : null;
+    if (!openCard || openCard.dataset.txId !== String(openDrillDownSwipeTxId)) {
+        closeDrillDownSwipeActions();
+    }
+}, true);
+
+document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || !openDrillDownSwipeTxId) return;
+    event.preventDefault();
+    closeDrillDownSwipeActions();
+});
 
 /**
  * Helper: Loads the next batch of transactions (5 at a time)
@@ -8911,6 +8976,7 @@ window.openCategoryDrillDown = function(categoryName, categoryIcon) {
 window.closeCategoryDrillDown = function() {
     const overlay = document.getElementById('categoryDrillDownOverlay');
     const panel = document.getElementById('categoryDrillDownPanel');
+    closeDrillDownSwipeActions();
     if (overlay) overlay.classList.remove('active');
     if (panel) panel.classList.remove('active');
     syncOverlayScrollTopState();
@@ -12090,8 +12156,9 @@ function getMoveCategoryOptions(tx) {
 }
 
 function closeRecentTxActionMenu() {
-    if (!window.openRecentMenuTxId) return;
+    if (!window.openRecentMenuTxId && !window.openRecentSwipeDeleteTxId) return;
     window.openRecentMenuTxId = '';
+    window.openRecentSwipeDeleteTxId = '';
     window.renderRecentTransactions();
 }
 
@@ -12101,6 +12168,7 @@ function closeRecentSwipeDelete() {
     document.querySelectorAll('.recent-tx-card.is-swipe-delete-open').forEach(card => {
         card.style.removeProperty('--recent-swipe-x');
         card.classList.remove('is-swiping-delete', 'is-swipe-delete-open');
+        card.querySelectorAll('.recent-tx-swipe-action-btn').forEach(btn => { btn.tabIndex = -1; });
     });
 }
 
@@ -12108,15 +12176,16 @@ window.toggleRecentTxActionMenu = function(event, txId) {
     event?.preventDefault?.();
     event?.stopPropagation?.();
 
-    closeRecentSwipeDelete();
-    window.openRecentMenuTxId = window.openRecentMenuTxId === txId ? '' : txId;
+    const wasOpen = String(window.openRecentSwipeDeleteTxId || '') === String(txId);
+    window.openRecentMenuTxId = '';
+    window.openRecentSwipeDeleteTxId = wasOpen ? '' : txId;
     window.renderRecentTransactions();
 
-    if (window.openRecentMenuTxId) {
+    if (window.openRecentSwipeDeleteTxId) {
         requestAnimationFrame(() => {
             [...document.querySelectorAll('.recent-tx-card')]
                 .find(card => card.dataset.txId === String(txId))
-                ?.querySelector('.recent-tx-action-btn')
+                ?.querySelector('.recent-tx-swipe-action-btn')
                 ?.focus();
         });
     }
@@ -12152,6 +12221,7 @@ window.openRecentMoveCategoryModal = function(event, txId) {
     }
 
     window.openRecentMenuTxId = '';
+    window.openRecentSwipeDeleteTxId = '';
     window.renderRecentTransactions();
     document.getElementById('recentMoveCategoryModal')?.remove();
 
@@ -12232,19 +12302,19 @@ function bindRecentSwipeActions(listContainer) {
         let pointerId = null;
         let isSwiping = false;
         let suppressClick = false;
-        const revealOffset = -132;
+        const revealOffset = -160;
         const revealThreshold = -58;
-        const fullDeleteThreshold = -118;
 
         const resetSwipe = () => {
             card.style.removeProperty('--recent-swipe-x');
             card.classList.remove('is-swiping-delete', 'is-swipe-delete-open');
             if (window.openRecentSwipeDeleteTxId === cardTxId) window.openRecentSwipeDeleteTxId = '';
+            card.querySelectorAll('.recent-tx-swipe-action-btn').forEach(btn => { btn.tabIndex = -1; });
             window.setTimeout(() => { suppressClick = false; }, 0);
         };
 
         card.addEventListener('click', (event) => {
-            if (card.classList.contains('is-swipe-delete-open') && !(event.target instanceof Element && event.target.closest('.recent-tx-swipe-delete-btn'))) {
+            if (card.classList.contains('is-swipe-delete-open') && !(event.target instanceof Element && event.target.closest('.recent-tx-swipe-action-btn'))) {
                 event.preventDefault();
                 event.stopPropagation();
                 resetSwipe();
@@ -12260,11 +12330,12 @@ function bindRecentSwipeActions(listContainer) {
         if (cardTxId && window.openRecentSwipeDeleteTxId === cardTxId) {
             card.style.setProperty('--recent-swipe-x', `${revealOffset}px`);
             card.classList.add('is-swiping-delete', 'is-swipe-delete-open');
+            card.querySelectorAll('.recent-tx-swipe-action-btn').forEach(btn => { btn.tabIndex = 0; });
         }
 
         card.addEventListener('pointerdown', (event) => {
             if (window.isBulkMode || window.openRecentMenuTxId) return;
-            if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
+            if (event.button && event.button !== 0) return;
             if (event.target instanceof Element && event.target.closest('button, input, select, textarea, a')) return;
 
             if (window.openRecentSwipeDeleteTxId && window.openRecentSwipeDeleteTxId !== cardTxId) {
@@ -12272,6 +12343,7 @@ function bindRecentSwipeActions(listContainer) {
                 listContainer.querySelectorAll('.recent-tx-card.is-swipe-delete-open').forEach(openCard => {
                     openCard.style.removeProperty('--recent-swipe-x');
                     openCard.classList.remove('is-swiping-delete', 'is-swipe-delete-open');
+                    openCard.querySelectorAll('.recent-tx-swipe-action-btn').forEach(btn => { btn.tabIndex = -1; });
                 });
             }
 
@@ -12295,7 +12367,7 @@ function bindRecentSwipeActions(listContainer) {
             if (!isSwiping) return;
             event.preventDefault();
             currentX = event.clientX;
-            const offset = Math.max(-132, Math.min(0, deltaX));
+            const offset = Math.max(revealOffset, Math.min(0, deltaX));
             card.style.setProperty('--recent-swipe-x', `${offset}px`);
             card.classList.toggle('is-swiping-delete', offset < -18);
         });
@@ -12305,27 +12377,16 @@ function bindRecentSwipeActions(listContainer) {
 
             const deltaX = currentX - startX;
             const txId = card.dataset.txId;
-            const shouldDelete = isSwiping && deltaX < fullDeleteThreshold;
             const shouldReveal = isSwiping && deltaX < revealThreshold;
             suppressClick = isSwiping;
             pointerId = null;
             isSwiping = false;
 
-            if (shouldDelete && txId) {
-                window.openRecentSwipeDeleteTxId = '';
-                card.style.setProperty('--recent-swipe-x', `${revealOffset}px`);
-                card.classList.add('is-swiping-delete', 'is-swipe-delete-open');
-                window.setTimeout(() => {
-                    resetSwipe();
-                    window.deleteRecentTransaction(txId);
-                }, 120);
-                return;
-            }
-
             if (shouldReveal && txId) {
                 window.openRecentSwipeDeleteTxId = txId;
                 card.style.setProperty('--recent-swipe-x', `${revealOffset}px`);
                 card.classList.add('is-swiping-delete', 'is-swipe-delete-open');
+                card.querySelectorAll('.recent-tx-swipe-action-btn').forEach(btn => { btn.tabIndex = 0; });
                 window.setTimeout(() => { suppressClick = false; }, 0);
                 return;
             }
@@ -12600,7 +12661,7 @@ window.renderRecentTransactions = function() {
         const display = getTransactionDisplay(tx);
         const checked = window.selectedTxIds.has(tx.id) ? 'checked' : '';
         const selectedClass = checked ? ' is-selected' : '';
-        const menuOpen = !window.isBulkMode && window.openRecentMenuTxId === tx.id;
+        const menuOpen = !window.isBulkMode && String(window.openRecentSwipeDeleteTxId || '') === String(tx.id);
         const menuClass = menuOpen ? ' is-menu-open' : '';
         const checkbox = window.isBulkMode
             ? `<input type="checkbox" class="recent-tx-select" ${checked} aria-label="Select ${esc(display.description)}" onclick="event.stopPropagation()" onchange="window.toggleTransactionSelection(${jsArg(tx.id)}, this.checked)">`
@@ -12612,17 +12673,14 @@ window.renderRecentTransactions = function() {
                     <span aria-hidden="true"></span>
                     <span aria-hidden="true"></span>
                 </button>
-                <div class="recent-tx-action-drawer" aria-hidden="${menuOpen ? 'false' : 'true'}">
-                    <button type="button" class="recent-tx-action-btn" tabindex="${menuOpen ? '0' : '-1'}" onclick="window.openRecentMoveCategoryModal(event, ${jsArg(tx.id)})">Move</button>
-                    <button type="button" class="recent-tx-action-btn is-danger" tabindex="${menuOpen ? '0' : '-1'}" onclick="window.deleteRecentTransactionFromMenu(event, ${jsArg(tx.id)})">Delete</button>
-                </div>
             </div>
         `;
 
         return `
             <div class="recent-tx-card${selectedClass}${menuClass}" role="button" tabindex="0" data-tx-id="${esc(tx.id || '')}" onclick="window.handleRecentCardClick(${jsArg(tx.id)})" onkeydown="if(event.target.closest && event.target.closest('button,input,select,textarea,a')) return; if(event.key==='Enter'||event.key===' '){event.preventDefault(); window.handleRecentCardClick(${jsArg(tx.id)});}" aria-label="Open ${esc(display.description)} transaction overview">
                 <div class="recent-tx-swipe-bg">
-                    <button type="button" class="recent-tx-swipe-delete-btn" tabindex="-1" onclick="window.deleteRecentTransactionFromSwipe(event, ${jsArg(tx.id)})" aria-label="Delete ${esc(display.description)}">Delete</button>
+                    <button type="button" class="recent-tx-swipe-action-btn recent-tx-swipe-move-btn" tabindex="-1" onclick="window.openRecentMoveCategoryModal(event, ${jsArg(tx.id)})" aria-label="Move ${esc(display.description)}">Move</button>
+                    <button type="button" class="recent-tx-swipe-action-btn recent-tx-swipe-delete-btn" tabindex="-1" onclick="window.deleteRecentTransactionFromSwipe(event, ${jsArg(tx.id)})" aria-label="Delete ${esc(display.description)}">Delete</button>
                 </div>
                 <div class="recent-tx-main">
                     ${checkbox}

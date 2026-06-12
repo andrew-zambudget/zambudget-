@@ -2243,11 +2243,12 @@ input.error, select.error {
 .recent-tx-swipe-bg {
   position: absolute;
   inset: 0 0 0 auto;
-  width: 8.25rem;
-  display: flex;
+  width: 10rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--red, #ef4444) 94%, #7f1d1d);
+  background: transparent;
   color: #fff;
   font-size: 0.82rem;
   font-weight: 900;
@@ -2265,18 +2266,28 @@ input.error, select.error {
   pointer-events: auto;
 }
 
-.recent-tx-swipe-delete-btn {
+.recent-tx-swipe-action-btn {
   width: 100%;
   height: 100%;
   border: 0;
   border-radius: 0;
-  background: transparent;
+  background: var(--yellow, #f59e0b);
   color: inherit;
   font: inherit;
   font-weight: 950;
   letter-spacing: 0.02em;
   cursor: pointer;
   touch-action: manipulation;
+}
+
+.recent-tx-swipe-delete-btn {
+  background: color-mix(in srgb, var(--red, #ef4444) 94%, #7f1d1d);
+}
+
+.recent-tx-swipe-move-btn:hover,
+.recent-tx-swipe-move-btn:focus-visible {
+  background: color-mix(in srgb, var(--yellow, #f59e0b) 86%, #7c2d12);
+  outline: none;
 }
 
 .recent-tx-swipe-delete-btn:hover,
@@ -2323,71 +2334,6 @@ input.error, select.error {
   background: color-mix(in srgb, var(--accent, #14b8a6) 10%, var(--surface, #ffffff));
   color: var(--accent, #14b8a6);
   outline: none;
-}
-
-.recent-tx-action-drawer {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  width: 100%;
-  display: grid;
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 0;
-  align-items: stretch;
-  padding: 0;
-  background: var(--surface, #ffffff);
-  box-shadow: none;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(100%);
-  transition: transform 0.22s ease, opacity 0.18s ease;
-}
-
-.recent-tx-menu-wrap.is-menu-open .recent-tx-action-drawer {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateX(0);
-}
-
-.recent-tx-action-btn {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  border: 0;
-  border-radius: 0;
-  background: var(--yellow, #f59e0b);
-  color: #fff;
-  font-size: 0.92rem;
-  font-weight: 900;
-  text-align: center;
-  padding: 0.75rem;
-  cursor: pointer;
-  touch-action: manipulation;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.recent-tx-action-btn + .recent-tx-action-btn {
-  border-top: 1px solid rgba(255, 255, 255, 0.42);
-  border-left: 0;
-  border-radius: 0;
-}
-
-.recent-tx-action-btn:hover,
-.recent-tx-action-btn:focus-visible {
-  background: color-mix(in srgb, var(--yellow, #f59e0b) 86%, #7c2d12);
-  outline: none;
-}
-
-.recent-tx-action-btn.is-danger {
-  color: #fff;
-  background: var(--red, #ef4444);
-}
-
-.recent-tx-action-btn.is-danger:hover,
-.recent-tx-action-btn.is-danger:focus-visible {
-  background: color-mix(in srgb, var(--red, #ef4444) 86%, #7f1d1d);
 }
 
 .recent-empty-state {
@@ -4817,20 +4763,6 @@ input.error, select.error {
     width: 15px;
   }
 
-  #view-recent .recent-tx-action-drawer {
-    width: 100%;
-    grid-template-rows: repeat(2, minmax(0, 1fr));
-    padding: 0;
-    gap: 0;
-  }
-
-  #view-recent .recent-tx-action-btn {
-    height: 100%;
-    min-height: 0;
-    font-size: 0.86rem;
-    padding: 0.75rem 0.55rem;
-  }
-
   #view-recent .recent-empty-state {
     min-height: 18rem;
     padding: 1.25rem;
@@ -5017,11 +4949,12 @@ input.error, select.error {
 .drilldown-tx-swipe-bg {
   position: absolute;
   inset: 0 0 0 auto;
-  width: 8.25rem;
-  display: flex;
+  width: 10rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--red, #ef4444) 94%, #7f1d1d);
+  background: transparent;
   color: #fff;
   font-size: 0.82rem;
   font-weight: 900;
@@ -5033,6 +4966,40 @@ input.error, select.error {
 
 .drilldown-tx-card.is-swiping-delete .drilldown-tx-swipe-bg {
   opacity: 1;
+}
+
+.drilldown-tx-card.is-swipe-actions-open .drilldown-tx-swipe-bg {
+  pointer-events: auto;
+}
+
+.drilldown-tx-swipe-btn {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: var(--yellow, #f59e0b);
+  color: inherit;
+  font: inherit;
+  font-weight: 950;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.drilldown-tx-swipe-delete-btn {
+  background: color-mix(in srgb, var(--red, #ef4444) 94%, #7f1d1d);
+}
+
+.drilldown-tx-swipe-move-btn:hover,
+.drilldown-tx-swipe-move-btn:focus-visible {
+  background: color-mix(in srgb, var(--yellow, #f59e0b) 86%, #7c2d12);
+  outline: none;
+}
+
+.drilldown-tx-swipe-delete-btn:hover,
+.drilldown-tx-swipe-delete-btn:focus-visible {
+  background: color-mix(in srgb, var(--red, #ef4444) 82%, #7f1d1d);
+  outline: none;
 }
 
 .empty-state {
