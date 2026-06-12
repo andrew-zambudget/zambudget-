@@ -4048,7 +4048,7 @@ export function renderZBBDashboard() {
     const allTxs = State.getTransactions() || [];
     const categories = State.getCategories() || [];
     const symbol = State.getSymbol ? State.getSymbol() : '$';
-    const treatSavingsAsIncome = Boolean(State.getTreatSavingsAsIncomeInZbb?.());
+    const treatSavingsAsIncome = shouldTreatSavingsAsIncome();
 
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -4069,8 +4069,7 @@ export function renderZBBDashboard() {
     const tbb = monthlyIncome - assignedFunds;
 
     incEl.textContent = `${symbol}${formatMoney(monthlyIncome)}`;
-    const incomeLabel = document.getElementById('zbbIncomeLabel');
-    if (incomeLabel) incomeLabel.textContent = treatSavingsAsIncome ? 'Monthly Income + Savings' : 'Monthly Income';
+    setIncomeTotalLabels(treatSavingsAsIncome);
     assEl.textContent = `${symbol}${formatMoney(assignedFunds)}`;
     tbbEl.textContent = `${tbb < 0 ? '-' : ''}${symbol}${formatMoney(Math.abs(tbb))}`;
 
@@ -4116,6 +4115,29 @@ export function renderZBBDashboard() {
     applyDashboardSummaryState();
     setupDashboardSummaryGestureToggle();
     setupPrivacyBlur();
+}
+
+function shouldTreatSavingsAsIncome() {
+    return Boolean(State.getTreatSavingsAsIncomeInZbb?.());
+}
+
+function setIncomeTotalLabels(treatSavingsAsIncome = shouldTreatSavingsAsIncome()) {
+    const label = treatSavingsAsIncome ? 'Income + Savings' : 'Income';
+    const zbbIncomeLabel = document.getElementById('zbbIncomeLabel');
+    const zbbIncomeContainer = document.getElementById('zbbIncome')?.closest('.money-container');
+    const incomeTotalTitle = document.getElementById('incomeTotalTitle');
+    const calendarIncomeLabel = document.getElementById('calendarMonthIncomeLabel');
+    const recentIncomeLabel = document.getElementById('recentOverviewIncomeLabel');
+    const zbbRevealLabel = treatSavingsAsIncome ? 'Monthly Income plus Savings' : 'Monthly Income';
+
+    if (zbbIncomeLabel) zbbIncomeLabel.textContent = treatSavingsAsIncome ? 'Monthly Income + Savings' : 'Monthly Income';
+    if (zbbIncomeContainer) {
+        zbbIncomeContainer.dataset.revealLabel = zbbRevealLabel;
+        zbbIncomeContainer.setAttribute('aria-label', `Show ${zbbRevealLabel} amount. Currently hidden for privacy.`);
+    }
+    if (incomeTotalTitle) incomeTotalTitle.textContent = treatSavingsAsIncome ? 'Total Income + Savings:' : 'Total Income:';
+    if (calendarIncomeLabel) calendarIncomeLabel.textContent = label;
+    if (recentIncomeLabel) recentIncomeLabel.textContent = label;
 }
 
 function isDesktopPointer() {
@@ -5687,6 +5709,7 @@ export function renderIncomeTab() {
     const txs = State.getTransactions() || [];
     const categories = State.getCategories() || [];
     const symbol = State.getSymbol ? State.getSymbol() : '$';
+    const treatSavingsAsIncome = shouldTreatSavingsAsIncome();
 
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -5694,13 +5717,14 @@ export function renderIncomeTab() {
 
     // 1. Calculate Monthly Logged Income
     const monthlyIncome = txs
-        .filter(tx => tx.type === 'income')
+        .filter(tx => tx.type === 'income' || (treatSavingsAsIncome && (tx.type === 'savings' || tx.tag === 'savings')))
         .filter(tx => {
             const txDate = new Date(tx.date || tx.createdAt);
             return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
         })
         .reduce((sum, tx) => sum + tx.amount, 0);
 
+    setIncomeTotalLabels(treatSavingsAsIncome);
     if (totalEl) totalEl.textContent = `${symbol}${formatMoney(monthlyIncome)}`;
 
     // 2. Render Income Sources (Categories of type 'income')
@@ -8881,20 +8905,22 @@ export function openSettingsModal() {
     const defType = State.getDefaultType ? State.getDefaultType() : 'expense';
     const defPayment = State.getDefaultPayment ? State.getDefaultPayment() : '';
     const summaryView = State.getDashboardSummaryCollapsed && State.getDashboardSummaryCollapsed() ? 'collapsed' : 'open';
-    const treatSavingsAsIncome = Boolean(State.getTreatSavingsAsIncomeInZbb?.());
+    const treatSavingsAsIncome = shouldTreatSavingsAsIncome();
 
     const currencySelect = document.getElementById('currencySelect');
     const typeSelect = document.getElementById('defaultTypeSelect');
     const paymentSelect = document.getElementById('defaultPaymentSelect');
     const summarySelect = document.getElementById('summaryViewSelect');
-    const savingsAsIncomeCheck = document.getElementById('zbbSavingsAsIncomeCheck');
+    const savingsAsIncomeYes = document.getElementById('zbbSavingsAsIncomeYes');
+    const savingsAsIncomeNo = document.getElementById('zbbSavingsAsIncomeNo');
     const savedAccent = localStorage.getItem(ACCENT_THEME_KEY) || 'teal';
 
     if (currencySelect) currencySelect.value = currentCurrency;
     if (typeSelect) typeSelect.value = defType;
     if (paymentSelect) paymentSelect.value = defPayment;
     if (summarySelect) summarySelect.value = summaryView;
-    if (savingsAsIncomeCheck) savingsAsIncomeCheck.checked = treatSavingsAsIncome;
+    if (savingsAsIncomeYes) savingsAsIncomeYes.checked = treatSavingsAsIncome;
+    if (savingsAsIncomeNo) savingsAsIncomeNo.checked = !treatSavingsAsIncome;
     applyAccentTheme(savedAccent);
 
     renderSyncHistory();
@@ -8911,13 +8937,13 @@ export function saveSettings() {
     const typeSelect = document.getElementById('defaultTypeSelect');
     const paymentSelect = document.getElementById('defaultPaymentSelect');
     const summarySelect = document.getElementById('summaryViewSelect');
-    const savingsAsIncomeCheck = document.getElementById('zbbSavingsAsIncomeCheck');
+    const savingsAsIncomeYes = document.getElementById('zbbSavingsAsIncomeYes');
     const accentSelect = document.querySelector('input[name="accentColor"]:checked');
 
     if (currencySelect && State.setSymbol) State.setSymbol(currencySelect.value);
     if (typeSelect && State.setDefaultType) State.setDefaultType(typeSelect.value);
     if (paymentSelect && State.setDefaultPayment) State.setDefaultPayment(paymentSelect.value);
-    if (savingsAsIncomeCheck && State.setTreatSavingsAsIncomeInZbb) State.setTreatSavingsAsIncomeInZbb(savingsAsIncomeCheck.checked);
+    if (savingsAsIncomeYes && State.setTreatSavingsAsIncomeInZbb) State.setTreatSavingsAsIncomeInZbb(savingsAsIncomeYes.checked);
     if (accentSelect) setAccentTheme(accentSelect.value);
     if (summarySelect && State.setDashboardSummaryCollapsed) {
         const collapsed = summarySelect.value === 'collapsed';
@@ -11462,6 +11488,7 @@ function getBudgetCalendarMonthTitle(date = calendarCursorDate) {
 
 function getBudgetCalendarDayMap(transactions = []) {
     const map = new Map();
+    const treatSavingsAsIncome = shouldTreatSavingsAsIncome();
 
     transactions.forEach(tx => {
         const dateKey = getTransactionDateKey(tx);
@@ -11475,11 +11502,12 @@ function getBudgetCalendarDayMap(transactions = []) {
             transactions: []
         };
         const signed = getSignedTransactionAmount(tx);
+        const kind = getTransactionKind(tx);
         existing.count += 1;
         existing.net += signed;
-        if (signed >= 0) {
+        if (kind === 'income' || (treatSavingsAsIncome && kind === 'savings')) {
             existing.income += signed;
-        } else {
+        } else if (signed < 0) {
             existing.outflow += Math.abs(signed);
         }
         existing.transactions.push(tx);
@@ -11519,6 +11547,7 @@ function renderBudgetCalendar() {
 
     setBudgetCalendarText('calendarMonthLabel', getBudgetCalendarMonthTitle(monthStart));
     setBudgetCalendarText('calendarScope', getRecentScopeLabel());
+    setIncomeTotalLabels();
     setBudgetCalendarText('calendarMonthNet', `${monthTotals.net < 0 ? '-' : ''}${symbol}${formatMoney(Math.abs(monthTotals.net))}`);
     setBudgetCalendarText('calendarMonthIncome', `${symbol}${formatMoney(monthTotals.income)}`);
     setBudgetCalendarText('calendarMonthOutflow', `${symbol}${formatMoney(monthTotals.outflow)}`);
@@ -11975,6 +12004,7 @@ function renderRecentDateFilterBar() {
 
 function renderRecentOverview(transactions = getFilteredRecentTransactions()) {
     const symbol = State.getSymbol ? State.getSymbol() : '$';
+    const treatSavingsAsIncome = shouldTreatSavingsAsIncome();
     const totals = { income: 0, expense: 0, savings: 0, debt: 0, net: 0 };
 
     transactions.forEach(tx => {
@@ -11982,6 +12012,9 @@ function renderRecentOverview(transactions = getFilteredRecentTransactions()) {
         const signed = getSignedTransactionAmount(tx);
         totals.net += signed;
         totals[kind] += Math.abs(parseFloat(tx.amount) || 0);
+        if (treatSavingsAsIncome && kind === 'savings') {
+            totals.income += Math.abs(parseFloat(tx.amount) || 0);
+        }
     });
 
     const setText = (id, value) => {
@@ -11990,6 +12023,7 @@ function renderRecentOverview(transactions = getFilteredRecentTransactions()) {
     };
 
     setText('recentOverviewScope', getRecentScopeLabel());
+    setIncomeTotalLabels(treatSavingsAsIncome);
     setText('recentOverviewTotal', String(transactions.length));
     setText('recentOverviewNet', `${totals.net < 0 ? '-' : ''}${symbol}${formatMoney(Math.abs(totals.net))}`);
     setText('recentOverviewIncome', `${symbol}${formatMoney(totals.income)}`);
@@ -13653,6 +13687,27 @@ function renderAccountModalAvatar(container, email, avatarUrl) {
     if (avatarUrl) appendAvatarImage(container, avatarUrl, 'account-modal-avatar-img');
 }
 
+function updateBetaSupportAction() {
+    const action = document.getElementById('betaSupportPrimaryAction');
+    if (!action) return;
+
+    if (window.currentUser) {
+        action.textContent = 'Support Development';
+        action.href = '#support-development';
+        action.dataset.tooltip = 'Support development';
+        action.onclick = (event) => {
+            event.preventDefault();
+            window.startStripeCheckout?.(event);
+        };
+        return;
+    }
+
+    action.textContent = 'Join Beta';
+    action.href = 'https://app.budget-buddy.io/login';
+    action.dataset.tooltip = 'Join beta';
+    action.onclick = null;
+}
+
 // Render the Login / Avatar Button
 export function updateAuthUI() {
     const authContainer = document.querySelector('.auth-buttons');
@@ -13701,6 +13756,7 @@ export function updateAuthUI() {
         authContainer.appendChild(loginLink);
     }
 
+    updateBetaSupportAction();
     syncBillingUi();
     syncAccountRecoveryUi();
     syncAccountAuthProviderUi();
