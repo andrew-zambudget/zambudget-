@@ -345,6 +345,22 @@ function getSnapshotSummary(snapshot = {}) {
     };
 }
 
+function summaryHasBudgetData(summary = null) {
+    return Boolean(
+        Number(summary?.transactionCount || 0) > 0
+        || Number(summary?.categoryCount || 0) > 0
+    );
+}
+
+function summariesHaveSameShape(a = null, b = null) {
+    if (!a || !b) return false;
+    return Number(a.transactionCount || 0) === Number(b.transactionCount || 0)
+        && Number(a.activeTransactionCount || 0) === Number(b.activeTransactionCount || 0)
+        && Number(a.deletedTransactionCount || 0) === Number(b.deletedTransactionCount || 0)
+        && Number(a.categoryCount || 0) === Number(b.categoryCount || 0)
+        && Number(a.incomeSourceCount || 0) === Number(b.incomeSourceCount || 0);
+}
+
 function storeConflictSummary(key, summary = null) {
     if (!key) return;
     if (!summary) {
@@ -1059,6 +1075,27 @@ export async function init(options = {}) {
         const localUpdatedAt = localSnapshot.meta?.localUpdatedAt || '';
         const remoteChanged = remote.client_updated_at && remote.client_updated_at !== lastRemoteAt;
         const localChanged = localUpdatedAt && localUpdatedAt !== localStorage.getItem(CLOUD_LAST_PUSHED_KEY);
+        const localSummary = getSnapshotSummary(localSnapshot);
+        const rawKey = getStoredCloudKey();
+        let remoteSnapshot = null;
+        let remoteSummary = null;
+        const getRemoteSummary = async () => {
+            if (!remoteSnapshot) remoteSnapshot = await decryptSnapshot(remote.payload, rawKey);
+            if (!remoteSummary) remoteSummary = getSnapshotSummary(remoteSnapshot);
+            return remoteSummary;
+        };
+        const stopForVersionReview = async () => {
+            const nextRemoteSummary = await getRemoteSummary();
+            setConflictState({
+                remoteUpdatedAt: remote.client_updated_at || remote.updated_at || '',
+                localUpdatedAt,
+                lastSyncedAt: lastRemoteAt || localStorage.getItem(CLOUD_LAST_PUSHED_KEY) || '',
+                remoteSummary: nextRemoteSummary,
+                localSummary
+            });
+            record('Possible data loss prevented. Review saved versions before Buddy Cloud overwrites either copy.', 'error');
+            return false;
+        };
 
         if (remoteChanged && localChanged) {
             const waitMs = getConflictGraceWaitMs(remote.client_updated_at, localUpdatedAt);
@@ -1071,27 +1108,26 @@ export async function init(options = {}) {
                 return false;
             }
 
-            const rawKey = getStoredCloudKey();
-            const remoteSnapshot = rawKey ? await decryptSnapshot(remote.payload, rawKey) : null;
-            setConflictState({
-                remoteUpdatedAt: remote.client_updated_at,
-                localUpdatedAt,
-                lastSyncedAt: lastRemoteAt || localStorage.getItem(CLOUD_LAST_PUSHED_KEY) || '',
-                remoteSummary: remoteSnapshot ? getSnapshotSummary(remoteSnapshot) : null,
-                localSummary: getSnapshotSummary(localSnapshot)
-            });
-            record('Possible data loss prevented. Review saved versions before Buddy Cloud overwrites either copy.', 'error');
-            return false;
+            return stopForVersionReview();
         }
 
         clearConflictState();
 
         if (remoteChanged) {
+            const nextRemoteSummary = await getRemoteSummary();
+            if (localSnapshotHasBudgetData(localSnapshot) && !summariesHaveSameShape(localSummary, nextRemoteSummary)) {
+                return stopForVersionReview();
+            }
             await forcePull();
             return true;
         }
 
         if (localChanged) {
+            const nextRemoteSummary = await getRemoteSummary();
+            if (!localSnapshotHasBudgetData(localSnapshot) && summaryHasBudgetData(nextRemoteSummary)) {
+                await forcePull();
+                return true;
+            }
             await forcePush();
             return true;
         }

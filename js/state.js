@@ -15,6 +15,7 @@ let state = {
         emergencyFundInteracted: false,
         dashboardSummaryCollapsed: true,
         treatSavingsAsIncomeInZbb: false,
+        treatSavingsAsTotalIncome: false,
         lastCategorySort: 'alpha_asc',
         isPro: false,
         premiumSinceUTC: '',
@@ -71,6 +72,8 @@ function applyLoadedPayload(parsed = {}) {
         : 3;
     state.settings.emergencyFundGoalOverride = Boolean(state.settings.emergencyFundGoalOverride);
     state.settings.emergencyFundInteracted = Boolean(state.settings.emergencyFundInteracted);
+    state.settings.treatSavingsAsTotalIncome = parsed.settings?.treatSavingsAsTotalIncome === true;
+    state.settings.treatSavingsAsIncomeInZbb = false;
 }
 
 // ==========================================
@@ -492,8 +495,12 @@ export const setEmergencyFundMonths = (val) => { state.settings.emergencyFundMon
 export const getDashboardSummaryCollapsed = () => Boolean(state.settings.dashboardSummaryCollapsed);
 export const setDashboardSummaryCollapsed = (val) => { state.settings.dashboardSummaryCollapsed = Boolean(val); save(); };
 
-export const getTreatSavingsAsIncomeInZbb = () => Boolean(state.settings.treatSavingsAsIncomeInZbb);
-export const setTreatSavingsAsIncomeInZbb = (val) => { state.settings.treatSavingsAsIncomeInZbb = Boolean(val); save(); };
+export const getTreatSavingsAsIncomeInZbb = () => Boolean(state.settings.treatSavingsAsTotalIncome);
+export const setTreatSavingsAsIncomeInZbb = (val) => {
+    state.settings.treatSavingsAsTotalIncome = Boolean(val);
+    state.settings.treatSavingsAsIncomeInZbb = false;
+    save();
+};
 
 export const getIsPro = () => Boolean(state.settings.isPro);
 export const setIsPro = (val, metadata = {}) => {
