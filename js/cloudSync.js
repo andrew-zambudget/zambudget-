@@ -25,6 +25,8 @@ const CLOUD_VERSION_HISTORY_PREMIUM_LIMIT = 10;
 const CLOUD_VERSION_HISTORY_MIN_INTERVAL_MS = 60 * 60 * 1000;
 const CLOUD_CONFLICT_GRACE_MS = 5 * 60 * 1000;
 const FREE_SYNC_DEVICE_LIMIT = 2;
+const FREE_SYNC_SLOT_IDLE_RECLAIM_MS = 24 * 60 * 60 * 1000;
+const FREE_SYNC_SLOT_IDLE_RECLAIM_HOURS = Math.round(FREE_SYNC_SLOT_IDLE_RECLAIM_MS / (60 * 60 * 1000));
 const MULTI_DEVICE_LIMIT_CODE = 'BUDDY_CLOUD_MULTI_DEVICE_LIMIT';
 
 let sb = null;
@@ -36,6 +38,8 @@ let isPremiumAccount = null;
 let pushTimer = null;
 let conflictGraceTimer = null;
 let activePushPromise = null;
+let syncSlotRealtimeChannel = null;
+let syncSlotRealtimeUserId = '';
 let isInitialized = false;
 let isApplyingRemote = false;
 let lastKnownStatus = {
@@ -142,8 +146,18 @@ function getOrCreateSyncSlotToken() {
     return token;
 }
 
+function getStoredSyncSlotToken(userId = currentUser?.id) {
+    const keyName = getSyncSlotKeyName(userId);
+    return keyName ? localStorage.getItem(keyName) || '' : '';
+}
+
 async function getSyncSlotHash() {
     return sha256(getOrCreateSyncSlotToken());
+}
+
+async function getExistingSyncSlotHash() {
+    const token = getStoredSyncSlotToken();
+    return token ? sha256(token) : '';
 }
 
 function canUseMultipleSyncDevices() {
@@ -192,6 +206,21 @@ function getOldestSyncSlotIndex(slots = []) {
     }, 0);
 }
 
+function getSyncSlotActivityMs(slot = {}) {
+    const time = new Date(slot.last_seen_at || slot.claimed_at || 0).getTime();
+    return Number.isFinite(time) ? time : 0;
+}
+
+function isStaleFreeSyncSlot(slot = {}, nowMs = Date.now()) {
+    const activityMs = getSyncSlotActivityMs(slot);
+    return !activityMs || nowMs - activityMs > FREE_SYNC_SLOT_IDLE_RECLAIM_MS;
+}
+
+function pruneStaleFreeSyncSlots(slots = [], currentHash = '') {
+    const nowMs = Date.now();
+    return slots.filter(slot => slot?.hash === currentHash || !isStaleFreeSyncSlot(slot, nowMs));
+}
+
 function buildSyncSlotFields(slots = []) {
     const safeSlots = slots
         .filter(slot => slot?.hash)
@@ -219,7 +248,7 @@ function buildSyncSlotStatus(slots = [], syncOwnerHash = '') {
 
 function buildSyncSlotClaim(remote = null, syncOwnerHash = '', { replace = false } = {}) {
     const now = new Date().toISOString();
-    const slots = normalizeSyncOwnerSlots(remote);
+    const slots = pruneStaleFreeSyncSlots(normalizeSyncOwnerSlots(remote), syncOwnerHash);
     const existingIndex = slots.findIndex(slot => slot.hash === syncOwnerHash);
 
     if (existingIndex >= 0) {
@@ -561,7 +590,7 @@ function getCloudErrorMessage(error, fallback = 'Buddy Cloud sync failed.') {
     const code = String(error?.code || '').trim();
 
     if (code === MULTI_DEVICE_LIMIT_CODE) {
-        return `Free Tier allows ${FREE_SYNC_DEVICE_LIMIT} active synced browsers at a time. Upgrade to Premium for unlimited Buddy Cloud devices, or use this browser instead.`;
+        return `Free Tier allows ${FREE_SYNC_DEVICE_LIMIT} active synced browsers at a time. Browsers inactive for ${FREE_SYNC_SLOT_IDLE_RECLAIM_HOURS} hours are released automatically, or use this browser instead.`;
     }
 
     if (
@@ -617,6 +646,7 @@ function createMultiDeviceLimitError(remote = null, slots = normalizeSyncOwnerSl
     error.slotLastSeenAt = slots[0]?.last_seen_at || remote?.sync_owner_last_seen_at || '';
     error.slotCount = slots.length;
     error.slotLimit = FREE_SYNC_DEVICE_LIMIT;
+    error.slotIdleReclaimHours = FREE_SYNC_SLOT_IDLE_RECLAIM_HOURS;
     return error;
 }
 
@@ -852,6 +882,99 @@ async function claimSyncSlot(remote = null, { replace = false } = {}) {
         ...claim.status
     });
     return { allowed: true, premium: false, syncOwnerHash, ...claim.fields, ...claim.status };
+}
+
+async function persistPrunedSyncSlots(remote = null, slots = []) {
+    if (!remote || !currentUser?.id || !sb?.from) return false;
+
+    const { error } = await sb
+        .from(CLOUD_TABLE)
+        .update(buildSyncSlotFields(slots))
+        .eq('user_id', currentUser.id)
+        .eq('vault_name', VAULT_NAME);
+
+    if (error) throw error;
+    return true;
+}
+
+export async function refreshSyncSlotStatus(options = {}) {
+    const { persistStale = true } = options;
+    if (!currentUser?.id || !sb?.from) return false;
+
+    if (canUseMultipleSyncDevices()) {
+        rememberStatus({
+            syncSlotBlocked: false,
+            multiDeviceAllowed: true,
+            syncSlotDeviceCount: 0,
+            syncSlotLimit: FREE_SYNC_DEVICE_LIMIT,
+            syncSlotClaimedAt: '',
+            syncSlotLastSeenAt: ''
+        });
+        return true;
+    }
+
+    const remote = await fetchRemoteVault();
+    const syncOwnerHash = await getExistingSyncSlotHash();
+    const remoteSlots = normalizeSyncOwnerSlots(remote);
+    const activeSlots = pruneStaleFreeSyncSlots(remoteSlots, syncOwnerHash);
+    const currentHasSlot = Boolean(syncOwnerHash && activeSlots.some(slot => slot.hash === syncOwnerHash));
+    const isBlocked = Boolean(syncOwnerHash && !currentHasSlot && activeSlots.length >= FREE_SYNC_DEVICE_LIMIT);
+
+    if (persistStale && remote && activeSlots.length !== remoteSlots.length) {
+        await persistPrunedSyncSlots(remote, activeSlots);
+    }
+
+    rememberStatus({
+        syncSlotBlocked: isBlocked,
+        multiDeviceAllowed: false,
+        ...buildSyncSlotStatus(activeSlots, syncOwnerHash)
+    });
+    return true;
+}
+
+function stopSyncSlotRealtimeSubscription() {
+    if (syncSlotRealtimeChannel && sb?.removeChannel) {
+        try {
+            sb.removeChannel(syncSlotRealtimeChannel);
+        } catch (error) {
+            console.warn('[Buddy Cloud] Could not remove sync slot realtime channel:', error);
+        }
+    }
+    syncSlotRealtimeChannel = null;
+    syncSlotRealtimeUserId = '';
+}
+
+function ensureSyncSlotRealtimeSubscription() {
+    const userId = currentUser?.id || '';
+    if (!userId || !sb?.channel) {
+        stopSyncSlotRealtimeSubscription();
+        return;
+    }
+    if (syncSlotRealtimeChannel && syncSlotRealtimeUserId === userId) return;
+
+    stopSyncSlotRealtimeSubscription();
+    syncSlotRealtimeUserId = userId;
+    syncSlotRealtimeChannel = sb
+        .channel(`budgetbuddy-sync-slots-${userId}`)
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: CLOUD_TABLE,
+                filter: `user_id=eq.${userId}`
+            },
+            () => {
+                refreshSyncSlotStatus({ persistStale: false }).catch(error => {
+                    console.warn('[Buddy Cloud] Sync slot realtime refresh failed:', error);
+                });
+            }
+        )
+        .subscribe(status => {
+            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                console.warn(`[Buddy Cloud] Sync slot realtime ${status.toLowerCase()}; polling fallback remains active.`);
+            }
+        });
 }
 
 async function getSyncSlotUpsertFields(existingRemote = null) {
@@ -1105,6 +1228,73 @@ export async function clearSyncSlots() {
     return true;
 }
 
+export async function releaseCurrentSyncSlot(options = {}) {
+    const { clearLocalSlot = false } = options;
+    if (!currentUser?.id || !sb?.from) return false;
+
+    const syncOwnerHash = await getExistingSyncSlotHash();
+    if (!syncOwnerHash) return false;
+
+    const remote = await fetchRemoteVault();
+    if (!remote) {
+        if (clearLocalSlot) {
+            const slotKeyName = getSyncSlotKeyName();
+            if (slotKeyName) localStorage.removeItem(slotKeyName);
+        }
+        return false;
+    }
+
+    const slots = normalizeSyncOwnerSlots(remote);
+    const nextSlots = slots.filter(slot => slot.hash !== syncOwnerHash);
+    if (nextSlots.length === slots.length) {
+        if (clearLocalSlot) {
+            const slotKeyName = getSyncSlotKeyName();
+            if (slotKeyName) localStorage.removeItem(slotKeyName);
+        }
+        return false;
+    }
+
+    await persistPrunedSyncSlots(remote, nextSlots);
+    if (clearLocalSlot) {
+        const slotKeyName = getSyncSlotKeyName();
+        if (slotKeyName) localStorage.removeItem(slotKeyName);
+    }
+    rememberStatus({
+        syncSlotBlocked: false,
+        syncSlotOwnerHash: '',
+        syncSlotDeviceCount: nextSlots.length,
+        syncSlotLimit: FREE_SYNC_DEVICE_LIMIT,
+        syncSlotClaimedAt: '',
+        syncSlotLastSeenAt: ''
+    });
+    record('This browser was removed from Buddy Cloud sync devices.', 'local');
+    return true;
+}
+
+export async function releaseOtherSyncSlots() {
+    if (!currentUser?.id || !sb?.from) return false;
+
+    const remote = await fetchRemoteVault();
+    if (!remote) return false;
+
+    const syncOwnerHash = await getExistingSyncSlotHash();
+    const slots = normalizeSyncOwnerSlots(remote);
+    const nextSlots = syncOwnerHash
+        ? slots.filter(slot => slot.hash === syncOwnerHash)
+        : [];
+
+    if (nextSlots.length === slots.length) return false;
+
+    await persistPrunedSyncSlots(remote, nextSlots);
+    rememberStatus({
+        syncSlotBlocked: false,
+        multiDeviceAllowed: false,
+        ...buildSyncSlotStatus(nextSlots, syncOwnerHash)
+    });
+    record('Other browsers were removed from Buddy Cloud sync devices.', 'local');
+    return true;
+}
+
 export function removeThisDevice() {
     clearTimeout(pushTimer);
     const keyName = getUserKeyName();
@@ -1218,9 +1408,11 @@ export async function init(options = {}) {
     rememberStatus();
 
     if (!currentUser) {
+        stopSyncSlotRealtimeSubscription();
         record('Sign in to protect this budget with Buddy Cloud.', 'local');
         return false;
     }
+    ensureSyncSlotRealtimeSubscription();
 
     if (!isEnabled()) {
         record('Buddy Cloud setup needed. Signed-in budgets use Buddy Cloud protection by default.', 'local');
@@ -1338,6 +1530,7 @@ export async function init(options = {}) {
 export async function refreshUser(user) {
     currentUser = user || null;
     if (!currentUser) {
+        stopSyncSlotRealtimeSubscription();
         rememberStatus({
             syncSlotBlocked: false,
             syncSlotOwnerHash: '',
@@ -1349,6 +1542,7 @@ export async function refreshUser(user) {
         return false;
     }
     rememberStatus();
+    ensureSyncSlotRealtimeSubscription();
     return init({ supabaseClient: sb, user: currentUser, getSnapshot, replaceSnapshot, afterRemoteApply, isPremiumAccount });
 }
 
@@ -1367,6 +1561,7 @@ export function getStatus() {
         isPremium: canUseMultipleSyncDevices(),
         multiDeviceAllowed: canUseMultipleSyncDevices(),
         freeDeviceLimit: FREE_SYNC_DEVICE_LIMIT,
+        freeSyncSlotIdleReclaimHours: FREE_SYNC_SLOT_IDLE_RECLAIM_HOURS,
         syncSlotLimit: lastKnownStatus.syncSlotLimit || FREE_SYNC_DEVICE_LIMIT
     };
 }
@@ -1381,6 +1576,9 @@ window.BuddyCloud = {
     enableSync,
     replaceSyncSlot,
     clearSyncSlots,
+    refreshSyncSlotStatus,
+    releaseCurrentSyncSlot,
+    releaseOtherSyncSlots,
     removeThisDevice,
     exportRecoveryKey,
     importRecoveryKey,

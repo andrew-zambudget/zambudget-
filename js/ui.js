@@ -169,6 +169,7 @@ const INCOME_CELEBRATION_QUOTES = [
 let incomeCelebrationQuoteTimer = null;
 const SYNC_HISTORY_KEY = 'bb_sync_history';
 const SYNC_HISTORY_VISIBLE_LIMIT = 5;
+const SYNC_SLOT_STATUS_OPEN_PANEL_REFRESH_MS = 5000;
 const BUDDY_CLOUD_MULTI_DEVICE_LIMIT_CODE = 'BUDDY_CLOUD_MULTI_DEVICE_LIMIT';
 const BROWSER_ACCESS_TABLE = 'buddy_cloud_browser_access';
 const BROWSER_ACCESS_TOKEN_PREFIX = 'bb_browser_access_token_';
@@ -176,6 +177,8 @@ const BROWSER_ACCESS_CHECK_MS = 60 * 1000;
 const BROWSER_ACCESS_OPEN_PANEL_REFRESH_MS = 5000;
 const BROWSER_ACCESS_PRIVACY_COPY = 'Device management uses privacy-minimal BudgetBuddy browser access records: opaque browser hashes and timestamps only. No device names, user agents, IP-derived locations, or readable budget data are stored.';
 let syncStatusTimer = null;
+let syncSlotStatusPanelTimer = null;
+let syncSlotStatusPanelRefreshPromise = null;
 let syncObserverInitialized = false;
 let browserAccessTimer = null;
 let browserAccessRealtimeChannel = null;
@@ -403,7 +406,7 @@ function syncCloudActionButtons() {
     const hasConflict = hasBuddyCloudConflict(status);
     const freeLimit = Number(status.freeDeviceLimit || status.syncSlotLimit || 2);
     const usedFreeSlots = signedIn && enabled
-        ? Math.max(1, Math.min(Number(status.syncSlotDeviceCount) || 1, freeLimit))
+        ? Math.max(0, Math.min(Number(status.syncSlotDeviceCount) || 0, freeLimit))
         : 0;
     const humanStatus = getBuddyCloudHumanStatus(status);
     const enableBtn = document.getElementById('syncEnableBtn');
@@ -592,6 +595,41 @@ function isSyncHistoryPanelOpen() {
     return Boolean(panel && !panel.hidden && panel.classList.contains('is-open'));
 }
 
+async function refreshSyncSlotStatusForOpenPanel() {
+    if (!isSyncHistoryPanelOpen()) {
+        stopSyncSlotStatusPanelRefresh();
+        return false;
+    }
+    if (!window.BuddyCloud?.refreshSyncSlotStatus) return false;
+    if (syncSlotStatusPanelRefreshPromise) return syncSlotStatusPanelRefreshPromise;
+
+    syncSlotStatusPanelRefreshPromise = window.BuddyCloud.refreshSyncSlotStatus()
+        .catch(error => {
+            console.warn('[Buddy Cloud UI] Sync slot counter refresh failed:', error);
+            return false;
+        })
+        .finally(() => {
+            syncSlotStatusPanelRefreshPromise = null;
+        });
+
+    return syncSlotStatusPanelRefreshPromise;
+}
+
+function startSyncSlotStatusPanelRefresh() {
+    stopSyncSlotStatusPanelRefresh();
+    refreshSyncSlotStatusForOpenPanel();
+    syncSlotStatusPanelTimer = setInterval(() => {
+        refreshSyncSlotStatusForOpenPanel();
+    }, SYNC_SLOT_STATUS_OPEN_PANEL_REFRESH_MS);
+}
+
+function stopSyncSlotStatusPanelRefresh() {
+    if (syncSlotStatusPanelTimer) {
+        clearInterval(syncSlotStatusPanelTimer);
+        syncSlotStatusPanelTimer = null;
+    }
+}
+
 function positionSyncHistoryPanel() {
     const panel = document.getElementById('syncHistoryPanel');
     const anchor = document.getElementById('syncStatusBtn');
@@ -705,6 +743,7 @@ window.closeSyncHistoryPanel = function() {
     const button = document.getElementById('syncStatusBtn');
     if (!panel) return;
 
+    stopSyncSlotStatusPanelRefresh();
     panel.hidden = true;
     panel.classList.remove('is-open', 'is-highlighted');
     panel.setAttribute('aria-hidden', 'true');
@@ -734,6 +773,7 @@ window.openSyncHistoryPanel = function(event) {
     panel.tabIndex = -1;
     if (button) button.setAttribute('aria-expanded', 'true');
     setSyncStatusTooltipSuppressed(true);
+    startSyncSlotStatusPanelRefresh();
     requestAnimationFrame(() => {
         positionSyncHistoryPanel();
         try {
@@ -1539,11 +1579,12 @@ function getBuddyCloudHumanStatus(status = window.BuddyCloud?.getStatus?.() || {
 
     if (isBuddyCloudMultiDeviceLimit(status)) {
         const freeLimit = Number(status.freeDeviceLimit || status.syncSlotLimit || 2);
+        const idleHours = getFreeSyncSlotIdleReclaimHours(status);
         return {
             severity: 'warning',
             title: 'Free device limit reached',
-            detail: `Free Tier allows ${freeLimit} active synced browsers. Upgrade for unlimited syncs or replace an existing Free device.`,
-            recommendedNextStep: 'Open Devices and choose Upgrade or Use This Browser Instead.'
+            detail: `Free Tier allows ${freeLimit} active synced browsers. Browsers inactive for ${idleHours} hours are released automatically.`,
+            recommendedNextStep: 'Open Devices to use this browser now, or wait for an inactive browser slot to release.'
         };
     }
 
@@ -1930,6 +1971,11 @@ function isBuddyCloudMultiDeviceLimit(errorOrStatus = {}) {
         || message.includes('active synced browser');
 }
 
+function getFreeSyncSlotIdleReclaimHours(details = {}) {
+    const status = window.BuddyCloud?.getStatus?.() || {};
+    return Number(details.slotIdleReclaimHours || details.freeSyncSlotIdleReclaimHours || status.freeSyncSlotIdleReclaimHours || 24);
+}
+
 function getBuddyCloudSyncSlotRows(details = {}) {
     const status = window.BuddyCloud?.getStatus?.() || {};
     const freeLimit = Number(details.slotLimit || details.freeDeviceLimit || status.freeDeviceLimit || status.syncSlotLimit || 2);
@@ -1952,13 +1998,14 @@ function getBuddyCloudSyncSlotRows(details = {}) {
 
 async function confirmBuddyCloudSyncSlotTransfer(details = {}) {
     const freeLimit = Number(details.slotLimit || details.freeDeviceLimit || window.BuddyCloud?.getStatus?.()?.freeDeviceLimit || 2);
+    const idleHours = getFreeSyncSlotIdleReclaimHours(details);
     const result = await showBuddyCloudModal({
         eyebrow: 'Buddy Cloud Sync Plus',
         title: 'Multi-Device Sync Plus',
-        body: `Free Tier includes ${freeLimit} active synced browsers. This account has reached that limit.`,
+        body: `Free Tier includes ${freeLimit} active synced browsers. Browsers inactive for ${idleHours} hours are released automatically.`,
         assurance: 'Budget contents remain encrypted. BudgetBuddy does not store device names, user agents, IP-derived locations, or readable budget data for this limit.',
         detailRows: getBuddyCloudSyncSlotRows(details),
-        warning: 'Use This Browser Instead replaces the oldest Free device slot with this browser. That browser will stop syncing until it is made active again.',
+        warning: 'Use This Browser Instead replaces the oldest active Free device slot immediately. Inactive browser slots can be reused automatically without removing that browser recovery key.',
         actions: [
             { id: 'cancel', label: 'Cancel', className: 'btn-cancel' },
             { id: 'upgrade', label: 'Upgrade', className: 'btn-create' },
@@ -2114,6 +2161,11 @@ async function getCurrentBrowserAccessContext() {
 
 async function handleCurrentBrowserAccessRevoked() {
     if (browserAccessGlobalSignOutInProgress) return;
+    try {
+        await window.BuddyCloud?.releaseCurrentSyncSlot?.({ clearLocalSlot: true });
+    } catch (error) {
+        console.warn('[Device Management] Could not release Buddy Cloud sync slot before clearing revoked browser:', error);
+    }
     const keyName = getBrowserAccessKeyName();
     if (keyName) localStorage.removeItem(keyName);
     showSessionClearingScreen('Clearing Session...', 'This browser was signed out from Account > Devices.');
@@ -3142,9 +3194,10 @@ async function showBuddyCloudDeviceManagementFlow() {
 function getBuddyCloudDeviceStatusCopy() {
     const status = window.BuddyCloud?.getStatus?.() || {};
     const freeLimit = Number(status.freeDeviceLimit || status.syncSlotLimit || 2);
+    const idleHours = getFreeSyncSlotIdleReclaimHours(status);
     if (!status.signedIn) return 'Sign in to manage Buddy Cloud on this browser.';
     if (!status.enabled || !status.hasKey) return 'Manage known BudgetBuddy browsers for this account.';
-    if (isBuddyCloudMultiDeviceLimit(status)) return `Free Tier allows ${freeLimit} active synced browsers. Upgrade to Premium for unlimited Buddy Cloud devices, or replace an existing Free device with this browser.`;
+    if (isBuddyCloudMultiDeviceLimit(status)) return `Free Tier allows ${freeLimit} active synced browsers. Browsers inactive for ${idleHours} hours are released automatically, or you can use this browser now.`;
     if (hasBuddyCloudConflict(status)) return 'Possible data loss prevented. Compare the saved versions before Buddy Cloud overwrites either copy.';
     if (status.lastError) return status.lastError;
     if (status.syncing) return 'Buddy Cloud is syncing on this browser.';
@@ -3245,7 +3298,7 @@ async function showBuddyCloudDeviceManagementModal() {
         customHtml: `${conflictComparisonHtml}${deviceListHtml}`,
         warning: browserContext.error
             || (canMoveFreeSlot
-            ? 'Use This Browser Instead replaces the oldest Free device slot with this browser. That browser will stop syncing until it is made active again.'
+            ? 'Use This Browser Instead replaces the oldest active Free device slot immediately. Inactive browsers can be reused automatically without removing their recovery key.'
             : canResolveConflict
             ? ''
             : ''),
@@ -3272,7 +3325,8 @@ function getBuddyCloudErrorMessage(error) {
     const code = String(error?.code || '').trim();
 
     if (code === BUDDY_CLOUD_MULTI_DEVICE_LIMIT_CODE) {
-        return 'Free Tier allows 2 active synced browsers at a time. Upgrade to Premium for unlimited Buddy Cloud devices, or use this browser instead.';
+        const idleHours = getFreeSyncSlotIdleReclaimHours(error);
+        return `Free Tier allows 2 active synced browsers at a time. Browsers inactive for ${idleHours} hours are released automatically, or use this browser instead.`;
     }
 
     if (
@@ -3511,7 +3565,7 @@ async function handleBuddyCloudDeviceAction(action) {
         const ok = await confirmRevokeBrowserAccess(label);
         if (!ok) return 'back-to-devices';
         await revokeBrowserAccess(browserHash);
-        if (window.showToast) window.showToast(`${label} will sign out the next time it opens BudgetBuddy.`);
+        if (window.showToast) window.showToast(`${label} will sign out and release Buddy Cloud sync the next time it opens BudgetBuddy.`);
         return 'back-to-devices';
     }
 
@@ -3555,6 +3609,11 @@ async function handleBuddyCloudDeviceAction(action) {
             await revokeOtherBrowserAccess();
         } catch (error) {
             console.warn('[Device Management] Could not mark other browser access records revoked:', error);
+        }
+        try {
+            await window.BuddyCloud?.releaseOtherSyncSlots?.();
+        } catch (error) {
+            console.warn('[Device Management] Could not release other Buddy Cloud sync slots:', error);
         }
         if (!window.sb?.auth?.signOut) throw new Error('Sign out is not available.');
         await window.sb.auth.signOut({ scope: 'others' });
