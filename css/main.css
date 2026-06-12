@@ -133,6 +133,84 @@ textarea:focus-visible {
 
 .nav-link:hover, .nav-link.active { color: var(--accent); }
 
+.beta-support-strip {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 2rem;
+  border-bottom: 1px solid var(--border);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 56%),
+    var(--bg);
+}
+
+.beta-support-copy {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  color: var(--text-dim);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.beta-support-copy strong {
+  color: var(--text);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.beta-support-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.beta-support-primary,
+.beta-support-secondary {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-decoration: none;
+  transition: transform 0.16s ease, border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease;
+}
+
+.beta-support-primary {
+  color: #fff;
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.beta-support-secondary {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.beta-support-primary:hover,
+.beta-support-secondary:hover,
+.beta-support-primary:focus-visible,
+.beta-support-secondary:focus-visible {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  text-decoration: none;
+}
+
+.beta-support-secondary:hover,
+.beta-support-secondary:focus-visible {
+  color: var(--accent);
+  background: var(--surface-hover);
+}
+
 .header-controls {
   display: flex;
   align-items: center;
@@ -740,6 +818,23 @@ footer {
   }
   .nav-links { display: none; }
   .auth-buttons { margin-left: auto; }
+  .beta-support-strip {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 0.8rem 1rem;
+  }
+  .beta-support-copy {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  .beta-support-actions {
+    justify-content: stretch;
+  }
+  .beta-support-primary,
+  .beta-support-secondary {
+    flex: 1 1 0;
+  }
 }
 
 @media (max-width: 600px) {
