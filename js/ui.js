@@ -3833,10 +3833,38 @@ export function toggleCategorySelection(name, isChecked) {
     renderCategoryList();
 }
 
+function syncCategorySortSelect() {
+    const select = document.getElementById('categorySortSelect');
+    if (!select) return;
+
+    const sort = State.getCategorySort?.() || 'alpha_asc';
+    if ([...select.options].some(option => option.value === sort)) {
+        select.value = sort;
+    }
+}
+
+export function moveCategoryOrder(name, direction, event = null) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
+    const result = State.moveCategory?.(name, direction);
+    if (!result?.success) {
+        if (window.showToast) window.showToast(result?.error || 'Category order could not be changed.');
+        return;
+    }
+
+    selectedCategories.clear();
+    syncCategorySortSelect();
+    renderCategoryList();
+    renderFormCategories();
+    refreshOpenCategoryDrillDown();
+}
+
 export function renderCategoryList() {
     const listContainer = document.getElementById('categoryList');
     const countEl = document.getElementById('sortCatCount');
     if (!listContainer) return;
+    syncCategorySortSelect();
 
     // Grab all categories, but ONLY keep the ones that are NOT income
         const allCategories = State.getCategories() || [];
@@ -3863,14 +3891,22 @@ export function renderCategoryList() {
     }
 
     // 2. CATEGORY ITEMS (Reactive Version)
-    const categoriesHTML = categories.map(cat => {
+    const categoriesHTML = categories.map((cat, index) => {
         // ... [Keep your checkbox/edit mode logic exactly as before] ...
         const isChecked = selectedCategories.has(cat.name) ? 'checked' : '';
         const checkboxHTML = isCategoryEditMode
             ? `<input type="checkbox" class="bulk-select-cb" data-cat-name="${esc(cat.name)}" ${isChecked} onclick="event.stopPropagation()" onchange="window.toggleCategorySelection(${jsArg(cat.name)}, this.checked)">`
             : '';
+        const reorderHTML = isCategoryEditMode
+            ? `
+                <div class="category-reorder-controls" aria-label="Move ${esc(cat.name)}">
+                    <button type="button" class="category-reorder-btn" onclick="window.moveCategoryOrder(${jsArg(cat.name)}, 'up', event)" ${index === 0 ? 'disabled' : ''} aria-label="Move ${esc(cat.name)} up">&uarr;</button>
+                    <button type="button" class="category-reorder-btn" onclick="window.moveCategoryOrder(${jsArg(cat.name)}, 'down', event)" ${index === categories.length - 1 ? 'disabled' : ''} aria-label="Move ${esc(cat.name)} down">&darr;</button>
+                </div>
+            `
+            : '';
         const rowAttrs = isCategoryEditMode
-            ? `onclick="const cb=this.querySelector('.bulk-select-cb'); if (cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change', { bubbles: true })); }" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); this.click();}" role="button" tabindex="0" aria-label="Select ${esc(cat.name)}"`
+            ? `onclick="const cb=this.querySelector('.bulk-select-cb'); if (cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change', { bubbles: true })); }" onkeydown="if(event.target.closest && event.target.closest('button,input,select,textarea,a')) return; if(event.key==='Enter'||event.key===' '){event.preventDefault(); this.click();}" role="button" tabindex="0" aria-label="Select ${esc(cat.name)}"`
             : `onclick="window.openCategoryDrillDown(${jsArg(cat.name)}, ${jsArg(cat.icon || '')})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); this.click();}" role="button" tabindex="0" aria-label="Open ${esc(cat.name)}"`;
         const cursorStyle = 'pointer';
         const chevronDisplay = isCategoryEditMode ? 'none' : 'block';
@@ -3892,6 +3928,7 @@ export function renderCategoryList() {
         return `
         <div class="category-item" id="cat-card-${esc(cat.name.replace(/\s+/g, '-'))}" style="display: flex; align-items: center; padding-left: ${isCategoryEditMode ? '0.5rem' : '0'};" ${rowAttrs}>
             ${checkboxHTML}
+            ${reorderHTML}
             <div style="flex: 1; display: flex; align-items: center; cursor: ${cursorStyle}; transition: transform 0.1s ease; border: 1px solid transparent; padding: 0.5rem 0;">
                 <div class="category-icon-box ${barClass}" id="icon-${esc(cat.name.replace(/\s+/g, '-'))}">
                     <span class="category-icon">${esc(cat.icon || '📁')}</span>
@@ -11377,6 +11414,7 @@ window.isBulkMode = Boolean(window.isBulkMode);
 window.selectedTxIds = window.selectedTxIds instanceof Set ? window.selectedTxIds : new Set();
 window.visibleRecentTxIds = Array.isArray(window.visibleRecentTxIds) ? window.visibleRecentTxIds : [];
 window.openRecentMenuTxId = window.openRecentMenuTxId || '';
+window.openRecentSwipeDeleteTxId = window.openRecentSwipeDeleteTxId || '';
 window.currentDrillDownMetricMode = window.currentDrillDownMetricMode || 'spent';
 let pendingRecentDeleteTxId = '';
 let deleteTxTimerInterval = null;
@@ -11861,10 +11899,20 @@ function closeRecentTxActionMenu() {
     window.renderRecentTransactions();
 }
 
+function closeRecentSwipeDelete() {
+    if (!window.openRecentSwipeDeleteTxId) return;
+    window.openRecentSwipeDeleteTxId = '';
+    document.querySelectorAll('.recent-tx-card.is-swipe-delete-open').forEach(card => {
+        card.style.removeProperty('--recent-swipe-x');
+        card.classList.remove('is-swiping-delete', 'is-swipe-delete-open');
+    });
+}
+
 window.toggleRecentTxActionMenu = function(event, txId) {
     event?.preventDefault?.();
     event?.stopPropagation?.();
 
+    closeRecentSwipeDelete();
     window.openRecentMenuTxId = window.openRecentMenuTxId === txId ? '' : txId;
     window.renderRecentTransactions();
 
@@ -11882,8 +11930,16 @@ window.deleteRecentTransactionFromMenu = function(event, txId) {
     event?.preventDefault?.();
     event?.stopPropagation?.();
     window.openRecentMenuTxId = '';
+    closeRecentSwipeDelete();
     openRecentDeleteTransactionModal(txId);
     window.renderRecentTransactions();
+};
+
+window.deleteRecentTransactionFromSwipe = function(event, txId) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    closeRecentSwipeDelete();
+    openRecentDeleteTransactionModal(txId);
 };
 
 window.openRecentMoveCategoryModal = function(event, txId) {
@@ -11973,30 +12029,55 @@ window.confirmRecentMoveCategory = function(txId) {
 function bindRecentSwipeActions(listContainer) {
     const cards = listContainer.querySelectorAll('.recent-tx-card');
     cards.forEach(card => {
+        const cardTxId = card.dataset.txId || '';
         let startX = 0;
         let startY = 0;
         let currentX = 0;
         let pointerId = null;
         let isSwiping = false;
         let suppressClick = false;
+        const revealOffset = -132;
+        const revealThreshold = -58;
+        const fullDeleteThreshold = -118;
 
         const resetSwipe = () => {
             card.style.removeProperty('--recent-swipe-x');
-            card.classList.remove('is-swiping-delete');
+            card.classList.remove('is-swiping-delete', 'is-swipe-delete-open');
+            if (window.openRecentSwipeDeleteTxId === cardTxId) window.openRecentSwipeDeleteTxId = '';
             window.setTimeout(() => { suppressClick = false; }, 0);
         };
 
         card.addEventListener('click', (event) => {
+            if (card.classList.contains('is-swipe-delete-open') && !(event.target instanceof Element && event.target.closest('.recent-tx-swipe-delete-btn'))) {
+                event.preventDefault();
+                event.stopPropagation();
+                resetSwipe();
+                return;
+            }
+
             if (suppressClick) {
                 event.preventDefault();
                 event.stopPropagation();
             }
         }, true);
 
+        if (cardTxId && window.openRecentSwipeDeleteTxId === cardTxId) {
+            card.style.setProperty('--recent-swipe-x', `${revealOffset}px`);
+            card.classList.add('is-swiping-delete', 'is-swipe-delete-open');
+        }
+
         card.addEventListener('pointerdown', (event) => {
             if (window.isBulkMode || window.openRecentMenuTxId) return;
             if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
             if (event.target instanceof Element && event.target.closest('button, input, select, textarea, a')) return;
+
+            if (window.openRecentSwipeDeleteTxId && window.openRecentSwipeDeleteTxId !== cardTxId) {
+                window.openRecentSwipeDeleteTxId = '';
+                listContainer.querySelectorAll('.recent-tx-card.is-swipe-delete-open').forEach(openCard => {
+                    openCard.style.removeProperty('--recent-swipe-x');
+                    openCard.classList.remove('is-swiping-delete', 'is-swipe-delete-open');
+                });
+            }
 
             pointerId = event.pointerId;
             startX = event.clientX;
@@ -12028,18 +12109,28 @@ function bindRecentSwipeActions(listContainer) {
 
             const deltaX = currentX - startX;
             const txId = card.dataset.txId;
-            const shouldDelete = isSwiping && deltaX < -118;
+            const shouldDelete = isSwiping && deltaX < fullDeleteThreshold;
+            const shouldReveal = isSwiping && deltaX < revealThreshold;
             suppressClick = isSwiping;
             pointerId = null;
             isSwiping = false;
 
             if (shouldDelete && txId) {
-                card.style.setProperty('--recent-swipe-x', '-132px');
-                card.classList.add('is-swiping-delete');
+                window.openRecentSwipeDeleteTxId = '';
+                card.style.setProperty('--recent-swipe-x', `${revealOffset}px`);
+                card.classList.add('is-swiping-delete', 'is-swipe-delete-open');
                 window.setTimeout(() => {
                     resetSwipe();
                     window.deleteRecentTransaction(txId);
                 }, 120);
+                return;
+            }
+
+            if (shouldReveal && txId) {
+                window.openRecentSwipeDeleteTxId = txId;
+                card.style.setProperty('--recent-swipe-x', `${revealOffset}px`);
+                card.classList.add('is-swiping-delete', 'is-swipe-delete-open');
+                window.setTimeout(() => { suppressClick = false; }, 0);
                 return;
             }
 
@@ -12052,16 +12143,24 @@ function bindRecentSwipeActions(listContainer) {
 }
 
 document.addEventListener('pointerdown', (event) => {
-    if (!window.openRecentMenuTxId) return;
     const target = event.target;
+    if (window.openRecentSwipeDeleteTxId) {
+        const openCard = target instanceof Element ? target.closest('.recent-tx-card') : null;
+        if (!openCard || openCard.dataset.txId !== String(window.openRecentSwipeDeleteTxId)) {
+            closeRecentSwipeDelete();
+        }
+    }
+
+    if (!window.openRecentMenuTxId) return;
     if (target instanceof Element && target.closest('.recent-tx-menu-wrap')) return;
     window.openRecentMenuTxId = '';
     window.renderRecentTransactions();
 }, true);
 
 document.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape' || !window.openRecentMenuTxId) return;
+    if (event.key !== 'Escape' || (!window.openRecentMenuTxId && !window.openRecentSwipeDeleteTxId)) return;
     event.preventDefault();
+    closeRecentSwipeDelete();
     closeRecentTxActionMenu();
 });
 
@@ -12283,6 +12382,9 @@ window.renderRecentTransactions = function() {
 
     const visibleTx = getFilteredRecentTransactions();
     window.visibleRecentTxIds = visibleTx.map(tx => tx.id).filter(Boolean);
+    if (window.openRecentSwipeDeleteTxId && !window.visibleRecentTxIds.map(String).includes(String(window.openRecentSwipeDeleteTxId))) {
+        window.openRecentSwipeDeleteTxId = '';
+    }
 
     renderRecentBulkControls();
     renderRecentDateFilterBar();
@@ -12323,7 +12425,9 @@ window.renderRecentTransactions = function() {
 
         return `
             <div class="recent-tx-card${selectedClass}${menuClass}" role="button" tabindex="0" data-tx-id="${esc(tx.id || '')}" onclick="window.handleRecentCardClick(${jsArg(tx.id)})" onkeydown="if(event.target.closest && event.target.closest('button,input,select,textarea,a')) return; if(event.key==='Enter'||event.key===' '){event.preventDefault(); window.handleRecentCardClick(${jsArg(tx.id)});}" aria-label="Open ${esc(display.description)} transaction overview">
-                <div class="recent-tx-swipe-bg" aria-hidden="true">Delete</div>
+                <div class="recent-tx-swipe-bg">
+                    <button type="button" class="recent-tx-swipe-delete-btn" tabindex="-1" onclick="window.deleteRecentTransactionFromSwipe(event, ${jsArg(tx.id)})" aria-label="Delete ${esc(display.description)}">Delete</button>
+                </div>
                 <div class="recent-tx-main">
                     ${checkbox}
                     <div class="recent-tx-icon" aria-hidden="true">${esc(display.icon)}</div>
@@ -14271,6 +14375,7 @@ window.removeCategory = removeCategory;
 window.removeIncomeSource = removeIncomeSource;
 window.toggleCategoryEditMode = toggleCategoryEditMode;
 window.toggleCategorySelection = toggleCategorySelection;
+window.moveCategoryOrder = moveCategoryOrder;
 window.executeBulkDelete = executeBulkDelete;
 window.confirmBulkDelete = confirmBulkDelete;
 window.cancelBulkDelete = cancelBulkDelete;

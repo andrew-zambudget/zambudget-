@@ -416,6 +416,35 @@ export const updateCategoryBudget = (categoryName, newBudgetAmount) => {
     }
 };
 
+const CATEGORY_REORDER_EXCLUDED_TYPES = new Set(['income', 'debt', 'savings', 'sinking_fund']);
+
+function canReorderCategory(cat = {}) {
+    return Boolean(cat?.name && !CATEGORY_REORDER_EXCLUDED_TYPES.has(cat.type));
+}
+
+export const moveCategory = (name, direction = 'down') => {
+    const step = direction === 'up' ? -1 : 1;
+    const currentIndex = state.categories.findIndex(c => c.name === name);
+    if (currentIndex < 0 || !canReorderCategory(state.categories[currentIndex])) {
+        return { success: false, error: 'Category not found' };
+    }
+
+    let targetIndex = currentIndex + step;
+    while (targetIndex >= 0 && targetIndex < state.categories.length && !canReorderCategory(state.categories[targetIndex])) {
+        targetIndex += step;
+    }
+
+    if (targetIndex < 0 || targetIndex >= state.categories.length) {
+        return { success: false, error: 'Category cannot move farther' };
+    }
+
+    const [category] = state.categories.splice(currentIndex, 1);
+    state.categories.splice(targetIndex, 0, category);
+    state.settings.lastCategorySort = 'manual';
+    save();
+    return { success: true };
+};
+
 // ==========================================
 // HIGH PERFORMANCE SORTING ENGINE
 // ==========================================
@@ -423,6 +452,8 @@ export const setCategorySort = (type) => {
     state.settings.lastCategorySort = type;
 
     switch(type) {
+        case 'manual':
+            break;
         case 'alpha_asc':
             state.categories.sort((a, b) => a.name.localeCompare(b.name));
             break;
@@ -465,6 +496,8 @@ export const setCategorySort = (type) => {
     }
     save();
 };
+
+export const getCategorySort = () => state.settings.lastCategorySort || 'alpha_asc';
 
 // ==========================================
 // SETTINGS & RUNTIME

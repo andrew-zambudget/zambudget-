@@ -120,6 +120,48 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
+.category-reorder-controls {
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 0.25rem;
+  align-self: stretch;
+  padding: 0.5rem 0.35rem 0.5rem 0.15rem;
+  flex: 0 0 auto;
+}
+
+.category-reorder-btn {
+  width: 2.75rem;
+  min-height: 2.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 950;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+}
+
+.category-reorder-btn:hover,
+.category-reorder-btn:focus-visible {
+  background: color-mix(in srgb, var(--accent, #14b8a6) 10%, var(--surface, #ffffff));
+  border-color: color-mix(in srgb, var(--accent, #14b8a6) 42%, var(--border));
+  color: var(--accent, #14b8a6);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.category-reorder-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+  transform: none;
+}
+
 .category-icon-box {
   width: 48px;
   height: 48px;
