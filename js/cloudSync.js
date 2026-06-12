@@ -237,12 +237,14 @@ function buildSyncSlotFields(slots = []) {
 
 function buildSyncSlotStatus(slots = [], syncOwnerHash = '') {
     const currentSlot = slots.find(slot => slot.hash === syncOwnerHash) || slots[0] || {};
+    const currentBrowserHasSlot = Boolean(syncOwnerHash && slots.some(slot => slot.hash === syncOwnerHash));
     return {
         syncSlotOwnerHash: syncOwnerHash || currentSlot.hash || '',
         syncSlotClaimedAt: currentSlot.claimed_at || '',
         syncSlotLastSeenAt: currentSlot.last_seen_at || '',
         syncSlotDeviceCount: slots.length,
-        syncSlotLimit: FREE_SYNC_DEVICE_LIMIT
+        syncSlotLimit: FREE_SYNC_DEVICE_LIMIT,
+        syncSlotCurrentBrowserActive: currentBrowserHasSlot
     };
 }
 

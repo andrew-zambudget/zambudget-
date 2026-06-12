@@ -2291,6 +2291,19 @@ function getBrowserAccessIconSvg() {
     return '<svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"></rect><path d="M7 20h10"></path><path d="M12 18v2"></path></svg>';
 }
 
+function getCurrentBrowserSyncDeviceStatusLabel() {
+    const status = window.BuddyCloud?.getStatus?.() || {};
+
+    if (!status.signedIn || !status.enabled) return 'Current browser · Sync slot inactive';
+    if (!status.hasKey) return 'Current browser · Recovery key needed';
+    if (status.isPremium || status.multiDeviceAllowed) return 'Current browser · Premium unlimited';
+    if (status.syncing || hasBuddyCloudConflict(status) || isBuddyCloudMultiDeviceLimit(status) || status.lastError) {
+        return 'Current browser · Sync paused';
+    }
+    if (status.syncSlotCurrentBrowserActive) return 'Current browser · Sync active';
+    return 'Current browser · Sync slot inactive';
+}
+
 function buildBrowserAccessDeviceListHtml(context = {}, { includeGlobalSignOut = false } = {}) {
     const currentHash = context.currentHash || '';
     const activeRows = context.available
@@ -2313,7 +2326,7 @@ function buildBrowserAccessDeviceListHtml(context = {}, { includeGlobalSignOut =
     const deviceRows = rows.map(row => {
         const isCurrent = row.browser_hash === currentHash;
         const label = getBrowserAccessLabel(row.browser_hash, currentHash);
-        const status = isCurrent ? 'Current browser' : formatBrowserAccessStatus(row);
+        const status = isCurrent ? getCurrentBrowserSyncDeviceStatusLabel() : formatBrowserAccessStatus(row);
         const action = isCurrent
             ? '<span class="buddy-cloud-device-current">Current</span>'
             : `<button type="button" class="btn-cancel buddy-cloud-action buddy-cloud-device-signout-btn" data-action="revoke-browser:${esc(row.browser_hash || '')}" data-persistent="false">Sign Out</button>`;
