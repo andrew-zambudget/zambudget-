@@ -29,12 +29,14 @@ const ADD_TX_MAX_AMOUNT = 999999999.99;
 const ADD_TX_DESCRIPTION_MAX_LENGTH = 80;
 const ADD_TX_NOTES_MAX_LENGTH = 54;
 const ADD_TX_PAYMENT_METHODS = new Set(['', 'card', 'cash', 'bank']);
-const COMMAND_TAB_NAMES = new Set(['income', 'savings', 'debt', 'add', 'recent']);
+const COMMAND_TAB_NAMES = new Set(['income', 'savings', 'debt', 'add', 'calendar', 'recent']);
 const EMERGENCY_FUND_RECOMMENDATION_TOLERANCE = 0.005;
 const BUDDY_CLOUD_RECENT_RESTORE_PREFIX = 'bb_cloud_recent_restore_';
 const BUDDY_CLOUD_MANUAL_SYNC_PREFIX = 'bb_cloud_manual_sync_at_';
 const BUDDY_CLOUD_MANUAL_SYNC_COOLDOWN_MS = 60 * 1000;
 let viewportRepairTimer = null;
+let calendarCursorDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let selectedCalendarDateKey = '';
 const DESCRIPTION_ROLLOVER_SUGGESTIONS = [
     'Rent',
     'Mortgage',
@@ -3602,6 +3604,7 @@ export function render() {
     renderZBBDashboard();
     renderCategoryList();
     renderRecentTransactions();
+    renderBudgetCalendar();
     renderSavingsTab();
     renderIncomeTab();
     renderFormCategories();
@@ -6078,6 +6081,9 @@ export function switchTab(viewName) {
     }
     if (viewName === 'savings') {
         renderSavingsTab();
+    }
+    if (viewName === 'calendar') {
+        renderBudgetCalendar();
     }
     if (viewName === 'recent' && window.renderRecentTransactions) {
         window.renderRecentTransactions();
@@ -11184,6 +11190,50 @@ function normalizeRecentFilter(filterType) {
     return RECENT_FILTER_VALUES.has(value) ? value : 'all';
 }
 
+function padDatePart(value) {
+    return String(value).padStart(2, '0');
+}
+
+function getLocalDateKey(date = new Date()) {
+    const safeDate = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(safeDate.getTime())) return '';
+    return `${safeDate.getFullYear()}-${padDatePart(safeDate.getMonth() + 1)}-${padDatePart(safeDate.getDate())}`;
+}
+
+function parseDateKeyLocal(dateKey = '') {
+    const match = String(dateKey || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getTransactionDateKey(tx = {}) {
+    const rawDate = String(tx.date || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) return rawDate;
+
+    const fallback = tx.createdAt || tx.serverLoggedAtUTC || tx.createdAtUTC || '';
+    if (!fallback) return '';
+    return getLocalDateKey(new Date(fallback));
+}
+
+function formatCalendarDateLabel(dateKey = '') {
+    const date = parseDateKeyLocal(dateKey);
+    if (!date) return '';
+    return new Intl.DateTimeFormat('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+    }).format(date);
+}
+
+function getRecentScopeLabel() {
+    const filterLabel = RECENT_FILTER_LABELS[window.currentTxFilter || 'all'] || RECENT_FILTER_LABELS.all;
+    return selectedCalendarDateKey
+        ? `${filterLabel} on ${formatCalendarDateLabel(selectedCalendarDateKey)}`
+        : filterLabel;
+}
+
 function syncRecentFilterPills() {
     window.currentTxFilter = normalizeRecentFilter(window.currentTxFilter);
     document.querySelectorAll('#view-recent .recent-filter-row .tag-pill[data-filter]').forEach(btn => {
@@ -11301,13 +11351,15 @@ function getTransactionDisplay(tx) {
     };
 }
 
-function getFilteredRecentTransactions() {
+function getFilteredRecentTransactions(options = {}) {
+    const { includeSelectedDate = true } = options;
     const currentFilter = normalizeRecentFilter(window.currentTxFilter);
     window.currentTxFilter = currentFilter;
     const searchTerm = String(document.getElementById('txSearch')?.value || '').toLowerCase().trim();
 
     return getRecentTransactions()
         .filter(tx => currentFilter === 'all' || getTransactionKind(tx) === currentFilter)
+        .filter(tx => !includeSelectedDate || !selectedCalendarDateKey || getTransactionDateKey(tx) === selectedCalendarDateKey)
         .filter(tx => {
             if (!searchTerm) return true;
             const fields = [
@@ -11327,6 +11379,162 @@ function getFilteredRecentTransactions() {
         .sort((a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0));
 }
 
+function getBudgetCalendarMonthTitle(date = calendarCursorDate) {
+    return new Intl.DateTimeFormat('en-US', {
+        month: 'long',
+        year: 'numeric'
+    }).format(date);
+}
+
+function getBudgetCalendarDayMap(transactions = []) {
+    const map = new Map();
+
+    transactions.forEach(tx => {
+        const dateKey = getTransactionDateKey(tx);
+        if (!dateKey) return;
+
+        const existing = map.get(dateKey) || {
+            count: 0,
+            net: 0,
+            income: 0,
+            outflow: 0,
+            transactions: []
+        };
+        const signed = getSignedTransactionAmount(tx);
+        existing.count += 1;
+        existing.net += signed;
+        if (signed >= 0) {
+            existing.income += signed;
+        } else {
+            existing.outflow += Math.abs(signed);
+        }
+        existing.transactions.push(tx);
+        map.set(dateKey, existing);
+    });
+
+    return map;
+}
+
+function setBudgetCalendarText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+
+function renderBudgetCalendar() {
+    const grid = document.getElementById('budgetCalendarGrid');
+    if (!grid) return;
+
+    const symbol = State.getSymbol ? State.getSymbol() : '$';
+    const monthStart = new Date(calendarCursorDate.getFullYear(), calendarCursorDate.getMonth(), 1);
+    const monthEnd = new Date(calendarCursorDate.getFullYear(), calendarCursorDate.getMonth() + 1, 0);
+    const gridStart = new Date(monthStart);
+    gridStart.setDate(monthStart.getDate() - monthStart.getDay());
+
+    const visibleTx = getFilteredRecentTransactions({ includeSelectedDate: false });
+    const dayMap = getBudgetCalendarDayMap(visibleTx);
+    const monthKeyPrefix = `${monthStart.getFullYear()}-${padDatePart(monthStart.getMonth() + 1)}-`;
+    const monthTotals = { net: 0, income: 0, outflow: 0, activeDays: 0 };
+
+    [...dayMap.entries()].forEach(([dateKey, day]) => {
+        if (!dateKey.startsWith(monthKeyPrefix)) return;
+        monthTotals.net += day.net;
+        monthTotals.income += day.income;
+        monthTotals.outflow += day.outflow;
+        monthTotals.activeDays += 1;
+    });
+
+    setBudgetCalendarText('calendarMonthLabel', getBudgetCalendarMonthTitle(monthStart));
+    setBudgetCalendarText('calendarScope', getRecentScopeLabel());
+    setBudgetCalendarText('calendarMonthNet', `${monthTotals.net < 0 ? '-' : ''}${symbol}${formatMoney(Math.abs(monthTotals.net))}`);
+    setBudgetCalendarText('calendarMonthIncome', `${symbol}${formatMoney(monthTotals.income)}`);
+    setBudgetCalendarText('calendarMonthOutflow', `${symbol}${formatMoney(monthTotals.outflow)}`);
+    setBudgetCalendarText('calendarActiveDays', String(monthTotals.activeDays));
+
+    const todayKey = getLocalDateKey();
+    const cells = [];
+    for (let index = 0; index < 42; index += 1) {
+        const date = new Date(gridStart);
+        date.setDate(gridStart.getDate() + index);
+        const dateKey = getLocalDateKey(date);
+        const day = dayMap.get(dateKey);
+        const inMonth = date.getMonth() === monthStart.getMonth();
+        const isToday = dateKey === todayKey;
+        const isSelected = dateKey === selectedCalendarDateKey;
+        const hasActivity = Boolean(day?.count);
+        const labelParts = [
+            formatCalendarDateLabel(dateKey),
+            hasActivity ? `${day.count} transaction${day.count === 1 ? '' : 's'}` : 'No transactions',
+            hasActivity ? `Net ${day.net < 0 ? '-' : '+'}${symbol}${formatMoney(Math.abs(day.net))}` : ''
+        ].filter(Boolean);
+
+        cells.push(`
+            <button type="button"
+                class="calendar-day${inMonth ? '' : ' is-outside-month'}${isToday ? ' is-today' : ''}${isSelected ? ' is-selected' : ''}${hasActivity ? ' has-activity' : ''}"
+                onclick="window.selectBudgetCalendarDate(${jsArg(dateKey)})"
+                role="gridcell"
+                aria-selected="${isSelected ? 'true' : 'false'}"
+                aria-label="${esc(labelParts.join('. '))}">
+                <span class="calendar-day-number">${date.getDate()}</span>
+                <span class="calendar-day-count">${hasActivity ? day.count : ''}</span>
+                <span class="calendar-day-net">${hasActivity ? `${day.net < 0 ? '-' : '+'}${symbol}${formatMoney(Math.abs(day.net))}` : ''}</span>
+            </button>
+        `);
+    }
+    grid.innerHTML = cells.join('');
+
+    const clearBtn = document.getElementById('calendarClearDateBtn');
+    if (clearBtn) clearBtn.hidden = !selectedCalendarDateKey;
+
+    const selectedPanel = document.getElementById('calendarSelectedPanel');
+    const selectedTitle = document.getElementById('calendarSelectedTitle');
+    const selectedMeta = document.getElementById('calendarSelectedMeta');
+    if (!selectedPanel || !selectedTitle || !selectedMeta) return;
+
+    if (!selectedCalendarDateKey) {
+        selectedPanel.hidden = true;
+        return;
+    }
+
+    const selectedDay = dayMap.get(selectedCalendarDateKey);
+    selectedPanel.hidden = false;
+    selectedTitle.textContent = formatCalendarDateLabel(selectedCalendarDateKey);
+    selectedMeta.textContent = selectedDay
+        ? `${selectedDay.count} transaction${selectedDay.count === 1 ? '' : 's'} - net ${selectedDay.net < 0 ? '-' : '+'}${symbol}${formatMoney(Math.abs(selectedDay.net))}`
+        : 'No transactions on this day';
+}
+
+window.moveBudgetCalendarMonth = function(delta = 0) {
+    calendarCursorDate = new Date(calendarCursorDate.getFullYear(), calendarCursorDate.getMonth() + Number(delta || 0), 1);
+    renderBudgetCalendar();
+};
+
+window.goToBudgetCalendarToday = function() {
+    const today = new Date();
+    calendarCursorDate = new Date(today.getFullYear(), today.getMonth(), 1);
+    selectedCalendarDateKey = getLocalDateKey(today);
+    renderBudgetCalendar();
+    if (window.renderRecentTransactions) window.renderRecentTransactions();
+};
+
+window.selectBudgetCalendarDate = function(dateKey) {
+    const parsed = parseDateKeyLocal(dateKey);
+    if (!parsed) return;
+    selectedCalendarDateKey = dateKey;
+    calendarCursorDate = new Date(parsed.getFullYear(), parsed.getMonth(), 1);
+    renderBudgetCalendar();
+    if (window.renderRecentTransactions) window.renderRecentTransactions();
+};
+
+window.clearBudgetCalendarDate = function() {
+    selectedCalendarDateKey = '';
+    renderBudgetCalendar();
+    if (window.renderRecentTransactions) window.renderRecentTransactions();
+};
+
+window.openBudgetCalendarRecent = function() {
+    if (typeof window.switchTab === 'function') window.switchTab('recent');
+};
+
 function saveTransactionArray(txArray) {
     if (State.saveTransactions) {
         State.saveTransactions(txArray);
@@ -11339,6 +11547,7 @@ function saveTransactionArray(txArray) {
 
 function refreshRecentDependents() {
     if (window.renderRecentTransactions) window.renderRecentTransactions();
+    renderBudgetCalendar();
     if (window.renderIncomeTab) window.renderIncomeTab();
     if (window.renderSavingsTab) window.renderSavingsTab();
     if (window.renderZBBDashboard) window.renderZBBDashboard();
@@ -11679,6 +11888,17 @@ function renderRecentBulkControls() {
     }
 }
 
+function renderRecentDateFilterBar() {
+    const bar = document.getElementById('recentDateFilterBar');
+    const label = document.getElementById('recentDateFilterLabel');
+    if (!bar || !label) return;
+
+    bar.hidden = !selectedCalendarDateKey;
+    if (selectedCalendarDateKey) {
+        label.textContent = `Showing ${formatCalendarDateLabel(selectedCalendarDateKey)}`;
+    }
+}
+
 function renderRecentOverview(transactions = getFilteredRecentTransactions()) {
     const symbol = State.getSymbol ? State.getSymbol() : '$';
     const totals = { income: 0, expense: 0, savings: 0, debt: 0, net: 0 };
@@ -11695,7 +11915,7 @@ function renderRecentOverview(transactions = getFilteredRecentTransactions()) {
         if (el) el.textContent = value;
     };
 
-    setText('recentOverviewScope', RECENT_FILTER_LABELS[window.currentTxFilter || 'all'] || 'All transactions');
+    setText('recentOverviewScope', getRecentScopeLabel());
     setText('recentOverviewTotal', String(transactions.length));
     setText('recentOverviewNet', `${totals.net < 0 ? '-' : ''}${symbol}${formatMoney(Math.abs(totals.net))}`);
     setText('recentOverviewIncome', `${symbol}${formatMoney(totals.income)}`);
@@ -11860,13 +12080,14 @@ window.renderRecentTransactions = function() {
     window.visibleRecentTxIds = visibleTx.map(tx => tx.id).filter(Boolean);
 
     renderRecentBulkControls();
+    renderRecentDateFilterBar();
     renderRecentOverview(visibleTx);
 
     if (visibleTx.length === 0) {
         listContainer.innerHTML = `
             <div class="recent-empty-state">
                 <div class="recent-empty-title">No transactions found</div>
-                <div>Try another filter, search term, or add a transaction.</div>
+                <div>${selectedCalendarDateKey ? 'Clear the selected calendar day or choose another date.' : 'Try another filter, search term, or add a transaction.'}</div>
             </div>
         `;
         return;
@@ -13327,6 +13548,23 @@ function createAvatarFallback(initial, className = 'user-avatar') {
     return avatar;
 }
 
+function appendAvatarImage(container, avatarUrl, className) {
+    const avatar = document.createElement('img');
+    avatar.src = avatarUrl;
+    avatar.alt = '';
+    avatar.className = `${className} is-loading`;
+    avatar.referrerPolicy = 'strict-origin-when-cross-origin';
+    avatar.addEventListener('load', () => {
+        avatar.classList.remove('is-loading');
+        avatar.classList.add('is-loaded');
+    }, { once: true });
+    avatar.addEventListener('error', () => {
+        avatar.remove();
+    }, { once: true });
+    container.appendChild(avatar);
+    return avatar;
+}
+
 function renderAccountModalAvatar(container, email, avatarUrl) {
     if (!container) return;
     const initial = getUserInitial(email);
@@ -13337,20 +13575,8 @@ function renderAccountModalAvatar(container, email, avatarUrl) {
     container.removeAttribute('title');
     container.tabIndex = 0;
 
-    if (!avatarUrl) {
-        container.appendChild(createAvatarFallback(initial, 'account-modal-avatar-fallback'));
-        return;
-    }
-
-    const avatar = document.createElement('img');
-    avatar.src = avatarUrl;
-    avatar.alt = '';
-    avatar.className = 'account-modal-avatar-img';
-    avatar.referrerPolicy = 'no-referrer';
-    avatar.onerror = () => {
-        container.replaceChildren(createAvatarFallback(initial, 'account-modal-avatar-fallback'));
-    };
-    container.appendChild(avatar);
+    container.appendChild(createAvatarFallback(initial, 'account-modal-avatar-fallback'));
+    if (avatarUrl) appendAvatarImage(container, avatarUrl, 'account-modal-avatar-img');
 }
 
 // Render the Login / Avatar Button
@@ -13378,21 +13604,11 @@ export function updateAuthUI() {
         button.setAttribute('aria-expanded', 'false');
         button.addEventListener('click', openAccountModal);
 
-        if (avatarUrl) {
-            // Google Profile Picture
-            const avatar = document.createElement('img');
-            avatar.src = avatarUrl;
-            avatar.alt = '';
-            avatar.className = 'user-avatar-img';
-            avatar.referrerPolicy = 'no-referrer';
-            avatar.onerror = () => {
-                avatar.replaceWith(createAvatarFallback(initial));
-            };
-            button.appendChild(avatar);
-        } else {
-            // Magic Link Fallback (First letter of email)
-            button.appendChild(createAvatarFallback(initial));
-        }
+        const avatarStack = document.createElement('span');
+        avatarStack.className = 'user-avatar-stack';
+        avatarStack.appendChild(createAvatarFallback(initial));
+        if (avatarUrl) appendAvatarImage(avatarStack, avatarUrl, 'user-avatar-img');
+        button.appendChild(avatarStack);
 
         // Replace the "Log In" button with the Avatar (which acts as Logout for now)
         authContainer.appendChild(button);
@@ -13400,9 +13616,14 @@ export function updateAuthUI() {
         // User is Logged Out
         const loginLink = document.createElement('a');
         loginLink.href = 'login.html';
-        loginLink.className = 'btn-text';
+        loginLink.className = 'btn-text login-cta';
         loginLink.dataset.tooltip = 'Sign In';
-        loginLink.textContent = 'Log In';
+        loginLink.innerHTML = `
+            <span class="login-cta-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path></svg>
+            </span>
+            <span>Sign In</span>
+        `;
         authContainer.appendChild(loginLink);
     }
 

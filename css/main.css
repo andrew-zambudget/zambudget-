@@ -355,6 +355,57 @@ textarea:focus-visible {
   border-color: var(--border);
 }
 
+.login-cta {
+  min-height: 40px;
+  padding: 0.38rem 0.48rem 0.38rem 0.5rem;
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, transparent), transparent 58%),
+    var(--surface);
+  color: var(--text);
+  font-weight: 800;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.login-cta:hover,
+.login-cta:focus-visible {
+  border-color: var(--accent);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 20%, transparent), transparent 62%),
+    var(--surface-hover);
+  color: var(--accent);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 18%, transparent);
+  outline: none;
+}
+
+.login-cta:focus-visible {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent),
+    0 10px 24px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.login-cta-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  flex: 0 0 auto;
+}
+
+.login-cta-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .footer-back-btn {
   color: #fff;
   background: var(--accent);
@@ -394,6 +445,15 @@ textarea:focus-visible {
   flex: 0 0 auto;
 }
 
+.user-avatar-stack {
+  position: relative;
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
 .user-avatar {
   width: 36px;
   height: 36px;
@@ -413,14 +473,21 @@ textarea:focus-visible {
 }
 
 .user-avatar-img {
+  position: absolute;
+  inset: 0;
   width: 36px;
   height: 36px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid var(--accent);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-  transition: transform 0.2s, box-shadow 0.2s;
+  opacity: 1;
+  transition: opacity 0.16s ease, transform 0.2s, box-shadow 0.2s;
   user-select: none;
+}
+
+.user-avatar-img.is-loading {
+  opacity: 0;
 }
 
 .user-avatar:hover {
@@ -428,12 +495,14 @@ textarea:focus-visible {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
+.btn-avatar:hover .user-avatar-stack,
 .btn-avatar:hover .user-avatar,
 .btn-avatar:hover .user-avatar-img {
   transform: scale(1.1);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
+.btn-avatar.is-menu-open .user-avatar-stack,
 .btn-avatar.is-menu-open .user-avatar,
 .btn-avatar.is-menu-open .user-avatar-img {
   transform: scale(1.04);
@@ -618,6 +687,29 @@ footer {
   text-decoration: underline;
 }
 
+.footer-social-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  vertical-align: middle;
+}
+
+.footer-social-link:hover,
+.footer-social-link:focus-visible {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  text-decoration: none;
+}
+
+.footer-social-icon {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
 .footer-dot {
   color: var(--border);
   margin: 0 0.75rem;
@@ -655,6 +747,15 @@ footer {
   .footer-main { flex-direction: column; gap: 0.5rem; }
   .footer-dot { display: none; }
   .footer-btn-pill { margin-bottom: 0.5rem; }
+  .login-cta {
+    min-height: 38px;
+    padding: 0.32rem 0.42rem;
+    font-size: 0.82rem;
+  }
+  .login-cta-icon {
+    width: 26px;
+    height: 26px;
+  }
   main { padding: 1.5rem 1rem; }
 }
 

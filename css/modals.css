@@ -122,8 +122,16 @@
 }
 
 #accountModal .account-modal-avatar-img {
+  position: absolute;
+  inset: 0;
   display: block;
   object-fit: cover;
+  opacity: 1;
+  transition: opacity 0.16s ease;
+}
+
+#accountModal .account-modal-avatar-img.is-loading {
+  opacity: 0;
 }
 
 #accountModal .account-modal-avatar-fallback {
