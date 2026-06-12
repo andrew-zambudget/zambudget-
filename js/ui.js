@@ -14064,17 +14064,33 @@ function clearBudgetBuddyLocalAccountState(options = {}) {
 
 async function verifyBuddyCloudBeforeLogout() {
     const status = window.BuddyCloud?.getStatus?.() || {};
-    if (!status.signedIn || !status.enabled || !status.hasKey || !status.canUseCloud) return;
-    if (isBuddyCloudMultiDeviceLimit(status)) {
-        recordSyncEvent('Skipped final Buddy Cloud backup because this browser is outside the Free Tier sync device limit.', 'local');
-        return;
+    if (!status.signedIn || !status.enabled) return;
+    if (!status.hasKey || !status.canUseCloud) {
+        throw new Error('Buddy Cloud backup is not available on this browser. Sign-out was stopped so local budget data is not cleared before cloud backup is verified.');
     }
+    if (hasBuddyCloudConflict(status)) {
+        throw new Error('Review saved versions before signing out. Sign-out was stopped so Buddy Cloud does not overwrite the wrong budget.');
+    }
+    if (isBuddyCloudMultiDeviceLimit(status)) {
+        throw new Error('This browser cannot finish a final Buddy Cloud backup because it is outside the Free Tier sync device limit. Use This Browser Instead or upgrade before signing out.');
+    }
+
+    recordSyncEvent('Backing up Buddy Cloud before sign-out...', 'syncing');
     try {
         await window.BuddyCloud.forcePush();
     } catch (error) {
-        if (!isBuddyCloudMultiDeviceLimit(error)) throw error;
-        recordSyncEvent('Skipped final Buddy Cloud backup because this browser is outside the Free Tier sync device limit.', 'local');
+        if (isBuddyCloudMultiDeviceLimit(error)) {
+            throw new Error('This browser cannot finish a final Buddy Cloud backup because it is outside the Free Tier sync device limit. Use This Browser Instead or upgrade before signing out.');
+        }
+        throw error;
     }
+
+    const localUpdatedAt = localStorage.getItem('bb_local_updated_at') || '';
+    const lastPushedAt = localStorage.getItem('bb_cloud_last_pushed_at') || '';
+    if (localUpdatedAt && lastPushedAt && localUpdatedAt !== lastPushedAt) {
+        throw new Error('Buddy Cloud backup did not verify. Sign-out was stopped so local budget data is not cleared before cloud backup catches up.');
+    }
+    recordSyncEvent('Buddy Cloud backup completed before sign-out.', 'synced');
 }
 
 async function requireRecoveryKeySavedBeforeLocalClear() {
