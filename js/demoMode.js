@@ -348,6 +348,12 @@ export function prepareDemoMode({ user } = {}) {
         return { active: false, disabledForSignedInUser: true };
     }
 
+    if (active && !requested) {
+        restorePreviousBudget();
+        clearDemoKeys();
+        return { active: false, leftDemo: true };
+    }
+
     if (active && demoExpired()) {
         restorePreviousBudget();
         clearDemoKeys();
