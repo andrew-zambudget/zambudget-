@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "build": "node scripts/build-cloudflare.js",
+    "deploy": "wrangler deploy"
+  },
   "devDependencies": {
     "supabase": "^2.105.0"
   }

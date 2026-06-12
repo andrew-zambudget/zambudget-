@@ -22,3 +22,4 @@ Thumbs.db
 
 # Generated static deploy artifact
 public/
+dist/
