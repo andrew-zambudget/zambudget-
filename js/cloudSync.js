@@ -42,6 +42,7 @@ let lastKnownStatus = {
     signedIn: false,
     syncing: false,
     nextSyncAt: '',
+    nextSyncReason: '',
     lastError: '',
     lastPushedAt: '',
     lastRemoteAt: ''
@@ -379,8 +380,14 @@ function buildSyncSnapshotDetails(snapshot = {}) {
 
 function scheduleConflictGraceRetry(waitMs = CLOUD_CONFLICT_GRACE_MS) {
     clearTimeout(conflictGraceTimer);
+    rememberStatus({
+        syncing: false,
+        nextSyncAt: new Date(Date.now() + Math.max(1000, waitMs)).toISOString(),
+        nextSyncReason: 'Buddy Cloud conflict recheck after the grace window'
+    });
     conflictGraceTimer = setTimeout(() => {
         conflictGraceTimer = null;
+        rememberStatus({ syncing: true, nextSyncAt: '', nextSyncReason: 'Buddy Cloud conflict recheck running now' });
         init({ supabaseClient: sb, user: currentUser, getSnapshot, replaceSnapshot, afterRemoteApply, isPremiumAccount })
             .catch(error => {
                 console.error('[Buddy Cloud] Conflict grace retry failed:', error);
@@ -529,7 +536,8 @@ function record(message, status = 'synced', details = null) {
 
     rememberStatus({
         syncing: status === 'syncing',
-        nextSyncAt: status === 'syncing' ? lastKnownStatus.nextSyncAt : ''
+        nextSyncAt: status === 'syncing' ? lastKnownStatus.nextSyncAt : '',
+        nextSyncReason: status === 'syncing' ? lastKnownStatus.nextSyncReason : ''
     });
 }
 
@@ -803,18 +811,18 @@ async function getSyncSlotUpsertFields(existingRemote = null) {
 
 async function performPushSnapshotNow(reason = 'Budget synced to Buddy Cloud.') {
     if (!isEnabled() || !canUseCloud() || isApplyingRemote) {
-        rememberStatus({ syncing: false, nextSyncAt: '' });
+        rememberStatus({ syncing: false, nextSyncAt: '', nextSyncReason: '' });
         return false;
     }
 
     const rawKey = getStoredCloudKey();
     if (!rawKey) {
-        rememberStatus({ syncing: false, nextSyncAt: '' });
+        rememberStatus({ syncing: false, nextSyncAt: '', nextSyncReason: '' });
         record('Buddy Cloud needs your recovery key on this device.', 'error');
         return false;
     }
 
-    rememberStatus({ syncing: true, nextSyncAt: '' });
+    rememberStatus({ syncing: true, nextSyncAt: '', nextSyncReason: 'Buddy Cloud upload running now' });
     const snapshot = getLocalSnapshot();
     const syncDetails = buildSyncSnapshotDetails(snapshot);
     record('Syncing with Buddy Cloud...', 'syncing', syncDetails);
@@ -875,7 +883,7 @@ async function pushSnapshotNow(reason = 'Budget synced to Buddy Cloud.') {
             return pushSnapshotNow(reason);
         }
 
-        rememberStatus({ syncing: false, nextSyncAt: '' });
+        rememberStatus({ syncing: false, nextSyncAt: '', nextSyncReason: '' });
         return result;
     }
 
@@ -892,7 +900,8 @@ export function queuePush(reason = 'Budget synced to Buddy Cloud.') {
     clearTimeout(pushTimer);
     rememberStatus({
         syncing: true,
-        nextSyncAt: new Date(Date.now() + PUSH_DEBOUNCE_MS).toISOString()
+        nextSyncAt: new Date(Date.now() + PUSH_DEBOUNCE_MS).toISOString(),
+        nextSyncReason: 'Automatic upload after the latest local budget save'
     });
     pushTimer = setTimeout(() => {
         pushSnapshotNow(reason).catch(error => {
@@ -1158,6 +1167,8 @@ export async function init(options = {}) {
         record('Import your Buddy Cloud recovery key to sync this device.', 'error');
         return false;
     }
+
+    rememberStatus({ syncing: true, nextSyncAt: '', nextSyncReason: 'Buddy Cloud check running now' });
 
     try {
         const remote = await fetchRemoteVault();
