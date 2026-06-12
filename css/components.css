@@ -3187,7 +3187,7 @@ input.error, select.error {
     position: absolute;
     left: 50%;
     bottom: calc(100% + 0.42rem);
-    z-index: 1810;
+    z-index: 4100;
     width: max-content;
     max-width: min(14rem, calc(100% - 1rem));
     box-sizing: border-box;
@@ -3320,7 +3320,7 @@ input.error, select.error {
     min-width: min(18rem, calc(100vw - 2rem));
     max-width: min(18rem, calc(100vw - 2rem));
     text-align: left;
-    z-index: 1820;
+    z-index: 4100;
 }
 
 .sync-cloud-manual[data-tooltip]::before {
@@ -3328,7 +3328,7 @@ input.error, select.error {
     right: 0.72rem;
     bottom: calc(100% + 0.12rem);
     transform: translateY(0);
-    z-index: 1820;
+    z-index: 4100;
 }
 
 .sync-cloud-manual[data-tooltip]:hover::after,
@@ -4434,7 +4434,7 @@ input.error, select.error {
     border: 1px solid var(--border, #e2e8f0);
     border-radius: 8px;
     background: var(--bg, #f8fafc);
-    overflow: hidden;
+    overflow: visible;
 }
 
 .buddy-cloud-key-control input {
@@ -5924,7 +5924,7 @@ input.error, select.error {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    z-index: 100;
+    z-index: 4100;
 
     /* Smooth fade and slide up animation */
     transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
@@ -5945,7 +5945,7 @@ input.error, select.error {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    z-index: 100;
+    z-index: 4100;
     transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
 }
 

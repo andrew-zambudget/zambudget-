@@ -457,7 +457,7 @@ function syncCloudActionButtons() {
         manualBtn.disabled = !canUseManualSync;
         manualBtn.setAttribute('aria-label', manualTooltip.replace(/\s+/g, ' ').trim());
         manualBtn.setAttribute('data-tooltip', manualTooltip);
-        manualBtn.setAttribute('title', manualTooltip);
+        manualBtn.removeAttribute('title');
     }
     if (deviceCount) {
         deviceCount.textContent = isPremium
