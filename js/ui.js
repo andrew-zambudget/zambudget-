@@ -13933,7 +13933,16 @@ function clearBudgetBuddyLocalAccountState(options = {}) {
 async function verifyBuddyCloudBeforeLogout() {
     const status = window.BuddyCloud?.getStatus?.() || {};
     if (!status.signedIn || !status.enabled || !status.hasKey || !status.canUseCloud) return;
-    await window.BuddyCloud.forcePush();
+    if (isBuddyCloudMultiDeviceLimit(status)) {
+        recordSyncEvent('Skipped final Buddy Cloud backup because this browser is outside the Free Tier sync device limit.', 'local');
+        return;
+    }
+    try {
+        await window.BuddyCloud.forcePush();
+    } catch (error) {
+        if (!isBuddyCloudMultiDeviceLimit(error)) throw error;
+        recordSyncEvent('Skipped final Buddy Cloud backup because this browser is outside the Free Tier sync device limit.', 'local');
+    }
 }
 
 async function requireRecoveryKeySavedBeforeLocalClear() {
