@@ -420,7 +420,7 @@
                                 <span class="tag-icon" aria-hidden="true">🖥️</span>
                                 <div>
                                     <div class="tag-text">Device and session controls simplified</div>
-                                    <span class="tag-detail">Devices is now focused on session risk and sign-out behavior. Known BudgetBuddy browsers are listed using privacy-minimal browser hashes and timestamps, with browser-icon rows, right-aligned individual sign-out controls, and a separate full-width Sign Out All Devices action. Logout, revoked-browser cleanup, Buddy Cloud reset, and Sign Out All Devices now show a Clearing Session screen while local storage, session storage, accessible cookies, and stale page state are cleared before refresh. Manual upload/download controls only appear when Buddy Cloud detects competing changes on another device.</span>
+                                    <span class="tag-detail">Devices is now focused on session risk and sign-out behavior. Known BudgetBuddy browsers are listed using privacy-minimal browser hashes, existing sync slot hash links, and timestamps, with browser-icon rows, right-aligned individual sign-out controls, and a separate full-width Sign Out All Devices action. Logout, revoked-browser cleanup, Buddy Cloud reset, and Sign Out All Devices now show a Clearing Session screen while local storage, session storage, accessible cookies, and stale page state are cleared before refresh. Manual upload/download controls only appear when Buddy Cloud detects competing changes on another device.</span>
                                 </div>
                             </div>
 
@@ -429,6 +429,14 @@
                                 <div>
                                     <div class="tag-text">Account management modal flow polished</div>
                                     <span class="tag-detail">Buddy Cloud account-management dialogs now transition smoothly between Devices, Privacy Details, sign-out confirmations, and Back actions. Device sign-out rows give immediate visual feedback, confirmation screens return users to the Devices list instead of dead-ending the flow, and reduced-motion preferences are respected.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-fix">
+                                <span class="tag-icon" aria-hidden="true">BC</span>
+                                <div>
+                                    <div class="tag-text">Buddy Cloud sync slot cleanup</div>
+                                    <span class="tag-detail">Free Tier capacity now shows as sync slots instead of devices, and Account &gt; Devices can map known browser access records to the existing opaque Buddy Cloud sync slot hashes that already enforce the Free limit. If a slot has no active browser match, the Devices modal shows it as an unmatched sync slot with a release action. The cleanup does not add device names, user agents, IP-derived locations, recovery keys, or readable budget data.</span>
                                 </div>
                             </div>
 
