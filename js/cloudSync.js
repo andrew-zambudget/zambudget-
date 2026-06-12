@@ -40,6 +40,7 @@ let lastKnownStatus = {
     enabled: false,
     signedIn: false,
     syncing: false,
+    nextSyncAt: '',
     lastError: '',
     lastPushedAt: '',
     lastRemoteAt: ''
@@ -525,7 +526,10 @@ function record(message, status = 'synced', details = null) {
         }
     }
 
-    rememberStatus({ syncing: status === 'syncing' });
+    rememberStatus({
+        syncing: status === 'syncing',
+        nextSyncAt: status === 'syncing' ? lastKnownStatus.nextSyncAt : ''
+    });
 }
 
 function getCloudErrorMessage(error, fallback = 'Buddy Cloud sync failed.') {
@@ -797,14 +801,19 @@ async function getSyncSlotUpsertFields(existingRemote = null) {
 }
 
 async function pushSnapshotNow(reason = 'Budget synced to Buddy Cloud.') {
-    if (!isEnabled() || !canUseCloud() || isApplyingRemote) return false;
+    if (!isEnabled() || !canUseCloud() || isApplyingRemote) {
+        rememberStatus({ syncing: false, nextSyncAt: '' });
+        return false;
+    }
 
     const rawKey = getStoredCloudKey();
     if (!rawKey) {
+        rememberStatus({ syncing: false, nextSyncAt: '' });
         record('Buddy Cloud needs your recovery key on this device.', 'error');
         return false;
     }
 
+    rememberStatus({ syncing: true, nextSyncAt: '' });
     const snapshot = getLocalSnapshot();
     const syncDetails = buildSyncSnapshotDetails(snapshot);
     record('Syncing with Buddy Cloud...', 'syncing', syncDetails);
@@ -857,7 +866,10 @@ async function pushSnapshotNow(reason = 'Budget synced to Buddy Cloud.') {
 export function queuePush(reason = 'Budget synced to Buddy Cloud.') {
     if (!isInitialized || !isEnabled() || !canUseCloud() || isApplyingRemote) return;
     clearTimeout(pushTimer);
-    rememberStatus({ syncing: true });
+    rememberStatus({
+        syncing: true,
+        nextSyncAt: new Date(Date.now() + PUSH_DEBOUNCE_MS).toISOString()
+    });
     pushTimer = setTimeout(() => {
         pushSnapshotNow(reason).catch(error => {
             console.error('[Buddy Cloud] Push failed:', error);

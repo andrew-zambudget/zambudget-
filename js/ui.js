@@ -445,6 +445,7 @@ function syncCloudActionButtons() {
             : hasConflict
             ? 'Review saved Buddy Cloud versions before sync continues.'
             : 'Manually check Buddy Cloud sync status.');
+        manualBtn.setAttribute('data-tooltip', getManualSyncButtonTooltip(status, { hasConflict, canUseManualSync }));
     }
     if (deviceCount) {
         deviceCount.textContent = isPremium
@@ -508,6 +509,44 @@ function getBuddyCloudTierTooltip(isPremium = Boolean(State.getIsPro?.()), freeL
     return isPremium
         ? 'Premium Tier includes unlimited Buddy Cloud device syncs, encrypted backup, recovery tools, and version history.'
         : `Free Tier includes ${freeLimit} active Buddy Cloud synced browsers. Premium unlocks unlimited Buddy Cloud device syncs.`;
+}
+
+function formatSyncEta(value = '') {
+    const time = new Date(value || '').getTime();
+    if (!Number.isFinite(time)) return 'soon';
+
+    const ms = time - Date.now();
+    if (ms <= 1500) return 'now';
+    if (ms < 60000) {
+        const seconds = Math.max(2, Math.ceil(ms / 1000));
+        return `in about ${seconds} seconds`;
+    }
+
+    return `around ${new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        minute: '2-digit'
+    }).format(new Date(time))}`;
+}
+
+function getManualSyncButtonTooltip(status = {}, { hasConflict = false } = {}) {
+    const signedIn = Boolean(status.signedIn);
+    const enabled = Boolean(status.enabled);
+    const hasKey = Boolean(status.hasKey);
+    const nextSyncAt = String(status.nextSyncAt || '').trim();
+    const lastVerifiedAt = status.lastRemoteAt || status.lastPushedAt || '';
+    const lastVerified = formatBuddyCloudReviewTime(lastVerifiedAt);
+    const lastVerifiedText = lastVerified === 'Not available' ? '' : ` Last verified: ${lastVerified}.`;
+
+    if (!signedIn) return 'Sign in before Buddy Cloud can sync this budget.';
+    if (!enabled) return 'Set up Buddy Cloud before automatic sync can run.';
+    if (!hasKey) return 'Import your recovery key before Buddy Cloud can sync this browser.';
+    if (!status.canUseCloud) return 'Buddy Cloud cannot connect yet. Refresh and check configuration.';
+    if (isBuddyCloudMultiDeviceLimit(status)) return 'Free device limit reached. Replace a device or upgrade before the next sync.';
+    if (hasConflict) return 'Review saved versions before the next Buddy Cloud sync can continue.';
+    if (status.syncing && nextSyncAt) return `Next Buddy Cloud sync expected ${formatSyncEta(nextSyncAt)}.`;
+    if (status.syncing) return 'Buddy Cloud is syncing now.';
+
+    return `Next Buddy Cloud sync runs after your next budget save. Use Sync now to check now.${lastVerifiedText}`;
 }
 
 function isSyncHistoryPanelOpen() {
