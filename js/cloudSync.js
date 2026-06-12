@@ -8,6 +8,8 @@ const CLOUD_LAST_ERROR_KEY = 'bb_cloud_last_error';
 const CLOUD_CONFLICT_REMOTE_KEY = 'bb_cloud_conflict_remote_at';
 const CLOUD_CONFLICT_LOCAL_KEY = 'bb_cloud_conflict_local_at';
 const CLOUD_CONFLICT_LAST_SYNCED_KEY = 'bb_cloud_conflict_last_synced_at';
+const CLOUD_CONFLICT_REMOTE_SUMMARY_KEY = 'bb_cloud_conflict_remote_summary';
+const CLOUD_CONFLICT_LOCAL_SUMMARY_KEY = 'bb_cloud_conflict_local_summary';
 const CLOUD_KEY_PREFIX = 'bb_cloud_key_';
 const CLOUD_SYNC_SLOT_PREFIX = 'bb_cloud_sync_slot_';
 const CLOUD_TABLE = 'buddy_cloud_vaults';
@@ -20,6 +22,7 @@ const CLOUD_HISTORY_LIMIT = 5;
 const CLOUD_VERSION_HISTORY_FREE_LIMIT = 1;
 const CLOUD_VERSION_HISTORY_PREMIUM_LIMIT = 10;
 const CLOUD_VERSION_HISTORY_MIN_INTERVAL_MS = 60 * 60 * 1000;
+const CLOUD_CONFLICT_GRACE_MS = 5 * 60 * 1000;
 const FREE_SYNC_DEVICE_LIMIT = 2;
 const MULTI_DEVICE_LIMIT_CODE = 'BUDDY_CLOUD_MULTI_DEVICE_LIMIT';
 
@@ -30,6 +33,7 @@ let replaceSnapshot = null;
 let afterRemoteApply = null;
 let isPremiumAccount = null;
 let pushTimer = null;
+let conflictGraceTimer = null;
 let isInitialized = false;
 let isApplyingRemote = false;
 let lastKnownStatus = {
@@ -287,6 +291,84 @@ function localSnapshotHasBudgetData(snapshot = getLocalSnapshot()) {
     );
 }
 
+function getLatestTransactionTime(transactions = []) {
+    return transactions.reduce((latest, tx) => {
+        const value = tx?.updatedAtUTC || tx?.serverLoggedAtUTC || tx?.createdAtUTC || tx?.createdAt || tx?.date || '';
+        const time = new Date(value).getTime();
+        return Number.isFinite(time) && time > latest ? time : latest;
+    }, 0);
+}
+
+function getTimestampMs(value = '') {
+    const time = new Date(value || '').getTime();
+    return Number.isFinite(time) ? time : 0;
+}
+
+function getConflictGraceWaitMs(remoteUpdatedAt = '', localUpdatedAt = '') {
+    const newestChangeMs = Math.max(getTimestampMs(remoteUpdatedAt), getTimestampMs(localUpdatedAt));
+    if (!newestChangeMs) return 0;
+    const ageMs = Date.now() - newestChangeMs;
+    return Math.max(0, CLOUD_CONFLICT_GRACE_MS - ageMs);
+}
+
+function formatWaitMinutes(ms = 0) {
+    const minutes = Math.max(1, Math.ceil(ms / 60000));
+    return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+}
+
+function scheduleConflictGraceRetry(waitMs = CLOUD_CONFLICT_GRACE_MS) {
+    clearTimeout(conflictGraceTimer);
+    conflictGraceTimer = setTimeout(() => {
+        conflictGraceTimer = null;
+        init({ supabaseClient: sb, user: currentUser, getSnapshot, replaceSnapshot, afterRemoteApply, isPremiumAccount })
+            .catch(error => {
+                console.error('[Buddy Cloud] Conflict grace retry failed:', error);
+                record(getCloudErrorMessage(error, 'Buddy Cloud could not recheck recent changes.'), 'error');
+            });
+    }, Math.max(1000, waitMs));
+}
+
+function getSnapshotSummary(snapshot = {}) {
+    const transactions = Array.isArray(snapshot.transactions) ? snapshot.transactions : [];
+    const categories = Array.isArray(snapshot.categories) ? snapshot.categories : [];
+    const activeTransactions = transactions.filter(tx => !tx?.isDeleted);
+    const deletedTransactions = transactions.length - activeTransactions.length;
+    const latestTransactionTime = getLatestTransactionTime(transactions);
+
+    return {
+        transactionCount: transactions.length,
+        activeTransactionCount: activeTransactions.length,
+        deletedTransactionCount: deletedTransactions,
+        categoryCount: categories.length,
+        incomeSourceCount: categories.filter(cat => cat?.type === 'income').length,
+        latestTransactionAt: latestTransactionTime ? new Date(latestTransactionTime).toISOString() : ''
+    };
+}
+
+function storeConflictSummary(key, summary = null) {
+    if (!key) return;
+    if (!summary) {
+        localStorage.removeItem(key);
+        return;
+    }
+
+    try {
+        localStorage.setItem(key, JSON.stringify(summary));
+    } catch {
+        localStorage.removeItem(key);
+    }
+}
+
+function readConflictSummary(key) {
+    if (!key) return null;
+    try {
+        const parsed = JSON.parse(localStorage.getItem(key) || 'null');
+        return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
 function isEnabled() {
     return localStorage.getItem(CLOUD_ENABLED_KEY) === 'true';
 }
@@ -299,20 +381,26 @@ function getConflictState() {
     return {
         remoteUpdatedAt: localStorage.getItem(CLOUD_CONFLICT_REMOTE_KEY) || '',
         localUpdatedAt: localStorage.getItem(CLOUD_CONFLICT_LOCAL_KEY) || '',
-        lastSyncedAt: localStorage.getItem(CLOUD_CONFLICT_LAST_SYNCED_KEY) || ''
+        lastSyncedAt: localStorage.getItem(CLOUD_CONFLICT_LAST_SYNCED_KEY) || '',
+        remoteSummary: readConflictSummary(CLOUD_CONFLICT_REMOTE_SUMMARY_KEY),
+        localSummary: readConflictSummary(CLOUD_CONFLICT_LOCAL_SUMMARY_KEY)
     };
 }
 
-function setConflictState({ remoteUpdatedAt = '', localUpdatedAt = '', lastSyncedAt = '' } = {}) {
+function setConflictState({ remoteUpdatedAt = '', localUpdatedAt = '', lastSyncedAt = '', remoteSummary = null, localSummary = null } = {}) {
     if (remoteUpdatedAt) localStorage.setItem(CLOUD_CONFLICT_REMOTE_KEY, remoteUpdatedAt);
     if (localUpdatedAt) localStorage.setItem(CLOUD_CONFLICT_LOCAL_KEY, localUpdatedAt);
     if (lastSyncedAt) localStorage.setItem(CLOUD_CONFLICT_LAST_SYNCED_KEY, lastSyncedAt);
+    storeConflictSummary(CLOUD_CONFLICT_REMOTE_SUMMARY_KEY, remoteSummary);
+    storeConflictSummary(CLOUD_CONFLICT_LOCAL_SUMMARY_KEY, localSummary);
 }
 
 function clearConflictState() {
     localStorage.removeItem(CLOUD_CONFLICT_REMOTE_KEY);
     localStorage.removeItem(CLOUD_CONFLICT_LOCAL_KEY);
     localStorage.removeItem(CLOUD_CONFLICT_LAST_SYNCED_KEY);
+    localStorage.removeItem(CLOUD_CONFLICT_REMOTE_SUMMARY_KEY);
+    localStorage.removeItem(CLOUD_CONFLICT_LOCAL_SUMMARY_KEY);
 }
 
 function rememberStatus(next = {}) {
@@ -329,6 +417,8 @@ function rememberStatus(next = {}) {
         conflictRemoteAt: conflict.remoteUpdatedAt,
         conflictLocalAt: conflict.localUpdatedAt,
         conflictLastSyncedAt: conflict.lastSyncedAt,
+        conflictRemoteSummary: conflict.remoteSummary,
+        conflictLocalSummary: conflict.localSummary,
         isPremium: canUseMultipleSyncDevices(),
         multiDeviceAllowed: canUseMultipleSyncDevices(),
         freeDeviceLimit: FREE_SYNC_DEVICE_LIMIT,
@@ -746,8 +836,9 @@ export async function enableSync(options = {}) {
     }
 
     const rawKey = options.recoveryKey || existingKey || generateCloudKey();
+    let remoteSnapshot = null;
     if (remote) {
-        await decryptSnapshot(remote.payload, rawKey);
+        remoteSnapshot = await decryptSnapshot(remote.payload, rawKey);
         await claimSyncSlot(remote, { replace: options.replaceSyncSlot === true });
     }
     storeCloudKey(rawKey);
@@ -760,7 +851,8 @@ export async function enableSync(options = {}) {
 
     const hasLocalData = localSnapshotHasBudgetData();
     if (hasLocalData && !options.prefer) {
-        const localUpdatedAt = getLocalSnapshot().meta?.localUpdatedAt || '';
+        const localSnapshot = getLocalSnapshot();
+        const localUpdatedAt = localSnapshot.meta?.localUpdatedAt || '';
         rememberStatus();
         return {
             enabled: true,
@@ -769,7 +861,9 @@ export async function enableSync(options = {}) {
             needsChoice: true,
             remoteUpdatedAt: remote.client_updated_at || remote.updated_at || '',
             localUpdatedAt,
-            lastSyncedAt: localStorage.getItem(CLOUD_LAST_REMOTE_KEY) || localStorage.getItem(CLOUD_LAST_PUSHED_KEY) || ''
+            lastSyncedAt: localStorage.getItem(CLOUD_LAST_REMOTE_KEY) || localStorage.getItem(CLOUD_LAST_PUSHED_KEY) || '',
+            remoteSummary: getSnapshotSummary(remoteSnapshot),
+            localSummary: getSnapshotSummary(localSnapshot)
         };
     }
 
@@ -961,17 +1055,32 @@ export async function init(options = {}) {
         await claimSyncSlot(remote);
 
         const lastRemoteAt = localStorage.getItem(CLOUD_LAST_REMOTE_KEY) || '';
-        const localUpdatedAt = getLocalSnapshot().meta?.localUpdatedAt || '';
+        const localSnapshot = getLocalSnapshot();
+        const localUpdatedAt = localSnapshot.meta?.localUpdatedAt || '';
         const remoteChanged = remote.client_updated_at && remote.client_updated_at !== lastRemoteAt;
         const localChanged = localUpdatedAt && localUpdatedAt !== localStorage.getItem(CLOUD_LAST_PUSHED_KEY);
 
         if (remoteChanged && localChanged) {
+            const waitMs = getConflictGraceWaitMs(remote.client_updated_at, localUpdatedAt);
+            if (waitMs > 0) {
+                clearConflictState();
+                localStorage.removeItem(CLOUD_LAST_ERROR_KEY);
+                rememberStatus({ syncing: false, lastError: '' });
+                console.info(`[Buddy Cloud] Recent local and cloud changes detected. Rechecking in ${formatWaitMinutes(waitMs)}.`);
+                scheduleConflictGraceRetry(waitMs);
+                return false;
+            }
+
+            const rawKey = getStoredCloudKey();
+            const remoteSnapshot = rawKey ? await decryptSnapshot(remote.payload, rawKey) : null;
             setConflictState({
                 remoteUpdatedAt: remote.client_updated_at,
                 localUpdatedAt,
-                lastSyncedAt: lastRemoteAt || localStorage.getItem(CLOUD_LAST_PUSHED_KEY) || ''
+                lastSyncedAt: lastRemoteAt || localStorage.getItem(CLOUD_LAST_PUSHED_KEY) || '',
+                remoteSummary: remoteSnapshot ? getSnapshotSummary(remoteSnapshot) : null,
+                localSummary: getSnapshotSummary(localSnapshot)
             });
-            record('Buddy Cloud found both local and cloud changes. Review saved versions before sync continues.', 'error');
+            record('Possible data loss prevented. Review saved versions before Buddy Cloud overwrites either copy.', 'error');
             return false;
         }
 

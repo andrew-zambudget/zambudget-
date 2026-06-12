@@ -1414,8 +1414,8 @@ function getBuddyCloudHumanStatus(status = window.BuddyCloud?.getStatus?.() || {
         return {
             severity: 'warning',
             title: 'Review saved versions',
-            detail: 'Buddy Cloud found both local and cloud changes. Choose which encrypted version to keep before sync continues.',
-            recommendedNextStep: 'Open Devices and review the version timestamps.'
+            detail: 'Possible data loss prevented. Choose which encrypted version to keep before Buddy Cloud overwrites either copy.',
+            recommendedNextStep: 'Open Devices and compare the saved version counts.'
         };
     }
 
@@ -1473,14 +1473,71 @@ function getBuddyCloudReviewDetails(details = {}) {
         || status.lastRemoteAt
         || '';
 
+    const remoteUpdatedMs = new Date(remoteUpdatedAt || '').getTime();
+    const localUpdatedMs = new Date(localUpdatedAt || '').getTime();
+    const recommendedSource = Number.isFinite(remoteUpdatedMs) && Number.isFinite(localUpdatedMs)
+        ? remoteUpdatedMs > localUpdatedMs
+            ? 'remote'
+            : localUpdatedMs > remoteUpdatedMs
+            ? 'local'
+            : ''
+        : '';
+
     return {
         remoteUpdatedAt,
         localUpdatedAt,
         lastSyncedAt,
+        remoteSummary: details.remoteSummary || status.conflictRemoteSummary || null,
+        localSummary: details.localSummary || status.conflictLocalSummary || null,
+        recommendedSource,
         remoteTime: formatBuddyCloudReviewTime(remoteUpdatedAt),
         localTime: formatBuddyCloudReviewTime(localUpdatedAt),
         lastSyncedTime: formatBuddyCloudReviewTime(lastSyncedAt)
     };
+}
+
+function formatBuddyCloudCount(value, singular, plural = `${singular}s`) {
+    const count = Number(value);
+    if (!Number.isFinite(count)) return `Unknown ${plural}`;
+    return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function buildBuddyCloudSummaryRows(summary = null) {
+    if (!summary || typeof summary !== 'object') {
+        return `
+            <div class="buddy-cloud-conflict-metrics">
+                <span>Counts unavailable</span>
+                <strong>This version was saved before metadata was added.</strong>
+            </div>
+        `;
+    }
+
+    const transactionCount = Number.isFinite(Number(summary.activeTransactionCount))
+        ? summary.activeTransactionCount
+        : summary.transactionCount;
+    const categoryCount = summary.categoryCount;
+    const incomeCount = summary.incomeSourceCount;
+    const deletedCount = Number(summary.deletedTransactionCount || 0);
+    const latestTransaction = summary.latestTransactionAt
+        ? formatBuddyCloudReviewTime(summary.latestTransactionAt)
+        : 'No transactions';
+
+    return `
+        <div class="buddy-cloud-conflict-metrics">
+            <span>Transactions</span>
+            <strong>${esc(formatBuddyCloudCount(transactionCount, 'active transaction'))}</strong>
+            <span>Categories</span>
+            <strong>${esc(formatBuddyCloudCount(categoryCount, 'category'))}</strong>
+            <span>Income sources</span>
+            <strong>${esc(formatBuddyCloudCount(incomeCount, 'source'))}</strong>
+            ${deletedCount ? `
+                <span>Trash</span>
+                <strong>${esc(formatBuddyCloudCount(deletedCount, 'deleted transaction'))}</strong>
+            ` : ''}
+            <span>Latest transaction</span>
+            <strong>${esc(latestTransaction)}</strong>
+        </div>
+    `;
 }
 
 function getBuddyCloudReviewRows(details = {}) {
@@ -1495,28 +1552,33 @@ function getBuddyCloudReviewRows(details = {}) {
 
 function buildBuddyCloudConflictComparisonHtml(details = {}) {
     const review = getBuddyCloudReviewDetails(details);
+    const remoteIsRecommended = review.recommendedSource === 'remote';
+    const localIsRecommended = review.recommendedSource === 'local';
 
     return `
         <section class="buddy-cloud-conflict-compare" aria-label="Saved version comparison">
             <div class="buddy-cloud-conflict-head">
                 <strong>Compare changes</strong>
-                <span>Choose which encrypted version should continue.</span>
+                <span>Pick the copy to keep so Buddy Cloud does not overwrite the wrong version.</span>
             </div>
             <div class="buddy-cloud-conflict-options">
-                <div class="buddy-cloud-conflict-card is-recommended">
+                <div class="buddy-cloud-conflict-card${remoteIsRecommended ? ' is-recommended' : ''}">
                     <div class="buddy-cloud-conflict-card-title">
                         <span>Buddy Cloud Version</span>
-                        <em>Recommended</em>
+                        ${remoteIsRecommended ? '<em>Newest</em>' : ''}
                     </div>
                     <small>Changed</small>
                     <strong>${esc(review.remoteTime)}</strong>
+                    ${buildBuddyCloudSummaryRows(review.remoteSummary)}
                 </div>
-                <div class="buddy-cloud-conflict-card">
+                <div class="buddy-cloud-conflict-card${localIsRecommended ? ' is-recommended' : ''}">
                     <div class="buddy-cloud-conflict-card-title">
                         <span>Local Copy</span>
+                        ${localIsRecommended ? '<em>Newest</em>' : ''}
                     </div>
                     <small>Changed</small>
                     <strong>${esc(review.localTime)}</strong>
+                    ${buildBuddyCloudSummaryRows(review.localSummary)}
                 </div>
             </div>
             <div class="buddy-cloud-conflict-sync">
@@ -1528,15 +1590,17 @@ function buildBuddyCloudConflictComparisonHtml(details = {}) {
 }
 
 async function chooseBuddyCloudSource(details = {}) {
+    const review = getBuddyCloudReviewDetails(details);
+    const localIsRecommended = review.recommendedSource === 'local';
     const result = await showBuddyCloudModal({
         title: 'Review Saved Versions',
-        body: 'Buddy Cloud found both local and cloud changes. Choose which encrypted version to keep before sync continues.',
+        body: 'Possible data loss prevented. Choose which encrypted version to keep before Buddy Cloud overwrites either copy.',
         assurance: 'No readable budget data is sent to BudgetBuddy during this choice. The selected copy is decrypted or encrypted locally in your browser.',
         customHtml: buildBuddyCloudConflictComparisonHtml(details),
         actions: [
             { id: 'cancel', label: 'Cancel', className: 'btn-cancel' },
-            { id: 'local', label: 'Local Copy', className: 'btn-cancel buddy-cloud-choice-secondary' },
-            { id: 'remote', label: 'Buddy Cloud Version', className: 'btn-create buddy-cloud-choice-primary' }
+            { id: 'local', label: 'Local Copy', className: localIsRecommended ? 'btn-create buddy-cloud-choice-primary' : 'btn-cancel buddy-cloud-choice-secondary' },
+            { id: 'remote', label: 'Buddy Cloud Version', className: localIsRecommended ? 'btn-cancel buddy-cloud-choice-secondary' : 'btn-create buddy-cloud-choice-primary' }
         ]
     });
 
@@ -2787,7 +2851,7 @@ function getBuddyCloudDeviceStatusCopy() {
     if (!status.signedIn) return 'Sign in to manage Buddy Cloud on this browser.';
     if (!status.enabled || !status.hasKey) return 'Manage known BudgetBuddy browsers for this account.';
     if (isBuddyCloudMultiDeviceLimit(status)) return `Free Tier allows ${freeLimit} active synced browsers. Upgrade to Premium for unlimited Buddy Cloud devices, or replace an existing Free device with this browser.`;
-    if (hasBuddyCloudConflict(status)) return 'Buddy Cloud found both local and cloud changes. Compare the saved versions before sync continues.';
+    if (hasBuddyCloudConflict(status)) return 'Possible data loss prevented. Compare the saved versions before Buddy Cloud overwrites either copy.';
     if (status.lastError) return status.lastError;
     if (status.syncing) return 'Buddy Cloud is syncing on this browser.';
     return status.isPremium
@@ -3063,7 +3127,6 @@ window.manualBuddyCloudSync = function(event) {
         }
 
         if (hasBuddyCloudConflict(status)) {
-            if (window.showToast) window.showToast('Review saved versions before sync continues.');
             await showBuddyCloudDeviceManagementFlow();
             return;
         }
@@ -3081,7 +3144,6 @@ window.manualBuddyCloudSync = function(event) {
         await window.BuddyCloud.syncNow();
 
         if (hasBuddyCloudConflict(window.BuddyCloud.getStatus())) {
-            if (window.showToast) window.showToast('Review saved versions before sync continues.');
             await showBuddyCloudDeviceManagementFlow();
             return;
         }
@@ -9695,20 +9757,20 @@ export function renderDebtTab() {
 
         // ACTIVE DEBT TEMPLATE
         return `
-        <div class="category-item" style="padding: 1rem; cursor: pointer; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 0.75rem;" onclick="window.openCategoryDrillDown(${jsArg(debt.name)}, ${jsArg(debt.icon || '')})">
+        <div class="category-item debt-card debt-card-active" onclick="window.openCategoryDrillDown(${jsArg(debt.name)}, ${jsArg(debt.icon || '')})">
 
-            <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
-                <div class="category-icon-box" style="margin-top: 0; margin-left: 0; width: 40px; height: 40px;">
-                    <span class="category-icon" style="font-size: 1.25rem;">${safeActiveIcon}</span>
+            <div class="debt-card-main">
+                <div class="category-icon-box debt-card-icon">
+                    <span class="category-icon debt-card-icon-symbol">${safeActiveIcon}</span>
                 </div>
-                <div class="category-body" style="padding: 0 0.75rem; flex: 1;">
-                    <div style="font-weight: 600; color: var(--text); font-size: 0.95rem;">${esc(debt.name)}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 2px;">
+                <div class="category-body debt-card-copy">
+                    <div class="debt-card-name">${esc(debt.name)}</div>
+                    <div class="debt-card-meta">
                         Min: ${symbol}${formatMoney(debt.minPayment || 0)} | APR: ${debt.apr || 0}%
                     </div>
                 </div>
-                <div style="text-align: right;">
-                    <div style="font-weight: 700; font-size: 1.1rem;" class="blur-value">${symbol}${formatMoney(balance)}</div>
+                <div class="debt-card-balance">
+                    <div class="debt-card-balance-value blur-value">${symbol}${formatMoney(balance)}</div>
                 </div>
             </div>
 
@@ -13914,6 +13976,8 @@ function clearBudgetBuddyLocalAccountState(options = {}) {
         'bb_cloud_conflict_remote_at',
         'bb_cloud_conflict_local_at',
         'bb_cloud_conflict_last_synced_at',
+        'bb_cloud_conflict_remote_summary',
+        'bb_cloud_conflict_local_summary',
         'bb_cloud_device_id',
         'bb_skip_cat_warn',
         'bb_skip_income_warn',

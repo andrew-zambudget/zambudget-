@@ -3524,6 +3524,34 @@ input.error, select.error {
     overflow-wrap: anywhere;
 }
 
+.buddy-cloud-conflict-metrics {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 0.18rem 0.42rem;
+    min-width: 0;
+    margin-top: 0.16rem;
+    padding-top: 0.42rem;
+    border-top: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 72%, transparent);
+}
+
+.buddy-cloud-conflict-metrics span {
+    min-width: 0;
+    color: var(--text-dim, #64748b);
+    font-size: 0.65rem;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.buddy-cloud-conflict-metrics strong {
+    min-width: 0;
+    color: var(--text, #0f172a);
+    font-size: 0.66rem;
+    font-weight: 900;
+    line-height: 1.2;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
 .buddy-cloud-conflict-sync {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -3554,6 +3582,10 @@ input.error, select.error {
     }
 
     .buddy-cloud-conflict-sync strong {
+        text-align: left;
+    }
+
+    .buddy-cloud-conflict-metrics strong {
         text-align: left;
     }
 }
