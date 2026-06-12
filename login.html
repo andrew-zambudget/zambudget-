@@ -272,7 +272,7 @@
         
         <div class="auth-container" id="loginView">
             <h1 class="auth-title">Welcome Back</h1>
-            <p class="auth-subtitle">Sign in to manage your budget securely</p>
+            <p class="auth-subtitle">Sign in or create your beta account securely</p>
 
             <div id="authMessage" class="message"></div>
 
@@ -280,7 +280,7 @@
                 <input type="email" id="magicEmail" class="form-input" placeholder="you@example.com" required>
                 <button type="submit" class="btn-primary" id="magicLinkBtn">Email me a sign-in link</button>
             </form>
-            <p class="magic-link-note">No password needed. We'll send a secure one-time sign-in link to your inbox.</p>
+            <p class="magic-link-note">No password needed. New beta accounts can use the same secure sign-in link.</p>
 
             <div class="divider"><span>OR</span></div>
 
@@ -304,7 +304,7 @@
             <div class="divider"><span>ACCOUNT</span></div>
 
             <div class="toggle-link">
-                Don't have an account? <a href="#" onclick="toggleView()">Create one</a>
+                Don't have an account? <a href="#" onclick="handleCreateAccount(event)">Create one</a>
             </div>
         </div>
 
@@ -479,7 +479,8 @@
         var { error } = await sb.auth.signInWithOtp({
             email: email,
             options: {
-                emailRedirectTo: getAppUrl('index.html')
+                emailRedirectTo: getAppUrl('index.html'),
+                shouldCreateUser: true
             }
         });
 
@@ -490,7 +491,7 @@
             btn.disabled = false;
             btn.textContent = 'Email me a sign-in link';
         } else {
-            msg.textContent = 'Check your inbox for your magic sign-in link.';
+            msg.textContent = 'Check your inbox for your secure sign-in link.';
             msg.className = 'message success';
             msg.style.display = 'block';
             btn.disabled = false;
@@ -498,8 +499,20 @@
         }
     }
 
-    function toggleView() {
-        alert("Sign Up functionality requires enabling public signups in your Supabase Dashboard under Authentication > Settings.");
+    function handleCreateAccount(e) {
+        if (e) e.preventDefault();
+
+        var email = document.getElementById('magicEmail');
+        var msg = document.getElementById('authMessage');
+
+        msg.textContent = 'Beta signups are open. Continue with Google, Apple, or enter your email for a secure sign-in link.';
+        msg.className = 'message success';
+        msg.style.display = 'block';
+
+        if (email) {
+            email.focus();
+            email.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
     }
     </script>
     <script src="js/staticPageTheme.js"></script>
