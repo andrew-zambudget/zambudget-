@@ -182,6 +182,7 @@ let browserAccessRealtimeChannel = null;
 let browserAccessRealtimeUserId = '';
 let browserAccessOpenPanelTimer = null;
 let browserAccessPanelRefreshPromise = null;
+let browserAccessGlobalSignOutInProgress = false;
 let currentSyncStatus = 'local';
 let currentSyncStatusMessage = 'Saved partially';
 let syncStatusAlternateTimer = null;
@@ -1400,7 +1401,7 @@ function showBuddyCloudModal({
                 }
             }
             finish(result);
-        });
+        }, true);
 
         document.body.appendChild(modal);
         requestAnimationFrame(() => {
@@ -2063,6 +2064,9 @@ function getBrowserAccessErrorMessage(error) {
 }
 
 async function getCurrentBrowserAccessContext() {
+    if (browserAccessGlobalSignOutInProgress) {
+        return { available: false, currentHash: '', rows: [], error: '' };
+    }
     if (!window.currentUser?.id || !window.sb?.from || !crypto?.subtle) {
         return { available: false, currentHash: '', rows: [], error: '' };
     }
@@ -2080,7 +2084,7 @@ async function getCurrentBrowserAccessContext() {
 
     if (currentError) throw currentError;
 
-    if (currentRow?.revoked_at) {
+    if (currentRow?.revoked_at && !browserAccessGlobalSignOutInProgress) {
         await handleCurrentBrowserAccessRevoked();
         return { available: true, currentHash, rows: [currentRow], revoked: true };
     }
@@ -2109,6 +2113,7 @@ async function getCurrentBrowserAccessContext() {
 }
 
 async function handleCurrentBrowserAccessRevoked() {
+    if (browserAccessGlobalSignOutInProgress) return;
     const keyName = getBrowserAccessKeyName();
     if (keyName) localStorage.removeItem(keyName);
     showSessionClearingScreen('Clearing Session...', 'This browser was signed out from Account > Devices.');
@@ -2122,6 +2127,7 @@ async function handleCurrentBrowserAccessRevoked() {
 
 export async function refreshBrowserAccessRegistry(options = {}) {
     const { silent = true } = options;
+    if (browserAccessGlobalSignOutInProgress) return true;
     ensureBrowserAccessRealtimeSubscription();
     if (!window.currentUser?.id || !window.sb?.from || !crypto?.subtle) return true;
     try {
@@ -2153,6 +2159,7 @@ function isMeaningfulBrowserAccessRealtimeEvent(payload = {}) {
 }
 
 async function handleBrowserAccessRealtimeEvent(payload = {}) {
+    if (browserAccessGlobalSignOutInProgress) return;
     if (!isMeaningfulBrowserAccessRealtimeEvent(payload)) return;
 
     const nextRow = payload.new || {};
@@ -2173,7 +2180,7 @@ async function handleBrowserAccessRealtimeEvent(payload = {}) {
 
 function ensureBrowserAccessRealtimeSubscription() {
     const userId = window.currentUser?.id || '';
-    if (!userId || !window.sb?.channel) {
+    if (browserAccessGlobalSignOutInProgress || !userId || !window.sb?.channel) {
         stopBrowserAccessRealtimeSubscription();
         return;
     }
@@ -3042,10 +3049,26 @@ async function confirmSignOutAllDevices() {
         inputPlaceholder: 'SIGN OUT',
         inputSingleLine: true,
         inputAutoUppercase: true,
+        customHtml: '<div class="buddy-cloud-key-confirm-error" data-signout-all-error hidden></div>',
         actions: [
             { id: 'cancel', label: 'Back', className: 'btn-cancel' },
-            { id: 'signout-all', label: 'Sign Out All Devices', className: 'btn-danger' }
-        ]
+            { id: 'signout-all', label: 'Sign Out All Devices', className: 'btn-danger', persistent: true }
+        ],
+        onAction: ({ action, value, modal }) => {
+            if (action !== 'signout-all') return false;
+            const confirmed = value.toUpperCase() === 'SIGN OUT';
+            const errorEl = modal.querySelector('[data-signout-all-error]');
+            if (!confirmed) {
+                if (errorEl) {
+                    errorEl.textContent = 'Type SIGN OUT to confirm.';
+                    errorEl.hidden = false;
+                }
+                if (window.showToast) window.showToast('Type SIGN OUT to confirm sign out all devices.');
+                return true;
+            }
+            if (errorEl) errorEl.hidden = true;
+            return false;
+        }
     });
 
     return result.action === 'signout-all' && result.value.toUpperCase() === 'SIGN OUT';
@@ -3549,7 +3572,10 @@ async function handleBuddyCloudDeviceAction(action) {
         if (!keySafe) throw new Error('Recovery key download is required before this browser can be cleared.');
         showSessionClearingScreen('Clearing Session...', 'Signing out all devices and clearing this browser.');
         try {
-            await verifyBuddyCloudBeforeLogout();
+            browserAccessGlobalSignOutInProgress = true;
+            stopBrowserAccessOpenPanelRefresh();
+            stopBrowserAccessRealtimeSubscription();
+            await verifyBuddyCloudBeforeLogout({ allowBackupSkip: true });
             try {
                 await window.BuddyCloud?.clearSyncSlots?.();
             } catch (error) {
@@ -3563,6 +3589,7 @@ async function handleBuddyCloudDeviceAction(action) {
             await window.sb.auth.signOut({ scope: 'global' });
             await clearBrowserSessionAndRefresh({ target: 'index.html', message: 'Clearing Session...' });
         } catch (error) {
+            browserAccessGlobalSignOutInProgress = false;
             hideSessionClearingScreen();
             throw error;
         }
@@ -14789,18 +14816,31 @@ function clearBudgetBuddyLocalAccountState(options = {}) {
     restorePreservedLocalStorage(preservedEntries);
 }
 
-async function verifyBuddyCloudBeforeLogout() {
+function getSkippedBackupResult(reason = 'backup_skipped') {
+    return { backedUp: false, skipped: true, reason };
+}
+
+async function verifyBuddyCloudBeforeLogout(options = {}) {
+    const { allowBackupSkip = false } = options;
     const status = window.BuddyCloud?.getStatus?.() || {};
-    if (!status.signedIn || !status.enabled) return { backedUp: false, skipped: true, reason: 'not_enabled' };
+    if (!status.signedIn || !status.enabled) return getSkippedBackupResult('not_enabled');
     if (!status.hasKey || !status.canUseCloud) {
+        if (allowBackupSkip) {
+            recordSyncEvent('Final Buddy Cloud backup skipped because this browser cannot access the recovery key. Sign-out is allowed.', 'local');
+            return getSkippedBackupResult('cloud_key_unavailable');
+        }
         throw new Error('Buddy Cloud backup is not available on this browser. Sign-out was stopped so local budget data is not cleared before cloud backup is verified.');
     }
     if (hasBuddyCloudConflict(status)) {
+        if (allowBackupSkip) {
+            recordSyncEvent('Final Buddy Cloud backup skipped because saved versions need review. Sign-out is allowed.', 'local');
+            return getSkippedBackupResult('cloud_conflict');
+        }
         throw new Error('Review saved versions before signing out. Sign-out was stopped so Buddy Cloud does not overwrite the wrong budget.');
     }
     if (isBuddyCloudMultiDeviceLimit(status)) {
         recordSyncEvent('Final Buddy Cloud backup skipped because this browser is not an active Free sync device. Sign-out is allowed.', 'local');
-        return { backedUp: false, skipped: true, reason: 'free_sync_slot_limit' };
+        return getSkippedBackupResult('free_sync_slot_limit');
     }
 
     recordSyncEvent('Backing up Buddy Cloud before sign-out...', 'syncing');
@@ -14809,7 +14849,11 @@ async function verifyBuddyCloudBeforeLogout() {
     } catch (error) {
         if (isBuddyCloudMultiDeviceLimit(error)) {
             recordSyncEvent('Final Buddy Cloud backup skipped because this browser is not an active Free sync device. Sign-out is allowed.', 'local');
-            return { backedUp: false, skipped: true, reason: 'free_sync_slot_limit' };
+            return getSkippedBackupResult('free_sync_slot_limit');
+        }
+        if (allowBackupSkip) {
+            recordSyncEvent('Final Buddy Cloud backup skipped because backup verification failed. Sign-out is allowed.', 'local');
+            return getSkippedBackupResult('backup_failed');
         }
         throw error;
     }
@@ -14817,6 +14861,10 @@ async function verifyBuddyCloudBeforeLogout() {
     const localUpdatedAt = localStorage.getItem('bb_local_updated_at') || '';
     const lastPushedAt = localStorage.getItem('bb_cloud_last_pushed_at') || '';
     if (localUpdatedAt && lastPushedAt && localUpdatedAt !== lastPushedAt) {
+        if (allowBackupSkip) {
+            recordSyncEvent('Final Buddy Cloud backup skipped because backup verification did not complete. Sign-out is allowed.', 'local');
+            return getSkippedBackupResult('backup_not_verified');
+        }
         throw new Error('Buddy Cloud backup did not verify. Sign-out was stopped so local budget data is not cleared before cloud backup catches up.');
     }
     recordSyncEvent('Buddy Cloud backup completed before sign-out.', 'synced');
