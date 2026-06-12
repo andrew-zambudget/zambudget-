@@ -24,6 +24,7 @@
 import * as State from './state.js';
 import * as UI from './ui.js';
 import * as BuddyCloud from './cloudSync.js';
+import * as DemoMode from './demoMode.js';
 
 // Global Supabase variables
 window.sb = null;
@@ -90,6 +91,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     window.currentUser = session ? session.user : null;
                     if (!appStateInitialized) return;
 
+                    if (window.currentUser && DemoMode.isDemoModeActive?.()) {
+                        const demoCleanup = DemoMode.prepareDemoMode?.({ user: window.currentUser });
+                        if (demoCleanup?.disabledForSignedInUser) {
+                            window.location.reload();
+                            return;
+                        }
+                    }
+
                     try {
                         if (window.currentUser && typeof window.refreshPremiumAccess === 'function') {
                             await window.refreshPremiumAccess({ silent: true });
@@ -118,6 +127,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error("[main.js] Failed to initialize Supabase:", e);
         }
         // --- SUPABASE INITIALIZATION END ---
+
+        const demoModeState = DemoMode.prepareDemoMode?.({ user: window.currentUser });
 
         // Initialize the data engine
         if (State.initState) State.initState();
@@ -184,7 +195,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (UI.applyTheme) UI.applyTheme(savedTheme);
         UI.applyAccentTheme?.(localStorage.getItem('bb_accent_color') || 'teal');
 
-        await UI.ensureBuddyCloudDefaultProtection?.();
+        DemoMode.initDemoMode?.({ demoModeState, user: window.currentUser });
+        DemoMode.initSignedOutAccountPrompt?.({ user: window.currentUser });
+
+        if (!DemoMode.isDemoModeActive?.()) {
+            await UI.ensureBuddyCloudDefaultProtection?.();
+        }
 
         console.log('[main.js] Application initialized successfully');
     } catch (err) {
