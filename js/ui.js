@@ -32,6 +32,7 @@ const ADD_TX_PAYMENT_METHODS = new Set(['', 'card', 'cash', 'bank']);
 const COMMAND_TAB_NAMES = new Set(['income', 'savings', 'debt', 'add', 'calendar', 'recent']);
 const EMERGENCY_FUND_RECOMMENDATION_TOLERANCE = 0.005;
 const BUDDY_CLOUD_RECENT_RESTORE_PREFIX = 'bb_cloud_recent_restore_';
+const BUDDY_CLOUD_FORCE_PULL_AFTER_SIGN_IN_PREFIX = 'bb_cloud_force_pull_after_sign_in_';
 const BUDDY_CLOUD_MANUAL_SYNC_PREFIX = 'bb_cloud_manual_sync_at_';
 const BUDDY_CLOUD_MANUAL_SYNC_COOLDOWN_MS = 60 * 1000;
 let viewportRepairTimer = null;
@@ -818,6 +819,18 @@ function getRecoveryKeyUnlockName() {
 
 function getBuddyCloudDefaultSetupAttemptName() {
     return window.currentUser?.id ? `${BUDDY_CLOUD_DEFAULT_SETUP_PREFIX}${window.currentUser.id}` : '';
+}
+
+function getBuddyCloudForcePullAfterSignInName(userId = window.currentUser?.id) {
+    return userId ? `${BUDDY_CLOUD_FORCE_PULL_AFTER_SIGN_IN_PREFIX}${userId}` : '';
+}
+
+function markBuddyCloudForcePullAfterSignIn() {
+    const status = window.BuddyCloud?.getStatus?.() || {};
+    if (!status.enabled || !status.hasKey) return;
+
+    const keyName = getBuddyCloudForcePullAfterSignInName();
+    if (keyName) localStorage.setItem(keyName, 'true');
 }
 
 function hasAttemptedBuddyCloudDefaultSetup() {
@@ -13917,6 +13930,7 @@ function getTrustedBuddyCloudPreservedLocalStorage() {
         `${RECOVERY_KEY_SAVED_PREFIX}${userId}`,
         `${RECOVERY_KEY_BACKED_UP_PREFIX}${userId}`,
         `${RECOVERY_KEY_GRACE_STARTED_PREFIX}${userId}`,
+        `${BUDDY_CLOUD_FORCE_PULL_AFTER_SIGN_IN_PREFIX}${userId}`,
         `${BUDDY_CLOUD_RECENT_RESTORE_PREFIX}${userId}`
     ];
 
@@ -14608,7 +14622,7 @@ function clearBudgetBuddyLocalAccountState(options = {}) {
     ].forEach(key => localStorage.removeItem(key));
 
     Object.keys(localStorage)
-        .filter(key => key.startsWith('bb_cloud_key_') || key.startsWith('bb_cloud_sync_slot_') || key.startsWith(BROWSER_ACCESS_TOKEN_PREFIX) || key.startsWith(RECOVERY_KEY_SAVED_PREFIX) || key.startsWith(RECOVERY_KEY_BACKED_UP_PREFIX) || key.startsWith(RECOVERY_KEY_GRACE_STARTED_PREFIX) || key.startsWith(BUDDY_CLOUD_RECENT_RESTORE_PREFIX))
+        .filter(key => key.startsWith('bb_cloud_key_') || key.startsWith('bb_cloud_sync_slot_') || key.startsWith(BROWSER_ACCESS_TOKEN_PREFIX) || key.startsWith(RECOVERY_KEY_SAVED_PREFIX) || key.startsWith(RECOVERY_KEY_BACKED_UP_PREFIX) || key.startsWith(RECOVERY_KEY_GRACE_STARTED_PREFIX) || key.startsWith(BUDDY_CLOUD_FORCE_PULL_AFTER_SIGN_IN_PREFIX) || key.startsWith(BUDDY_CLOUD_RECENT_RESTORE_PREFIX))
         .forEach(key => localStorage.removeItem(key));
 
     restorePreservedLocalStorage(preservedEntries);
@@ -14661,6 +14675,7 @@ async function requireRecoveryKeySavedBeforeLocalClear() {
 }
 
 async function executeLogout() {
+    markBuddyCloudForcePullAfterSignIn();
     const preservedLocalStorage = getTrustedBuddyCloudPreservedLocalStorage();
     closeAccountConfirmModal();
     closeAccountModal();

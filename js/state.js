@@ -621,5 +621,8 @@ export const factoryReset = () => {
     localStorage.removeItem('bb_premium_activated_at');
     localStorage.removeItem('bb_stripe_redirect_acknowledged');
     localStorage.removeItem('bb_accent_color');
+    Object.keys(localStorage)
+        .filter(key => key.startsWith('bb_cloud_force_pull_after_sign_in_'))
+        .forEach(key => localStorage.removeItem(key));
     window.location.reload();
 };

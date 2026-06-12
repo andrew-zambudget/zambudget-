@@ -12,6 +12,7 @@ const CLOUD_CONFLICT_REMOTE_SUMMARY_KEY = 'bb_cloud_conflict_remote_summary';
 const CLOUD_CONFLICT_LOCAL_SUMMARY_KEY = 'bb_cloud_conflict_local_summary';
 const CLOUD_KEY_PREFIX = 'bb_cloud_key_';
 const CLOUD_SYNC_SLOT_PREFIX = 'bb_cloud_sync_slot_';
+const CLOUD_FORCE_PULL_AFTER_SIGN_IN_PREFIX = 'bb_cloud_force_pull_after_sign_in_';
 const CLOUD_TABLE = 'buddy_cloud_vaults';
 const CLOUD_SNAPSHOT_TABLE = 'buddy_cloud_vault_snapshots';
 const VAULT_NAME = 'primary';
@@ -80,6 +81,20 @@ function getUserKeyName(userId = currentUser?.id) {
 
 function getSyncSlotKeyName(userId = currentUser?.id) {
     return userId ? `${CLOUD_SYNC_SLOT_PREFIX}${userId}` : '';
+}
+
+function getForcePullAfterSignInKeyName(userId = currentUser?.id) {
+    return userId ? `${CLOUD_FORCE_PULL_AFTER_SIGN_IN_PREFIX}${userId}` : '';
+}
+
+function shouldForcePullAfterSignIn() {
+    const keyName = getForcePullAfterSignInKeyName();
+    return Boolean(keyName && localStorage.getItem(keyName) === 'true');
+}
+
+function clearForcePullAfterSignIn() {
+    const keyName = getForcePullAfterSignInKeyName();
+    if (keyName) localStorage.removeItem(keyName);
 }
 
 function hasLocalCloudKey() {
@@ -631,6 +646,31 @@ async function fetchLatestVaultSnapshot() {
     return data || null;
 }
 
+async function fetchLatestRecoverableVaultSnapshot(rawKey) {
+    if (!rawKey) return null;
+
+    const retentionLimit = getVersionHistoryLimit();
+    const { data, error } = await sb
+        .from(CLOUD_SNAPSHOT_TABLE)
+        .select('snapshot_id, payload, client_updated_at, created_at')
+        .eq('user_id', currentUser.id)
+        .eq('vault_name', VAULT_NAME)
+        .order('created_at', { ascending: false })
+        .limit(retentionLimit);
+
+    if (error) throw createVersionHistoryError(error);
+
+    for (const row of data || []) {
+        const snapshot = await decryptSnapshot(row.payload, rawKey);
+        const summary = getSnapshotSummary(snapshot);
+        if (summaryHasBudgetData(summary)) {
+            return { row, snapshot, summary };
+        }
+    }
+
+    return null;
+}
+
 async function pruneVaultSnapshots() {
     const retentionLimit = getVersionHistoryLimit();
     const { data, error } = await sb
@@ -734,6 +774,27 @@ async function createLocalVersionSafetySnapshot(rawKey, reason = 'Before keeping
     });
 
     if (!created) throw new Error('BudgetBuddy could not create a safety snapshot of this browser version. Try again before keeping the cloud version.');
+    return true;
+}
+
+async function recoverLatestVersionSnapshot(rawKey, reason = 'Recovered Buddy Cloud version after blank sign-in.') {
+    const recoverable = await fetchLatestRecoverableVaultSnapshot(rawKey);
+    if (!recoverable) return false;
+
+    record('Recovering latest Buddy Cloud saved version...', 'syncing');
+    isApplyingRemote = true;
+    try {
+        replaceSnapshot?.(recoverable.snapshot, {
+            source: 'buddy_cloud_version_history_auto_recovery',
+            remoteUpdatedAt: recoverable.row.client_updated_at || recoverable.row.created_at || ''
+        });
+    } finally {
+        isApplyingRemote = false;
+    }
+
+    afterRemoteApply?.();
+    await pushSnapshotNow(reason);
+    clearForcePullAfterSignIn();
     return true;
 }
 
@@ -868,6 +929,7 @@ async function performPushSnapshotNow(reason = 'Budget synced to Buddy Cloud.') 
     localStorage.setItem(CLOUD_LAST_PUSHED_KEY, clientUpdatedAt);
     localStorage.setItem(CLOUD_LAST_REMOTE_KEY, clientUpdatedAt);
     clearConflictState();
+    clearForcePullAfterSignIn();
     record(reason, 'synced', syncDetails);
     return true;
 }
@@ -941,6 +1003,7 @@ export async function forcePull() {
     localStorage.setItem(CLOUD_LAST_REMOTE_KEY, remote.client_updated_at);
     localStorage.setItem(CLOUD_LAST_PUSHED_KEY, remote.client_updated_at);
     clearConflictState();
+    clearForcePullAfterSignIn();
     record('Buddy Cloud budget downloaded.', 'synced');
     afterRemoteApply?.();
     return true;
@@ -1048,6 +1111,7 @@ export function removeThisDevice() {
     const slotKeyName = getSyncSlotKeyName();
     if (keyName) localStorage.removeItem(keyName);
     if (slotKeyName) localStorage.removeItem(slotKeyName);
+    clearForcePullAfterSignIn();
     localStorage.removeItem(CLOUD_ENABLED_KEY);
     localStorage.removeItem(CLOUD_LAST_PUSHED_KEY);
     localStorage.removeItem(CLOUD_LAST_REMOTE_KEY);
@@ -1171,14 +1235,22 @@ export async function init(options = {}) {
     rememberStatus({ syncing: true, nextSyncAt: '', nextSyncReason: 'Buddy Cloud check running now' });
 
     try {
+        const rawKey = getStoredCloudKey();
         const remote = await fetchRemoteVault();
         if (!remote) {
+            const localSnapshot = getLocalSnapshot();
+            if (shouldForcePullAfterSignIn() && !localSnapshotHasBudgetData(localSnapshot)) {
+                const recovered = await recoverLatestVersionSnapshot(rawKey);
+                if (recovered) return true;
+            }
+
             await forcePush();
             return true;
         }
 
         await claimSyncSlot(remote);
 
+        const forcePullAfterSignIn = shouldForcePullAfterSignIn();
         const lastRemoteAt = localStorage.getItem(CLOUD_LAST_REMOTE_KEY) || '';
         const localSnapshot = getLocalSnapshot();
         const localUpdatedAt = localSnapshot.meta?.localUpdatedAt || '';
@@ -1186,7 +1258,6 @@ export async function init(options = {}) {
         const localChanged = localUpdatedAt && localUpdatedAt !== localStorage.getItem(CLOUD_LAST_PUSHED_KEY);
         const localHasBudgetData = localSnapshotHasBudgetData(localSnapshot);
         const localSummary = getSnapshotSummary(localSnapshot);
-        const rawKey = getStoredCloudKey();
         let remoteSnapshot = null;
         let remoteSummary = null;
         const getRemoteSummary = async () => {
@@ -1213,6 +1284,10 @@ export async function init(options = {}) {
                 clearConflictState();
                 await forcePull();
                 return true;
+            }
+            if (forcePullAfterSignIn) {
+                const recovered = await recoverLatestVersionSnapshot(rawKey);
+                if (recovered) return true;
             }
         }
 
