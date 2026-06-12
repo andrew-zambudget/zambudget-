@@ -20,6 +20,7 @@ const TUTORIAL_ID = 'bbDemoTutorial';
 const TUTORIAL_SPOTLIGHT_ID = 'bbDemoTutorialSpotlight';
 const TUTORIAL_SCRIM_ID = 'bbDemoTutorialScrim';
 const STYLE_ID = 'bbDemoModeStyles';
+const MAIN_SITE_URL = 'https://budget-buddy.io';
 
 let countdownTimer = null;
 let loginCaptureAttached = false;
@@ -312,6 +313,10 @@ function loginUrl() {
     } catch {
         return 'login.html';
     }
+}
+
+function mainSiteUrl() {
+    return MAIN_SITE_URL;
 }
 
 function completeDemo({ reason = 'ended', navigateTo = '', restart = false, showNotice = true } = {}) {
@@ -751,6 +756,7 @@ function renderBanner() {
             <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="tour">Tour</button>
             <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="restart">Restart Demo</button>
             <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="end">End Demo</button>
+            <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="website">Back to Website</button>
         </div>
     `;
 
@@ -767,6 +773,8 @@ function renderBanner() {
             completeDemo({ reason: 'restart', restart: true, showNotice: false });
         } else if (action === 'end') {
             completeDemo({ reason: 'ended' });
+        } else if (action === 'website') {
+            completeDemo({ reason: 'website', navigateTo: mainSiteUrl(), showNotice: false });
         }
     });
 
@@ -807,6 +815,7 @@ function showEndedModal(reason = 'ended') {
             <div class="bb-demo-modal-actions">
                 <button type="button" class="bb-demo-action" data-demo-ended-action="create-account">Create Free Account</button>
                 <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-ended-action="restart">Restart Demo</button>
+                <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-ended-action="website">Back to Website</button>
                 <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-ended-action="close">Close</button>
             </div>
         </div>
@@ -822,6 +831,8 @@ function showEndedModal(reason = 'ended') {
             window.location.href = loginUrl();
         } else if (action === 'restart') {
             window.location.href = cleanAppUrl({ [DEMO_QUERY_PARAM]: '1' });
+        } else if (action === 'website') {
+            window.location.href = mainSiteUrl();
         } else if (action === 'close') {
             overlay.remove();
         }
@@ -852,6 +863,7 @@ function renderAccountPrompt() {
             <div class="bb-demo-modal-actions">
                 <button type="button" class="bb-demo-action" data-demo-prompt-action="create-account">Create Free Account</button>
                 <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-prompt-action="demo">Try 5-Minute Demo</button>
+                <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-prompt-action="website">Back to Website</button>
                 ${hasLocalBudget ? '<button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-prompt-action="continue">Keep Using Browser</button>' : ''}
             </div>
         </div>
@@ -866,6 +878,8 @@ function renderAccountPrompt() {
             window.location.href = loginUrl();
         } else if (action === 'demo') {
             window.location.href = cleanAppUrl({ [DEMO_QUERY_PARAM]: '1' });
+        } else if (action === 'website') {
+            window.location.href = mainSiteUrl();
         } else if (action === 'continue') {
             sessionSet(ACCOUNT_PROMPT_DISMISSED_KEY, 'true');
             overlay.remove();
