@@ -12,13 +12,52 @@ const BACKUP_DATA_KEY = 'bb_demo_backup_bb_data';
 const BACKUP_UPDATED_AT_KEY = 'bb_demo_backup_local_updated_at';
 const ENDED_NOTICE_KEY = 'bb_demo_ended_notice';
 const ACCOUNT_PROMPT_DISMISSED_KEY = 'bb_demo_account_prompt_dismissed';
+const TUTORIAL_SKIPPED_KEY = 'bb_demo_tutorial_skipped';
 const BANNER_ID = 'bbDemoModeBanner';
 const MODAL_ID = 'bbDemoEndedModal';
 const ACCOUNT_PROMPT_ID = 'bbDemoAccountPrompt';
+const TUTORIAL_ID = 'bbDemoTutorial';
+const TUTORIAL_SPOTLIGHT_ID = 'bbDemoTutorialSpotlight';
+const TUTORIAL_SCRIM_ID = 'bbDemoTutorialScrim';
 const STYLE_ID = 'bbDemoModeStyles';
 
 let countdownTimer = null;
 let loginCaptureAttached = false;
+let tutorialIndex = 0;
+let tutorialResizeAttached = false;
+
+const TUTORIAL_STEPS = [
+    {
+        selector: '.app-header',
+        label: 'Nav Bar',
+        title: 'Start with the nav bar',
+        body: 'Switch themes, open settings, check Buddy Cloud status, and sign in when you are ready to protect a real budget.'
+    },
+    {
+        selector: '#zbbSummaryCard',
+        label: 'Snapshot',
+        title: 'Scan the budget snapshot',
+        body: 'This is the quick read on income, assigned dollars, and money still waiting for a job.'
+    },
+    {
+        selector: '.category-panel',
+        label: 'Categories',
+        title: 'Shape categories your way',
+        body: 'Create, edit, sort, and budget categories without being forced into someone else\'s system.'
+    },
+    {
+        selector: '.command-tabs',
+        label: 'Workflows',
+        title: 'Move through the core tools',
+        body: 'Income, savings, debt, add, and recent activity are grouped here so the app stays fast to navigate.'
+    },
+    {
+        selector: `#${BANNER_ID}`,
+        label: 'Demo Timer',
+        title: 'This is temporary sample data',
+        body: 'The demo resets after 5 minutes. Create a free account when you want encrypted Buddy Cloud protection for a real budget.'
+    }
+];
 
 function storageGet(key) {
     try {
@@ -503,6 +542,124 @@ function injectStyles() {
             color: #0f172a;
         }
 
+        .bb-demo-tutorial-scrim {
+            position: fixed;
+            inset: 0;
+            z-index: 2550;
+            pointer-events: none;
+            background: radial-gradient(circle at var(--demo-tour-x, 50%) var(--demo-tour-y, 80px), rgba(15, 23, 42, 0.08), rgba(15, 23, 42, 0.48) 38%, rgba(15, 23, 42, 0.62));
+            animation: bbDemoFadeIn 180ms ease-out;
+        }
+
+        .bb-demo-tutorial-spotlight {
+            position: fixed;
+            z-index: 2551;
+            pointer-events: none;
+            border: 2px solid #2dd4bf;
+            border-radius: 18px;
+            box-shadow:
+                0 0 0 9999px rgba(15, 23, 42, 0.42),
+                0 0 0 7px rgba(45, 212, 191, 0.16),
+                0 18px 44px rgba(15, 23, 42, 0.28);
+            transition: top 180ms ease, left 180ms ease, width 180ms ease, height 180ms ease;
+        }
+
+        .bb-demo-tutorial-card {
+            position: fixed;
+            top: 112px;
+            right: 24px;
+            z-index: 2552;
+            box-sizing: border-box;
+            width: min(390px, calc(100vw - 32px));
+            padding: 18px;
+            color: #172033;
+            background: #ffffff;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            border-radius: 18px;
+            box-shadow: 0 22px 70px rgba(15, 23, 42, 0.3);
+            animation: bbDemoTourPop 200ms ease-out;
+        }
+
+        .bb-demo-tutorial-kicker {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+            color: #0f766e;
+            font-size: 0.76rem;
+            font-weight: 900;
+            letter-spacing: 0;
+            text-transform: uppercase;
+        }
+
+        .bb-demo-tutorial-step {
+            color: #64748b;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .bb-demo-tutorial-title {
+            margin: 0 0 8px;
+            color: #0f172a;
+            font-size: 1.22rem;
+            line-height: 1.15;
+            letter-spacing: 0;
+        }
+
+        .bb-demo-tutorial-copy {
+            margin: 0;
+            color: #475569;
+            font-size: 0.94rem;
+            line-height: 1.5;
+        }
+
+        .bb-demo-tutorial-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .bb-demo-tutorial-nav {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .bb-demo-tour-close {
+            min-width: 64px;
+            min-height: 36px;
+            padding: 0 14px;
+            border-radius: 999px;
+        }
+
+        .bb-demo-tutorial-card .bb-demo-action {
+            flex: 0 0 auto;
+        }
+
+        .bb-demo-tutorial-card .bb-demo-action-secondary {
+            color: #0f172a;
+            background: #f1f5f9;
+            box-shadow: none;
+        }
+
+        .bb-demo-tutorial-card .bb-demo-action-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .bb-demo-tutorial-card .bb-demo-action:disabled {
+            opacity: 0.46;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        @keyframes bbDemoTourPop {
+            from { opacity: 0; transform: translateY(10px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
         @keyframes bbDemoSlideUp {
             from { transform: translate(-50%, 20px); opacity: 0; }
             to { transform: translate(-50%, 0); opacity: 1; }
@@ -528,7 +685,7 @@ function injectStyles() {
                 grid-template-columns: 1fr;
                 align-items: stretch;
                 bottom: 10px;
-                width: calc(100vw - 20px);
+                width: min(370px, calc(100vw - 20px));
                 padding: 14px;
             }
 
@@ -538,6 +695,39 @@ function injectStyles() {
 
             .bb-demo-action {
                 flex: 1 1 130px;
+            }
+
+            .bb-demo-tutorial-card {
+                left: 50% !important;
+                right: auto;
+                max-width: min(340px, calc(100vw - 20px));
+                width: min(340px, calc(100vw - 20px)) !important;
+                transform: translateX(-50%);
+            }
+
+            .bb-demo-tutorial-actions,
+            .bb-demo-tutorial-nav {
+                align-items: stretch;
+                width: 100%;
+            }
+
+            .bb-demo-tutorial-actions {
+                flex-direction: column;
+            }
+
+            .bb-demo-tutorial-nav {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .bb-demo-tour-close {
+                width: 100%;
+            }
+
+            .bb-demo-tutorial-card .bb-demo-action {
+                flex: 0 0 auto;
+                min-height: 44px;
+                width: 100%;
             }
         }
     `;
@@ -558,6 +748,7 @@ function renderBanner() {
         </div>
         <div class="bb-demo-banner-actions">
             <button type="button" class="bb-demo-action" data-demo-action="create-account">Create Free Account</button>
+            <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="tour">Tour</button>
             <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="restart">Restart Demo</button>
             <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="end">End Demo</button>
         </div>
@@ -570,6 +761,8 @@ function renderBanner() {
         const action = button.getAttribute('data-demo-action');
         if (action === 'create-account') {
             completeDemo({ reason: 'account', navigateTo: loginUrl(), showNotice: false });
+        } else if (action === 'tour') {
+            startTutorial({ force: true });
         } else if (action === 'restart') {
             completeDemo({ reason: 'restart', restart: true, showNotice: false });
         } else if (action === 'end') {
@@ -702,6 +895,163 @@ function attachLoginCapture() {
     }, true);
 }
 
+function getTutorialStep(index = tutorialIndex) {
+    return TUTORIAL_STEPS[Math.max(0, Math.min(index, TUTORIAL_STEPS.length - 1))];
+}
+
+function getTutorialTarget(step = getTutorialStep()) {
+    return document.querySelector(step?.selector || '') || document.querySelector('.app-header') || document.body;
+}
+
+function removeTutorial() {
+    document.getElementById(TUTORIAL_ID)?.remove();
+    document.getElementById(TUTORIAL_SPOTLIGHT_ID)?.remove();
+    document.getElementById(TUTORIAL_SCRIM_ID)?.remove();
+    document.body.classList.remove('bb-demo-tutorial-active');
+}
+
+function endTutorial() {
+    sessionSet(TUTORIAL_SKIPPED_KEY, 'true');
+    removeTutorial();
+}
+
+function placeTutorial() {
+    const card = document.getElementById(TUTORIAL_ID);
+    const spotlight = document.getElementById(TUTORIAL_SPOTLIGHT_ID);
+    const scrim = document.getElementById(TUTORIAL_SCRIM_ID);
+    if (!card || !spotlight || !scrim) return;
+
+    const step = getTutorialStep();
+    const target = getTutorialTarget(step);
+    const rect = target.getBoundingClientRect();
+    const padding = 8;
+    const top = Math.max(8, rect.top - padding);
+    const left = Math.max(8, rect.left - padding);
+    const width = Math.min(window.innerWidth - left - 8, rect.width + padding * 2);
+    const height = Math.min(window.innerHeight - top - 8, rect.height + padding * 2);
+
+    spotlight.style.top = `${top}px`;
+    spotlight.style.left = `${left}px`;
+    spotlight.style.width = `${Math.max(44, width)}px`;
+    spotlight.style.height = `${Math.max(44, height)}px`;
+    spotlight.style.borderRadius = target.id === BANNER_ID ? '20px' : '18px';
+
+    scrim.style.setProperty('--demo-tour-x', `${left + width / 2}px`);
+    scrim.style.setProperty('--demo-tour-y', `${top + height / 2}px`);
+
+    const cardWidth = Math.min(390, window.innerWidth - 32);
+    card.style.width = `${cardWidth}px`;
+    const cardHeight = card.offsetHeight || 220;
+    let cardTop = top + height + 14;
+    if (cardTop + cardHeight > window.innerHeight - 14) {
+        cardTop = top - cardHeight - 14;
+    }
+    cardTop = Math.max(14, Math.min(cardTop, window.innerHeight - cardHeight - 14));
+
+    let cardLeft = left + width / 2 - cardWidth / 2;
+    cardLeft = Math.max(16, Math.min(cardLeft, window.innerWidth - cardWidth - 16));
+
+    card.style.top = `${cardTop}px`;
+    card.style.left = `${cardLeft}px`;
+}
+
+function renderTutorialStep() {
+    const card = document.getElementById(TUTORIAL_ID);
+    if (!card) return;
+
+    const step = getTutorialStep();
+    const isFirst = tutorialIndex === 0;
+    const isLast = tutorialIndex === TUTORIAL_STEPS.length - 1;
+    card.innerHTML = `
+        <div class="bb-demo-tutorial-kicker">
+            <span>${step.label}</span>
+            <span class="bb-demo-tutorial-step">${tutorialIndex + 1} / ${TUTORIAL_STEPS.length}</span>
+        </div>
+        <h2 class="bb-demo-tutorial-title">${step.title}</h2>
+        <p class="bb-demo-tutorial-copy">${step.body}</p>
+        <div class="bb-demo-tutorial-actions">
+            <button type="button" class="bb-demo-action bb-demo-action-secondary bb-demo-tour-close" data-demo-tour-action="skip">Skip</button>
+            <div class="bb-demo-tutorial-nav">
+                <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-tour-action="back" ${isFirst ? 'disabled' : ''}>Back</button>
+                <button type="button" class="bb-demo-action" data-demo-tour-action="${isLast ? 'finish' : 'next'}">${isLast ? 'Finish' : 'Next'}</button>
+            </div>
+        </div>
+    `;
+
+    const target = getTutorialTarget(step);
+    if (target !== document.body) {
+        target.scrollIntoView({ block: tutorialIndex === 0 ? 'start' : 'center', inline: 'nearest', behavior: 'smooth' });
+    }
+    placeTutorial();
+    window.requestAnimationFrame?.(placeTutorial);
+    window.setTimeout(placeTutorial, 120);
+    window.setTimeout(placeTutorial, 320);
+}
+
+function handleTutorialAction(action) {
+    if (action === 'skip') {
+        endTutorial();
+        return;
+    }
+    if (action === 'back') {
+        tutorialIndex = Math.max(0, tutorialIndex - 1);
+        renderTutorialStep();
+        return;
+    }
+    if (action === 'next') {
+        tutorialIndex = Math.min(TUTORIAL_STEPS.length - 1, tutorialIndex + 1);
+        renderTutorialStep();
+        return;
+    }
+    if (action === 'finish') {
+        endTutorial();
+    }
+}
+
+function startTutorial({ force = false } = {}) {
+    if (!isDemoModeActive()) return;
+    if (!force && sessionGet(TUTORIAL_SKIPPED_KEY) === 'true') return;
+
+    removeTutorial();
+    tutorialIndex = 0;
+
+    const scrim = document.createElement('div');
+    scrim.id = TUTORIAL_SCRIM_ID;
+    scrim.className = 'bb-demo-tutorial-scrim';
+
+    const spotlight = document.createElement('div');
+    spotlight.id = TUTORIAL_SPOTLIGHT_ID;
+    spotlight.className = 'bb-demo-tutorial-spotlight';
+    spotlight.setAttribute('aria-hidden', 'true');
+
+    const card = document.createElement('aside');
+    card.id = TUTORIAL_ID;
+    card.className = 'bb-demo-tutorial-card';
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-modal', 'false');
+    card.setAttribute('aria-label', 'BudgetBuddy demo tutorial');
+    card.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-demo-tour-action]');
+        if (!button || button.disabled) return;
+        handleTutorialAction(button.getAttribute('data-demo-tour-action'));
+    });
+
+    document.body.append(scrim, spotlight, card);
+    document.body.classList.add('bb-demo-tutorial-active');
+    renderTutorialStep();
+
+    if (!tutorialResizeAttached) {
+        tutorialResizeAttached = true;
+        window.addEventListener('resize', placeTutorial);
+        window.addEventListener('scroll', placeTutorial, true);
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && document.getElementById(TUTORIAL_ID)) {
+                endTutorial();
+            }
+        });
+    }
+}
+
 export function initDemoMode({ demoModeState, user } = {}) {
     injectStyles();
 
@@ -716,6 +1066,7 @@ export function initDemoMode({ demoModeState, user } = {}) {
     renderBanner();
     startCountdown();
     attachLoginCapture();
+    window.setTimeout(() => startTutorial(), 450);
 }
 
 export function initSignedOutAccountPrompt({ user } = {}) {
