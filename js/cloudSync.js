@@ -34,6 +34,7 @@ let afterRemoteApply = null;
 let isPremiumAccount = null;
 let pushTimer = null;
 let conflictGraceTimer = null;
+let activePushPromise = null;
 let isInitialized = false;
 let isApplyingRemote = false;
 let lastKnownStatus = {
@@ -800,7 +801,7 @@ async function getSyncSlotUpsertFields(existingRemote = null) {
     return claim.fields;
 }
 
-async function pushSnapshotNow(reason = 'Budget synced to Buddy Cloud.') {
+async function performPushSnapshotNow(reason = 'Budget synced to Buddy Cloud.') {
     if (!isEnabled() || !canUseCloud() || isApplyingRemote) {
         rememberStatus({ syncing: false, nextSyncAt: '' });
         return false;
@@ -861,6 +862,29 @@ async function pushSnapshotNow(reason = 'Budget synced to Buddy Cloud.') {
     clearConflictState();
     record(reason, 'synced', syncDetails);
     return true;
+}
+
+async function pushSnapshotNow(reason = 'Budget synced to Buddy Cloud.') {
+    if (activePushPromise) {
+        const result = await activePushPromise;
+        if (!result) return result;
+
+        const localUpdatedAt = getLocalSnapshot().meta?.localUpdatedAt || '';
+        const lastPushedAt = localStorage.getItem(CLOUD_LAST_PUSHED_KEY) || '';
+        if (localUpdatedAt && lastPushedAt && localUpdatedAt !== lastPushedAt) {
+            return pushSnapshotNow(reason);
+        }
+
+        rememberStatus({ syncing: false, nextSyncAt: '' });
+        return result;
+    }
+
+    clearTimeout(pushTimer);
+    pushTimer = null;
+    activePushPromise = performPushSnapshotNow(reason).finally(() => {
+        activePushPromise = null;
+    });
+    return activePushPromise;
 }
 
 export function queuePush(reason = 'Budget synced to Buddy Cloud.') {
