@@ -2705,6 +2705,8 @@ async function confirmSignOutAllDevices() {
             : 'This clears this browser after sync verification. Other browsers may still have local data until their storage is cleared, but they will be forced out when BudgetBuddy checks their access record.',
         inputLabel: 'Type SIGN OUT to confirm',
         inputPlaceholder: 'SIGN OUT',
+        inputSingleLine: true,
+        inputAutoUppercase: true,
         actions: [
             { id: 'cancel', label: 'Back', className: 'btn-cancel' },
             { id: 'signout-all', label: 'Sign Out All Devices', className: 'btn-danger' }
