@@ -83,15 +83,17 @@ function applyLoadedPayload(parsed = {}) {
 // ==========================================
 export function initState() {
     const saved = localStorage.getItem('bb_data');
+    let loadedSavedPayload = false;
     if (saved) {
         try {
             const parsed = JSON.parse(saved);
             applyLoadedPayload(parsed);
+            loadedSavedPayload = true;
         } catch (e) {
             console.error('[State] Failed to parse local state:', e);
         }
     }
-    if (!getLocalUpdatedAt()) setLocalUpdatedAt();
+    if (loadedSavedPayload && !getLocalUpdatedAt()) setLocalUpdatedAt();
     console.log('[State] Engine initialized.');
 }
 
@@ -572,6 +574,12 @@ export const setTreatSavingsAsIncomeInZbb = (val) => {
 
 export const getIsPro = () => Boolean(state.settings.isPro);
 export const setIsPro = (val, metadata = {}) => {
+    const previous = {
+        isPro: Boolean(state.settings.isPro),
+        premiumSinceUTC: state.settings.premiumSinceUTC || '',
+        stripeCheckoutSessionId: state.settings.stripeCheckoutSessionId || ''
+    };
+
     state.settings.isPro = Boolean(val);
     if (metadata.sessionId) state.settings.stripeCheckoutSessionId = metadata.sessionId;
     if (val && !state.settings.premiumSinceUTC) state.settings.premiumSinceUTC = new Date().toISOString();
@@ -579,7 +587,11 @@ export const setIsPro = (val, metadata = {}) => {
         state.settings.premiumSinceUTC = '';
         state.settings.stripeCheckoutSessionId = '';
     }
-    save();
+
+    const changed = previous.isPro !== Boolean(state.settings.isPro)
+        || previous.premiumSinceUTC !== (state.settings.premiumSinceUTC || '')
+        || previous.stripeCheckoutSessionId !== (state.settings.stripeCheckoutSessionId || '');
+    if (changed) save();
 };
 
 export const getCurrentType = () => state.currentType;

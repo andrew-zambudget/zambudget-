@@ -1184,6 +1184,7 @@ export async function init(options = {}) {
         const localUpdatedAt = localSnapshot.meta?.localUpdatedAt || '';
         const remoteChanged = remote.client_updated_at && remote.client_updated_at !== lastRemoteAt;
         const localChanged = localUpdatedAt && localUpdatedAt !== localStorage.getItem(CLOUD_LAST_PUSHED_KEY);
+        const localHasBudgetData = localSnapshotHasBudgetData(localSnapshot);
         const localSummary = getSnapshotSummary(localSnapshot);
         const rawKey = getStoredCloudKey();
         let remoteSnapshot = null;
@@ -1206,6 +1207,15 @@ export async function init(options = {}) {
             return false;
         };
 
+        if (!localHasBudgetData) {
+            const nextRemoteSummary = await getRemoteSummary();
+            if (summaryHasBudgetData(nextRemoteSummary)) {
+                clearConflictState();
+                await forcePull();
+                return true;
+            }
+        }
+
         if (remoteChanged && localChanged) {
             const waitMs = getConflictGraceWaitMs(remote.client_updated_at, localUpdatedAt);
             if (waitMs > 0) {
@@ -1224,7 +1234,7 @@ export async function init(options = {}) {
 
         if (remoteChanged) {
             const nextRemoteSummary = await getRemoteSummary();
-            if (localSnapshotHasBudgetData(localSnapshot) && !summariesHaveSameShape(localSummary, nextRemoteSummary)) {
+            if (localHasBudgetData && !summariesHaveSameShape(localSummary, nextRemoteSummary)) {
                 return stopForVersionReview();
             }
             await forcePull();
@@ -1233,7 +1243,7 @@ export async function init(options = {}) {
 
         if (localChanged) {
             const nextRemoteSummary = await getRemoteSummary();
-            if (!localSnapshotHasBudgetData(localSnapshot) && summaryHasBudgetData(nextRemoteSummary)) {
+            if (!localHasBudgetData && summaryHasBudgetData(nextRemoteSummary)) {
                 await forcePull();
                 return true;
             }
