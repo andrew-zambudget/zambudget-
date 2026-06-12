@@ -535,7 +535,7 @@ function getManualSyncButtonTooltip(status = {}, { hasConflict = false } = {}) {
     const nextSyncAt = String(status.nextSyncAt || '').trim();
     const lastVerifiedAt = status.lastRemoteAt || status.lastPushedAt || '';
     const lastVerified = formatBuddyCloudReviewTime(lastVerifiedAt);
-    const lastVerifiedText = lastVerified === 'Not available' ? '' : ` Last verified: ${lastVerified}.`;
+    const lastVerifiedText = lastVerified === 'Not available' ? '' : `\nLast verified sync: ${lastVerified}.`;
 
     if (!signedIn) return 'Sign in before Buddy Cloud can sync this budget.';
     if (!enabled) return 'Set up Buddy Cloud before automatic sync can run.';
@@ -546,7 +546,7 @@ function getManualSyncButtonTooltip(status = {}, { hasConflict = false } = {}) {
     if (status.syncing && nextSyncAt) return `Next Buddy Cloud sync expected ${formatSyncEta(nextSyncAt)}.`;
     if (status.syncing) return 'Buddy Cloud is syncing now.';
 
-    return `Next Buddy Cloud sync runs after your next budget save. Use Sync now to check now.${lastVerifiedText}`;
+    return `Next Buddy Cloud sync runs after your next budget save.${lastVerifiedText}`;
 }
 
 function isSyncHistoryPanelOpen() {
@@ -1525,7 +1525,7 @@ function getBuddyCloudHumanStatus(status = window.BuddyCloud?.getStatus?.() || {
         severity: 'synced',
         title: status.isPremium ? 'Buddy Cloud active - unlimited syncs' : 'Buddy Cloud active - Free Tier',
         detail: lastVerifiedAt
-            ? `Encrypted backup verified. Last verified sync: ${lastVerifiedText}.`
+            ? `Encrypted backup verified.\nLast verified sync: ${lastVerifiedText}.`
             : 'Encrypted backup is active. Keep your recovery key somewhere safe for another trusted device.',
         recommendedNextStep: needsRecoveryKeySaveReminder()
             ? 'Save your recovery key.'

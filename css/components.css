@@ -3208,6 +3208,7 @@ input.error, select.error {
     font-size: 0.76rem;
     font-weight: 650;
     line-height: 1.35;
+    white-space: pre-line;
 }
 
 .sync-cloud-btn {
@@ -5554,7 +5555,7 @@ input.error, select.error {
     box-sizing: border-box;
     width: max-content;
     max-width: min(20rem, calc(100vw - 1.5rem));
-    white-space: normal;
+    white-space: pre-line;
     overflow-wrap: anywhere;
     word-break: normal;
     text-align: center;
