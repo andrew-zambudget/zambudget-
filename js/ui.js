@@ -4374,6 +4374,9 @@ function getCategoryMetricDisplay({ budget = 0, spent = 0 } = {}) {
 export function toggleCategoryEditMode() {
     isCategoryEditMode = !isCategoryEditMode;
     selectedCategories.clear();
+    if (isCategoryEditMode && State.getCategorySort?.() !== 'manual') {
+        State.setCategorySort?.('manual');
+    }
     renderCategoryList();
 }
 
@@ -4390,7 +4393,7 @@ function syncCategorySortSelect() {
     const select = document.getElementById('categorySortSelect');
     if (!select) return;
 
-    const sort = State.getCategorySort?.() || 'alpha_asc';
+    const sort = State.getCategorySort?.() || 'manual';
     if ([...select.options].some(option => option.value === sort)) {
         select.value = sort;
     }
@@ -4505,7 +4508,9 @@ export function renderCategoryList() {
     syncCategoryCalendarMonthLabel();
 
     // Grab all categories, but ONLY keep the ones that are NOT income
-    const allCategories = State.getCategories() || [];
+    const allCategories = State.getCategoriesForSort
+        ? State.getCategoriesForSort(State.getCategorySort?.() || 'manual')
+        : (State.getCategories() || []);
     const categories = allCategories.filter(cat =>
         cat.type !== 'income' &&
         cat.type !== 'debt' &&
@@ -6852,6 +6857,10 @@ export function applyCategorySort() {
     const select = document.getElementById('categorySortSelect');
     if (!select) return;
     State.setCategorySort(select.value);
+    if (select.value !== 'manual') {
+        isCategoryEditMode = false;
+        selectedCategories.clear();
+    }
     renderCategoryList();
 }
 

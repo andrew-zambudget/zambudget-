@@ -17,7 +17,7 @@ let state = {
         dashboardSummaryCollapsed: true,
         treatSavingsAsIncomeInZbb: false,
         treatSavingsAsTotalIncome: false,
-        lastCategorySort: 'alpha_asc',
+        lastCategorySort: 'manual',
         isPro: false,
         premiumSinceUTC: '',
         stripeCheckoutSessionId: ''
@@ -76,6 +76,9 @@ function applyLoadedPayload(parsed = {}) {
     state.settings.overrideDebtEmergencyFundLock = parsed.settings?.overrideDebtEmergencyFundLock === true;
     state.settings.treatSavingsAsTotalIncome = parsed.settings?.treatSavingsAsTotalIncome === true;
     state.settings.treatSavingsAsIncomeInZbb = false;
+    const orderChanged = normalizeCategoryCustomOrder();
+    const arrayChanged = applyCustomOrderToCategoryArray();
+    return orderChanged || arrayChanged;
 }
 
 // ==========================================
@@ -84,16 +87,20 @@ function applyLoadedPayload(parsed = {}) {
 export function initState() {
     const saved = localStorage.getItem('bb_data');
     let loadedSavedPayload = false;
+    let loadedPayloadChanged = false;
     if (saved) {
         try {
             const parsed = JSON.parse(saved);
-            applyLoadedPayload(parsed);
+            loadedPayloadChanged = applyLoadedPayload(parsed);
             loadedSavedPayload = true;
         } catch (e) {
             console.error('[State] Failed to parse local state:', e);
         }
     }
-    if (loadedSavedPayload && !getLocalUpdatedAt()) setLocalUpdatedAt();
+    if (loadedSavedPayload) {
+        if (loadedPayloadChanged || !getLocalUpdatedAt()) setLocalUpdatedAt();
+        if (loadedPayloadChanged) localStorage.setItem('bb_data', JSON.stringify(getDurablePayload()));
+    }
     console.log('[State] Engine initialized.');
 }
 
@@ -187,6 +194,91 @@ export const deleteTransaction = (id) => {
 // ==========================================
 export const getCategories = () => state.categories;
 
+const CATEGORY_SORT_TYPES = new Set([
+    'manual',
+    'alpha_asc',
+    'alpha_desc',
+    'created_new',
+    'created_old',
+    'spending_high',
+    'spending_low'
+]);
+
+const CATEGORY_REORDER_EXCLUDED_TYPES = new Set(['income', 'debt', 'savings', 'sinking_fund']);
+
+function getValidCategorySort(type) {
+    return CATEGORY_SORT_TYPES.has(type) ? type : 'manual';
+}
+
+function canReorderCategory(cat = {}) {
+    return Boolean(cat?.name && !CATEGORY_REORDER_EXCLUDED_TYPES.has(cat.type));
+}
+
+function getCategoryOrderNumber(cat = {}) {
+    const order = Number(cat.customOrder);
+    return Number.isFinite(order) && order > 0 ? order : Number.POSITIVE_INFINITY;
+}
+
+function sortByCustomOrder(categories = state.categories) {
+    const stateIndex = new Map(state.categories.map((cat, index) => [cat, index]));
+    return categories.slice().sort((a, b) => {
+        const orderDiff = getCategoryOrderNumber(a) - getCategoryOrderNumber(b);
+        if (Number.isFinite(orderDiff) && orderDiff !== 0) return orderDiff;
+        return (stateIndex.get(a) ?? 0) - (stateIndex.get(b) ?? 0);
+    });
+}
+
+function normalizeCategoryCustomOrder() {
+    const reorderable = state.categories.filter(canReorderCategory);
+    if (reorderable.length === 0) return false;
+
+    let changed = false;
+    const ordered = sortByCustomOrder(reorderable);
+    ordered.forEach((cat, index) => {
+        const nextOrder = index + 1;
+        if (cat.customOrder !== nextOrder) {
+            cat.customOrder = nextOrder;
+            changed = true;
+        }
+    });
+
+    return changed;
+}
+
+function applyCustomOrderToCategoryArray() {
+    const ordered = sortByCustomOrder(state.categories.filter(canReorderCategory));
+    if (ordered.length === 0) return false;
+
+    let nextReorderableIndex = 0;
+    let changed = false;
+    state.categories = state.categories.map(cat => {
+        if (!canReorderCategory(cat)) return cat;
+
+        const next = ordered[nextReorderableIndex];
+        nextReorderableIndex += 1;
+        if (next !== cat) changed = true;
+        return next;
+    });
+
+    return changed;
+}
+
+function getNextCategoryCustomOrder() {
+    normalizeCategoryCustomOrder();
+    return state.categories
+        .filter(canReorderCategory)
+        .reduce((max, cat) => Math.max(max, Number(cat.customOrder) || 0), 0) + 1;
+}
+
+function commitCustomCategoryOrder(orderedReorderable) {
+    orderedReorderable.forEach((cat, index) => {
+        cat.customOrder = index + 1;
+    });
+    applyCustomOrderToCategoryArray();
+    state.settings.lastCategorySort = 'manual';
+    save();
+}
+
 /**
  * Validates and sanitizes category names based on v2 specs
  */
@@ -210,16 +302,28 @@ export const addCategory = (rawName, icon = '📁', type = 'expense', budget = 0
         return { success: false, error: 'Category Already Exists' };
     }
 
-    state.categories.push({
+    const newCategory = {
         name: cleanName,
         icon: icon,
         type: type,
         budget: Math.max(0, parseFloat(budget) || 0),
         createdAt: new Date().toISOString()
-    });
+    };
+    if (canReorderCategory(newCategory)) newCategory.customOrder = getNextCategoryCustomOrder();
+
+    state.categories.push(newCategory);
 
     save();
     return { success: true, name: cleanName };
+};
+
+export const saveCategories = (categoryArray) => {
+    state.categories = Array.isArray(categoryArray)
+        ? categoryArray.filter(Boolean).map(cat => ({ ...cat }))
+        : [];
+    normalizeCategoryCustomOrder();
+    applyCustomOrderToCategoryArray();
+    save();
 };
 
 export const addIncomeSource = (rawName, icon = '💵', plannedAmount = 0) => {
@@ -371,6 +475,8 @@ export const editCategory = (oldName, rawNewName, newIcon, newType, budget) => {
         });
     }
 
+    normalizeCategoryCustomOrder();
+    applyCustomOrderToCategoryArray();
     save();
     return { success: true };
 };
@@ -388,6 +494,8 @@ export const deleteCategory = (name, replacement = null) => {
         });
     }
 
+    normalizeCategoryCustomOrder();
+    applyCustomOrderToCategoryArray();
     save();
 };
 
@@ -397,6 +505,8 @@ export const deleteCategoriesBatch = (nameArray) => {
     state.transactions.forEach(tx => {
         if (nameArray.includes(tx.category)) tx.category = '';
     });
+    normalizeCategoryCustomOrder();
+    applyCustomOrderToCategoryArray();
     save();
 };
 
@@ -420,37 +530,29 @@ export const updateCategoryBudget = (categoryName, newBudgetAmount) => {
     }
 };
 
-const CATEGORY_REORDER_EXCLUDED_TYPES = new Set(['income', 'debt', 'savings', 'sinking_fund']);
-
-function canReorderCategory(cat = {}) {
-    return Boolean(cat?.name && !CATEGORY_REORDER_EXCLUDED_TYPES.has(cat.type));
-}
-
 export const moveCategory = (name, direction = 'down') => {
     const step = direction === 'up' ? -1 : 1;
-    const currentIndex = state.categories.findIndex(c => c.name === name);
-    if (currentIndex < 0 || !canReorderCategory(state.categories[currentIndex])) {
+    normalizeCategoryCustomOrder();
+    const reorderable = sortByCustomOrder(state.categories.filter(canReorderCategory));
+    const currentIndex = reorderable.findIndex(c => c.name === name);
+    if (currentIndex < 0) {
         return { success: false, error: 'Category not found' };
     }
 
-    let targetIndex = currentIndex + step;
-    while (targetIndex >= 0 && targetIndex < state.categories.length && !canReorderCategory(state.categories[targetIndex])) {
-        targetIndex += step;
-    }
-
-    if (targetIndex < 0 || targetIndex >= state.categories.length) {
+    const targetIndex = currentIndex + step;
+    if (targetIndex < 0 || targetIndex >= reorderable.length) {
         return { success: false, error: 'Category cannot move farther' };
     }
 
-    const [category] = state.categories.splice(currentIndex, 1);
-    state.categories.splice(targetIndex, 0, category);
-    state.settings.lastCategorySort = 'manual';
-    save();
+    const [category] = reorderable.splice(currentIndex, 1);
+    reorderable.splice(targetIndex, 0, category);
+    commitCustomCategoryOrder(reorderable);
     return { success: true };
 };
 
 export const moveCategoryToPosition = (name, position = 1) => {
-    const reorderable = state.categories.filter(canReorderCategory);
+    normalizeCategoryCustomOrder();
+    const reorderable = sortByCustomOrder(state.categories.filter(canReorderCategory));
     const currentPosition = reorderable.findIndex(c => c.name === name);
     if (currentPosition < 0) {
         return { success: false, error: 'Category not found' };
@@ -467,72 +569,60 @@ export const moveCategoryToPosition = (name, position = 1) => {
     const [category] = reorderable.splice(currentPosition, 1);
     reorderable.splice(targetPosition, 0, category);
 
-    let nextReorderableIndex = 0;
-    state.categories = state.categories.map(cat => {
-        if (!canReorderCategory(cat)) return cat;
-        const next = reorderable[nextReorderableIndex];
-        nextReorderableIndex += 1;
-        return next;
-    });
-
-    state.settings.lastCategorySort = 'manual';
-    save();
+    commitCustomCategoryOrder(reorderable);
     return { success: true, position: targetPosition + 1 };
 };
 
 // ==========================================
 // HIGH PERFORMANCE SORTING ENGINE
 // ==========================================
-export const setCategorySort = (type) => {
-    state.settings.lastCategorySort = type;
+export const getCategoriesForSort = (type = state.settings.lastCategorySort) => {
+    const sortType = getValidCategorySort(type);
+    const categories = state.categories.slice();
 
-    switch(type) {
+    switch(sortType) {
         case 'manual':
-            break;
+            return sortByCustomOrder(categories);
         case 'alpha_asc':
-            state.categories.sort((a, b) => a.name.localeCompare(b.name));
-            break;
+            return categories.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
         case 'alpha_desc':
-            state.categories.sort((a, b) => b.name.localeCompare(a.name));
-            break;
+            return categories.sort((a, b) => String(b.name || '').localeCompare(String(a.name || '')));
         case 'created_new':
-            state.categories.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-            break;
+            return categories.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
         case 'created_old':
-            state.categories.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-            break;
-
-        // O(N) Pre-calculated Hash Map approach (100x faster than running filter/reduce inside sort)
+            return categories.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
         case 'spending_high':
         case 'spending_low': {
-            const spendingMap = new Map();
+            const spendingMap = new Map(state.categories.map(c => [c.name, 0]));
 
-            // Initialize map
-            state.categories.forEach(c => spendingMap.set(c.name, 0));
-
-            // Single O(N) pass to tally all spending
             state.transactions.forEach(t => {
                 if (t.type === 'expense' && spendingMap.has(t.category)) {
-                    spendingMap.set(t.category, spendingMap.get(t.category) + t.amount);
+                    spendingMap.set(t.category, spendingMap.get(t.category) + (Number(t.amount) || 0));
                 }
             });
 
-            // O(N log N) sort using the fast O(1) Map lookups
-            const direction = type === 'spending_high' ? -1 : 1;
-            state.categories.sort((a, b) => {
+            const direction = sortType === 'spending_high' ? -1 : 1;
+            return categories.sort((a, b) => {
                 const spendA = spendingMap.get(a.name) || 0;
                 const spendB = spendingMap.get(b.name) || 0;
-                return (spendA - spendB) * direction;
+                const spendDiff = (spendA - spendB) * direction;
+                if (spendDiff !== 0) return spendDiff;
+                return String(a.name || '').localeCompare(String(b.name || ''));
             });
-            break;
         }
         default:
-            state.categories.sort((a, b) => a.name.localeCompare(b.name));
+            return sortByCustomOrder(categories);
     }
+};
+
+export const setCategorySort = (type) => {
+    const nextSort = getValidCategorySort(type);
+    if (state.settings.lastCategorySort === nextSort) return;
+    state.settings.lastCategorySort = nextSort;
     save();
 };
 
-export const getCategorySort = () => state.settings.lastCategorySort || 'alpha_asc';
+export const getCategorySort = () => getValidCategorySort(state.settings.lastCategorySort);
 
 // ==========================================
 // SETTINGS & RUNTIME
