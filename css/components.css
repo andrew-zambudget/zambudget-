@@ -4869,6 +4869,35 @@ input.error, select.error {
     transition: width 0.3s linear;
 }
 
+.buddy-cloud-key-ack {
+    display: grid;
+    gap: 0.42rem;
+    padding: 0.7rem 0.75rem;
+    border: 1px solid color-mix(in srgb, var(--yellow, #f59e0b) 34%, var(--border, #e2e8f0));
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--yellow, #f59e0b) 8%, var(--surface, #ffffff));
+}
+
+.buddy-cloud-key-ack > strong {
+    color: var(--text, #0f172a);
+    font-size: 0.82rem;
+    font-weight: 950;
+    line-height: 1.25;
+}
+
+.buddy-cloud-key-ack span {
+    color: var(--text-dim, #64748b);
+    font-size: 0.76rem;
+    font-weight: 760;
+    line-height: 1.4;
+}
+
+.buddy-cloud-key-ack span strong {
+    color: var(--text, #0f172a);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-weight: 950;
+}
+
 .buddy-cloud-key-field textarea:focus {
     border-color: var(--accent, #14b8a6);
     outline: 2px solid color-mix(in srgb, var(--accent, #14b8a6) 24%, transparent);

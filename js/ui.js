@@ -1079,6 +1079,8 @@ function formatRecoveryKeyCountdown(ms = 0) {
     return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
+const RECOVERY_KEY_ACK_SECONDS = 10;
+
 function stopRecoveryKeyCountdown() {
     window.clearInterval(recoveryKeyCountdownTimer);
     recoveryKeyCountdownTimer = null;
@@ -1410,7 +1412,8 @@ function showBuddyCloudModal({
     inputAutoUppercase = false,
     actions = [],
     onAction = null,
-    onReady = null
+    onReady = null,
+    dismissible = true
 }) {
     document.getElementById('buddyCloudModal')?.remove();
 
@@ -1423,7 +1426,7 @@ function showBuddyCloudModal({
         const modalActions = actions.length ? actions : customHtml ? [] : [{ id: 'ok', label: 'OK', className: 'btn-create' }];
         const actionButtons = modalActions
             .map(action => `
-                <button type="button" class="${esc(action.className || 'btn-cancel')} buddy-cloud-action" data-action="${esc(action.id)}" data-persistent="${action.persistent ? 'true' : 'false'}">
+                <button type="button" class="${esc(action.className || 'btn-cancel')} buddy-cloud-action" data-action="${esc(action.id)}" data-persistent="${action.persistent ? 'true' : 'false'}" ${action.disabled ? 'disabled' : ''}>
                     ${esc(action.label)}
                 </button>
             `).join('');
@@ -1481,7 +1484,7 @@ function showBuddyCloudModal({
 
         modal.innerHTML = `
             <div class="modal-box modal-box-medium buddy-cloud-modal${compact ? ' buddy-cloud-modal-compact' : ''}${modalClass ? ` ${esc(modalClass)}` : ''}" role="dialog" aria-modal="true" aria-labelledby="buddyCloudModalTitle" onclick="event.stopPropagation()">
-                <button type="button" class="modal-close buddy-cloud-close" aria-label="Close Buddy Cloud dialog">&times;</button>
+                ${dismissible ? '<button type="button" class="modal-close buddy-cloud-close" aria-label="Close Buddy Cloud dialog">&times;</button>' : ''}
                 <div class="buddy-cloud-modal-header">
                     <div class="buddy-cloud-modal-icon" aria-hidden="true">BC</div>
                     <div>
@@ -1504,9 +1507,12 @@ function showBuddyCloudModal({
 
         const finish = (result) => closeBuddyCloudModal(result);
         modal.addEventListener('click', (event) => {
+            if (!dismissible) return;
             if (event.target === modal) finish({ action: 'cancel', value: '' });
         });
-        modal.querySelector('.buddy-cloud-close')?.addEventListener('click', () => finish({ action: 'cancel', value: '' }));
+        if (dismissible) {
+            modal.querySelector('.buddy-cloud-close')?.addEventListener('click', () => finish({ action: 'cancel', value: '' }));
+        }
         const setRecoveryKeyVisible = (visible) => {
             const input = modal.querySelector('#buddyCloudModalInput');
             const toggle = modal.querySelector('.buddy-cloud-key-toggle');
@@ -1945,9 +1951,47 @@ async function confirmRecoveryKeySaved(recoveryKey) {
     return result.action === 'confirm' && hasRecoveryKeyBackedUpFlag() ? 'confirmed' : 'cancel';
 }
 
+function startInitialRecoveryKeyAcknowledgementPause(modal, onComplete) {
+    let remaining = RECOVERY_KEY_ACK_SECONDS;
+    const countdown = modal?.querySelector('[data-recovery-key-ack-countdown]');
+    const doneButton = modal?.querySelector('.buddy-cloud-action[data-action="done"]');
+    const remindButton = modal?.querySelector('.buddy-cloud-action[data-action="remind-later"]');
+    if (!countdown || !doneButton || !remindButton) return;
+
+    const render = () => {
+        countdown.textContent = String(Math.max(0, remaining));
+        if (remaining > 0) {
+            doneButton.disabled = true;
+            remindButton.disabled = true;
+            remindButton.textContent = `Read first (${remaining}s)`;
+            return;
+        }
+
+        doneButton.disabled = false;
+        remindButton.disabled = false;
+        remindButton.textContent = 'I understand - remind me for 72 hours';
+        window.clearInterval(modal._recoveryKeyAckTimer);
+        modal._recoveryKeyAckTimer = null;
+        onComplete?.();
+    };
+
+    render();
+    modal._recoveryKeyAckTimer = window.setInterval(() => {
+        if (!document.body.contains(modal)) {
+            window.clearInterval(modal._recoveryKeyAckTimer);
+            modal._recoveryKeyAckTimer = null;
+            return;
+        }
+        remaining -= 1;
+        render();
+    }, 1000);
+}
+
 async function showRecoveryKeyNotice(recoveryKey, { copied = false, initial = false, requireDownload = false } = {}) {
     let keyCopied = copied;
     let keyDownloaded = hasRecoveryKeyBackedUpFlag();
+    const requiresInitialAcknowledgement = Boolean(initial && !requireDownload);
+    let initialAcknowledged = !requiresInitialAcknowledgement;
 
     while (true) {
     const result = await showBuddyCloudModal({
@@ -1962,7 +2006,13 @@ async function showRecoveryKeyNotice(recoveryKey, { copied = false, initial = fa
             : keyCopied
             ? 'The key was copied to your clipboard. It will be cleared in about 60 seconds if it still contains this key. Store it somewhere private. If you lose this key, we cannot recover your synced budget.'
             : 'Store this key somewhere private. If you lose this key, we cannot recover your synced budget.',
-        customHtml: !initial && !requireDownload ? `
+        customHtml: requiresInitialAcknowledgement && !initialAcknowledged ? `
+            <div class="buddy-cloud-key-ack" role="status" aria-live="polite">
+                <strong>Take 10 seconds to read this.</strong>
+                <span>Buddy Cloud stays active, but save this Recovery Key within 72 hours. If this browser is lost or cleared and you do not have the key, BudgetBuddy cannot recover the encrypted cloud budget.</span>
+                <span>Continue options unlock in <strong data-recovery-key-ack-countdown>${RECOVERY_KEY_ACK_SECONDS}</strong>s.</span>
+            </div>
+        ` : !initial && !requireDownload ? `
             <div class="buddy-cloud-key-countdown" role="status" aria-live="polite">
                 <span>Key display locks in</span>
                 <strong data-recovery-key-countdown>${formatRecoveryKeyCountdown(Math.max(0, getRecoveryKeyUnlockedUntil() - Date.now()))}</strong>
@@ -1976,7 +2026,8 @@ async function showRecoveryKeyNotice(recoveryKey, { copied = false, initial = fa
         actions: [
             { id: 'download', label: 'Download Key', className: 'btn-cancel', persistent: true },
             { id: 'copy', label: 'Copy Key', className: 'btn-cancel', persistent: true },
-            { id: 'done', label: 'I saved my Recovery Key', className: 'btn-create buddy-cloud-action-nowrap', persistent: requireDownload },
+            ...(requiresInitialAcknowledgement ? [{ id: 'remind-later', label: initialAcknowledged ? 'I understand - remind me for 72 hours' : `Read first (${RECOVERY_KEY_ACK_SECONDS}s)`, className: 'btn-cancel buddy-cloud-action-nowrap', persistent: !initialAcknowledged, disabled: !initialAcknowledged }] : []),
+            { id: 'done', label: 'I saved my Recovery Key', className: 'btn-create buddy-cloud-action-nowrap', persistent: requireDownload || requiresInitialAcknowledgement, disabled: requiresInitialAcknowledgement && !initialAcknowledged },
             ...(!initial && !requireDownload ? [{ id: 'lock-key', label: 'Lock Key', className: 'btn-cancel', persistent: true }] : [])
         ],
         onAction: async ({ action, modal, button, setRecoveryKeyVisible }) => {
@@ -2022,6 +2073,16 @@ async function showRecoveryKeyNotice(recoveryKey, { copied = false, initial = fa
                     if (window.showToast) window.showToast('Download the recovery key before continuing.');
                     return true;
                 }
+                if (requiresInitialAcknowledgement && !initialAcknowledged) {
+                    setRecoveryKeyVisible?.(false);
+                    setNote(`Take ${RECOVERY_KEY_ACK_SECONDS} seconds to read the recovery-key warning before continuing.`);
+                    return true;
+                }
+                return false;
+            }
+
+            if (action === 'remind-later') {
+                if (requiresInitialAcknowledgement && !initialAcknowledged) return true;
                 return false;
             }
 
@@ -2036,7 +2097,13 @@ async function showRecoveryKeyNotice(recoveryKey, { copied = false, initial = fa
         },
         onReady: ({ modal }) => {
             if (!initial && !requireDownload) startRecoveryKeyCountdown(modal);
-        }
+            if (requiresInitialAcknowledgement && !initialAcknowledged) {
+                startInitialRecoveryKeyAcknowledgementPause(modal, () => {
+                    initialAcknowledged = true;
+                });
+            }
+        },
+        dismissible: !(requiresInitialAcknowledgement && !initialAcknowledged)
     });
 
     if (result.action === 'done') {
@@ -2044,6 +2111,7 @@ async function showRecoveryKeyNotice(recoveryKey, { copied = false, initial = fa
         if (confirmResult === 'back') continue;
         return confirmResult === 'confirmed';
     }
+    if (result.action === 'remind-later') return false;
     return hasRecoveryKeyBackedUpFlag();
     }
 }
