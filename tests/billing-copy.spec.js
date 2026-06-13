@@ -190,4 +190,81 @@ test.describe('Premium billing copy', () => {
         expect(result.manageSubline).toBe('Thank you');
         expect(result.manageSublineHidden).toBe(false);
     });
+
+    test('customer portal opens in a new page when managing subscription', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        const result = await page.evaluate(async () => {
+            const calls = [];
+            const openedPages = [];
+            window.currentUser = { id: 'billing-portal-user', email: 'billing-portal@example.com' };
+            window.bbConfig = {
+                ...(window.bbConfig || {}),
+                billingEnabled: true,
+                billingMode: 'beta-test',
+                stripePublishableKey: 'pk_test_portal'
+            };
+            window.sb = {
+                ...(window.sb || {}),
+                functions: {
+                    invoke: async (name, options) => {
+                        calls.push({ name, options });
+                        return {
+                            data: { url: 'https://billing.stripe.com/p/session/test_portal' },
+                            error: null
+                        };
+                    }
+                }
+            };
+            window.open = (url, target, features) => {
+                const opened = {
+                    url,
+                    target,
+                    features,
+                    closed: false,
+                    replacedWith: '',
+                    opener: {},
+                    document: {
+                        title: '',
+                        body: { innerHTML: '' }
+                    },
+                    location: {
+                        href: '',
+                        replace(nextUrl) {
+                            opened.replacedWith = nextUrl;
+                            opened.location.href = nextUrl;
+                        }
+                    },
+                    close() {
+                        opened.closed = true;
+                    }
+                };
+                openedPages.push(opened);
+                return opened;
+            };
+
+            await window.handleManageSubscription();
+
+            return {
+                calls,
+                openedPages: openedPages.map(opened => ({
+                    url: opened.url,
+                    target: opened.target,
+                    features: opened.features,
+                    closed: opened.closed,
+                    replacedWith: opened.replacedWith,
+                    href: opened.location.href
+                }))
+            };
+        });
+
+        expect(result.calls).toHaveLength(1);
+        expect(result.calls[0].name).toBe('billing-create-portal');
+        expect(result.openedPages).toHaveLength(1);
+        expect(result.openedPages[0].url).toBe('about:blank');
+        expect(result.openedPages[0].target).toBe('_blank');
+        expect(result.openedPages[0].closed).toBe(false);
+        expect(result.openedPages[0].replacedWith).toBe('https://billing.stripe.com/p/session/test_portal');
+    });
 });

@@ -12591,11 +12591,72 @@ export async function startStripeCheckout(event) {
     }
 }
 
+function openPendingBillingPortalPage() {
+    try {
+        const portalWindow = window.open('about:blank', '_blank');
+        if (!portalWindow) return null;
+
+        try {
+            portalWindow.opener = null;
+            portalWindow.document.title = 'Opening Stripe billing...';
+            portalWindow.document.body.innerHTML = '<p style="font-family: system-ui, sans-serif; padding: 1rem;">Opening Stripe billing...</p>';
+        } catch {
+            // The browser may prevent writing to the pending tab; navigation can still continue.
+        }
+
+        return portalWindow;
+    } catch {
+        return null;
+    }
+}
+
+function closePendingBillingPortalPage(portalWindow) {
+    try {
+        if (portalWindow && !portalWindow.closed) portalWindow.close();
+    } catch {
+        // Ignore blocked window handles.
+    }
+}
+
+function openBillingPortalPage(url, portalWindow = null) {
+    if (portalWindow && !portalWindow.closed) {
+        try {
+            portalWindow.opener = null;
+            if (portalWindow.location?.replace) {
+                portalWindow.location.replace(url);
+            } else {
+                portalWindow.location.href = url;
+            }
+            return true;
+        } catch {
+            // Fall through to a fresh tab attempt.
+        }
+    }
+
+    try {
+        const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+        if (newWindow) {
+            try {
+                newWindow.opener = null;
+            } catch {
+                // Ignore blocked opener assignment.
+            }
+            return true;
+        }
+    } catch {
+        // Fall back to same-tab navigation below.
+    }
+
+    window.location.assign(url);
+    return false;
+}
+
 export async function handleManageSubscription(event) {
     event?.preventDefault?.();
 
     const button = event?.currentTarget || document.getElementById('accountUpgradeBtn');
     setUpgradeButtonLoading(button, true);
+    let portalWindow = null;
 
     try {
         if (!window.currentUser) {
@@ -12610,11 +12671,14 @@ export async function handleManageSubscription(event) {
             throw new Error('Live billing must be managed from https://app.budget-buddy.io, not localhost.');
         }
 
+        portalWindow = openPendingBillingPortalPage();
         const returnUrl = getCheckoutReturnUrl();
         const portalSession = await invokeBillingFunction(BILLING_FUNCTIONS.portal, { returnUrl });
         if (!portalSession.url) throw new Error('Billing portal did not include a redirect URL.');
-        window.location.assign(portalSession.url);
+        const openedInNewPage = openBillingPortalPage(portalSession.url, portalWindow);
+        if (openedInNewPage) setUpgradeButtonLoading(button, false);
     } catch (err) {
+        closePendingBillingPortalPage(portalWindow);
         console.error('[Billing] Customer portal failed:', err);
         if (window.showToast) window.showToast(err.message || 'Could not open billing portal.');
         setUpgradeButtonLoading(button, false);
