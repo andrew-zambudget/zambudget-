@@ -6954,36 +6954,60 @@ input.error, select.error {
 }
 
 #heroInputWrapper {
-    width: min(100%, 390px) !important;
-    min-height: 78px;
-    gap: 0.24rem;
-    padding: 0.72rem 1rem;
-    border: 1px solid color-mix(in srgb, var(--accent, #14b8a6) 22%, var(--border, #e2e8f0));
-    border-radius: 20px;
-    background:
-        radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent, #14b8a6) 8%, transparent), transparent 58%),
-        linear-gradient(180deg, var(--surface, #ffffff), var(--bg, #f8fafc));
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78), 0 10px 24px rgba(15, 23, 42, 0.06);
-    transition: width 0.2s ease, min-height 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    position: relative;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    width: min(100%, 360px) !important;
+    min-height: 68px;
+    gap: 0.6rem;
+    overflow: hidden;
+    padding: 0.58rem 0.78rem;
+    border: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 88%, transparent);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--surface, #ffffff) 88%, var(--bg, #f8fafc));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
+    transition: width 0.2s ease, min-height 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+}
+
+#heroInputWrapper::after {
+    content: "";
+    position: absolute;
+    left: 0.72rem;
+    right: 0.72rem;
+    bottom: 0;
+    height: 2px;
+    border-radius: 999px 999px 0 0;
+    background: linear-gradient(90deg, var(--accent, #14b8a6), color-mix(in srgb, var(--green, #10b981) 72%, var(--accent, #14b8a6)));
+    opacity: 0.42;
+    transform: scaleX(0.34);
+    transform-origin: left center;
+    transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
 #heroInputWrapper.amount-empty {
-    width: min(100%, 320px) !important;
+    width: min(100%, 280px) !important;
 }
 
 #heroInputWrapper.amount-medium {
-    width: min(100%, 420px) !important;
+    width: min(100%, 390px) !important;
 }
 
 #heroInputWrapper.amount-long,
 #heroInputWrapper.amount-xlong {
-    width: min(100%, 460px) !important;
+    width: min(100%, 430px) !important;
 }
 
 #heroInputWrapper:focus-within {
     border-color: var(--accent, #14b8a6);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent, #14b8a6) 12%, transparent), 0 12px 28px rgba(15, 23, 42, 0.08);
+    background: var(--surface, #ffffff);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent, #14b8a6) 10%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.72);
     transform: translateY(-1px);
+}
+
+#heroInputWrapper:focus-within::after {
+    opacity: 1;
+    transform: scaleX(1);
 }
 
 .hero-amount-container.add-field-invalid #heroInputWrapper {
@@ -6991,13 +7015,28 @@ input.error, select.error {
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--red, #ef4444) 12%, transparent);
 }
 
+.hero-amount-container.add-field-invalid #heroInputWrapper::after {
+    background: var(--red, #ef4444);
+    opacity: 1;
+    transform: scaleX(1);
+}
+
 .hero-currency {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     align-self: center;
-    transform: translateY(-0.04em);
-    font-size: 2rem;
+    border: 1px solid color-mix(in srgb, var(--accent, #14b8a6) 20%, var(--border, #e2e8f0));
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--accent, #14b8a6) 8%, var(--surface, #ffffff));
+    transform: translateY(0);
+    font-size: 1.18rem;
     font-weight: 850;
     line-height: 1;
-    color: var(--text-dim, #64748b);
+    color: var(--text, #0f172a);
     margin-right: 0;
 }
 
@@ -7008,12 +7047,12 @@ input.error, select.error {
     border: none;
     outline: none;
     color: var(--text, #0f172a);
-    font-size: 3.05rem;
+    font-size: 2.62rem;
     font-weight: 900;
     line-height: 1;
     text-align: left;
     padding: 0;
-    min-height: 54px;
+    min-height: 46px;
     caret-color: var(--accent, #14b8a6);
     font-variant-numeric: tabular-nums;
     letter-spacing: 0;
@@ -7021,15 +7060,15 @@ input.error, select.error {
 }
 
 #heroInputWrapper.amount-medium .hero-amount-input {
-    font-size: 2.72rem;
-}
-
-#heroInputWrapper.amount-long .hero-amount-input {
     font-size: 2.38rem;
 }
 
+#heroInputWrapper.amount-long .hero-amount-input {
+    font-size: 2.12rem;
+}
+
 #heroInputWrapper.amount-xlong .hero-amount-input {
-    font-size: 2.08rem;
+    font-size: 1.88rem;
 }
 
 .hero-amount-input::placeholder {
@@ -7459,30 +7498,34 @@ input.error, select.error {
     }
 
     #heroInputWrapper {
-        min-height: 72px;
-        padding: 0.65rem 0.82rem;
-        border-radius: 18px;
+        min-height: 64px;
+        gap: 0.5rem;
+        padding: 0.55rem 0.68rem;
+        border-radius: 13px;
     }
 
     .hero-currency {
-        font-size: 1.76rem;
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        font-size: 1.08rem;
     }
 
     .hero-amount-input {
-        min-height: 48px;
-        font-size: 2.66rem;
+        min-height: 42px;
+        font-size: 2.34rem;
     }
 
     #heroInputWrapper.amount-medium .hero-amount-input {
-        font-size: 2.38rem;
-    }
-
-    #heroInputWrapper.amount-long .hero-amount-input {
         font-size: 2.1rem;
     }
 
+    #heroInputWrapper.amount-long .hero-amount-input {
+        font-size: 1.88rem;
+    }
+
     #heroInputWrapper.amount-xlong .hero-amount-input {
-        font-size: 1.82rem;
+        font-size: 1.66rem;
     }
 
     .cat-pill-v2,
@@ -8396,46 +8439,48 @@ input.error, select.error {
     }
 
     #view-add #heroInputWrapper {
-        width: min(100%, 360px) !important;
-        min-height: 72px;
-        padding: 0.62rem 0.8rem;
-        border-radius: 18px;
-        background:
-            radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent, #14b8a6) 12%, transparent), transparent 62%),
-            var(--surface, #ffffff);
-        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+        width: min(100%, 340px) !important;
+        min-height: 64px;
+        gap: 0.5rem;
+        padding: 0.54rem 0.68rem;
+        border-radius: 13px;
+        background: color-mix(in srgb, var(--surface, #ffffff) 90%, var(--bg, #f8fafc));
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.64);
     }
 
     #view-add #heroInputWrapper.amount-empty {
-        width: min(100%, 300px) !important;
+        width: min(100%, 270px) !important;
     }
 
     #view-add #heroInputWrapper.amount-medium,
     #view-add #heroInputWrapper.amount-long,
     #view-add #heroInputWrapper.amount-xlong {
-        width: min(100%, 380px) !important;
+        width: min(100%, 360px) !important;
     }
 
     #view-add .hero-currency {
-        font-size: 1.72rem;
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        font-size: 1.08rem;
     }
 
     #view-add .hero-amount-input {
-        min-height: 48px;
-        font-size: 2.58rem;
+        min-height: 42px;
+        font-size: 2.28rem;
         line-height: 1;
     }
 
     #view-add #heroInputWrapper.amount-medium .hero-amount-input {
-        font-size: 2.32rem;
+        font-size: 2.06rem;
     }
 
     #view-add #heroInputWrapper.amount-long .hero-amount-input {
-        font-size: 2.04rem;
+        font-size: 1.84rem;
     }
 
     #view-add #heroInputWrapper.amount-xlong .hero-amount-input {
-        font-size: 1.78rem;
+        font-size: 1.62rem;
     }
 
     #view-add .add-form-group {
