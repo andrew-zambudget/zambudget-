@@ -4304,7 +4304,27 @@ let draggedCategoryPosition = 0;
 // 1. RENDERING ENGINE
 // ==========================================
 
+function getCurrentCurrencySymbol() {
+    return String(State.getSymbol ? State.getSymbol() : '$');
+}
+
+function syncCurrencyBadges() {
+    const symbol = getCurrentCurrencySymbol();
+
+    document.querySelectorAll('.currency-badge').forEach(badge => {
+        badge.textContent = symbol;
+    });
+
+    const heroCurrencyBadge = document.getElementById('heroCurrencyBadge');
+    if (heroCurrencyBadge) {
+        heroCurrencyBadge.textContent = symbol;
+        heroCurrencyBadge.hidden = symbol.length === 0;
+        heroCurrencyBadge.closest('#heroInputWrapper')?.classList.toggle('amount-no-currency', symbol.length === 0);
+    }
+}
+
 export function render() {
+    syncCurrencyBadges();
     renderZBBDashboard();
     renderCategoryList();
     renderRecentTransactions();
@@ -7794,6 +7814,7 @@ export function initAddTransactionForm() {
         dateInput.max = '2100-12-31';
     }
     updateAddTransactionDate(document.getElementById('txDateHidden')?.value || getLocalISODate());
+    syncCurrencyBadges();
     updateAmountInputPresentation();
     renderAddCategoryInsight();
     clearAddFormErrors();
@@ -10306,17 +10327,7 @@ export function saveSettings() {
 }
 
 export function updateCurrencyUI() {
-    const symbol = State.getSymbol ? State.getSymbol() : '$';
-
-    document.querySelectorAll('.currency-badge').forEach(badge => {
-        badge.textContent = symbol;
-    });
-
-    const heroCurrencyBadge = document.getElementById('heroCurrencyBadge');
-    if (heroCurrencyBadge) {
-        heroCurrencyBadge.textContent = symbol;
-    }
-
+    syncCurrencyBadges();
     render();
 }
 

@@ -7010,6 +7010,10 @@ input.error, select.error {
     transform: scaleX(1);
 }
 
+#heroInputWrapper.amount-no-currency {
+    justify-content: center !important;
+}
+
 .hero-amount-container.add-field-invalid #heroInputWrapper {
     border-color: var(--red, #ef4444);
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--red, #ef4444) 12%, transparent);
