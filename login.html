@@ -291,8 +291,8 @@
     <main id="main" class="auth-main">
         
         <div class="auth-container" id="loginView">
-            <h1 class="auth-title">Welcome Back</h1>
-            <p class="auth-subtitle">Sign in or create your beta account securely</p>
+            <h1 class="auth-title" id="authTitle">Welcome Back</h1>
+            <p class="auth-subtitle" id="authSubtitle">Sign in to an existing BudgetBuddy account securely</p>
 
             <div id="authMessage" class="message"></div>
 
@@ -300,7 +300,7 @@
                 <input type="email" id="magicEmail" class="form-input" placeholder="you@example.com" required>
                 <button type="submit" class="btn-primary" id="magicLinkBtn">Email me a sign-in link</button>
             </form>
-            <p class="magic-link-note">No password needed. New beta accounts can use the same secure sign-in link.</p>
+            <p class="magic-link-note" id="magicLinkNote">No password needed. New beta users should choose Create one first.</p>
 
             <div class="divider"><span>OR</span></div>
 
@@ -325,7 +325,7 @@
             <div class="divider"><span>ACCOUNT</span></div>
 
             <div class="toggle-link">
-                Don't have an account? <a href="#" onclick="handleCreateAccount(event)">Create one</a>
+                <span id="authModePrompt">Don't have an account?</span> <a href="#" id="authModeLink" onclick="handleCreateAccount(event)">Create one</a>
             </div>
         </div>
 
@@ -354,6 +354,7 @@
     var SUPABASE_URL = '';
     var SUPABASE_KEY = '';
     var sb = null;
+    var authMode = 'signin';
     var magicLinkCooldownTimer = null;
     var MAGIC_LINK_RATE_LIMIT_SECONDS = 60;
 
@@ -420,7 +421,7 @@
         var btn = document.getElementById('magicLinkBtn');
         if (!btn) return;
         btn.disabled = Boolean(disabled);
-        btn.textContent = label || 'Email me a sign-in link';
+        btn.textContent = label || (authMode === 'signup' ? 'Create beta account by email' : 'Email me a sign-in link');
     }
 
     function isAuthRateLimitError(error) {
@@ -428,6 +429,48 @@
         return text.indexOf('rate limit') !== -1
             || text.indexOf('too many') !== -1
             || text.indexOf('429') !== -1;
+    }
+
+    function isMissingAccountSignInError(error) {
+        var text = String(error && error.message ? error.message : '').toLowerCase();
+        return text.indexOf('signup') !== -1
+            || text.indexOf('signups') !== -1
+            || text.indexOf('user not found') !== -1
+            || text.indexOf('not found') !== -1;
+    }
+
+    function setAuthMode(mode) {
+        authMode = mode === 'signup' ? 'signup' : 'signin';
+        var title = document.getElementById('authTitle');
+        var subtitle = document.getElementById('authSubtitle');
+        var note = document.getElementById('magicLinkNote');
+        var prompt = document.getElementById('authModePrompt');
+        var link = document.getElementById('authModeLink');
+
+        window.clearInterval(magicLinkCooldownTimer);
+        magicLinkCooldownTimer = null;
+
+        if (authMode === 'signup') {
+            if (title) title.textContent = 'Create Beta Account';
+            if (subtitle) subtitle.textContent = 'Start BudgetBuddy with a secure email link';
+            if (note) note.textContent = 'Use an email you control. The link creates or signs in to your BudgetBuddy account.';
+            if (prompt) prompt.textContent = 'Already have an account?';
+            if (link) {
+                link.textContent = 'Sign in';
+                link.onclick = handleSignInMode;
+            }
+            setMagicLinkButtonState(false, 'Create beta account by email');
+        } else {
+            if (title) title.textContent = 'Welcome Back';
+            if (subtitle) subtitle.textContent = 'Sign in to an existing BudgetBuddy account securely';
+            if (note) note.textContent = 'No password needed. New beta users should choose Create one first.';
+            if (prompt) prompt.textContent = "Don't have an account?";
+            if (link) {
+                link.textContent = 'Create one';
+                link.onclick = handleCreateAccount;
+            }
+            setMagicLinkButtonState(false, 'Email me a sign-in link');
+        }
     }
 
     function startMagicLinkCooldown(seconds) {
@@ -563,7 +606,7 @@
             email: email,
             options: {
                 emailRedirectTo: getAppUrl('index.html'),
-                shouldCreateUser: true
+                shouldCreateUser: authMode === 'signup'
             }
         });
 
@@ -571,26 +614,47 @@
             if (isAuthRateLimitError(error)) {
                 showAuthMessage('Email sign-in is cooling down. Wait about a minute before requesting another link, or continue with Google if this email was recently used.', 'error');
                 startMagicLinkCooldown(MAGIC_LINK_RATE_LIMIT_SECONDS);
+            } else if (authMode === 'signin' && isMissingAccountSignInError(error)) {
+                showAuthMessage('If this email belongs to a BudgetBuddy account, check your inbox for a secure sign-in link. If you are new, choose Create one.', 'success');
+                startMagicLinkCooldown(MAGIC_LINK_RATE_LIMIT_SECONDS);
             } else {
                 showAuthMessage(error.message || 'Could not send sign-in link. Please try again.', 'error');
-                setMagicLinkButtonState(false, 'Email me a sign-in link');
+                setMagicLinkButtonState(false);
             }
         } else {
-            showAuthMessage('Check your inbox for your secure sign-in link. If you need another link, wait about a minute before requesting it again.', 'success');
+            if (authMode === 'signup') {
+                showAuthMessage('Check your inbox to finish creating or signing in to BudgetBuddy. If you need another link, wait about a minute before requesting it again.', 'success');
+            } else {
+                showAuthMessage('If this email belongs to a BudgetBuddy account, check your inbox for a secure sign-in link.', 'success');
+            }
             startMagicLinkCooldown(MAGIC_LINK_RATE_LIMIT_SECONDS);
         }
     }
 
     function handleCreateAccount(e) {
         if (e) e.preventDefault();
+        setAuthMode('signup');
 
         var email = document.getElementById('magicEmail');
         var msg = document.getElementById('authMessage');
 
-        msg.textContent = 'Beta signups are open. Continue with Google, Apple, or enter your email for a secure sign-in link.';
+        msg.textContent = 'Beta signups are open. Continue with Google or enter your email to create a BudgetBuddy account.';
         msg.className = 'message success';
         msg.style.display = 'block';
 
+        if (email) {
+            email.focus();
+            email.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+    }
+
+    function handleSignInMode(e) {
+        if (e) e.preventDefault();
+        setAuthMode('signin');
+
+        var email = document.getElementById('magicEmail');
+        var msg = document.getElementById('authMessage');
+        if (msg) msg.style.display = 'none';
         if (email) {
             email.focus();
             email.scrollIntoView({ block: 'center', behavior: 'smooth' });

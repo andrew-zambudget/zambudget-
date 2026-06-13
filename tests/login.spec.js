@@ -45,4 +45,135 @@ test.describe('login page safeguards', () => {
         await expect(button).toHaveText(/Try email again in (59|60)s/);
         await expect(page.locator('#googleSignInBtn')).toBeEnabled();
     });
+
+    test('default email sign-in does not auto-create accounts', async ({ page }) => {
+        await page.route('**/@supabase/supabase-js@2', route => route.fulfill({
+            status: 200,
+            contentType: 'application/javascript',
+            body: `
+                window.__otpCalls = [];
+                window.supabase = {
+                    createClient() {
+                        return {
+                            auth: {
+                                getSession: async () => ({ data: { session: null }, error: null }),
+                                signInWithOtp: async (payload) => {
+                                    window.__otpCalls.push(payload);
+                                    return { data: {}, error: null };
+                                },
+                                signInWithOAuth: async () => ({ error: null })
+                            }
+                        };
+                    }
+                };
+            `
+        }));
+
+        await page.goto('/login.html');
+        await expect(page.locator('#authTitle')).toHaveText('Welcome Back');
+        await expect(page.locator('#magicLinkBtn')).toHaveText('Email me a sign-in link');
+
+        await page.locator('#magicEmail').fill('existing@example.com');
+        await page.locator('#magicLinkBtn').click();
+
+        await expect(page.locator('#authMessage')).toContainText('If this email belongs to a BudgetBuddy account');
+        await expect(page.locator('#authMessage')).not.toContainText('account exists');
+        await expect.poll(() => page.evaluate(() => window.__otpCalls)).toEqual([
+            expect.objectContaining({
+                email: 'existing@example.com',
+                options: expect.objectContaining({
+                    shouldCreateUser: false
+                })
+            })
+        ]);
+    });
+
+    test('unknown existing-account sign-in does not expose account absence', async ({ page }) => {
+        await page.route('**/@supabase/supabase-js@2', route => route.fulfill({
+            status: 200,
+            contentType: 'application/javascript',
+            body: `
+                window.__otpCalls = [];
+                window.supabase = {
+                    createClient() {
+                        return {
+                            auth: {
+                                getSession: async () => ({ data: { session: null }, error: null }),
+                                signInWithOtp: async (payload) => {
+                                    window.__otpCalls.push(payload);
+                                    return {
+                                        data: null,
+                                        error: { message: 'Signups not allowed for otp' }
+                                    };
+                                },
+                                signInWithOAuth: async () => ({ error: null })
+                            }
+                        };
+                    }
+                };
+            `
+        }));
+
+        await page.goto('/login.html');
+        await page.locator('#magicEmail').fill('unknown@example.com');
+        await page.locator('#magicLinkBtn').click();
+
+        const message = page.locator('#authMessage');
+        await expect(message).toBeVisible();
+        await expect(message).toContainText('If this email belongs to a BudgetBuddy account');
+        await expect(message).toContainText('If you are new, choose Create one.');
+        await expect(message).not.toContainText('Signups not allowed');
+        await expect(page.locator('#magicLinkBtn')).toBeDisabled();
+        await expect.poll(() => page.evaluate(() => window.__otpCalls)).toEqual([
+            expect.objectContaining({
+                email: 'unknown@example.com',
+                options: expect.objectContaining({
+                    shouldCreateUser: false
+                })
+            })
+        ]);
+    });
+
+    test('create account mode explicitly allows account creation by email', async ({ page }) => {
+        await page.route('**/@supabase/supabase-js@2', route => route.fulfill({
+            status: 200,
+            contentType: 'application/javascript',
+            body: `
+                window.__otpCalls = [];
+                window.supabase = {
+                    createClient() {
+                        return {
+                            auth: {
+                                getSession: async () => ({ data: { session: null }, error: null }),
+                                signInWithOtp: async (payload) => {
+                                    window.__otpCalls.push(payload);
+                                    return { data: {}, error: null };
+                                },
+                                signInWithOAuth: async () => ({ error: null })
+                            }
+                        };
+                    }
+                };
+            `
+        }));
+
+        await page.goto('/login.html');
+        await page.getByRole('link', { name: 'Create one' }).click();
+
+        await expect(page.locator('#authTitle')).toHaveText('Create Beta Account');
+        await expect(page.locator('#magicLinkBtn')).toHaveText('Create beta account by email');
+
+        await page.locator('#magicEmail').fill('new@example.com');
+        await page.locator('#magicLinkBtn').click();
+
+        await expect(page.locator('#authMessage')).toContainText('Check your inbox to finish creating or signing in');
+        await expect.poll(() => page.evaluate(() => window.__otpCalls)).toEqual([
+            expect.objectContaining({
+                email: 'new@example.com',
+                options: expect.objectContaining({
+                    shouldCreateUser: true
+                })
+            })
+        ]);
+    });
 });
