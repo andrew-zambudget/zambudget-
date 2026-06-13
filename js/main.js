@@ -69,7 +69,8 @@ bridgeAll();
  */
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('[main.js] Initializing Application...');
-    runPrivacyStorageCleanup();
+    const privacyCleanup = runPrivacyStorageCleanup();
+    if (privacyCleanup?.blocked) return;
 
     try {
         // --- SUPABASE INITIALIZATION START ---
