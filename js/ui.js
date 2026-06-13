@@ -240,9 +240,19 @@ function getSyncStatusLabel(status) {
     return 'Saved';
 }
 
+function hasUnbackedLocalChangesStatus(status = window.BuddyCloud?.getStatus?.() || {}) {
+    return Boolean(
+        status.signedIn
+        && status.enabled
+        && status.hasUnverifiedLocalChanges
+        && !status.syncing
+        && !hasBuddyCloudConflict(status)
+    );
+}
+
 function needsRecoveryKeyForSyncStatus() {
     const status = window.BuddyCloud?.getStatus?.() || {};
-    return Boolean(status.signedIn && status.enabled && !status.hasKey);
+    return Boolean(status.signedIn && status.enabled && !status.hasKey && !hasUnbackedLocalChangesStatus(status));
 }
 
 function getSyncStatusDisplayLabel(status = currentSyncStatus) {
@@ -579,7 +589,7 @@ function syncCloudActionButtons() {
 
     if (nudge) {
         if (enabled && signedIn) {
-            const showKeyReminder = needsRecoveryKeySaveReminder();
+            const showKeyReminder = needsRecoveryKeySaveReminder() && !hasUnbackedLocalChangesStatus(status);
             const grace = getRecoveryKeyGraceState();
             const nudgeSeverity = showKeyReminder && grace.expired
                 ? 'error'
@@ -922,7 +932,11 @@ window.addEventListener('buddy-cloud-status', (event) => {
     const humanStatus = getBuddyCloudHumanStatus(status);
     if (status.syncing) {
         setSyncStatus('syncing', humanStatus.title);
-    } else if (isBuddyCloudMultiDeviceLimit(status) || hasBuddyCloudConflict(status)) {
+    } else if (hasBuddyCloudConflict(status)) {
+        setSyncStatus('paused', humanStatus.title);
+    } else if (hasUnbackedLocalChangesStatus(status)) {
+        setSyncStatus('paused', 'Local changes not backed up');
+    } else if (isBuddyCloudMultiDeviceLimit(status)) {
         setSyncStatus('paused', humanStatus.title);
     } else if (status.enabled && status.signedIn && !status.hasKey) {
         setSyncStatus('local', 'Saved partially');
@@ -1681,12 +1695,34 @@ function getBuddyCloudHumanStatus(status = window.BuddyCloud?.getStatus?.() || {
         };
     }
 
-    if (!status.canUseCloud) {
+    if (!status.canUseCloud && !hasUnbackedLocalChangesStatus(status)) {
         return {
             severity: 'error',
             title: 'Buddy Cloud cannot connect',
             detail: 'The browser is signed in, but the cloud client is unavailable. Refresh and check the Supabase configuration.',
             recommendedNextStep: 'Refresh the app, then export diagnostics if this continues.'
+        };
+    }
+
+    if (hasUnbackedLocalChangesStatus(status)) {
+        const detail = !status.canUseCloud
+            ? 'Changes on this browser are saved locally but have not been backed up to Buddy Cloud.\nRefresh the app before clearing data or signing out.'
+            : !hasKey
+            ? 'Changes on this browser are saved locally but have not been backed up to Buddy Cloud.\nImport your recovery key or sync before clearing data or signing out.'
+            : isBuddyCloudMultiDeviceLimit(status)
+            ? 'Changes on this browser are saved locally but have not been backed up to Buddy Cloud.\nUse this browser for sync, release a stale slot, or upgrade before clearing data or signing out.'
+            : 'Changes on this browser are saved locally but have not been backed up to Buddy Cloud.\nSync this browser before clearing data or signing out.';
+        return {
+            severity: 'warning',
+            title: 'Local changes not backed up',
+            detail,
+            recommendedNextStep: !status.canUseCloud
+                ? 'Refresh the app, then export diagnostics if Buddy Cloud still cannot connect.'
+                : !hasKey
+                ? 'Import your recovery key so this browser can back up the local changes.'
+                : isBuddyCloudMultiDeviceLimit(status)
+                ? 'Open Devices to use this browser for sync or release a stale slot.'
+                : 'Sync this browser before clearing data or signing out.'
         };
     }
 
@@ -2641,6 +2677,7 @@ function getCurrentBrowserSyncDeviceStatusLabel() {
     const status = window.BuddyCloud?.getStatus?.() || {};
 
     if (!status.signedIn || !status.enabled) return 'Current browser \u00b7 Sync slot inactive';
+    if (hasUnbackedLocalChangesStatus(status)) return 'Current browser \u00b7 Local changes not backed up';
     if (!status.hasKey) return 'Current browser \u00b7 Recovery key needed';
     if (status.isPremium || status.multiDeviceAllowed) return 'Current browser \u00b7 Premium unlimited';
     if (status.syncing) return 'Current browser \u00b7 Syncing';
@@ -3702,6 +3739,7 @@ function getBuddyCloudDeviceStatusCopy() {
     if (!status.enabled || !status.hasKey) return 'Manage known BudgetBuddy browsers for this account.';
     if (isBuddyCloudMultiDeviceLimit(status)) return `Free Tier includes ${freeLimit} active Buddy Cloud sync slots. Browsers inactive for ${leaseWindow} are released automatically, or you can use this browser now.`;
     if (hasBuddyCloudConflict(status)) return 'Possible data loss prevented. Compare the saved versions before Buddy Cloud overwrites either copy.';
+    if (hasUnbackedLocalChangesStatus(status)) return 'Changes on this browser are saved locally but have not been backed up to Buddy Cloud.';
     if (status.lastError) return status.lastError;
     if (status.syncing) return 'Buddy Cloud is syncing on this browser.';
     if (canUseAvailableFreeSyncSlot(status)) return 'This browser is signed in but is not using a Free sync slot yet. Use this browser to claim an available slot and resume Buddy Cloud.';

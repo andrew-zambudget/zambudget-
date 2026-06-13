@@ -295,6 +295,105 @@ test.describe('Buddy Cloud conflict sensitivity', () => {
         expect(result.vaultCreated).toBe(true);
     });
 
+    test('status reports local changes newer than verified Buddy Cloud', async ({ page }) => {
+        const result = await page.evaluate(async ({ stateModulePath, cloudModulePath }) => {
+            const State = await import(stateModulePath);
+            const Cloud = await import(cloudModulePath);
+            const user = { id: 'unbacked-local-status-user', email: 'unbacked-status@example.com' };
+
+            State.replaceSnapshot({
+                transactions: [{
+                    id: 'tx-old-cloud',
+                    type: 'expense',
+                    amount: 12,
+                    category: 'Testing',
+                    description: 'Old verified cloud state',
+                    date: '2026-06-13',
+                    createdAt: '2026-06-13T18:00:00.000Z',
+                    createdAtUTC: '2026-06-13T18:00:00.000Z',
+                    serverLoggedAtUTC: '2026-06-13T18:00:00.000Z',
+                    updatedAtUTC: '2026-06-13T18:00:00.000Z'
+                }],
+                categories: [{
+                    id: 'cat-old-cloud',
+                    type: 'expense',
+                    name: 'Testing',
+                    icon: 'T',
+                    budget: 50,
+                    createdAt: '2026-06-13T18:00:00.000Z'
+                }],
+                settings: { currency: '$' }
+            }, { remoteUpdatedAt: '2026-06-13T18:00:00.000Z' });
+            localStorage.setItem('bb_cloud_last_pushed_at', '2026-06-13T18:00:00.000Z');
+            localStorage.setItem('bb_cloud_last_remote_at', '2026-06-13T18:00:00.000Z');
+            localStorage.setItem('bb_cloud_sync_enabled', 'true');
+
+            State.addTransaction({
+                id: 'tx-new-local',
+                type: 'expense',
+                amount: 8,
+                category: 'Testing',
+                description: 'New local change',
+                date: '2026-06-13',
+                createdAt: '2026-06-13T20:00:00.000Z',
+                createdAtUTC: '2026-06-13T20:00:00.000Z',
+                serverLoggedAtUTC: '2026-06-13T20:00:00.000Z',
+                updatedAtUTC: '2026-06-13T20:00:00.000Z'
+            });
+
+            const supabaseClient = {
+                from: () => ({
+                    select() { return this; },
+                    eq() { return this; },
+                    maybeSingle: async () => ({
+                        data: {
+                            payload: { algorithm: 'AES-GCM', iv: 'unused', ciphertext: 'unused' },
+                            payload_checksum: 'old-checksum',
+                            client_updated_at: '2026-06-13T18:00:00.000Z',
+                            updated_at: '2026-06-13T18:00:00.000Z',
+                            sync_owner_slots: []
+                        },
+                        error: null
+                    })
+                }),
+                channel: () => ({
+                    on() { return this; },
+                    subscribe(callback) {
+                        if (typeof callback === 'function') callback('SUBSCRIBED');
+                        return this;
+                    },
+                    unsubscribe() {}
+                }),
+                removeChannel: async () => ({ error: null })
+            };
+
+            await Cloud.init({
+                supabaseClient,
+                user,
+                getSnapshot: State.getSnapshot,
+                replaceSnapshot: State.replaceSnapshot,
+                afterRemoteApply: () => {},
+                isPremiumAccount: () => false
+            });
+
+            const status = Cloud.getStatus();
+            return {
+                hasUnverifiedLocalChanges: status.hasUnverifiedLocalChanges,
+                lastVerifiedCloudAt: status.lastVerifiedCloudAt,
+                localUpdatedAt: status.localUpdatedAt,
+                lastError: status.lastError
+            };
+        }, {
+            stateModulePath: modulePath('/js/state.js'),
+            cloudModulePath: modulePath('/js/cloudSync.js')
+        });
+
+        expect(result.hasUnverifiedLocalChanges).toBe(true);
+        expect(result.lastVerifiedCloudAt).toBe('2026-06-13T18:00:00.000Z');
+        expect(Date.parse(result.localUpdatedAt)).toBeGreaterThan(Date.parse(result.lastVerifiedCloudAt));
+        expect(result.lastError).toContain('Import your Buddy Cloud recovery key');
+    });
+
     test('trusted sign-in pulls cloud when local copy only has volatile timestamp noise', async ({ page }) => {
         const result = await runTrustedSignInScenario(page, { localAmount: 42 });
 

@@ -398,6 +398,38 @@ function getTimestampMs(value = '') {
     return Number.isFinite(time) ? time : 0;
 }
 
+function getLastVerifiedCloudAt() {
+    return localStorage.getItem(CLOUD_LAST_PUSHED_KEY) || localStorage.getItem(CLOUD_LAST_REMOTE_KEY) || '';
+}
+
+function getLocalCloudVerificationState() {
+    const snapshot = getLocalSnapshot();
+    const localUpdatedAt = snapshot?.meta?.localUpdatedAt || '';
+    const lastVerifiedAt = getLastVerifiedCloudAt();
+    const localUpdatedMs = getTimestampMs(localUpdatedAt);
+    const lastVerifiedMs = getTimestampMs(lastVerifiedAt);
+    const hasLocalBudgetData = localSnapshotHasBudgetData(snapshot);
+    const hasUnverifiedLocalChanges = Boolean(
+        hasLocalBudgetData
+        && localUpdatedAt
+        && (
+            !lastVerifiedAt
+            || localUpdatedAt !== lastVerifiedAt
+        )
+        && (
+            !lastVerifiedMs
+            || !localUpdatedMs
+            || localUpdatedMs > lastVerifiedMs
+        )
+    );
+
+    return {
+        localUpdatedAt,
+        lastVerifiedAt,
+        hasUnverifiedLocalChanges
+    };
+}
+
 function getConflictGraceWaitMs(remoteUpdatedAt = '', localUpdatedAt = '') {
     const newestChangeMs = Math.max(getTimestampMs(remoteUpdatedAt), getTimestampMs(localUpdatedAt));
     if (!newestChangeMs) return 0;
@@ -1815,6 +1847,7 @@ export function getStatus() {
             }))
         : [];
     const isPremium = canUseMultipleSyncDevices();
+    const localVerification = getLocalCloudVerificationState();
     return {
         ...lastKnownStatus,
         enabled: isEnabled(),
@@ -1827,6 +1860,9 @@ export function getStatus() {
         freeSyncSlotIdleReclaimMinutes: FREE_SYNC_SLOT_IDLE_RECLAIM_MINUTES,
         freeSyncSlotIdleReclaimLabel: FREE_SYNC_SLOT_IDLE_RECLAIM_LABEL,
         syncSlotLimit: lastKnownStatus.syncSlotLimit || FREE_SYNC_DEVICE_LIMIT,
+        localUpdatedAt: localVerification.localUpdatedAt,
+        lastVerifiedCloudAt: localVerification.lastVerifiedAt,
+        hasUnverifiedLocalChanges: localVerification.hasUnverifiedLocalChanges,
         syncSlotRows: isPremium ? [] : syncSlotRows
     };
 }

@@ -103,6 +103,62 @@ test.describe('Buddy Cloud device management', () => {
         await expect(modal).not.toContainText('Current browser · Sync paused');
     });
 
+    test('surfaces local changes that are not backed up in the Buddy Cloud status panel', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await page.evaluate(() => {
+            const status = {
+                signedIn: true,
+                enabled: true,
+                hasKey: true,
+                canUseCloud: true,
+                syncing: false,
+                hasConflict: false,
+                lastError: '',
+                hasUnverifiedLocalChanges: true,
+                localUpdatedAt: '2026-06-13T20:10:00.000Z',
+                lastVerifiedCloudAt: '2026-06-13T19:00:00.000Z',
+                isPremium: false,
+                multiDeviceAllowed: false,
+                syncSlotBlocked: false,
+                syncSlotCurrentBrowserActive: false,
+                syncSlotCurrentHash: 'current-browser-hash',
+                syncSlotDeviceCount: 1,
+                freeDeviceLimit: 2,
+                syncSlotLimit: 2,
+                syncSlotRows: [{
+                    hash: 'other-browser-hash',
+                    claimed_at: '2026-06-13T18:00:00.000Z',
+                    last_seen_at: '2026-06-13T19:30:00.000Z'
+                }]
+            };
+            window.currentUser = {
+                id: 'unbacked-local-user',
+                email: 'unbacked-local@example.com'
+            };
+            window.BuddyCloud = {
+                getStatus: () => status,
+                refreshSyncSlotStatus: async () => true,
+                getCurrentSyncSlotHash: async () => status.syncSlotCurrentHash,
+                syncNow: async () => true
+            };
+            window.dispatchEvent(new CustomEvent('buddy-cloud-status', { detail: status }));
+        });
+
+        const statusButton = page.locator('#syncStatusBtn');
+        await expect(statusButton).toHaveAttribute('aria-label', /Local changes not backed up/);
+
+        await statusButton.click();
+
+        const panel = page.locator('#syncHistoryPanel');
+        await expect(panel).toBeVisible();
+        await expect(page.locator('#syncHistoryStatusBadge')).toHaveText('Paused');
+        await expect(page.locator('#syncCloudNudge')).toContainText('Local changes not backed up');
+        await expect(page.locator('#syncCloudNudge')).toContainText('Changes on this browser are saved locally but have not been backed up to Buddy Cloud.');
+        await expect(page.locator('#syncCloudNudge')).toContainText('Sync this browser before clearing data or signing out.');
+    });
+
     test('reclaims inactive Free sync slots after the active-browser lease window', async ({ page }) => {
         const result = await page.evaluate(async (cloudModulePath) => {
             const realNow = Date.now;
