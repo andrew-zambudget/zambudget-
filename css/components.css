@@ -6957,55 +6957,54 @@ input.error, select.error {
     position: relative;
     display: inline-flex !important;
     align-items: center !important;
-    justify-content: flex-start !important;
-    width: min(100%, 360px) !important;
-    min-height: 68px;
-    gap: 0.6rem;
-    overflow: hidden;
-    padding: 0.58rem 0.78rem;
-    border: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 88%, transparent);
-    border-radius: 14px;
-    background: color-mix(in srgb, var(--surface, #ffffff) 88%, var(--bg, #f8fafc));
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
-    transition: width 0.2s ease, min-height 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+    justify-content: center !important;
+    width: min(100%, 330px) !important;
+    min-height: 62px;
+    gap: 0.42rem;
+    overflow: visible;
+    padding: 0.24rem 0.12rem 0.58rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    transition: width 0.2s ease, min-height 0.2s ease, transform 0.2s ease;
 }
 
 #heroInputWrapper::after {
     content: "";
     position: absolute;
-    left: 0.72rem;
-    right: 0.72rem;
-    bottom: 0;
-    height: 2px;
-    border-radius: 999px 999px 0 0;
-    background: linear-gradient(90deg, var(--accent, #14b8a6), color-mix(in srgb, var(--green, #10b981) 72%, var(--accent, #14b8a6)));
-    opacity: 0.42;
-    transform: scaleX(0.34);
-    transform-origin: left center;
-    transition: opacity 0.18s ease, transform 0.18s ease;
+    left: 0;
+    right: 0;
+    bottom: 0.18rem;
+    height: 1px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--border, #e2e8f0) 84%, var(--text-dim, #64748b));
+    opacity: 0.82;
+    transform: scaleX(1);
+    transform-origin: center;
+    transition: height 0.18s ease, opacity 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
 }
 
 #heroInputWrapper.amount-empty {
-    width: min(100%, 280px) !important;
+    width: min(100%, 250px) !important;
 }
 
 #heroInputWrapper.amount-medium {
-    width: min(100%, 390px) !important;
+    width: min(100%, 360px) !important;
 }
 
 #heroInputWrapper.amount-long,
 #heroInputWrapper.amount-xlong {
-    width: min(100%, 430px) !important;
+    width: min(100%, 400px) !important;
 }
 
 #heroInputWrapper:focus-within {
-    border-color: var(--accent, #14b8a6);
-    background: var(--surface, #ffffff);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent, #14b8a6) 10%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.72);
     transform: translateY(-1px);
 }
 
 #heroInputWrapper:focus-within::after {
+    height: 2px;
+    background: var(--accent, #14b8a6);
     opacity: 1;
     transform: scaleX(1);
 }
@@ -7015,8 +7014,7 @@ input.error, select.error {
 }
 
 .hero-amount-container.add-field-invalid #heroInputWrapper {
-    border-color: var(--red, #ef4444);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--red, #ef4444) 12%, transparent);
+    box-shadow: none;
 }
 
 .hero-amount-container.add-field-invalid #heroInputWrapper::after {
@@ -7026,21 +7024,16 @@ input.error, select.error {
 }
 
 .hero-currency {
-    width: 34px;
-    height: 34px;
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     align-self: center;
-    border: 1px solid color-mix(in srgb, var(--accent, #14b8a6) 20%, var(--border, #e2e8f0));
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--accent, #14b8a6) 8%, var(--surface, #ffffff));
     transform: translateY(0);
-    font-size: 1.18rem;
+    font-size: 1.55rem;
     font-weight: 850;
     line-height: 1;
-    color: var(--text, #0f172a);
+    color: var(--text-dim, #64748b);
     margin-right: 0;
 }
 
@@ -7051,7 +7044,7 @@ input.error, select.error {
     border: none;
     outline: none;
     color: var(--text, #0f172a);
-    font-size: 2.62rem;
+    font-size: 2.78rem;
     font-weight: 900;
     line-height: 1;
     text-align: left;
@@ -7064,15 +7057,15 @@ input.error, select.error {
 }
 
 #heroInputWrapper.amount-medium .hero-amount-input {
-    font-size: 2.38rem;
+    font-size: 2.48rem;
 }
 
 #heroInputWrapper.amount-long .hero-amount-input {
-    font-size: 2.12rem;
+    font-size: 2.18rem;
 }
 
 #heroInputWrapper.amount-xlong .hero-amount-input {
-    font-size: 1.88rem;
+    font-size: 1.92rem;
 }
 
 .hero-amount-input::placeholder {
@@ -7502,34 +7495,31 @@ input.error, select.error {
     }
 
     #heroInputWrapper {
-        min-height: 64px;
-        gap: 0.5rem;
-        padding: 0.55rem 0.68rem;
-        border-radius: 13px;
+        min-height: 58px;
+        gap: 0.34rem;
+        padding: 0.18rem 0.08rem 0.52rem;
+        border-radius: 0;
     }
 
     .hero-currency {
-        width: 32px;
-        height: 32px;
-        border-radius: 9px;
-        font-size: 1.08rem;
+        font-size: 1.34rem;
     }
 
     .hero-amount-input {
         min-height: 42px;
-        font-size: 2.34rem;
+        font-size: 2.42rem;
     }
 
     #heroInputWrapper.amount-medium .hero-amount-input {
-        font-size: 2.1rem;
+        font-size: 2.14rem;
     }
 
     #heroInputWrapper.amount-long .hero-amount-input {
-        font-size: 1.88rem;
+        font-size: 1.9rem;
     }
 
     #heroInputWrapper.amount-xlong .hero-amount-input {
-        font-size: 1.66rem;
+        font-size: 1.68rem;
     }
 
     .cat-pill-v2,
@@ -8443,40 +8433,37 @@ input.error, select.error {
     }
 
     #view-add #heroInputWrapper {
-        width: min(100%, 340px) !important;
-        min-height: 64px;
-        gap: 0.5rem;
-        padding: 0.54rem 0.68rem;
-        border-radius: 13px;
-        background: color-mix(in srgb, var(--surface, #ffffff) 90%, var(--bg, #f8fafc));
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.64);
+        width: min(100%, 320px) !important;
+        min-height: 58px;
+        gap: 0.34rem;
+        padding: 0.18rem 0.08rem 0.52rem;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
     }
 
     #view-add #heroInputWrapper.amount-empty {
-        width: min(100%, 270px) !important;
+        width: min(100%, 240px) !important;
     }
 
     #view-add #heroInputWrapper.amount-medium,
     #view-add #heroInputWrapper.amount-long,
     #view-add #heroInputWrapper.amount-xlong {
-        width: min(100%, 360px) !important;
+        width: min(100%, 350px) !important;
     }
 
     #view-add .hero-currency {
-        width: 32px;
-        height: 32px;
-        border-radius: 9px;
-        font-size: 1.08rem;
+        font-size: 1.3rem;
     }
 
     #view-add .hero-amount-input {
         min-height: 42px;
-        font-size: 2.28rem;
+        font-size: 2.34rem;
         line-height: 1;
     }
 
     #view-add #heroInputWrapper.amount-medium .hero-amount-input {
-        font-size: 2.06rem;
+        font-size: 2.08rem;
     }
 
     #view-add #heroInputWrapper.amount-long .hero-amount-input {
