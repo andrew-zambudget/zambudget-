@@ -173,6 +173,7 @@ test.describe('Premium billing copy', () => {
                 active: badge?.classList.contains('is-active') || false,
                 canceling: badge?.classList.contains('is-canceling') || false,
                 tooltip: badge?.getAttribute('data-tooltip') || '',
+                title: badge?.getAttribute('title') || '',
                 manageLabel: manageButton?.querySelector('.account-action-label')?.textContent || '',
                 manageSubline: manageButton?.querySelector('.account-action-subline')?.textContent || '',
                 manageSublineHidden: manageButton?.querySelector('.account-action-subline')?.hidden ?? true
@@ -184,6 +185,7 @@ test.describe('Premium billing copy', () => {
         expect(result.active).toBe(true);
         expect(result.canceling).toBe(true);
         expect(result.tooltip).toContain('scheduled to cancel');
+        expect(result.title).toBe('');
         expect(result.manageLabel).toBe('Manage');
         expect(result.manageSubline).toBe('Thank you');
         expect(result.manageSublineHidden).toBe(false);

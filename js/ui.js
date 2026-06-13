@@ -12326,13 +12326,12 @@ function syncBillingUi() {
         accountBillingStatus.classList.toggle('is-canceling', isCanceling);
         if (tooltip) {
             accountBillingStatus.setAttribute('data-tooltip', tooltip);
-            accountBillingStatus.setAttribute('title', tooltip);
             accountBillingStatus.setAttribute('tabindex', '0');
         } else {
             accountBillingStatus.removeAttribute('data-tooltip');
-            accountBillingStatus.removeAttribute('title');
             accountBillingStatus.removeAttribute('tabindex');
         }
+        accountBillingStatus.removeAttribute('title');
         accountBillingStatus.setAttribute('aria-label', accountBillingStatus.textContent);
     }
 }

@@ -601,7 +601,7 @@
     animation: premiumManageStar 4.4s ease-in-out infinite;
   }
 
-  .account-billing-status.is-active::before {
+  .account-billing-status.is-active:not([data-tooltip])::before {
     animation: premiumBadgeShine 4.8s ease-in-out infinite;
   }
 }
@@ -6569,6 +6569,47 @@ input.error, select.error {
 
 .header-controls .btn-avatar[data-tooltip]:hover::before,
 .header-controls .btn-avatar[data-tooltip]:focus-visible::before {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Account billing badges sit near the top of the account modal, so their tooltip opens below. */
+.account-billing-status[data-tooltip] {
+    overflow: visible;
+}
+
+.account-billing-status[data-tooltip]::after {
+    bottom: auto;
+    top: calc(100% + 0.55rem);
+    left: 50%;
+    max-width: min(18rem, calc(100vw - 2rem));
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+    transform: translateX(-50%) translateY(-0.2rem);
+    animation: none;
+}
+
+.account-billing-status[data-tooltip]::before {
+    bottom: auto;
+    top: calc(100% + 0.2rem);
+    left: 50%;
+    border-top-color: transparent;
+    border-bottom-color: var(--border, #444);
+    transform: translateX(-50%) translateY(0.2rem);
+    animation: none;
+}
+
+.account-billing-status[data-tooltip]:hover::after,
+.account-billing-status[data-tooltip]:focus-visible::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+.account-billing-status[data-tooltip]:hover::before,
+.account-billing-status[data-tooltip]:focus-visible::before {
     opacity: 1;
     visibility: visible;
     transform: translateX(-50%) translateY(0);
