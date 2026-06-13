@@ -426,6 +426,14 @@
                                     <span class="tag-detail">Premium pricing is now presented as a direct $3.99/month subscription. Checkout no longer requests Stripe automatic tax, and Premium activation is tied to an active subscription status.</span>
                                 </div>
                             </div>
+
+                            <div class="tag-item tag-fix">
+                                <span class="tag-icon" aria-hidden="true">FIX</span>
+                                <div>
+                                    <div class="tag-text">Checkout repairs stale Stripe customer links</div>
+                                    <span class="tag-detail">If an older billing profile points to a Stripe customer that no longer exists, BudgetBuddy now creates a fresh Stripe customer for the signed-in account before starting Checkout instead of failing with a no-such-customer error.</span>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- V1 PRODUCTION REPORT -->

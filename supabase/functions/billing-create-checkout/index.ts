@@ -11,6 +11,66 @@ import {
   requireUser
 } from '../_shared/billing.ts';
 
+function isMissingStripeCustomerError(error: unknown) {
+  const err = error as {
+    type?: string;
+    code?: string;
+    param?: string;
+    message?: string;
+  };
+  const message = String(err?.message || '').toLowerCase();
+  return err?.type === 'StripeInvalidRequestError'
+    && err?.code === 'resource_missing'
+    && (err?.param === 'customer' || message.includes('no such customer'));
+}
+
+async function upsertBillingCustomer(
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
+  user: { id: string; email?: string },
+  stripeCustomerId: string
+) {
+  await supabaseAdmin
+    .from('billing_profiles')
+    .upsert({
+      user_id: user.id,
+      email: user.email,
+      stripe_customer_id: stripeCustomerId
+    }, { onConflict: 'user_id' });
+}
+
+async function createBillingCustomer(
+  stripe: Stripe,
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
+  user: { id: string; email?: string }
+) {
+  const customer = await stripe.customers.create({
+    email: user.email || undefined,
+    metadata: { supabase_user_id: user.id }
+  });
+
+  await upsertBillingCustomer(supabaseAdmin, user, customer.id);
+  return customer.id;
+}
+
+async function ensureBillingCustomer(
+  stripe: Stripe,
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
+  user: { id: string; email?: string },
+  storedCustomerId = ''
+) {
+  const customerId = String(storedCustomerId || '').trim();
+  if (!customerId) return createBillingCustomer(stripe, supabaseAdmin, user);
+
+  try {
+    const customer = await stripe.customers.retrieve(customerId);
+    if (!customer.deleted) return customer.id;
+  } catch (error) {
+    if (!isMissingStripeCustomerError(error)) throw error;
+  }
+
+  return createBillingCustomer(stripe, supabaseAdmin, user);
+}
+
 Deno.serve(async (req) => {
   const optionsResponse = handleOptions(req);
   if (optionsResponse) return optionsResponse;
@@ -33,23 +93,7 @@ Deno.serve(async (req) => {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    let customerId = profile?.stripe_customer_id || '';
-
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email || undefined,
-        metadata: { supabase_user_id: user.id }
-      });
-      customerId = customer.id;
-
-      await supabaseAdmin
-        .from('billing_profiles')
-        .upsert({
-          user_id: user.id,
-          email: user.email,
-          stripe_customer_id: customerId
-        }, { onConflict: 'user_id' });
-    }
+    const customerId = await ensureBillingCustomer(stripe, supabaseAdmin, user, profile?.stripe_customer_id || '');
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
