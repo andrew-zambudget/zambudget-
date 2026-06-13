@@ -12187,6 +12187,16 @@ function getCheckoutReturnUrl(params = {}) {
     return url.href;
 }
 
+function isLocalBillingOrigin() {
+    return ['localhost', '127.0.0.1'].includes(window.location.hostname);
+}
+
+function isLiveBillingMode() {
+    const mode = String(window.bbConfig?.billingMode || '').toLowerCase();
+    const publishableKey = String(window.bbConfig?.stripePublishableKey || '');
+    return mode.includes('live') || publishableKey.startsWith('pk_live_');
+}
+
 function hasBillingBackend() {
     return Boolean(window.sb?.functions?.invoke && window.currentUser);
 }
@@ -12511,6 +12521,10 @@ export async function startStripeCheckout(event) {
             throw new Error(getBillingDisabledMessage());
         }
 
+        if (isLiveBillingMode() && isLocalBillingOrigin()) {
+            throw new Error('Live billing must be started from https://app.budget-buddy.io, not localhost.');
+        }
+
         setUpgradeButtonLoading(button, true);
 
         if (!hasBillingBackend()) {
@@ -12552,6 +12566,10 @@ export async function handleManageSubscription(event) {
             throw new Error(getBillingDisabledMessage());
         }
 
+        if (isLiveBillingMode() && isLocalBillingOrigin()) {
+            throw new Error('Live billing must be managed from https://app.budget-buddy.io, not localhost.');
+        }
+
         const returnUrl = getCheckoutReturnUrl();
         const portalSession = await invokeBillingFunction(BILLING_FUNCTIONS.portal, { returnUrl });
         if (!portalSession.url) throw new Error('Billing portal did not include a redirect URL.');
@@ -12573,7 +12591,7 @@ export function showPremiumSuccessModal(title = 'Welcome to BudgetBuddy Pro!', m
         <div class="modal-box modal-box-medium premium-success-modal" role="dialog" aria-modal="true" aria-labelledby="premiumSuccessTitle" onclick="event.stopPropagation()">
             <button type="button" class="modal-close" onclick="document.getElementById('premiumSuccessModal')?.remove()" aria-label="Close premium success">&times;</button>
             <div class="text-center">
-                <div class="icon-large" aria-hidden="true">âœ¨</div>
+                <div class="icon-large" aria-hidden="true">$</div>
                 <h3 id="premiumSuccessTitle" class="modal-title mb-sm">${esc(title)}</h3>
                 <p class="text-sm text-muted">${esc(message)}</p>
                 <button type="button" class="btn-create account-action-btn mt-lg" onclick="document.getElementById('premiumSuccessModal')?.remove()">Start using Pro</button>
