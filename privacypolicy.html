@@ -133,10 +133,11 @@
             <div class="section-body">
                 <p>BudgetBuddy uses minimal third-party services. Here is the complete list:</p>
                 <ul>
-                    <li><strong>Authentication and account services</strong> (Supabase Auth, Google OAuth, and email magic links) - These services verify your identity and support signed-in sessions. Apple sign-in is visible as paused until demand justifies enabling it.</li>
+                    <li><strong>Authentication and account email services</strong> (Supabase Auth, Google OAuth, Proton SMTP, and email magic links) - These services verify your identity, send sign-in and account-security email, and support signed-in sessions. Apple sign-in is visible as paused until demand justifies enabling it.</li>
                     <li><strong>Hosting and cloud infrastructure</strong> (Cloudflare and Supabase) - These providers host the app and store encrypted Buddy Cloud data on our behalf. They cannot read your budget because it is encrypted before it reaches their servers.</li>
                     <li><strong>Payments</strong> (Stripe) - Payments are processed by Stripe. BudgetBuddy does not receive or store full card numbers. Stripe receives payment, device, fraud-prevention, and checkout data under Stripe's privacy and legal terms.</li>
                 </ul>
+                <p>Operational providers may retain limited logs or delivery metadata needed for security, abuse prevention, debugging, compliance, and service reliability. This can include Supabase Auth audit events, Supabase platform or log explorer entries, Cloudflare audit and security metadata depending on enabled features, Proton or Supabase SMTP delivery metadata, and Stripe billing or payment records. BudgetBuddy does not use these provider records to read budget contents, build advertising profiles, or sell financial behavior.</p>
                 <p>Our infrastructure and payment providers may be subject to U.S. federal, state, local, or other lawful requests, including legal process such as subpoenas or court orders. If legally required, the information available to provide would be limited to account, billing, operational metadata, encrypted vault data, and encrypted version-history snapshots if present. BudgetBuddy does not hold your Buddy Cloud recovery key and cannot decrypt your synced budget contents.</p>
                 <p>We will <strong>never</strong>:</p>
                 <ul>
@@ -160,7 +161,7 @@
                     <li><strong>Leave</strong> - Stop using BudgetBuddy, clear this browser, reset Buddy Cloud, delete your account, or contact support for account/data questions</li>
                 </ul>
                 <p>Deleting your BudgetBuddy account deletes the Supabase auth identity for that account, encrypted Buddy Cloud vault data, encrypted version-history snapshots, browser access records, and inactive billing profile records. BudgetBuddy does not currently store household or family memberships.</p>
-                <p>Account deletion requires a fresh login verification before the permanent deletion request runs. Active Stripe subscriptions must be cancelled through Stripe before account deletion can finish. Deleted Buddy Cloud vaults, deleted snapshots, deleted account identities, and lost recovery keys cannot be recovered by BudgetBuddy. Stripe may retain billing records required for payments, tax, legal, or dispute handling. Browser-only copies on other devices may remain only in those browsers until their local site data is cleared.</p>
+                <p>Account deletion requires a fresh login verification before the permanent deletion request runs. Active Stripe subscriptions must be cancelled through Stripe before account deletion can finish. Deleted Buddy Cloud vaults, deleted snapshots, deleted account identities, and lost recovery keys cannot be recovered by BudgetBuddy. Provider logs, security or audit records, email delivery metadata, and billing or payment records may remain according to provider retention, legal, security, tax, dispute, or abuse-prevention requirements. Browser-only copies on other devices may remain only in those browsers until their local site data is cleared.</p>
                 <p>We don't make any of this difficult. Your data, your decision.</p>
             </div>
         </div>
