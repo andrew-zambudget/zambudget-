@@ -12253,6 +12253,18 @@ function createFunctionError(details = {}, fallbackMessage = 'Request failed.') 
     return error;
 }
 
+function formatBillingPeriodEnd(value = '') {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+
+    return new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+    }).format(date);
+}
+
 async function invokeBillingFunction(name, body = {}) {
     if (!hasBillingBackend()) {
         throw new Error('Please sign in before managing Premium.');
@@ -12292,11 +12304,31 @@ function syncBillingUi() {
     }
 
     if (accountBillingStatus) {
-        accountBillingStatus.textContent = isPro ? 'Premium' : 'Free Tier';
+        const billingStatus = State.getBillingStatus?.() || {};
+        const isCanceling = isPro && Boolean(billingStatus.cancelAtPeriodEnd);
+        const periodEnd = formatBillingPeriodEnd(billingStatus.currentPeriodEnd);
+        const label = isCanceling
+            ? (periodEnd ? `Premium until ${periodEnd}` : 'Premium ending')
+            : isPro ? 'Premium' : 'Free Tier';
+        const tooltip = isCanceling
+            ? (periodEnd
+                ? `Your Premium subscription is scheduled to cancel on ${periodEnd}. Premium access remains active until then.`
+                : 'Your Premium subscription is scheduled to cancel. Premium access remains active until the end of the billing period.')
+            : '';
+
+        accountBillingStatus.textContent = label;
         accountBillingStatus.classList.toggle('is-active', isPro);
-        accountBillingStatus.removeAttribute('data-tooltip');
+        accountBillingStatus.classList.toggle('is-canceling', isCanceling);
+        if (tooltip) {
+            accountBillingStatus.setAttribute('data-tooltip', tooltip);
+            accountBillingStatus.setAttribute('title', tooltip);
+            accountBillingStatus.setAttribute('tabindex', '0');
+        } else {
+            accountBillingStatus.removeAttribute('data-tooltip');
+            accountBillingStatus.removeAttribute('title');
+            accountBillingStatus.removeAttribute('tabindex');
+        }
         accountBillingStatus.setAttribute('aria-label', accountBillingStatus.textContent);
-        accountBillingStatus.removeAttribute('tabindex');
     }
 }
 
@@ -12494,7 +12526,10 @@ export async function refreshPremiumAccess(options = {}) {
         const active = Boolean(status.active) || ACTIVE_SUBSCRIPTION_STATUSES.has(status.subscriptionStatus);
         setPremiumAccess(active, {
             source: 'billing_status',
-            sessionId: checkoutSessionId || status.checkoutSessionId || ''
+            sessionId: checkoutSessionId || status.checkoutSessionId || '',
+            subscriptionStatus: status.subscriptionStatus || '',
+            currentPeriodEnd: status.currentPeriodEnd || '',
+            cancelAtPeriodEnd: Boolean(status.cancelAtPeriodEnd)
         });
         return active;
     } catch (err) {

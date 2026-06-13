@@ -20,7 +20,10 @@ let state = {
         lastCategorySort: 'manual',
         isPro: false,
         premiumSinceUTC: '',
-        stripeCheckoutSessionId: ''
+        stripeCheckoutSessionId: '',
+        billingSubscriptionStatus: '',
+        billingCurrentPeriodEnd: '',
+        billingCancelAtPeriodEnd: false
     },
     // Runtime helpers
     currentType: 'expense',
@@ -77,6 +80,9 @@ function getCloudSafeSettings(settings = state.settings) {
         isPro,
         premiumSinceUTC,
         stripeCheckoutSessionId,
+        billingSubscriptionStatus,
+        billingCurrentPeriodEnd,
+        billingCancelAtPeriodEnd,
         ...safeSettings
     } = settings || {};
 
@@ -171,7 +177,10 @@ export function replaceSnapshot(snapshot = {}, options = {}) {
     const currentBilling = {
         isPro: state.settings.isPro,
         premiumSinceUTC: state.settings.premiumSinceUTC,
-        stripeCheckoutSessionId: state.settings.stripeCheckoutSessionId
+        stripeCheckoutSessionId: state.settings.stripeCheckoutSessionId,
+        billingSubscriptionStatus: state.settings.billingSubscriptionStatus,
+        billingCurrentPeriodEnd: state.settings.billingCurrentPeriodEnd,
+        billingCancelAtPeriodEnd: state.settings.billingCancelAtPeriodEnd
     };
     const rollbackTransactions = [...state.transactions];
     const rollbackCategories = [...state.categories];
@@ -727,24 +736,47 @@ export const setTreatSavingsAsIncomeInZbb = (val) => {
 };
 
 export const getIsPro = () => Boolean(state.settings.isPro);
+export const getBillingStatus = () => ({
+    subscriptionStatus: state.settings.billingSubscriptionStatus || '',
+    currentPeriodEnd: state.settings.billingCurrentPeriodEnd || '',
+    cancelAtPeriodEnd: Boolean(state.settings.billingCancelAtPeriodEnd)
+});
 export const setIsPro = (val, metadata = {}) => {
     const previous = {
         isPro: Boolean(state.settings.isPro),
         premiumSinceUTC: state.settings.premiumSinceUTC || '',
-        stripeCheckoutSessionId: state.settings.stripeCheckoutSessionId || ''
+        stripeCheckoutSessionId: state.settings.stripeCheckoutSessionId || '',
+        billingSubscriptionStatus: state.settings.billingSubscriptionStatus || '',
+        billingCurrentPeriodEnd: state.settings.billingCurrentPeriodEnd || '',
+        billingCancelAtPeriodEnd: Boolean(state.settings.billingCancelAtPeriodEnd)
     };
 
     state.settings.isPro = Boolean(val);
     if (metadata.sessionId) state.settings.stripeCheckoutSessionId = metadata.sessionId;
+    if (Object.prototype.hasOwnProperty.call(metadata, 'subscriptionStatus')) {
+        state.settings.billingSubscriptionStatus = metadata.subscriptionStatus || '';
+    }
+    if (Object.prototype.hasOwnProperty.call(metadata, 'currentPeriodEnd')) {
+        state.settings.billingCurrentPeriodEnd = metadata.currentPeriodEnd || '';
+    }
+    if (Object.prototype.hasOwnProperty.call(metadata, 'cancelAtPeriodEnd')) {
+        state.settings.billingCancelAtPeriodEnd = Boolean(metadata.cancelAtPeriodEnd);
+    }
     if (val && !state.settings.premiumSinceUTC) state.settings.premiumSinceUTC = new Date().toISOString();
     if (!val) {
         state.settings.premiumSinceUTC = '';
         state.settings.stripeCheckoutSessionId = '';
+        state.settings.billingSubscriptionStatus = metadata.subscriptionStatus || '';
+        state.settings.billingCurrentPeriodEnd = metadata.currentPeriodEnd || '';
+        state.settings.billingCancelAtPeriodEnd = Boolean(metadata.cancelAtPeriodEnd);
     }
 
     const changed = previous.isPro !== Boolean(state.settings.isPro)
         || previous.premiumSinceUTC !== (state.settings.premiumSinceUTC || '')
-        || previous.stripeCheckoutSessionId !== (state.settings.stripeCheckoutSessionId || '');
+        || previous.stripeCheckoutSessionId !== (state.settings.stripeCheckoutSessionId || '')
+        || previous.billingSubscriptionStatus !== (state.settings.billingSubscriptionStatus || '')
+        || previous.billingCurrentPeriodEnd !== (state.settings.billingCurrentPeriodEnd || '')
+        || previous.billingCancelAtPeriodEnd !== Boolean(state.settings.billingCancelAtPeriodEnd);
     if (changed) save();
 };
 

@@ -521,6 +521,12 @@
   color: var(--green, #22c55e);
 }
 
+.account-billing-status.is-canceling {
+  border-color: var(--warning, #f59e0b);
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--warning, #f59e0b);
+}
+
 .account-recovery-status {
   display: flex;
   width: 100%;
