@@ -58,8 +58,10 @@ Buddy Cloud v1 is the default protection path for signed-in users. The app still
 - Factory reset removes local cloud settings and local recovery keys.
 - Reset Buddy Cloud deletes encrypted vault data and encrypted snapshots without deleting the auth account.
 - Delete Account removes encrypted vault data, encrypted snapshots, browser access records, inactive billing profile records, and the Supabase auth identity, then clears the local browser session.
+- Delete Account requires a fresh login verification before the permanent deletion request runs.
 - Delete Account is blocked while Stripe subscription status is active, trialing, or past_due.
 - Delete Account copy explains that deleted Buddy Cloud data, deleted snapshots, deleted account identities, and lost recovery keys cannot be recovered, and that Stripe may retain billing records required for payments, tax, legal, or dispute handling.
+- Delete Account shows a post-deletion confirmation on `login.html?accountDeleted=true`. Email confirmation is deferred until transactional support email is configured.
 
 ## Live Beta Gate
 
@@ -75,6 +77,7 @@ Buddy Cloud v1 is the default protection path for signed-in users. The app still
 
 - Run the migration in production before shipping the UI.
 - Complete the test matrix against the production Supabase project with a non-admin account.
+- Complete the full account deletion flow in staging/test with a disposable account before enabling it for real users.
 - Verify privacy policy copy says signing in uses Buddy Cloud as the default encrypted protection path.
 - Verify privacy policy discloses that infrastructure/payment providers may be subject to lawful requests, while synced budget contents remain encrypted without BudgetBuddy-held recovery keys.
 - Legal review later: confirm the privacy policy clearly distinguishes encrypted budget contents from operational metadata such as account/auth records, sync timestamps, schema/encryption version, checksums, and billing records if applicable.

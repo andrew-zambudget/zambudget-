@@ -406,7 +406,30 @@
         return new URL(path, window.location.href).href;
     }
 
+    function showInitialAuthMessage() {
+        var params = new URLSearchParams(window.location.search);
+        var msg = document.getElementById('authMessage');
+        if (!msg) return '';
+
+        if (params.get('accountDeleted') === 'true') {
+            msg.textContent = 'Your BudgetBuddy account has been deleted. Encrypted Buddy Cloud data and the account identity cannot be recovered.';
+            msg.className = 'message success';
+            msg.style.display = 'block';
+            return 'accountDeleted';
+        }
+
+        if (params.get('buddyCloud') === 'reset') {
+            msg.textContent = 'Buddy Cloud was reset for that account. Sign in again when you are ready to create a new encrypted vault.';
+            msg.className = 'message success';
+            msg.style.display = 'block';
+            return 'buddyCloudReset';
+        }
+
+        return '';
+    }
+
     (async function init() {
+        var initialMessage = showInitialAuthMessage();
         await loadCredentials();
 
         if (!SUPABASE_URL || !SUPABASE_KEY || typeof window.supabase === 'undefined') {
@@ -417,7 +440,7 @@
 
         // Check if already logged in
         var { data: { session } } = await sb.auth.getSession();
-        if (session) {
+        if (session && initialMessage !== 'accountDeleted') {
             window.location.href = 'index.html'; // Redirects active users away from login
         }
     })();

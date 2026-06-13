@@ -11871,6 +11871,7 @@ const BILLING_FUNCTIONS = {
 };
 const ACCOUNT_DELETE_FUNCTION = 'account-delete';
 const ACCOUNT_DELETE_ACTIVE_SUBSCRIPTION_CODE = 'ACTIVE_STRIPE_SUBSCRIPTION';
+const ACCOUNT_DELETE_REAUTH_REQUIRED_CODE = 'REAUTH_REQUIRED';
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing']);
 const LOCAL_DEV_HOSTS = new Set(['localhost', '127.0.0.1', '']);
 const STRIPE_REDIRECT_REVIEW_SECONDS = 3;
@@ -16235,6 +16236,81 @@ async function askDeleteBudgetBuddyAccountConfirmation() {
     return true;
 }
 
+function canUseAccountDeletionReauth() {
+    return Boolean(
+        window.currentUser?.email
+        && window.sb?.auth?.reauthenticate
+        && window.sb?.auth?.verifyOtp
+    );
+}
+
+async function authorizeAccountDeletionWithSupabase() {
+    if (!canUseAccountDeletionReauth()) {
+        await showBuddyCloudModal({
+            eyebrow: 'Account Security',
+            title: 'Verification Required',
+            compact: true,
+            body: 'BudgetBuddy needs a fresh login check before account deletion can continue.',
+            assurance: 'Sign out and sign back in, then return to Account > Settings > Delete Account.',
+            warning: 'Account deletion did not start.',
+            actions: [
+                { id: 'back', label: 'Back', className: 'btn-cancel' }
+            ]
+        });
+        return false;
+    }
+
+    const email = window.currentUser.email;
+    try {
+        const { error } = await window.sb.auth.reauthenticate();
+        if (error) throw error;
+    } catch (error) {
+        console.warn('[Account] Account deletion re-auth request failed:', error);
+        if (window.showToast) window.showToast('Could not send verification code. Account deletion did not start.');
+        return false;
+    }
+
+    const result = await showBuddyCloudModal({
+        eyebrow: 'Account Security',
+        title: 'Verify Account Deletion',
+        compact: true,
+        body: `Enter the one-time code sent to ${maskEmailForSecurity(email)}.`,
+        assurance: 'BudgetBuddy requires a fresh login check before permanent account deletion.',
+        warning: 'If the code expires, start account deletion again.',
+        inputLabel: 'One-time code',
+        inputPlaceholder: '123456',
+        inputSingleLine: true,
+        actions: [
+            { id: 'cancel', label: 'Back', className: 'btn-cancel' },
+            { id: 'verify', label: 'Verify Login', className: 'btn-create' }
+        ]
+    });
+
+    if (result.action !== 'verify') return false;
+    const token = String(result.value || '').trim();
+    if (!token) {
+        if (window.showToast) window.showToast('Enter the verification code before deleting your account.');
+        return false;
+    }
+
+    try {
+        const { error } = await window.sb.auth.verifyOtp({
+            email,
+            token,
+            type: 'reauthentication'
+        });
+        if (error) throw error;
+        if (window.sb.auth.refreshSession) {
+            await window.sb.auth.refreshSession();
+        }
+        return true;
+    } catch (error) {
+        console.warn('[Account] Account deletion re-auth verify failed:', error);
+        if (window.showToast) window.showToast('Could not verify login code. Account deletion did not start.');
+        return false;
+    }
+}
+
 async function showActiveSubscriptionDeletionBlockedModal(message = '') {
     const actions = [
         { id: 'back', label: 'Back', className: 'btn-cancel' }
@@ -16290,6 +16366,9 @@ export async function handleDeleteBudgetBuddyAccount(e) {
     const confirmed = await askDeleteBudgetBuddyAccountConfirmation();
     if (!confirmed) return false;
 
+    const reauthorized = await authorizeAccountDeletionWithSupabase();
+    if (!reauthorized) return false;
+
     showSessionClearingScreen('Deleting Account...', 'Deleting Buddy Cloud data, browser records, account records, and clearing this browser.');
     try {
         await invokeAccountDeleteFunction({ deleteAuthUser: true });
@@ -16305,6 +16384,20 @@ export async function handleDeleteBudgetBuddyAccount(e) {
         hideSessionClearingScreen();
         if (err?.code === ACCOUNT_DELETE_ACTIVE_SUBSCRIPTION_CODE || /stripe subscription/i.test(err?.message || '')) {
             await showActiveSubscriptionDeletionBlockedModal(err.message);
+            return false;
+        }
+        if (err?.code === ACCOUNT_DELETE_REAUTH_REQUIRED_CODE) {
+            await showBuddyCloudModal({
+                eyebrow: 'Account Security',
+                title: 'Verification Required',
+                compact: true,
+                body: err.message || 'Verify your login again before deleting your BudgetBuddy account.',
+                assurance: 'Start account deletion again so BudgetBuddy can request a fresh verification code.',
+                warning: 'Account deletion did not start.',
+                actions: [
+                    { id: 'back', label: 'Back', className: 'btn-cancel' }
+                ]
+            });
             return false;
         }
         if (window.showToast) window.showToast(err?.message || 'Could not delete account.');

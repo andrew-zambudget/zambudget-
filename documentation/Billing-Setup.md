@@ -71,6 +71,8 @@ BudgetBuddy does not silently cancel paid Stripe subscriptions during account de
 
 After Stripe reports the subscription as cancelled or inactive, account deletion may remove the inactive billing profile record along with the user's Buddy Cloud records and auth identity. Stripe may retain billing records required for payments, tax, legal, or dispute handling.
 
+Account deletion also requires recent login verification. If the signed-in session does not contain a recent non-refresh authentication method, `account-delete` returns `REAUTH_REQUIRED` and the app asks the user to verify again before retrying.
+
 ## Runtime Flow
 
 1. Signed-in users click Upgrade.

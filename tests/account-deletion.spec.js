@@ -40,4 +40,89 @@ test.describe('account deletion safeguards', () => {
         await modal.getByRole('button', { name: 'Back' }).click();
         await expect(modal).toBeHidden();
     });
+
+    test('delete account requires a fresh verification code before invoking deletion', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        const invokeCalls = await page.evaluate(() => {
+            const calls = [];
+            window.currentUser = {
+                id: 'account-delete-reauth-user',
+                email: 'reauth-delete@example.com'
+            };
+            window.sb = {
+                auth: {
+                    reauthenticate: async () => {
+                        calls.push({ method: 'reauthenticate' });
+                        return { error: null };
+                    },
+                    verifyOtp: async (payload) => {
+                        calls.push({ method: 'verifyOtp', payload });
+                        return { error: null };
+                    },
+                    refreshSession: async () => {
+                        calls.push({ method: 'refreshSession' });
+                        return { data: {}, error: null };
+                    },
+                    signOut: async () => ({ error: null })
+                },
+                functions: {
+                    invoke: async (name, options) => {
+                        calls.push({ method: 'invoke', name, body: options?.body || null });
+                        throw new Error('stop after invoke');
+                    }
+                }
+            };
+            window.__accountDeleteCalls = calls;
+            window.handleDeleteBudgetBuddyAccount();
+            return calls;
+        });
+        expect(invokeCalls).toEqual([]);
+
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete BudgetBuddy Account?');
+        await page.locator('#buddyCloudModalInput').fill('DELETE ACCOUNT');
+        await page.getByRole('button', { name: 'Delete Account' }).click();
+
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Verify Account Deletion');
+        await page.locator('#buddyCloudModalInput').fill('123456');
+        await page.getByRole('button', { name: 'Verify Login' }).click();
+
+        await expect.poll(() => page.evaluate(() => window.__accountDeleteCalls)).toEqual([
+            { method: 'reauthenticate' },
+            {
+                method: 'verifyOtp',
+                payload: {
+                    email: 'reauth-delete@example.com',
+                    token: '123456',
+                    type: 'reauthentication'
+                }
+            },
+            { method: 'refreshSession' },
+            { method: 'invoke', name: 'account-delete', body: { deleteAuthUser: true } }
+        ]);
+    });
+
+    test('login page shows account deletion confirmation instead of redirecting away', async ({ page }) => {
+        await page.route('**/@supabase/supabase-js@2', route => route.fulfill({
+            status: 200,
+            contentType: 'application/javascript',
+            body: `
+                window.supabase = {
+                    createClient() {
+                        return {
+                            auth: {
+                                getSession: async () => ({ data: { session: { user: { id: 'stale' } } }, error: null })
+                            }
+                        };
+                    }
+                };
+            `
+        }));
+
+        await page.goto('/login.html?accountDeleted=true');
+        await expect(page.locator('#authMessage')).toBeVisible();
+        await expect(page.locator('#authMessage')).toContainText('Your BudgetBuddy account has been deleted');
+        await expect(page).toHaveURL(/login\.html\?accountDeleted=true/);
+    });
 });

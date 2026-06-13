@@ -10,7 +10,18 @@ import {
 
 const BLOCKED_BILLING_STATUSES = new Set(['active', 'trialing', 'past_due']);
 const ACTIVE_SUBSCRIPTION_CODE = 'ACTIVE_STRIPE_SUBSCRIPTION';
+const REAUTH_REQUIRED_CODE = 'REAUTH_REQUIRED';
 const NOT_APPLICABLE = 'not_applicable';
+const RECENT_AUTH_WINDOW_SECONDS = 10 * 60;
+const DESTRUCTIVE_AUTH_METHODS = new Set([
+  'password',
+  'otp',
+  'magiclink',
+  'oauth',
+  'sso/saml',
+  'totp',
+  'recovery'
+]);
 
 function isMissingOptionalTableError(error: unknown) {
   const typed = error as { code?: string; message?: string };
@@ -39,6 +50,53 @@ async function deleteRowsForUser(
   return true;
 }
 
+function getBearerToken(req: Request) {
+  return (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+}
+
+function decodeJwtPayload(token: string) {
+  const payload = token.split('.')[1];
+  if (!payload) return {};
+
+  try {
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    return JSON.parse(atob(padded));
+  } catch {
+    return {};
+  }
+}
+
+function hasRecentDestructiveAuth(token: string, userId: string) {
+  const claims = decodeJwtPayload(token) as {
+    amr?: Array<{ method?: string; timestamp?: number }>;
+    sub?: string;
+  };
+  if (claims.sub !== userId) return false;
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const methods = Array.isArray(claims.amr) ? claims.amr : [];
+
+  return methods.some((entry) => {
+    const method = String(entry?.method || '').toLowerCase();
+    const timestamp = Number(entry?.timestamp || 0);
+    return DESTRUCTIVE_AUTH_METHODS.has(method)
+      && Number.isFinite(timestamp)
+      && nowSeconds - timestamp <= RECENT_AUTH_WINDOW_SECONDS;
+  });
+}
+
+function requireRecentAuthForAccountDeletion(req: Request, userId: string) {
+  const token = getBearerToken(req);
+  if (token && hasRecentDestructiveAuth(token, userId)) return;
+
+  throw new HttpError(
+    401,
+    'Verify your login again before deleting your BudgetBuddy account.',
+    REAUTH_REQUIRED_CODE
+  );
+}
+
 Deno.serve(async (req) => {
   const optionsResponse = handleOptions(req);
   if (optionsResponse) return optionsResponse;
@@ -52,6 +110,8 @@ Deno.serve(async (req) => {
     const deleteAuthUser = body?.deleteAuthUser === true;
 
     if (deleteAuthUser) {
+      requireRecentAuthForAccountDeletion(req, user.id);
+
       const { data: billingProfile, error: billingReadError } = await supabaseAdmin
         .from('billing_profiles')
         .select('subscription_status, stripe_subscription_id')
@@ -91,6 +151,8 @@ Deno.serve(async (req) => {
     // Household/family sharing is not implemented in the current schema.
     // Return an explicit marker so account deletion reports stay truthful.
     const householdMembershipsDeleted = NOT_APPLICABLE;
+    const sharedBudgetOwnershipHandled = NOT_APPLICABLE;
+    const supportContactRecordsDeleted = NOT_APPLICABLE;
 
     const { error } = await supabaseAdmin.auth.admin.deleteUser(user.id, false);
     if (error) throw error;
@@ -103,6 +165,9 @@ Deno.serve(async (req) => {
       browserAccessDeleted,
       billingProfileDeleted,
       householdMembershipsDeleted,
+      sharedBudgetOwnershipHandled,
+      supportContactRecordsDeleted,
+      recoveryKeyMetadataDeletedLocally: true,
       activeSessionsRevokedByAuthDeletion: true
     });
   } catch (error) {
