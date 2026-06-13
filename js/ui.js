@@ -12288,11 +12288,11 @@ function syncBillingUi() {
         const upgradeLabel = accountUpgradeBtn.querySelector('.account-action-label');
         const upgradeSubline = accountUpgradeBtn.querySelector('.account-action-subline');
         const billingEnabled = isBillingEnabled();
-        const labelText = isPro ? 'Manage Subscription' : billingEnabled ? 'Upgrade' : 'Premium';
+        const labelText = isPro ? 'Subscription' : billingEnabled ? 'Upgrade' : 'Premium';
         if (upgradeLabel) {
             upgradeLabel.textContent = labelText;
         } else {
-            accountUpgradeBtn.textContent = isPro ? 'Manage Subscription' : billingEnabled ? 'Upgrade to Premium' : 'Premium';
+            accountUpgradeBtn.textContent = isPro ? 'Subscription' : billingEnabled ? 'Upgrade to Premium' : 'Premium';
         }
         accountUpgradeBtn.onclick = isPro ? window.handleManageSubscription : window.startStripeCheckout;
         accountUpgradeBtn.classList.toggle('is-manage-subscription', isPro);

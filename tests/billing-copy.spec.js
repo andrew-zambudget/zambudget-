@@ -186,7 +186,7 @@ test.describe('Premium billing copy', () => {
         expect(result.canceling).toBe(true);
         expect(result.tooltip).toContain('scheduled to cancel');
         expect(result.title).toBe('');
-        expect(result.manageLabel).toBe('Manage Subscription');
+        expect(result.manageLabel).toBe('Subscription');
         expect(result.manageSubline).toBe('Thank you');
         expect(result.manageSublineHidden).toBe(false);
     });
