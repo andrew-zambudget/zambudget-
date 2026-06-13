@@ -4,6 +4,12 @@ const TEST_EMAIL = process.env.BUDGETBUDDY_TEST_EMAIL || '';
 const TEST_PASSWORD = process.env.BUDGETBUDDY_TEST_PASSWORD || '';
 const HAS_AUTH_CREDENTIALS = Boolean(TEST_EMAIL && TEST_PASSWORD);
 
+test.use({
+    trace: 'off',
+    screenshot: 'off',
+    video: 'off'
+});
+
 async function clearBrowserBudgetState(page) {
     await page.evaluate(async () => {
         try {
