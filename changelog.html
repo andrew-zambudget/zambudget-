@@ -227,7 +227,7 @@
                     <div class="version-dot live" aria-hidden="true"></div>
                     <div>
                         <div class="version-title">v1.0 - "The Foundation + Buddy Cloud"</div>
-                        <div class="version-date">May 31, 2026 launch; June 10-12, 2026 beta hardening</div>
+                        <div class="version-date">May 31, 2026 launch; June 10-13, 2026 beta hardening</div>
                     </div>
                 </div>
                 <div class="expand-icon" aria-hidden="true">▼</div>
@@ -265,7 +265,7 @@
                             <div class="release-summary-row summary-fix">
                                 <span class="release-summary-dot" aria-hidden="true"></span>
                                 <span class="release-summary-label">Fixes</span>
-                                <span class="release-summary-copy">Blank sign-in recovery, graceful sign-out, OAuth signup copy, avatar fallback, income/savings math, and destructive transaction flows were corrected.</span>
+                                <span class="release-summary-copy">Blank sign-in recovery, graceful sign-out, synced-budget logout guards, OAuth signup copy, avatar fallback, income/savings math, and destructive transaction flows were corrected.</span>
                             </div>
                         </div>
                     </div>
@@ -288,6 +288,14 @@
                                 <div>
                                     <div class="tag-text">Live data-loss scare turned into Buddy Cloud recovery hardening</div>
                                     <span class="tag-detail">Beta testing exposed a serious edge case where secure sign-out could clear local data and a fresh sign-in could land on a blank budget while the usable copy lived in Version History. Buddy Cloud now treats blank local sign-ins as cloud-priority recovery, preserves a secure-sign-out recovery marker, and can recover the newest non-empty encrypted saved version when needed.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-fix">
+                                <span class="tag-icon" aria-hidden="true">LOG</span>
+                                <div>
+                                    <div class="tag-text">Buddy Cloud logout guard relaxed for already-synced budgets</div>
+                                    <span class="tag-detail">A production sign-out guard was too strict when a signed-in browser had Buddy Cloud enabled but did not have local recovery-key access. Logout now checks whether the browser has newer local budget changes than the last verified Buddy Cloud save. Already-synced budgets can sign out normally, while browsers with unsynced local changes still stop and tell the user to import the recovery key or sync first.</span>
                                 </div>
                             </div>
 
