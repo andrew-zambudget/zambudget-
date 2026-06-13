@@ -825,17 +825,92 @@ function recordSyncEvent(message, status = 'local', details = null) {
     setSyncStatus(safeStatus, safeStatus === 'syncing' ? getSyncStatusMessage(safeStatus) : message);
 }
 
+function getLocalSaveSyncNotice(message = 'Saved locally.') {
+    const status = window.BuddyCloud?.getStatus?.() || {};
+    if (navigator.onLine === false) {
+        return {
+            status: 'error',
+            message: 'Offline - saved locally. Not backed up to Buddy Cloud.'
+        };
+    }
+
+    if (!status.signedIn) {
+        return {
+            status: 'local',
+            message: 'Saved locally. Buddy Cloud not active.'
+        };
+    }
+
+    if (!status.enabled) {
+        return {
+            status: 'local',
+            message: 'Saved locally. Buddy Cloud setup needed.'
+        };
+    }
+
+    if (hasBuddyCloudConflict(status)) {
+        return {
+            status: 'paused',
+            message: 'Saved locally. Review Buddy Cloud versions before syncing.'
+        };
+    }
+
+    if (!status.canUseCloud) {
+        return {
+            status: 'error',
+            message: 'Saved locally. Buddy Cloud unavailable.'
+        };
+    }
+
+    if (!status.hasKey) {
+        return {
+            status: 'paused',
+            message: 'Saved locally. Recovery key needed for Buddy Cloud backup.'
+        };
+    }
+
+    if (isBuddyCloudMultiDeviceLimit(status)) {
+        return {
+            status: 'paused',
+            message: 'Saved locally. Free sync slot limit reached.'
+        };
+    }
+
+    if (
+        !status.isPremium
+        && !status.multiDeviceAllowed
+        && status.enabled
+        && status.hasKey
+        && !status.syncSlotCurrentBrowserActive
+    ) {
+        return {
+            status: 'paused',
+            message: 'Saved locally. Buddy Cloud sync slot inactive.'
+        };
+    }
+
+    if (hasUnbackedLocalChangesStatus(status)) {
+        return {
+            status: 'paused',
+            message: 'Local changes not backed up'
+        };
+    }
+
+    return {
+        status: 'local',
+        message: status.syncing || status.nextSyncAt
+            ? 'Saved locally. Buddy Cloud backup pending.'
+            : message.replace(/saved partially/gi, 'saved locally')
+    };
+}
+
 function observeLocalSave(message = 'Saved partially.') {
     clearTimeout(syncStatusTimer);
-    setSyncStatus('local', 'Saved partially');
+    const initialNotice = getLocalSaveSyncNotice(message);
+    setSyncStatus(initialNotice.status, initialNotice.message);
     syncStatusTimer = setTimeout(() => {
-        if (navigator.onLine === false) {
-            recordSyncEvent('Offline - changes saved partially.', 'error');
-        } else if (window.BuddyCloud?.getStatus?.().enabled) {
-            recordSyncEvent('Saved partially. Buddy Cloud backup pending.', 'local');
-        } else {
-            recordSyncEvent(message, 'local');
-        }
+        const nextNotice = getLocalSaveSyncNotice(message);
+        recordSyncEvent(nextNotice.message, nextNotice.status);
     }, 360);
 }
 
