@@ -98,7 +98,7 @@ IMPLEMENTATION ROADMAP
 ============================================================================
 Phase 1 (MVP Premium): Cloud Sync + Auto-Backup
     Why: Solves the #1 pain point (losing data on device switch)
-    Price justification: $4.99/mo
+    Price reference: 30-day trial, then $3.99/mo
 
 Phase 2 (Value Add): Recurring Transactions + Bill Reminders
     Why: Saves massive time. High daily utility.
@@ -122,5 +122,4 @@ GUARDRAIL REMINDER
 ============================================================================
 PRICING REFERENCE
 ============================================================================
-Pro Tier:     $4.99/mo or $39/yr  →  Cloud Sync + Backups
-Premium Tier: $8.99/mo or $79/yr  →  Pro + AI + Reports + Sharing
+Premium: 30-day trial, then $3.99/mo -> Buddy Cloud Plus + supporting development

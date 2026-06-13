@@ -12300,13 +12300,14 @@ window.openUpgradeModal = function(featureName = 'this premium feature') {
             </p>
 
             <div style="border: 1px solid var(--border); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; background: var(--bg);">
-                <div style="font-size: 1.5rem; font-weight: 800; color: var(--text);">$4.99<span style="font-size: 0.9rem; color: var(--text-dim); font-weight: 500;"> / mo</span></div>
-                <div style="font-size: 0.85rem; color: var(--positive); font-weight: 600; margin-top: 0.25rem;">or $49.99/yr (Save 17%)</div>
+                <div style="font-size: 1.5rem; font-weight: 800; color: var(--text);">$3.99<span style="font-size: 0.9rem; color: var(--text-dim); font-weight: 500;"> / month</span></div>
+                <div style="font-size: 0.85rem; color: var(--positive); font-weight: 700; margin-top: 0.25rem;">A full month of budgeting for less than one daily $5 coffee.</div>
+                <div style="font-size: 0.85rem; color: var(--positive); font-weight: 600; margin-top: 0.25rem;">30-day trial before billing starts</div>
             </div>
 
             <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                 <button type="button" id="upgrade-btn" class="btn-primary" onclick="window.startStripeCheckout(event)" style="width: 100%; padding: 1rem; border-radius: 12px; font-weight: 700; font-size: 1rem; border: none; background: var(--primary); color: white; cursor: pointer;">
-                    Start Free Trial → Unlock
+                    Start 30-day trial
                 </button>
                 <button type="button" onclick="document.getElementById('upgradeModal').remove()" style="width: 100%; padding: 1rem; background: none; border: none; color: var(--text-dim); font-weight: 600; cursor: pointer; font-size: 0.95rem;">
                     No Thanks
@@ -12338,8 +12339,8 @@ window.openUpgradeModal = function(featureName = 'this premium feature') {
             </div>
 
             <div class="premium-price-panel">
-                <div class="premium-price">$4.99 <span>/ month</span></div>
-                <div class="premium-price-note">Secure subscription checkout powered by Stripe.</div>
+                <div class="premium-price">$3.99 <span>/ month</span></div>
+                <div class="premium-price-note">A full month of budgeting for less than one daily $5 coffee. 30-day trial. Secure subscription checkout powered by Stripe.</div>
             </div>
 
             <ul class="premium-feature-list">
@@ -12355,7 +12356,7 @@ window.openUpgradeModal = function(featureName = 'this premium feature') {
 
             <div class="account-actions">
                 <button type="button" id="upgrade-btn" class="btn-create account-action-btn" onclick="window.startStripeCheckout(event)">
-                    Upgrade securely
+                    Start 30-day trial
                 </button>
                 <button type="button" class="btn-cancel account-action-btn" onclick="document.getElementById('upgradeModal').remove()">
                     No Thanks
