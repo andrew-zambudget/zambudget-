@@ -496,6 +496,11 @@
   background: color-mix(in srgb, var(--green, #22c55e) 7%, var(--bg, #0f1117));
 }
 
+.account-action-tile.is-manage-subscription .account-action-label {
+  font-size: 0.68rem;
+  line-height: 1.05;
+}
+
 .account-action-tile.is-manage-subscription .account-action-subline {
   color: var(--green, #22c55e);
 }

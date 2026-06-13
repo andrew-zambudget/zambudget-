@@ -12288,7 +12288,7 @@ function syncBillingUi() {
         const upgradeLabel = accountUpgradeBtn.querySelector('.account-action-label');
         const upgradeSubline = accountUpgradeBtn.querySelector('.account-action-subline');
         const billingEnabled = isBillingEnabled();
-        const labelText = isPro ? 'Manage' : billingEnabled ? 'Upgrade' : 'Premium';
+        const labelText = isPro ? 'Manage Subscription' : billingEnabled ? 'Upgrade' : 'Premium';
         if (upgradeLabel) {
             upgradeLabel.textContent = labelText;
         } else {
