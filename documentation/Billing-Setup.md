@@ -65,6 +65,12 @@ https://cmfnmhqyeipgtjktbouk.supabase.co/functions/v1/stripe-webhook
    - `customer.subscription.deleted`
 5. Configure the Stripe Billing Portal in the Stripe Dashboard so users can update payment methods, view invoices, and cancel.
 
+## Account Deletion and Billing
+
+BudgetBuddy does not silently cancel paid Stripe subscriptions during account deletion. If a user has an active, trialing, or past-due Stripe subscription, `account-delete` returns `ACTIVE_STRIPE_SUBSCRIPTION` and the app sends the user to Stripe Billing Portal first.
+
+After Stripe reports the subscription as cancelled or inactive, account deletion may remove the inactive billing profile record along with the user's Buddy Cloud records and auth identity. Stripe may retain billing records required for payments, tax, legal, or dispute handling.
+
 ## Runtime Flow
 
 1. Signed-in users click Upgrade.

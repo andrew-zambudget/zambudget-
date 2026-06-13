@@ -3341,6 +3341,7 @@ async function showAccountSettingsModal() {
             { id: 'version-history', label: 'Version History', className: 'btn-cancel' },
             { id: 'diagnostics', label: 'Diagnostics', className: 'btn-cancel' },
             { id: 'reset-cloud', label: 'Reset Buddy Cloud', className: 'btn-danger' },
+            { id: 'delete-account', label: 'Delete Account', className: 'btn-danger' },
             { id: 'close', label: 'Close', className: 'btn-cancel' }
         ]
     });
@@ -3380,6 +3381,12 @@ export async function handleAccountSettings(event) {
         if (action === 'reset-cloud') {
             const resetStarted = await handleDeleteAccount();
             if (resetStarted) keepOpen = false;
+            continue;
+        }
+
+        if (action === 'delete-account') {
+            const deleteStarted = await handleDeleteBudgetBuddyAccount();
+            if (deleteStarted) keepOpen = false;
             continue;
         }
 
@@ -11863,6 +11870,7 @@ const BILLING_FUNCTIONS = {
     portal: 'billing-create-portal'
 };
 const ACCOUNT_DELETE_FUNCTION = 'account-delete';
+const ACCOUNT_DELETE_ACTIVE_SUBSCRIPTION_CODE = 'ACTIVE_STRIPE_SUBSCRIPTION';
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing']);
 const LOCAL_DEV_HOSTS = new Set(['localhost', '127.0.0.1', '']);
 const STRIPE_REDIRECT_REVIEW_SECONDS = 3;
@@ -11899,14 +11907,16 @@ function setStripeRedirectAcknowledged() {
     localStorage.setItem(STRIPE_REDIRECT_ACK_KEY, 'true');
 }
 
-async function readSupabaseFunctionError(error, fallbackMessage) {
+async function readSupabaseFunctionErrorDetails(error, fallbackMessage) {
     let message = error?.message || fallbackMessage;
+    let code = error?.code || '';
     const response = error?.context;
 
     if (response?.json) {
         try {
             const details = await response.json();
             message = details?.error || details?.message || message;
+            code = details?.code || code;
         } catch {
             // Keep the Supabase client message if the body is not JSON.
         }
@@ -11919,7 +11929,18 @@ async function readSupabaseFunctionError(error, fallbackMessage) {
         }
     }
 
-    return message;
+    return { message, code };
+}
+
+async function readSupabaseFunctionError(error, fallbackMessage) {
+    const details = await readSupabaseFunctionErrorDetails(error, fallbackMessage);
+    return details.message;
+}
+
+function createFunctionError(details = {}, fallbackMessage = 'Request failed.') {
+    const error = new Error(details.message || fallbackMessage);
+    if (details.code) error.code = details.code;
+    return error;
 }
 
 async function invokeBillingFunction(name, body = {}) {
@@ -16138,23 +16159,28 @@ async function executePasswordReset() {
     if (window.showToast) window.showToast(`Password reset email sent to ${email}.`);
 }
 
-async function invokeAccountDeleteFunction() {
+async function invokeAccountDeleteFunction(options = {}) {
+    const { deleteAuthUser = false } = options;
     if (!window.sb?.functions?.invoke || !window.currentUser) {
-        throw new Error('Please sign in before resetting Buddy Cloud.');
+        throw new Error(deleteAuthUser
+            ? 'Please sign in before deleting your BudgetBuddy account.'
+            : 'Please sign in before resetting Buddy Cloud.');
     }
 
     const { data, error } = await window.sb.functions.invoke(ACCOUNT_DELETE_FUNCTION, {
-        body: { deleteAuthUser: false }
+        body: { deleteAuthUser }
     });
     if (error) {
-        const message = await readSupabaseFunctionError(error, 'Buddy Cloud reset is temporarily unavailable. Please try again.');
-        throw new Error(message);
+        const details = await readSupabaseFunctionErrorDetails(error, deleteAuthUser
+            ? 'Account deletion is temporarily unavailable. Please try again.'
+            : 'Buddy Cloud reset is temporarily unavailable. Please try again.');
+        throw createFunctionError(details);
     }
 
     return data || {};
 }
 
-async function askDeleteAccountConfirmation() {
+async function askResetBuddyCloudConfirmation() {
     const result = await showBuddyCloudModal({
         eyebrow: 'Account Security',
         title: 'Reset Buddy Cloud?',
@@ -16180,11 +16206,63 @@ async function askDeleteAccountConfirmation() {
     return true;
 }
 
+async function askDeleteBudgetBuddyAccountConfirmation() {
+    const email = window.currentUser?.email || 'this account';
+    const result = await showBuddyCloudModal({
+        eyebrow: 'Account Deletion',
+        title: 'Delete BudgetBuddy Account?',
+        compact: true,
+        modalClass: 'buddy-cloud-account-delete-modal',
+        body: `This permanently deletes the BudgetBuddy sign-in for ${email}.`,
+        assurance: 'BudgetBuddy will delete the encrypted Buddy Cloud vault, encrypted version-history snapshots, device/browser access records, inactive billing profile, and Supabase auth identity for this account. Household or family memberships are not currently stored by BudgetBuddy.',
+        warning: 'This cannot be recovered. BudgetBuddy cannot decrypt or restore a deleted Buddy Cloud vault, deleted snapshots, or a deleted account. Active Stripe subscriptions must be cancelled in Stripe before account deletion can finish. Stripe may retain billing records required for payments, tax, legal, or dispute handling. Browser-only copies on other devices may remain only in those browsers until their local site data is cleared.',
+        inputLabel: 'Type DELETE ACCOUNT to confirm',
+        inputPlaceholder: 'DELETE ACCOUNT',
+        inputSingleLine: true,
+        inputAutoUppercase: true,
+        actions: [
+            { id: 'cancel', label: 'Back', className: 'btn-cancel' },
+            { id: 'delete-account', label: 'Delete Account', className: 'btn-danger' }
+        ]
+    });
+
+    if (result.action !== 'delete-account') return false;
+    if (result.value.toUpperCase() !== 'DELETE ACCOUNT') {
+        if (window.showToast) window.showToast('Type DELETE ACCOUNT to confirm account deletion.');
+        return false;
+    }
+
+    return true;
+}
+
+async function showActiveSubscriptionDeletionBlockedModal(message = '') {
+    const actions = [
+        { id: 'back', label: 'Back', className: 'btn-cancel' }
+    ];
+    if (isBillingEnabled() && window.currentUser) {
+        actions.push({ id: 'manage-billing', label: 'Manage Billing', className: 'btn-create' });
+    }
+
+    const result = await showBuddyCloudModal({
+        eyebrow: 'Premium Subscription',
+        title: 'Cancel Premium First',
+        compact: true,
+        body: message || 'Account deletion is paused because this account still has an active Stripe subscription.',
+        assurance: 'BudgetBuddy does not silently cancel paid subscriptions during account deletion. Use Stripe Billing Portal to cancel, then return here after billing status updates.',
+        warning: 'Deleting your BudgetBuddy account before cancelling billing would leave subscription management outside the app.',
+        actions
+    });
+
+    if (result.action === 'manage-billing') {
+        await handleManageSubscription();
+    }
+}
+
 export async function handleDeleteAccount(e) {
     if (e) e.preventDefault();
     closeAccountModal();
 
-    const confirmed = await askDeleteAccountConfirmation();
+    const confirmed = await askResetBuddyCloudConfirmation();
     if (!confirmed) return false;
 
     showSessionClearingScreen('Clearing Session...', 'Resetting Buddy Cloud and clearing this browser.');
@@ -16201,6 +16279,35 @@ export async function handleDeleteAccount(e) {
     } catch (err) {
         hideSessionClearingScreen();
         if (window.showToast) window.showToast(err?.message || 'Could not reset Buddy Cloud.');
+        return false;
+    }
+}
+
+export async function handleDeleteBudgetBuddyAccount(e) {
+    if (e) e.preventDefault();
+    closeAccountModal();
+
+    const confirmed = await askDeleteBudgetBuddyAccountConfirmation();
+    if (!confirmed) return false;
+
+    showSessionClearingScreen('Deleting Account...', 'Deleting Buddy Cloud data, browser records, account records, and clearing this browser.');
+    try {
+        await invokeAccountDeleteFunction({ deleteAuthUser: true });
+        try {
+            await window.sb?.auth?.signOut?.({ scope: 'global' });
+        } catch {
+            // The auth identity may already be deleted. Continue local cleanup.
+        }
+        document.getElementById('buddyCloudModal')?.remove();
+        await clearBrowserSessionAndRefresh({ target: 'login.html?accountDeleted=true', message: 'Deleting Account...' });
+        return true;
+    } catch (err) {
+        hideSessionClearingScreen();
+        if (err?.code === ACCOUNT_DELETE_ACTIVE_SUBSCRIPTION_CODE || /stripe subscription/i.test(err?.message || '')) {
+            await showActiveSubscriptionDeletionBlockedModal(err.message);
+            return false;
+        }
+        if (window.showToast) window.showToast(err?.message || 'Could not delete account.');
         return false;
     }
 }
@@ -16432,6 +16539,7 @@ window.handleAccountDiagnostics = handleAccountDiagnostics;
 window.handleAccountSettings = handleAccountSettings;
 window.handleAccountSupport = handleAccountSupport;
 window.handleDeleteAccount = handleDeleteAccount;
+window.handleDeleteBudgetBuddyAccount = handleDeleteBudgetBuddyAccount;
 window.handleLogout = handleLogout;
 window.closeDeleteCategoryModal = closeDeleteCategoryModal;
 window.closeDeleteIncomeSourceModal = closeDeleteIncomeSourceModal;

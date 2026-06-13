@@ -8,10 +8,12 @@ export const corsHeaders = {
 
 export class HttpError extends Error {
   status: number;
+  code?: string;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -84,5 +86,7 @@ export function handleError(error: unknown) {
   const err = error as Partial<HttpError>;
   const status = typeof err.status === 'number' ? err.status : 500;
   const message = error instanceof Error ? error.message : 'Unexpected server error.';
-  return jsonResponse({ error: message }, status);
+  const body: Record<string, unknown> = { error: message };
+  if (typeof err.code === 'string' && err.code) body.code = err.code;
+  return jsonResponse(body, status);
 }

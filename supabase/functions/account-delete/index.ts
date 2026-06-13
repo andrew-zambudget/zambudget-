@@ -9,6 +9,8 @@ import {
 } from '../_shared/billing.ts';
 
 const BLOCKED_BILLING_STATUSES = new Set(['active', 'trialing', 'past_due']);
+const ACTIVE_SUBSCRIPTION_CODE = 'ACTIVE_STRIPE_SUBSCRIPTION';
+const NOT_APPLICABLE = 'not_applicable';
 
 function isMissingOptionalTableError(error: unknown) {
   const typed = error as { code?: string; message?: string };
@@ -16,6 +18,25 @@ function isMissingOptionalTableError(error: unknown) {
   return typed?.code === '42P01'
     || message.includes('buddy_cloud_vault_snapshots')
     || message.toLowerCase().includes('schema cache');
+}
+
+async function deleteRowsForUser(
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
+  table: string,
+  userId: string,
+  options: { optional?: boolean } = {}
+) {
+  const { error } = await supabaseAdmin
+    .from(table)
+    .delete()
+    .eq('user_id', userId);
+
+  if (error) {
+    if (options.optional && isMissingOptionalTableError(error)) return NOT_APPLICABLE;
+    throw error;
+  }
+
+  return true;
 }
 
 Deno.serve(async (req) => {
@@ -36,7 +57,9 @@ Deno.serve(async (req) => {
         .select('subscription_status, stripe_subscription_id')
         .eq('user_id', user.id)
         .maybeSingle();
-      if (billingReadError) throw billingReadError;
+      if (billingReadError && !isMissingOptionalTableError(billingReadError)) {
+        throw billingReadError;
+      }
 
       if (
         billingProfile?.stripe_subscription_id &&
@@ -44,39 +67,44 @@ Deno.serve(async (req) => {
       ) {
         throw new HttpError(
           409,
-          'Cancel your active Stripe subscription before deleting your BudgetBuddy account.'
+          'Cancel your active Stripe subscription before deleting your BudgetBuddy account.',
+          ACTIVE_SUBSCRIPTION_CODE
         );
       }
     }
 
-    const { error: vaultDeleteError } = await supabaseAdmin
-      .from('buddy_cloud_vaults')
-      .delete()
-      .eq('user_id', user.id);
-    if (vaultDeleteError) throw vaultDeleteError;
-
-    const { error: snapshotDeleteError } = await supabaseAdmin
-      .from('buddy_cloud_vault_snapshots')
-      .delete()
-      .eq('user_id', user.id);
-    if (snapshotDeleteError && !isMissingOptionalTableError(snapshotDeleteError)) {
-      throw snapshotDeleteError;
-    }
+    const buddyCloudVaultsDeleted = await deleteRowsForUser(supabaseAdmin, 'buddy_cloud_vaults', user.id);
+    const buddyCloudSnapshotsDeleted = await deleteRowsForUser(supabaseAdmin, 'buddy_cloud_vault_snapshots', user.id, { optional: true });
 
     if (!deleteAuthUser) {
-      return jsonResponse({ reset: true, authUserDeleted: false });
+      return jsonResponse({
+        reset: true,
+        authUserDeleted: false,
+        buddyCloudVaultsDeleted,
+        buddyCloudSnapshotsDeleted
+      });
     }
 
-    const { error: billingDeleteError } = await supabaseAdmin
-      .from('billing_profiles')
-      .delete()
-      .eq('user_id', user.id);
-    if (billingDeleteError) throw billingDeleteError;
+    const browserAccessDeleted = await deleteRowsForUser(supabaseAdmin, 'buddy_cloud_browser_access', user.id, { optional: true });
+    const billingProfileDeleted = await deleteRowsForUser(supabaseAdmin, 'billing_profiles', user.id, { optional: true });
 
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(user.id, true);
+    // Household/family sharing is not implemented in the current schema.
+    // Return an explicit marker so account deletion reports stay truthful.
+    const householdMembershipsDeleted = NOT_APPLICABLE;
+
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(user.id, false);
     if (error) throw error;
 
-    return jsonResponse({ deleted: true, authUserSoftDeleted: true });
+    return jsonResponse({
+      deleted: true,
+      authUserDeleted: true,
+      buddyCloudVaultsDeleted,
+      buddyCloudSnapshotsDeleted,
+      browserAccessDeleted,
+      billingProfileDeleted,
+      householdMembershipsDeleted,
+      activeSessionsRevokedByAuthDeletion: true
+    });
   } catch (error) {
     return handleError(error);
   }
