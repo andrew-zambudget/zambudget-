@@ -6832,6 +6832,38 @@ input.error, select.error {
     padding-bottom: 5.25rem;
 }
 
+#view-add .add-transaction-form > .type-toggle-v2 {
+    order: 1;
+}
+
+#view-add .add-transaction-form > #heroAmountContainer {
+    order: 2;
+}
+
+#view-add .add-transaction-form > .add-form-group:has(#txDescription) {
+    order: 3;
+}
+
+#view-add .add-transaction-form > .add-category-picker {
+    order: 4;
+}
+
+#view-add .add-transaction-form > #toggleDetailsBtn {
+    order: 5;
+}
+
+#view-add .add-transaction-form > #txHiddenDetails {
+    order: 6;
+}
+
+#view-add .add-transaction-form > .sticky-save-wrapper {
+    order: 7;
+}
+
+#view-add .add-transaction-form > #addTxStatus {
+    order: 8;
+}
+
 .add-transaction-form .form-input,
 .add-transaction-form .payment-method-select,
 .add-transaction-form .notes-textarea {
@@ -6892,6 +6924,44 @@ input.error, select.error {
 #txDescription.placeholder-typewriter-input,
 #catInputName.placeholder-fade-input {
     position: relative;
+}
+
+#view-add .add-transaction-form > .add-form-group:has(#txDescription) {
+    width: min(100%, 520px);
+    align-self: center;
+    gap: 0.34rem;
+    margin-top: -0.25rem;
+    margin-bottom: 0.35rem !important;
+}
+
+#view-add .add-transaction-form > .add-form-group:has(#txDescription) > label {
+    color: var(--text-dim, #64748b);
+    font-size: 0.68rem;
+    font-weight: 850;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+#view-add #txDescription {
+    min-height: 42px;
+    border-radius: 12px;
+    padding: 0.64rem 0.78rem;
+    border-color: color-mix(in srgb, var(--border, #e2e8f0) 88%, transparent);
+    background: color-mix(in srgb, var(--surface, #ffffff) 86%, var(--bg, #f8fafc));
+    box-shadow: none;
+    font-size: 0.94rem;
+    font-weight: 650;
+}
+
+#view-add #txDescription:focus {
+    border-color: var(--accent, #14b8a6);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #14b8a6) 12%, transparent);
+    background: var(--surface, #ffffff);
+}
+
+#view-add .add-transaction-form > .add-form-group:has(#txDescription) #txDescriptionError {
+    text-align: center;
 }
 
 #txDescription.placeholder-typewriter-input::placeholder,
@@ -8522,6 +8592,26 @@ input.error, select.error {
         padding: 0.78rem 0.85rem;
         font-size: 1rem;
         background: var(--surface, #ffffff);
+    }
+
+    #view-add .add-transaction-form > .add-form-group:has(#txDescription) {
+        width: 100%;
+        gap: 0.32rem;
+        margin-top: -0.18rem;
+        margin-bottom: 0.25rem !important;
+    }
+
+    #view-add #txDescription {
+        min-height: 42px;
+        border-radius: 12px;
+        padding: 0.64rem 0.78rem;
+        font-size: 0.94rem;
+        background: color-mix(in srgb, var(--surface, #ffffff) 88%, var(--bg, #f8fafc));
+    }
+
+    #view-add .add-transaction-form > .add-form-group:has(#txDescription) #smartSuggestionsRow {
+        margin-top: 0.1rem;
+        padding-bottom: 0.12rem;
     }
 
     #view-add .toggle-details-btn {
