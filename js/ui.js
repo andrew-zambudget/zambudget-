@@ -17064,7 +17064,9 @@ async function verifyBuddyCloudBeforeLogout(options = {}) {
             return getSkippedBackupResult(status.hasKey ? 'cloud_unavailable_no_local_changes' : 'cloud_key_unavailable_no_local_changes');
         }
         throw createLogoutBackupBlockedError(
-            'Buddy Cloud needs your recovery key before signing out because this browser has budget changes that are not verified in cloud. Import your recovery key or sync before signing out.',
+            status.hasKey
+                ? 'Local changes on this browser have not been backed up to Buddy Cloud. Refresh or sync before signing out.'
+                : 'Local changes on this browser have not been backed up to Buddy Cloud. Import your recovery key or sync before signing out.',
             status.hasKey ? 'cloud_unavailable_local_changes' : 'cloud_key_unavailable_local_changes'
         );
     }
@@ -17130,12 +17132,16 @@ async function requireRecoveryKeySavedBeforeLocalClear() {
 }
 
 async function showLogoutBackupBlockedModal(error) {
+    const reason = String(error?.reason || '');
+    const hasUnbackedLocalChanges = reason.includes('local_changes');
     const result = await showBuddyCloudModal({
         eyebrow: 'Buddy Cloud Backup',
-        title: 'Backup Not Verified',
+        title: hasUnbackedLocalChanges ? 'Local Changes Not Backed Up' : 'Backup Not Verified',
         compact: true,
         body: error?.message || 'Buddy Cloud could not verify this browser before sign-out.',
-        assurance: 'Best path: import your recovery key or sync Buddy Cloud, then sign out after the encrypted backup is verified.',
+        assurance: hasUnbackedLocalChanges
+            ? 'Best path: get Buddy Cloud active on this browser, then sign out after the encrypted backup is verified.'
+            : 'Best path: import your recovery key or sync Buddy Cloud, then sign out after the encrypted backup is verified.',
         warning: 'If you continue without backup, this browser will be cleared and any local changes not already in Buddy Cloud may be lost.',
         actions: [
             { id: 'back', label: 'Back', className: 'btn-cancel' },
