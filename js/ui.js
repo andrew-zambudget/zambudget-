@@ -11910,6 +11910,7 @@ const ACCOUNT_DELETE_ACTIVE_SUBSCRIPTION_CODE = 'ACTIVE_STRIPE_SUBSCRIPTION';
 const ACCOUNT_DELETE_REAUTH_REQUIRED_CODE = 'REAUTH_REQUIRED';
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing']);
 const ACCOUNT_DELETE_BLOCKED_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing', 'past_due']);
+const LOGOUT_BACKUP_BLOCKED_CODE = 'BUDDY_CLOUD_LOGOUT_BACKUP_BLOCKED';
 const LOCAL_DEV_HOSTS = new Set(['localhost', '127.0.0.1', '']);
 const STRIPE_REDIRECT_REVIEW_SECONDS = 3;
 
@@ -16599,6 +16600,17 @@ function getSkippedBackupResult(reason = 'backup_skipped') {
     return { backedUp: false, skipped: true, reason };
 }
 
+function createLogoutBackupBlockedError(message, reason = 'backup_blocked') {
+    const error = new Error(message);
+    error.code = LOGOUT_BACKUP_BLOCKED_CODE;
+    error.reason = reason;
+    return error;
+}
+
+function isLogoutBackupBlockedError(error) {
+    return error?.code === LOGOUT_BACKUP_BLOCKED_CODE;
+}
+
 function getMostRecentVerifiedBuddyCloudAt() {
     const values = [
         localStorage.getItem('bb_cloud_last_pushed_at') || '',
@@ -16643,7 +16655,10 @@ async function verifyBuddyCloudBeforeLogout(options = {}) {
             recordSyncEvent('Final Buddy Cloud backup skipped because this browser cannot access Buddy Cloud, but no newer local budget changes were detected.', 'local');
             return getSkippedBackupResult(status.hasKey ? 'cloud_unavailable_no_local_changes' : 'cloud_key_unavailable_no_local_changes');
         }
-        throw new Error('Buddy Cloud needs your recovery key before signing out because this browser has budget changes that are not verified in cloud. Import your recovery key or sync before signing out.');
+        throw createLogoutBackupBlockedError(
+            'Buddy Cloud needs your recovery key before signing out because this browser has budget changes that are not verified in cloud. Import your recovery key or sync before signing out.',
+            status.hasKey ? 'cloud_unavailable_local_changes' : 'cloud_key_unavailable_local_changes'
+        );
     }
     if (hasBuddyCloudConflict(status)) {
         if (allowBackupSkip) {
@@ -16669,7 +16684,10 @@ async function verifyBuddyCloudBeforeLogout(options = {}) {
             recordSyncEvent('Final Buddy Cloud backup skipped because backup verification failed. Sign-out is allowed.', 'local');
             return getSkippedBackupResult('backup_failed');
         }
-        throw error;
+        throw createLogoutBackupBlockedError(
+            error?.message || 'Buddy Cloud backup failed before sign-out.',
+            'backup_failed'
+        );
     }
 
     const localUpdatedAt = localStorage.getItem('bb_local_updated_at') || '';
@@ -16679,7 +16697,10 @@ async function verifyBuddyCloudBeforeLogout(options = {}) {
             recordSyncEvent('Final Buddy Cloud backup skipped because backup verification did not complete. Sign-out is allowed.', 'local');
             return getSkippedBackupResult('backup_not_verified');
         }
-        throw new Error('Buddy Cloud backup did not verify. Sign-out was stopped so local budget data is not cleared before cloud backup catches up.');
+        throw createLogoutBackupBlockedError(
+            'Buddy Cloud backup did not verify. Sign-out was stopped so local budget data is not cleared before cloud backup catches up.',
+            'backup_not_verified'
+        );
     }
     recordSyncEvent('Buddy Cloud backup completed before sign-out.', 'synced');
     return { backedUp: true, skipped: false, reason: '' };
@@ -16700,7 +16721,36 @@ async function requireRecoveryKeySavedBeforeLocalClear() {
     });
 }
 
-async function executeLogout() {
+async function showLogoutBackupBlockedModal(error) {
+    const result = await showBuddyCloudModal({
+        eyebrow: 'Buddy Cloud Backup',
+        title: 'Backup Not Verified',
+        compact: true,
+        body: error?.message || 'Buddy Cloud could not verify this browser before sign-out.',
+        assurance: 'Best path: import your recovery key or sync Buddy Cloud, then sign out after the encrypted backup is verified.',
+        warning: 'If you continue without backup, this browser will be cleared and any local changes not already in Buddy Cloud may be lost.',
+        actions: [
+            { id: 'back', label: 'Back', className: 'btn-cancel' },
+            { id: 'recovery-help', label: 'Recovery Help', className: 'btn-cancel' },
+            { id: 'sign-out-anyway', label: 'Sign Out Without Backup', className: 'btn-danger' }
+        ]
+    });
+
+    if (result.action === 'recovery-help') {
+        await handleBuddyCloudRecoveryHelp();
+        return false;
+    }
+
+    if (result.action === 'sign-out-anyway') {
+        await executeLogout({ allowBackupSkip: true });
+        return true;
+    }
+
+    return false;
+}
+
+async function executeLogout(options = {}) {
+    const { allowBackupSkip = false } = options;
     markBuddyCloudForcePullAfterSignIn();
     const preservedLocalStorage = getTrustedBuddyCloudPreservedLocalStorage();
     closeAccountConfirmModal();
@@ -16709,7 +16759,7 @@ async function executeLogout() {
     if (!keySafe) throw new Error('Recovery key download is required before this browser can be cleared.');
     showSessionClearingScreen('Clearing Session...', 'Signing out and clearing the budget screen.');
     try {
-        await verifyBuddyCloudBeforeLogout();
+        await verifyBuddyCloudBeforeLogout({ allowBackupSkip });
         if (window.sb) {
             await window.sb.auth.signOut();
         }
@@ -16721,6 +16771,10 @@ async function executeLogout() {
         });
     } catch (error) {
         hideSessionClearingScreen();
+        if (!allowBackupSkip && isLogoutBackupBlockedError(error)) {
+            await showLogoutBackupBlockedModal(error);
+            return;
+        }
         throw error;
     }
 }
