@@ -18,7 +18,14 @@ test.describe('account deletion safeguards', () => {
         await page.evaluate(() => {
             window.currentUser = {
                 id: 'account-delete-safety-user',
-                email: 'delete-safety@example.com'
+                email: 'delete-safety@gmail.com',
+                app_metadata: {
+                    provider: 'google',
+                    providers: ['google']
+                },
+                identities: [
+                    { provider: 'google' }
+                ]
             };
             window.handleDeleteBudgetBuddyAccount();
         });
@@ -26,6 +33,9 @@ test.describe('account deletion safeguards', () => {
         const modal = page.locator('#buddyCloudModal');
         await expect(modal).toBeVisible();
         await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete BudgetBuddy Account?');
+        await expect(modal).toContainText('Signed in as delete-safety@gmail.com using Google');
+        await expect(modal).toContainText('It does not delete your Google account');
+        await expect(modal).toContainText('Google connected-app settings');
         await expect(modal).toContainText('encrypted Buddy Cloud vault');
         await expect(modal).toContainText('encrypted version-history snapshots');
         await expect(modal).toContainText('device/browser access records');
@@ -39,6 +49,33 @@ test.describe('account deletion safeguards', () => {
 
         await modal.getByRole('button', { name: 'Back' }).click();
         await expect(modal).toBeHidden();
+    });
+
+    test('delete account confirmation clarifies Apple sign-in is not Apple ID deletion', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await page.evaluate(() => {
+            window.currentUser = {
+                id: 'account-delete-apple-user',
+                email: 'apple-delete@example.com',
+                app_metadata: {
+                    provider: 'apple',
+                    providers: ['apple']
+                },
+                identities: [
+                    { provider: 'apple' }
+                ]
+            };
+            window.handleDeleteBudgetBuddyAccount();
+        });
+
+        const modal = page.locator('#buddyCloudModal');
+        await expect(modal).toBeVisible();
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete BudgetBuddy Account?');
+        await expect(modal).toContainText('Signed in as apple-delete@example.com using Apple');
+        await expect(modal).toContainText('It does not delete your Apple ID');
+        await expect(modal).toContainText('Apple account settings');
     });
 
     test('account settings tucks destructive actions under advanced warning', async ({ page }) => {

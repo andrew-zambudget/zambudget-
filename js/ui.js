@@ -15539,6 +15539,27 @@ function getCurrentUserAuthProviders() {
     return providers;
 }
 
+function getPrimaryAccountAuthProvider() {
+    const providers = getCurrentUserAuthProviders();
+    const priority = ['google', 'apple', 'email'];
+    return priority.find(provider => providers.has(provider)) || Array.from(providers)[0] || 'email';
+}
+
+function getAccountDeletionAuthContextCopy() {
+    const email = window.currentUser?.email || 'this account';
+    const provider = getPrimaryAccountAuthProvider();
+
+    if (provider === 'google') {
+        return `Signed in as ${email} using Google. Deleting your BudgetBuddy account removes your BudgetBuddy account and app data only. It does not delete your Google account. You can also remove BudgetBuddy from your Google connected-app settings.`;
+    }
+
+    if (provider === 'apple') {
+        return `Signed in as ${email} using Apple. Deleting your BudgetBuddy account removes your BudgetBuddy account and app data only. It does not delete your Apple ID. You can also remove BudgetBuddy from your Apple account settings.`;
+    }
+
+    return `Signed in as ${email} using email link. Deleting your BudgetBuddy account removes your BudgetBuddy account and app data only.`;
+}
+
 function canCurrentUserResetPassword() {
     return getCurrentUserAuthProviders().has('email');
 }
@@ -16309,12 +16330,13 @@ async function askResetBuddyCloudConfirmation() {
 
 async function askDeleteBudgetBuddyAccountConfirmation() {
     const email = window.currentUser?.email || 'this account';
+    const authContextCopy = getAccountDeletionAuthContextCopy();
     const result = await showBuddyCloudModal({
         eyebrow: 'Account Deletion',
         title: 'Delete BudgetBuddy Account?',
         compact: true,
         modalClass: 'buddy-cloud-account-delete-modal',
-        body: `This permanently deletes the BudgetBuddy sign-in for ${email}.`,
+        body: `This permanently deletes the BudgetBuddy sign-in for ${email}. ${authContextCopy}`,
         assurance: 'BudgetBuddy will delete the encrypted Buddy Cloud vault, encrypted version-history snapshots, device/browser access records, inactive billing profile, and Supabase auth identity for this account. Household or family memberships are not currently stored by BudgetBuddy.',
         warning: 'This cannot be recovered. BudgetBuddy cannot decrypt or restore a deleted Buddy Cloud vault, deleted snapshots, or a deleted account. Active Stripe subscriptions must be cancelled in Stripe before account deletion can finish. Stripe may retain billing records required for payments, tax, legal, or dispute handling. Browser-only copies on other devices may remain only in those browsers until their local site data is cleared.',
         inputLabel: 'Type DELETE ACCOUNT to confirm',
