@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
+    <meta http-equiv="Cache-Control" content="no-store">
+    <title>BudgetBuddy is refreshing</title>
+    <style>
+        :root {
+            color-scheme: dark light;
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --border: #374151;
+            --text: #e4e4e7;
+            --text-dim: #9ca3af;
+            --accent: #8b5cf6;
+            --green: #22c55e;
+        }
+
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg: #f8fafc;
+                --surface: #ffffff;
+                --border: #cbd5e1;
+                --text: #1e293b;
+                --text-dim: #475569;
+                --accent: #7c3aed;
+                --green: #16a34a;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            display: grid;
+            place-items: center;
+            padding: 1.5rem;
+            background:
+                radial-gradient(circle at top left, rgba(34, 197, 94, 0.14), transparent 34rem),
+                radial-gradient(circle at bottom right, rgba(139, 92, 246, 0.16), transparent 32rem),
+                var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        main {
+            width: min(100%, 620px);
+            padding: 2rem;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: color-mix(in srgb, var(--surface) 94%, transparent);
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
+        }
+
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-bottom: 1.25rem;
+            color: var(--text);
+            font-size: 1.05rem;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .mark {
+            display: inline-grid;
+            place-items: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent), var(--green));
+            color: #ffffff;
+            font-size: 1rem;
+            font-weight: 900;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(2rem, 7vw, 3.1rem);
+            line-height: 1;
+            letter-spacing: -0.03em;
+        }
+
+        p {
+            color: var(--text-dim);
+            font-size: 1rem;
+            line-height: 1.65;
+        }
+
+        .notice {
+            margin: 1.25rem 0;
+            padding: 1rem;
+            border: 1px solid color-mix(in srgb, var(--green) 28%, var(--border));
+            border-radius: 12px;
+            color: var(--text);
+            background: color-mix(in srgb, var(--green) 9%, transparent);
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+            padding: 0 1rem;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            color: var(--text);
+            background: transparent;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .btn.primary {
+            border-color: var(--accent);
+            color: #ffffff;
+            background: var(--accent);
+        }
+
+        .btn:focus-visible {
+            outline: 3px solid color-mix(in srgb, var(--accent) 42%, transparent);
+            outline-offset: 3px;
+        }
+
+        .fineprint {
+            margin-top: 1.25rem;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <a class="brand" href="https://app.budget-buddy.io/" aria-label="BudgetBuddy app">
+            <span class="mark" aria-hidden="true">B</span>
+            BudgetBuddy
+        </a>
+        <h1>BudgetBuddy is refreshing.</h1>
+        <p>This usually means the app is between deploys, a hosting edge is catching up, or a cache rule served a temporary access response.</p>
+        <div class="notice">
+            Your budget was not deleted by this page. If you were signed in, wait a moment and try the app again.
+        </div>
+        <div class="actions" aria-label="Recovery actions">
+            <a class="btn primary" href="https://app.budget-buddy.io/">Try App Again</a>
+            <a class="btn" href="https://app.budget-buddy.io/login.html">Log In</a>
+            <a class="btn" href="https://budget-buddy.io/status.html">Status</a>
+            <a class="btn" href="https://budget-buddy.io/support.html">Support</a>
+        </div>
+        <p class="fineprint">If this keeps happening after a refresh, check the status page or contact support with the time it happened and the exact URL you were opening.</p>
+    </main>
+</body>
+</html>
