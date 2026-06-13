@@ -348,6 +348,14 @@
                             </div>
 
                             <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">ID</span>
+                                <div>
+                                    <div class="tag-text">Account deletion scrubs account email metadata</div>
+                                    <span class="tag-detail">The deletion function now checks billing by UID and email before allowing deletion, then deletes and verifies BudgetBuddy-owned billing/profile email rows before reporting success. Verified Supabase Auth deletion remains the source of truth for removing the auth email, login timestamps, sessions, and social-login identity metadata.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
                                 <span class="tag-icon" aria-hidden="true">DATA</span>
                                 <div>
                                     <div class="tag-text">Data safety moved ahead of feature expansion</div>
