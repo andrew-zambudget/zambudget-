@@ -10,6 +10,7 @@ const EXPIRES_AT_KEY = 'bb_demo_expires_at';
 const BACKUP_HAS_DATA_KEY = 'bb_demo_backup_has_data';
 const BACKUP_DATA_KEY = 'bb_demo_backup_bb_data';
 const BACKUP_UPDATED_AT_KEY = 'bb_demo_backup_local_updated_at';
+const BACKUP_CREATED_AT_KEY = 'bb_demo_backup_created_at';
 const ENDED_NOTICE_KEY = 'bb_demo_ended_notice';
 const ACCOUNT_PROMPT_DISMISSED_KEY = 'bb_demo_account_prompt_dismissed';
 const TUTORIAL_SKIPPED_KEY = 'bb_demo_tutorial_skipped';
@@ -187,39 +188,66 @@ export function isDemoModeActive() {
     return storageGet(ACTIVE_KEY) === 'true';
 }
 
+function clearDemoBackup() {
+    [
+        BACKUP_HAS_DATA_KEY,
+        BACKUP_DATA_KEY,
+        BACKUP_UPDATED_AT_KEY,
+        BACKUP_CREATED_AT_KEY
+    ].forEach(storageRemove);
+}
+
 function clearDemoKeys() {
     [
         ACTIVE_KEY,
         STARTED_AT_KEY,
-        EXPIRES_AT_KEY,
-        BACKUP_HAS_DATA_KEY,
-        BACKUP_DATA_KEY,
-        BACKUP_UPDATED_AT_KEY
+        EXPIRES_AT_KEY
     ].forEach(storageRemove);
+    clearDemoBackup();
 }
 
 function clearBudgetScreenBeforeDemo() {
     [
         BB_DATA_KEY,
-        BB_LOCAL_UPDATED_AT_KEY,
-        BACKUP_HAS_DATA_KEY,
-        BACKUP_DATA_KEY,
-        BACKUP_UPDATED_AT_KEY
+        BB_LOCAL_UPDATED_AT_KEY
     ].forEach(storageRemove);
+    clearDemoBackup();
 }
 
 function backupCurrentBudget() {
-    if (isDemoModeActive()) return;
+    if (isDemoModeActive()) return true;
+
+    clearDemoBackup();
+
+    if (!hasMeaningfulLocalBudget()) {
+        storageSet(BACKUP_HAS_DATA_KEY, 'false');
+        storageSet(BACKUP_CREATED_AT_KEY, String(Date.now()));
+        return true;
+    }
 
     const currentData = storageGet(BB_DATA_KEY);
     const currentUpdatedAt = storageGet(BB_LOCAL_UPDATED_AT_KEY);
+    if (!currentData) {
+        storageSet(BACKUP_HAS_DATA_KEY, 'false');
+        storageSet(BACKUP_CREATED_AT_KEY, String(Date.now()));
+        return true;
+    }
 
-    storageSet(BACKUP_HAS_DATA_KEY, currentData ? 'true' : 'false');
-    if (currentData) storageSet(BACKUP_DATA_KEY, currentData);
-    else storageRemove(BACKUP_DATA_KEY);
+    const wroteBackup = storageSet(BACKUP_DATA_KEY, currentData);
+    const wroteFlag = storageSet(BACKUP_HAS_DATA_KEY, 'true');
+    const wroteCreatedAt = storageSet(BACKUP_CREATED_AT_KEY, String(Date.now()));
 
-    if (currentUpdatedAt) storageSet(BACKUP_UPDATED_AT_KEY, currentUpdatedAt);
+    if (!wroteBackup || !wroteFlag || !wroteCreatedAt) {
+        clearDemoBackup();
+        return false;
+    }
+
+    if (currentUpdatedAt) {
+        storageSet(BACKUP_UPDATED_AT_KEY, currentUpdatedAt);
+    }
     else storageRemove(BACKUP_UPDATED_AT_KEY);
+
+    return true;
 }
 
 function restorePreviousBudget() {
@@ -238,6 +266,8 @@ function restorePreviousBudget() {
     } else {
         storageRemove(BB_LOCAL_UPDATED_AT_KEY);
     }
+
+    clearDemoBackup();
 }
 
 function dateFor(dayOffset = 0) {
@@ -336,7 +366,11 @@ function seedDemoBudget() {
 }
 
 function startDemo() {
-    backupCurrentBudget();
+    if (!backupCurrentBudget()) {
+        markDemoEnded('backup_failed');
+        return { active: false, backupFailed: true };
+    }
+
     const now = Date.now();
     storageSet(ACTIVE_KEY, 'true');
     storageSet(STARTED_AT_KEY, String(now));
@@ -415,6 +449,10 @@ function completeDemo({ reason = 'ended', navigateTo = '', restart = false, show
 export function prepareDemoMode({ user } = {}) {
     const requested = demoRequested();
     const active = isDemoModeActive();
+
+    if (!requested && !active) {
+        clearDemoBackup();
+    }
 
     if (user && (requested || active)) {
         if (active) restorePreviousBudget();
@@ -1000,10 +1038,14 @@ function startCountdown() {
 function showEndedModal(reason = 'ended') {
     if (document.getElementById(MODAL_ID) || isDemoModeActive()) return;
 
-    const title = reason === 'expired' ? 'Demo time ended' : 'Demo cleared';
-    const body = reason === 'expired'
-        ? 'The sample session ended. Your real budget is protected when you sign in with Buddy Cloud.'
-        : 'The sample demo data has been cleared. Sign in or create an account to start a real budget with encrypted Buddy Cloud protection.';
+    const title = reason === 'backup_failed'
+        ? 'Demo start paused'
+        : reason === 'expired' ? 'Demo time ended' : 'Demo cleared';
+    const body = reason === 'backup_failed'
+        ? 'BudgetBuddy could not safely save a temporary restore point for this browser budget, so demo mode did not start.'
+        : reason === 'expired'
+            ? 'The sample session ended. Your real budget is protected when you sign in with Buddy Cloud.'
+            : 'The sample demo data has been cleared. Sign in or create an account to start a real budget with encrypted Buddy Cloud protection.';
 
     const overlay = document.createElement('div');
     overlay.id = MODAL_ID;
