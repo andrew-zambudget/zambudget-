@@ -814,6 +814,28 @@ body.session-clearing-active {
   transform: translateY(0) scale(1);
 }
 
+.session-clearing-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.45rem;
+  padding: 0.24rem 0.58rem;
+  border: 1px solid color-mix(in srgb, var(--accent, #14b8a6) 26%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #14b8a6) 9%, transparent);
+  color: var(--text-dim, #64748b);
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.session-clearing-status[hidden] {
+  display: none;
+}
+
 .session-clearing-orbit {
   position: relative;
   width: 3.4rem;
@@ -884,6 +906,37 @@ body.session-clearing-active {
   border-radius: inherit;
   background: linear-gradient(90deg, transparent, var(--accent, #14b8a6), transparent);
   animation: sessionClearingSweep 1.05s ease-in-out infinite;
+}
+
+.session-clearing-overlay[data-variant="account-delete"] {
+  background: color-mix(in srgb, #020617 80%, transparent);
+}
+
+.session-clearing-overlay[data-variant="account-delete"] .session-clearing-card {
+  border-color: color-mix(in srgb, #dc2626 36%, rgba(255, 255, 255, 0.18));
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, #dc2626 14%, transparent), transparent 42%),
+    var(--surface, #ffffff);
+}
+
+.session-clearing-overlay[data-variant="account-delete"] .session-clearing-orbit {
+  border-color: color-mix(in srgb, #dc2626 36%, var(--border, #e2e8f0));
+  background: color-mix(in srgb, #dc2626 8%, var(--surface, #ffffff));
+}
+
+.session-clearing-overlay[data-variant="account-delete"] .session-clearing-orbit span {
+  background: #dc2626;
+  box-shadow: 0 0 12px color-mix(in srgb, #dc2626 56%, transparent);
+}
+
+.session-clearing-overlay[data-variant="account-delete"] .session-clearing-status {
+  border-color: color-mix(in srgb, #dc2626 32%, transparent);
+  background: color-mix(in srgb, #dc2626 10%, transparent);
+  color: color-mix(in srgb, #dc2626 74%, var(--text, #0f172a));
+}
+
+.session-clearing-overlay[data-variant="account-delete"] .session-clearing-progress span {
+  background: linear-gradient(90deg, transparent, #dc2626, transparent);
 }
 
 @keyframes sessionClearingSpin {

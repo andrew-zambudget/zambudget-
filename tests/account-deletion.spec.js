@@ -244,6 +244,88 @@ test.describe('account deletion safeguards', () => {
         ]);
     });
 
+    test('successful delete account shows signed-out redirect screen and leaves the app', async ({ page }) => {
+        await page.route('https://budget-buddy.io/**', route => route.fulfill({
+            status: 200,
+            contentType: 'text/html',
+            body: '<!doctype html><title>BudgetBuddy</title><main>BudgetBuddy website</main>'
+        }));
+
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        const invokeCalls = await page.evaluate(() => {
+            const calls = [];
+            window.currentUser = {
+                id: 'account-delete-success-user',
+                email: 'success-delete@example.com'
+            };
+            window.bbConfig = { ...(window.bbConfig || {}), billingEnabled: false };
+            window.sb = {
+                auth: {
+                    reauthenticate: async () => {
+                        calls.push({ method: 'reauthenticate' });
+                        return { error: null };
+                    },
+                    verifyOtp: async (payload) => {
+                        calls.push({ method: 'verifyOtp', payload });
+                        return { error: null };
+                    },
+                    refreshSession: async () => {
+                        calls.push({ method: 'refreshSession' });
+                        return { data: {}, error: null };
+                    },
+                    signOut: async (payload) => {
+                        calls.push({ method: 'signOut', payload });
+                        return { error: null };
+                    }
+                },
+                functions: {
+                    invoke: async (name, options) => {
+                        calls.push({ method: 'invoke', name, body: options?.body || null });
+                        return { data: { ok: true }, error: null };
+                    }
+                }
+            };
+            window.__accountDeleteCalls = calls;
+            window.handleDeleteBudgetBuddyAccount();
+            return calls;
+        });
+        expect(invokeCalls).toEqual([]);
+
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete BudgetBuddy Account?');
+        await page.locator('#buddyCloudModalInput').fill('DELETE ACCOUNT');
+        await page.getByRole('button', { name: 'Delete Account' }).click();
+
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Verify Account Deletion');
+        await page.locator('#buddyCloudModalInput').fill('654321');
+        await page.getByRole('button', { name: 'Verify Login' }).click();
+
+        const clearingOverlay = page.locator('#sessionClearingOverlay');
+        await expect(clearingOverlay).toBeVisible();
+        await expect(page.locator('#sessionClearingTitle')).toHaveText('Account Deleted');
+        await expect(page.locator('#sessionClearingDetail')).toContainText('You are signed out');
+        await expect(page.locator('#sessionClearingDetail')).toContainText('budget-buddy.io');
+        await expect(page.locator('#sessionClearingStatus')).toHaveText('Redirecting to public website');
+
+        await expect.poll(() => page.evaluate(() => window.__accountDeleteCalls)).toEqual([
+            { method: 'reauthenticate' },
+            {
+                method: 'verifyOtp',
+                payload: {
+                    email: 'success-delete@example.com',
+                    token: '654321',
+                    type: 'reauthentication'
+                }
+            },
+            { method: 'refreshSession' },
+            { method: 'invoke', name: 'account-delete', body: { deleteAuthUser: true } },
+            { method: 'signOut', payload: { scope: 'global' } }
+        ]);
+
+        await page.waitForURL(/https:\/\/budget-buddy\.io\/\?accountDeleted=true&sessionCleared=\d+/, { timeout: 10000 });
+    });
+
     test('premium billing preflight blocks delete confirmation before destructive prompt', async ({ page }) => {
         await page.goto('/index.html');
         await waitForAppReady(page);

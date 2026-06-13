@@ -15604,7 +15604,8 @@ function syncAccountAuthProviderUi() {
     if (passwordBtn) passwordBtn.hidden = !canCurrentUserResetPassword();
 }
 
-function showSessionClearingScreen(message = 'Clearing Session...', detail = 'Clearing this browser and refreshing BudgetBuddy.') {
+function showSessionClearingScreen(message = 'Clearing Session...', detail = 'Clearing this browser and refreshing BudgetBuddy.', options = {}) {
+    const { status = '', variant = '' } = options || {};
     let overlay = document.getElementById('sessionClearingOverlay');
     if (!overlay) {
         overlay = document.createElement('div');
@@ -15620,6 +15621,7 @@ function showSessionClearingScreen(message = 'Clearing Session...', detail = 'Cl
                     <span></span>
                     <span></span>
                 </div>
+                <div id="sessionClearingStatus" class="session-clearing-status" hidden></div>
                 <h3 id="sessionClearingTitle">Clearing Session...</h3>
                 <p id="sessionClearingDetail">Clearing this browser and refreshing BudgetBuddy.</p>
                 <div class="session-clearing-progress" aria-hidden="true"><span></span></div>
@@ -15630,8 +15632,18 @@ function showSessionClearingScreen(message = 'Clearing Session...', detail = 'Cl
 
     const title = overlay.querySelector('#sessionClearingTitle');
     const detailEl = overlay.querySelector('#sessionClearingDetail');
+    const statusEl = overlay.querySelector('#sessionClearingStatus');
     if (title) title.textContent = message;
     if (detailEl) detailEl.textContent = detail;
+    if (statusEl) {
+        statusEl.textContent = status;
+        statusEl.hidden = !status;
+    }
+    if (variant) {
+        overlay.dataset.variant = variant;
+    } else {
+        delete overlay.dataset.variant;
+    }
     overlay.classList.add('active');
     document.body.classList.add('session-clearing-active');
 }
@@ -15730,12 +15742,21 @@ function wait(ms = 0) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function clearBrowserSessionAndRefresh({ target = 'index.html', message = 'Clearing Session...', preserveTrustedBuddyCloud = false, preservedLocalStorage = null } = {}) {
+async function clearBrowserSessionAndRefresh({
+    target = 'index.html',
+    message = 'Clearing Session...',
+    detail = '',
+    status = '',
+    variant = '',
+    preserveTrustedBuddyCloud = false,
+    preservedLocalStorage = null
+} = {}) {
     showSessionClearingScreen(
         message,
-        preserveTrustedBuddyCloud
+        detail || (preserveTrustedBuddyCloud
             ? 'Clearing budget data and signing out of this browser.'
-            : 'Clearing local data, session storage, and browser cookies.'
+            : 'Clearing local data, session storage, and browser cookies.'),
+        { status, variant }
     );
     await wait(3000);
     clearBudgetBuddyBrowserSessionState({ preserveTrustedBuddyCloud, preservedLocalStorage });
@@ -16574,7 +16595,14 @@ export async function handleDeleteBudgetBuddyAccount(e) {
     const reauthorized = await authorizeAccountDeletionWithSupabase();
     if (!reauthorized) return false;
 
-    showSessionClearingScreen('Deleting Account...', 'Deleting Buddy Cloud data, browser records, account records, and clearing this browser.');
+    showSessionClearingScreen(
+        'Deleting Account...',
+        'Deleting your BudgetBuddy account. When this finishes, you will be signed out and returned to budget-buddy.io.',
+        {
+            status: 'Permanent deletion in progress',
+            variant: 'account-delete'
+        }
+    );
     try {
         await invokeAccountDeleteFunction({ deleteAuthUser: true });
         try {
@@ -16583,7 +16611,13 @@ export async function handleDeleteBudgetBuddyAccount(e) {
             // The auth identity may already be deleted. Continue local cleanup.
         }
         document.getElementById('buddyCloudModal')?.remove();
-        await clearBrowserSessionAndRefresh({ target: 'login.html?accountDeleted=true', message: 'Deleting Account...' });
+        await clearBrowserSessionAndRefresh({
+            target: 'https://budget-buddy.io/?accountDeleted=true',
+            message: 'Account Deleted',
+            detail: 'You are signed out. This browser is being cleared and you are being returned to budget-buddy.io.',
+            status: 'Redirecting to public website',
+            variant: 'account-delete'
+        });
         return true;
     } catch (err) {
         hideSessionClearingScreen();
