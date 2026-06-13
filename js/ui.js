@@ -15147,16 +15147,51 @@ function getSkippedBackupResult(reason = 'backup_skipped') {
     return { backedUp: false, skipped: true, reason };
 }
 
+function getMostRecentVerifiedBuddyCloudAt() {
+    const values = [
+        localStorage.getItem('bb_cloud_last_pushed_at') || '',
+        localStorage.getItem('bb_cloud_last_remote_at') || ''
+    ];
+
+    return values.reduce((latest, value) => {
+        if (!value) return latest;
+        if (!latest) return value;
+        const latestMs = new Date(latest).getTime();
+        const valueMs = new Date(value).getTime();
+        if (Number.isFinite(latestMs) && Number.isFinite(valueMs)) {
+            return valueMs > latestMs ? value : latest;
+        }
+        return value > latest ? value : latest;
+    }, '');
+}
+
+function hasLocalBudgetChangesAfterVerifiedBuddyCloud() {
+    const localUpdatedAt = localStorage.getItem('bb_local_updated_at') || '';
+    if (!localUpdatedAt) return false;
+
+    const verifiedAt = getMostRecentVerifiedBuddyCloudAt();
+    if (!verifiedAt) return true;
+    if (localUpdatedAt === verifiedAt) return false;
+
+    const localMs = new Date(localUpdatedAt).getTime();
+    const verifiedMs = new Date(verifiedAt).getTime();
+    if (Number.isFinite(localMs) && Number.isFinite(verifiedMs)) {
+        return localMs > verifiedMs;
+    }
+
+    return true;
+}
+
 async function verifyBuddyCloudBeforeLogout(options = {}) {
     const { allowBackupSkip = false } = options;
     const status = window.BuddyCloud?.getStatus?.() || {};
     if (!status.signedIn || !status.enabled) return getSkippedBackupResult('not_enabled');
     if (!status.hasKey || !status.canUseCloud) {
-        if (allowBackupSkip) {
-            recordSyncEvent('Final Buddy Cloud backup skipped because this browser cannot access the recovery key. Sign-out is allowed.', 'local');
-            return getSkippedBackupResult('cloud_key_unavailable');
+        if (allowBackupSkip || !hasLocalBudgetChangesAfterVerifiedBuddyCloud()) {
+            recordSyncEvent('Final Buddy Cloud backup skipped because this browser cannot access Buddy Cloud, but no newer local budget changes were detected.', 'local');
+            return getSkippedBackupResult(status.hasKey ? 'cloud_unavailable_no_local_changes' : 'cloud_key_unavailable_no_local_changes');
         }
-        throw new Error('Buddy Cloud backup is not available on this browser. Sign-out was stopped so local budget data is not cleared before cloud backup is verified.');
+        throw new Error('Buddy Cloud needs your recovery key before signing out because this browser has budget changes that are not verified in cloud. Import your recovery key or sync before signing out.');
     }
     if (hasBuddyCloudConflict(status)) {
         if (allowBackupSkip) {
