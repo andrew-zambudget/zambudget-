@@ -1313,7 +1313,7 @@ async function downloadRecoveryKeyFile(recoveryKey) {
         'BudgetBuddy Buddy Cloud Recovery Key',
         '',
         'Keep this key private. It decrypts your synced BudgetBuddy cloud vault on another device.',
-        'If you lose this key and no signed-in device still has access, BudgetBuddy cannot recover your synced budget.',
+        'If you lose this key, BudgetBuddy cannot recover your synced budget.',
         '',
         recoveryKey,
         ''
@@ -1874,7 +1874,7 @@ async function confirmRecoveryKeySaved(recoveryKey) {
         title: 'Important: We Cannot Recover This Key',
         modalClass: 'buddy-cloud-recovery-key-modal buddy-cloud-recovery-key-confirm-modal',
         body: 'Your Recovery Key protects your synced budget. Save it somewhere private before continuing.',
-        warning: 'Paste the key below to confirm you saved it. If you lose this key and no signed-in device still has access, your synced budget cannot be recovered by us.',
+        warning: 'Paste the key below to confirm you saved it. If you lose this key, your synced budget cannot be recovered by us.',
         inputLabel: 'Paste your Recovery Key here to continue',
         inputPlaceholder: 'Paste the recovery key you just saved',
         customHtml: '<div class="buddy-cloud-key-confirm-error" data-key-confirm-error hidden></div>',
@@ -1921,10 +1921,10 @@ async function showRecoveryKeyNotice(recoveryKey, { copied = false, initial = fa
             : 'This recovery key decrypts your Buddy Cloud budget on another device; your budget is encrypted before upload.',
         assurance: initial ? 'Detailed privacy protections are covered in the Privacy Policy.' : '',
         warning: requireDownload
-            ? 'Download this recovery key before continuing. If you lose this key and no signed-in device still has access, we cannot recover your synced budget.'
+            ? 'Download this recovery key before continuing. If you lose this key, we cannot recover your synced budget.'
             : keyCopied
-            ? 'The key was copied to your clipboard. It will be cleared in about 60 seconds if it still contains this key. Store it somewhere private. If you lose this key and no signed-in device still has access, we cannot recover your synced budget.'
-            : 'Store this key somewhere private. If you lose this key and no signed-in device still has access, we cannot recover your synced budget.',
+            ? 'The key was copied to your clipboard. It will be cleared in about 60 seconds if it still contains this key. Store it somewhere private. If you lose this key, we cannot recover your synced budget.'
+            : 'Store this key somewhere private. If you lose this key, we cannot recover your synced budget.',
         customHtml: !initial && !requireDownload ? `
             <div class="buddy-cloud-key-countdown" role="status" aria-live="polite">
                 <span>Key display locks in</span>
@@ -2825,7 +2825,7 @@ function buildBuddyCloudDiagnosticReport() {
             conflictDetected: hasBuddyCloudConflict(status),
             freeDeviceLimitBlocked: isBuddyCloudMultiDeviceLimit(status),
             canRecoverLostKey: false,
-            lostKeyGuidance: 'BudgetBuddy cannot recover a lost Buddy Cloud recovery key. If the key is permanently lost and no trusted browser still has access, reset Buddy Cloud to create a new encrypted vault.'
+            lostKeyGuidance: 'BudgetBuddy cannot recover a lost Buddy Cloud recovery key. If the key is permanently lost, reset Buddy Cloud to create a new encrypted vault.'
         },
         browserAccess: {
             hasLocalBrowserAccessToken: Boolean(getBrowserAccessKeyName() && localStorage.getItem(getBrowserAccessKeyName())),
@@ -3439,7 +3439,7 @@ async function confirmReleaseSyncSlot() {
         title: 'Release Sync Slot?',
         body: 'This sync slot is consuming Free Tier Buddy Cloud capacity but is not matched to a known active browser access row.',
         assurance: 'BudgetBuddy releases only the selected Buddy Cloud sync slot record. It does not revoke your recovery key, delete your encrypted vault, or store a new device identifier.',
-        warning: 'Release this only when no visible browser should still own the slot. A trusted browser that still has its recovery key can claim a slot again when it syncs.',
+        warning: 'Release this only when no visible browser should still own the slot. A browser can claim a slot again only after the recovery key is imported for that session.',
         actions: [
             { id: 'cancel', label: 'Back', className: 'btn-cancel' },
             { id: 'release-slot', label: 'Release Sync Slot', className: 'btn-danger' }
@@ -15508,7 +15508,6 @@ function getTrustedBuddyCloudPreservedLocalStorage() {
 
     const keys = [
         'bb_cloud_sync_enabled',
-        `bb_cloud_key_${userId}`,
         `bb_cloud_sync_slot_${userId}`,
         `${BROWSER_ACCESS_TOKEN_PREFIX}${userId}`,
         `${RECOVERY_KEY_SAVED_PREFIX}${userId}`,
@@ -16161,7 +16160,7 @@ export function handleLogout(e) {
     const isOutsideFreeDeviceLimit = isBuddyCloudMultiDeviceLimit(cloudStatus);
     const noteParts = [];
     if (needsRecoveryKeyBackup) {
-        noteParts.push('This trusted browser keeps its Buddy Cloud recovery key for your next login. Still save a backup copy somewhere safe.');
+        noteParts.push('This browser forgets the in-memory Buddy Cloud recovery key after sign-out. Save a backup copy somewhere safe before clearing this browser.');
     }
     if (isOutsideFreeDeviceLimit) {
         noteParts.push('Final Buddy Cloud backup will be skipped because this browser is not an active Free sync device. Sign-out still works; unsynced edits on this browser will not be uploaded.');
@@ -16328,6 +16327,8 @@ async function executeLogout() {
     const preservedLocalStorage = getTrustedBuddyCloudPreservedLocalStorage();
     closeAccountConfirmModal();
     closeAccountModal();
+    const keySafe = await requireRecoveryKeySavedBeforeLocalClear();
+    if (!keySafe) throw new Error('Recovery key download is required before this browser can be cleared.');
     showSessionClearingScreen('Clearing Session...', 'Signing out and clearing the budget screen.');
     try {
         await verifyBuddyCloudBeforeLogout();

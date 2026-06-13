@@ -2,6 +2,7 @@
 
 const SYNC_HISTORY_KEY = 'bb_sync_history';
 const SYNC_HISTORY_LIMIT = 5;
+const CLOUD_KEY_PREFIX = 'bb_cloud_key_';
 const DEMO_ACTIVE_KEY = 'bb_demo_active';
 const DEMO_BACKUP_KEYS = [
     'bb_demo_backup_has_data',
@@ -106,7 +107,18 @@ function cleanupInactiveDemoBackup() {
     DEMO_BACKUP_KEYS.forEach(storageRemove);
 }
 
+function cleanupPersistedCloudKeys() {
+    try {
+        Object.keys(localStorage)
+            .filter(key => key.startsWith(CLOUD_KEY_PREFIX))
+            .forEach(storageRemove);
+    } catch {
+        // Privacy cleanup must never block app startup.
+    }
+}
+
 export function runPrivacyStorageCleanup() {
     cleanupSyncHistory();
     cleanupInactiveDemoBackup();
+    cleanupPersistedCloudKeys();
 }

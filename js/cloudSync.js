@@ -42,6 +42,7 @@ let syncSlotRealtimeChannel = null;
 let syncSlotRealtimeUserId = '';
 let isInitialized = false;
 let isApplyingRemote = false;
+let memoryCloudKeys = new Map();
 let lastKnownStatus = {
     enabled: false,
     signedIn: false,
@@ -83,6 +84,30 @@ function getUserKeyName(userId = currentUser?.id) {
     return userId ? `${CLOUD_KEY_PREFIX}${userId}` : '';
 }
 
+function purgePersistedCloudKey(userId = currentUser?.id) {
+    const keyName = getUserKeyName(userId);
+    try {
+        if (keyName) localStorage.removeItem(keyName);
+    } catch {
+        // Key cleanup must never block cloud status checks.
+    }
+}
+
+function purgeAllPersistedCloudKeys() {
+    try {
+        Object.keys(localStorage)
+            .filter(key => key.startsWith(CLOUD_KEY_PREFIX))
+            .forEach(key => localStorage.removeItem(key));
+    } catch {
+        // Key cleanup must never block cloud status checks.
+    }
+}
+
+function clearMemoryCloudKey(userId = currentUser?.id) {
+    if (userId) memoryCloudKeys.delete(userId);
+    purgePersistedCloudKey(userId);
+}
+
 function getSyncSlotKeyName(userId = currentUser?.id) {
     return userId ? `${CLOUD_SYNC_SLOT_PREFIX}${userId}` : '';
 }
@@ -102,19 +127,24 @@ function clearForcePullAfterSignIn() {
 }
 
 function hasLocalCloudKey() {
-    const keyName = getUserKeyName();
-    return Boolean(keyName && localStorage.getItem(keyName));
+    return Boolean(getStoredCloudKey());
 }
 
 function getStoredCloudKey() {
-    const keyName = getUserKeyName();
-    return keyName ? localStorage.getItem(keyName) || '' : '';
+    const userId = currentUser?.id || '';
+    purgePersistedCloudKey(userId);
+    return userId ? memoryCloudKeys.get(userId) || '' : '';
 }
 
 function storeCloudKey(value) {
-    const keyName = getUserKeyName();
-    if (!keyName) throw new Error('Sign in before setting a Buddy Cloud key.');
-    localStorage.setItem(keyName, value);
+    const userId = currentUser?.id || '';
+    if (!userId) throw new Error('Sign in before setting a Buddy Cloud key.');
+
+    const normalized = String(value || '').trim();
+    if (!normalized) throw new Error('Buddy Cloud recovery key is invalid.');
+    memoryCloudKeys.set(userId, normalized);
+    purgePersistedCloudKey(userId);
+    return normalized;
 }
 
 function generateCloudKey() {
@@ -1416,9 +1446,8 @@ export async function releaseOtherSyncSlots() {
 
 export function removeThisDevice() {
     clearTimeout(pushTimer);
-    const keyName = getUserKeyName();
     const slotKeyName = getSyncSlotKeyName();
-    if (keyName) localStorage.removeItem(keyName);
+    clearMemoryCloudKey();
     if (slotKeyName) localStorage.removeItem(slotKeyName);
     clearForcePullAfterSignIn();
     localStorage.removeItem(CLOUD_ENABLED_KEY);
@@ -1441,7 +1470,7 @@ export function removeThisDevice() {
 
 export function exportRecoveryKey() {
     const rawKey = getStoredCloudKey();
-    if (!rawKey) throw new Error('Buddy Cloud is not enabled on this device yet.');
+    if (!rawKey) throw new Error('Import your Buddy Cloud recovery key before viewing it.');
     return rawKey;
 }
 
@@ -1450,7 +1479,7 @@ export async function importRecoveryKey(rawKey) {
     storeCloudKey(String(rawKey || '').trim());
     localStorage.setItem(CLOUD_ENABLED_KEY, 'true');
     rememberStatus();
-    record('Buddy Cloud recovery key imported.', 'local');
+    record('Buddy Cloud recovery key imported for this session.', 'local');
     return true;
 }
 
@@ -1520,8 +1549,13 @@ export async function restoreVersion(snapshotId) {
 }
 
 export async function init(options = {}) {
+    const previousUserId = currentUser?.id || '';
     sb = options.supabaseClient || window.sb || null;
     currentUser = options.user || window.currentUser || null;
+    const nextUserId = currentUser?.id || '';
+    if (previousUserId && previousUserId !== nextUserId) clearMemoryCloudKey(previousUserId);
+    if (!nextUserId) memoryCloudKeys.clear();
+    purgeAllPersistedCloudKeys();
     getSnapshot = options.getSnapshot;
     replaceSnapshot = options.replaceSnapshot;
     afterRemoteApply = options.afterRemoteApply;
@@ -1650,7 +1684,12 @@ export async function init(options = {}) {
 }
 
 export async function refreshUser(user) {
+    const previousUserId = currentUser?.id || '';
     currentUser = user || null;
+    const nextUserId = currentUser?.id || '';
+    if (previousUserId && previousUserId !== nextUserId) clearMemoryCloudKey(previousUserId);
+    if (!nextUserId) memoryCloudKeys.clear();
+    purgeAllPersistedCloudKeys();
     if (!currentUser) {
         stopSyncSlotRealtimeSubscription();
         rememberStatus({
