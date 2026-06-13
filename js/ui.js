@@ -180,6 +180,13 @@ const BROWSER_ACCESS_CHECK_MS = 60 * 1000;
 const BROWSER_ACCESS_OPEN_PANEL_REFRESH_MS = 5000;
 const UNMATCHED_SYNC_SLOT_AUTO_RELEASE_MS = 2 * 60 * 60 * 1000;
 const BROWSER_ACCESS_PRIVACY_COPY = 'Device management stores only the private browser records, sync slot links, and timestamps needed to manage sign-out and Free Tier sync slots. No device names, user agents, IP-derived locations, or readable budget data are stored.';
+const LEGACY_STORAGE_QUARANTINE_ID = 'LEGACY_STORAGE_QUARANTINE_2026_06';
+const LEGACY_STORAGE_KEYS = Object.freeze({
+    transactions: 'bb_transactions',
+    categories: 'bb_categories',
+    customCategories: 'bb_custom_categories'
+});
+const legacyStorageFallbackWarnings = new Set();
 let syncStatusTimer = null;
 let syncSlotStatusPanelTimer = null;
 let syncSlotStatusPanelRefreshPromise = null;
@@ -197,6 +204,28 @@ let syncStatusAlternateTimer = null;
 let syncStatusAlternateKeyNeeded = false;
 
 const NAME_MAX_LENGTH = 24;
+
+function warnLegacyStorageFallback(context) {
+    const normalized = String(context || 'unknown').slice(0, 120);
+    if (legacyStorageFallbackWarnings.has(normalized)) return;
+    legacyStorageFallbackWarnings.add(normalized);
+    console.warn(`[BudgetBuddy][${LEGACY_STORAGE_QUARANTINE_ID}] Legacy storage fallback still reachable: ${normalized}`);
+}
+
+function readLegacyStorageArray(key, context) {
+    warnLegacyStorageFallback(context || `read:${key}`);
+    try {
+        const parsed = JSON.parse(localStorage.getItem(key) || '[]');
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+function writeLegacyStorageArray(key, value, context) {
+    warnLegacyStorageFallback(context || `write:${key}`);
+    localStorage.setItem(key, JSON.stringify(Array.isArray(value) ? value : []));
+}
 
 function cleanNameInput(value) {
     return String(value || '').replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim().substring(0, NAME_MAX_LENGTH);
@@ -6695,6 +6724,9 @@ window.loadMoreIncomeSources = function() {
 
 window.currentTxFilter = window.currentTxFilter || 'all';
 
+// LEGACY-QUARANTINE 2026-06:
+// Superseded by the Recent Transactions rebuild below. Kept temporarily so
+// stale inline handlers route back to the active renderer during beta soak.
 // Triggered by the search bar input
 function legacyFilterRecentTransactionsV1() {
     window.renderRecentTransactions();
@@ -6766,6 +6798,9 @@ window.exportTransactions = function() {
     if(typeof showToast === 'function') showToast('✅ Export downloaded successfully!');
 };
 
+// LEGACY-QUARANTINE 2026-06:
+// Older recent-list renderer. Do not wire new UI to this; delete after the
+// fallback warnings stay silent through a verified beta window.
 function legacyRenderRecentTransactionsV3() {
     const listContainer = document.getElementById('recentTxList');
     if (!listContainer) return;
@@ -11715,7 +11750,7 @@ window.saveNewCategory = function() {
     if (State.saveCategories) {
         State.saveCategories(categories);
     } else {
-        localStorage.setItem('bb_categories', JSON.stringify(categories));
+        writeLegacyStorageArray(LEGACY_STORAGE_KEYS.categories, categories, 'saveNewCategory fallback');
     }
 
     window.closeAddCategoryModal();
@@ -12280,6 +12315,10 @@ window.checkBuddyCloudAccess = function(featureName, actionCallback) {
 };
 
 // The Upgrade UI Modal
+// LEGACY-QUARANTINE 2026-06:
+// This definition is immediately overwritten by the refined Premium modal
+// below. It is tagged for deletion after beta testing confirms no stale bundle
+// or inline call path depends on the first definition.
 window.openUpgradeModal = function(featureName = 'this premium feature') {
     let existingModal = document.getElementById('upgradeModal');
     if (existingModal) existingModal.remove();
@@ -12396,7 +12435,7 @@ window.deleteTransaction = function(txId) {
     if (typeof State !== 'undefined' && State.getTransactions) {
         transactions = State.getTransactions();
     } else {
-        transactions = JSON.parse(localStorage.getItem('bb_transactions') || '[]');
+        transactions = readLegacyStorageArray(LEGACY_STORAGE_KEYS.transactions, 'deleteTransaction fallback');
     }
 
     const txIndex = transactions.findIndex(t => t.id === txId);
@@ -12445,7 +12484,7 @@ window.saveTransactionsHelper = function(txArray) {
     if (typeof State !== 'undefined' && State.saveTransactions) {
         State.saveTransactions(txArray);
     } else {
-        localStorage.setItem('bb_transactions', JSON.stringify(txArray));
+        writeLegacyStorageArray(LEGACY_STORAGE_KEYS.transactions, txArray, 'saveTransactionsHelper fallback');
     }
 };
 
@@ -12465,7 +12504,7 @@ window.refreshActiveUI = function() {
 
 window.openTxDetailPanel = function(txId) {
     // 1. Fetch the transaction
-    const transactions = (typeof State !== 'undefined' && State.getTransactions) ? State.getTransactions() : JSON.parse(localStorage.getItem('bb_transactions') || '[]');
+    const transactions = (typeof State !== 'undefined' && State.getTransactions) ? State.getTransactions() : readLegacyStorageArray(LEGACY_STORAGE_KEYS.transactions, 'openTxDetailPanel fallback');
     const tx = transactions.find(t => t.id === txId);
 
     if (!tx) return;
@@ -12523,6 +12562,9 @@ window.closeTxDetailPanel = function() {
 // Failsafe: Route any old legacy 'X' buttons to our new gatekeeper
 window.removeTransaction = window.deleteTransaction;
 
+// LEGACY-QUARANTINE 2026-06:
+// Older recent-list renderer kept only for stale handler tolerance. The active
+// implementation starts at "RECENT TRANSACTIONS REBUILD" below.
 function legacyRenderRecentTransactionsV2() {
     const listContainer = document.getElementById('recentTxList');
     if (!listContainer) return;
@@ -12532,7 +12574,7 @@ function legacyRenderRecentTransactionsV2() {
     if (typeof State !== 'undefined' && State.getTransactions) {
         allTx = State.getTransactions();
     } else {
-        allTx = JSON.parse(localStorage.getItem('bb_transactions') || '[]');
+        allTx = readLegacyStorageArray(LEGACY_STORAGE_KEYS.transactions, 'legacyRenderRecentTransactionsV2 fallback');
     }
 
     // Filter out Buddy Cloud soft-deleted items
@@ -12625,11 +12667,14 @@ function legacyRenderRecentTransactionsV2() {
 // 🎛️ RECENT TAB UI TRIGGERS
 // ==========================================
 
+// LEGACY-QUARANTINE 2026-06:
+// Older recent-list renderer kept only for stale handler tolerance. The active
+// implementation starts at "RECENT TRANSACTIONS REBUILD" below.
 function legacyRenderRecentTransactionsV4() {
     const listContainer = document.getElementById('recentTxList');
     if (!listContainer) return;
 
-    let visibleTx = (State.getTransactions ? State.getTransactions() : JSON.parse(localStorage.getItem('bb_transactions') || '[]'))
+    let visibleTx = (State.getTransactions ? State.getTransactions() : readLegacyStorageArray(LEGACY_STORAGE_KEYS.transactions, 'legacyRenderRecentTransactionsV4 fallback'))
         .filter(tx => !tx.isDeleted);
 
     const searchInput = document.getElementById('txSearch');
@@ -12731,6 +12776,8 @@ function legacyRenderRecentTransactionsV4() {
     });
 };
 
+// LEGACY-QUARANTINE 2026-06:
+// Older filter triggers kept only for stale handler tolerance.
 // 1. Triggered when typing in the search bar
 function legacyFilterRecentTransactionsV2() {
     window.renderRecentTransactions();
@@ -12823,7 +12870,7 @@ export function bulkDeleteTransactions() {
 
     if (!confirm(`Permanently delete ${count} transactions? This cannot be undone.`)) return;
 
-    let txs = (typeof State !== 'undefined' && State.getTransactions) ? State.getTransactions() : JSON.parse(localStorage.getItem('bb_transactions') || '[]');
+    let txs = (typeof State !== 'undefined' && State.getTransactions) ? State.getTransactions() : readLegacyStorageArray(LEGACY_STORAGE_KEYS.transactions, 'bulkDeleteTransactions fallback');
 
     if (window.hasBuddyCloud && window.hasBuddyCloud()) {
         // Premium soft-delete
@@ -12841,7 +12888,7 @@ export function bulkDeleteTransactions() {
     if (typeof State !== 'undefined' && State.saveTransactions) {
         State.saveTransactions(txs);
     } else {
-        localStorage.setItem('bb_transactions', JSON.stringify(txs));
+        writeLegacyStorageArray(LEGACY_STORAGE_KEYS.transactions, txs, 'bulkDeleteTransactions save fallback');
     }
 
     if (typeof showToast === 'function') showToast(`Deleted ${count} transactions`);
@@ -12854,7 +12901,7 @@ export function bulkMoveTransactions() {
     if (window.selectedTxIds.size === 0) return;
 
     const select = document.getElementById('reassignCategorySelect');
-    const categories = (typeof State !== 'undefined' && State.getCategories) ? State.getCategories() : JSON.parse(localStorage.getItem('bb_custom_categories') || '[]');
+    const categories = (typeof State !== 'undefined' && State.getCategories) ? State.getCategories() : readLegacyStorageArray(LEGACY_STORAGE_KEYS.customCategories, 'bulkMoveTransactions categories fallback');
 
     // Build the dropdown
     select.innerHTML = '<option value="" selected disabled>Select a new category...</option>';
@@ -12876,7 +12923,7 @@ export function bulkMoveTransactions() {
         const newCat = select.value;
         if (!newCat) return alert("Please select a category");
 
-        let txs = (typeof State !== 'undefined' && State.getTransactions) ? State.getTransactions() : JSON.parse(localStorage.getItem('bb_transactions') || '[]');
+        let txs = (typeof State !== 'undefined' && State.getTransactions) ? State.getTransactions() : readLegacyStorageArray(LEGACY_STORAGE_KEYS.transactions, 'bulkMoveTransactions transactions fallback');
 
         txs.forEach(tx => {
             if (window.selectedTxIds.has(tx.id)) {
@@ -12887,7 +12934,7 @@ export function bulkMoveTransactions() {
         if (typeof State !== 'undefined' && State.saveTransactions) {
             State.saveTransactions(txs);
         } else {
-            localStorage.setItem('bb_transactions', JSON.stringify(txs));
+            writeLegacyStorageArray(LEGACY_STORAGE_KEYS.transactions, txs, 'bulkMoveTransactions save fallback');
         }
 
         if (typeof showToast === 'function') showToast(`Moved ${window.selectedTxIds.size} transactions`);
@@ -14935,13 +14982,13 @@ window.submitUnifiedTransaction = function() {
     }
 
     // 5. Save to State / LocalStorage
-    let txs = (typeof State !== 'undefined' && State.getTransactions) ? State.getTransactions() : JSON.parse(localStorage.getItem('bb_transactions') || '[]');
+    let txs = (typeof State !== 'undefined' && State.getTransactions) ? State.getTransactions() : readLegacyStorageArray(LEGACY_STORAGE_KEYS.transactions, 'saveTransaction fallback');
     txs.push(newTx);
 
     if (typeof State !== 'undefined' && State.saveTransactions) {
         State.saveTransactions(txs);
     } else {
-        localStorage.setItem('bb_transactions', JSON.stringify(txs));
+        writeLegacyStorageArray(LEGACY_STORAGE_KEYS.transactions, txs, 'saveTransaction save fallback');
     }
 
     // 6. UI Cleanup & Feedback
@@ -15038,7 +15085,7 @@ window.renderSavingsTab = function() {
     if (!grid) return;
 
     // A. The Math Aggregator
-    const txs = (typeof State !== 'undefined' && State.getTransactions) ? State.getTransactions() : JSON.parse(localStorage.getItem('bb_transactions') || '[]');
+    const txs = (typeof State !== 'undefined' && State.getTransactions) ? State.getTransactions() : readLegacyStorageArray(LEGACY_STORAGE_KEYS.transactions, 'renderSavingsTab transactions fallback');
     const savingsTxs = txs.filter(tx => tx.tag === 'savings' || tx.type === 'savings');
 
     const totalSavings = savingsTxs.reduce((sum, tx) => {
@@ -15086,7 +15133,7 @@ window.renderSavingsTab = function() {
     }
 
     // B. The Grid Renderer
-    const categories = (typeof State !== 'undefined' && State.getCategories) ? State.getCategories() : JSON.parse(localStorage.getItem('bb_categories') || '[]');
+    const categories = (typeof State !== 'undefined' && State.getCategories) ? State.getCategories() : readLegacyStorageArray(LEGACY_STORAGE_KEYS.categories, 'renderSavingsTab categories fallback');
     const savingsBuckets = categories.filter(c => ['savings', 'sinking_fund', 'external'].includes(c.type));
     const emergencyFundCard = createEmergencyFundCardElement(totalSavings, fundStage);
 
@@ -15256,12 +15303,12 @@ window.saveSavingsGoal = function() {
 
 // 3. Card HTML Generator
 function generateSavingsCardHTML(catId, catObj = null) {
-    const categories = (typeof State !== 'undefined' && State.getCategories) ? State.getCategories() : JSON.parse(localStorage.getItem('bb_categories') || '[]');
+    const categories = (typeof State !== 'undefined' && State.getCategories) ? State.getCategories() : readLegacyStorageArray(LEGACY_STORAGE_KEYS.categories, 'generateSavingsCardHTML categories fallback');
     const cat = catObj || categories.find(c => c.id === catId);
     if (!cat) return '';
 
     // Card math
-    const txs = (typeof State !== 'undefined' && State.getTransactions) ? State.getTransactions() : JSON.parse(localStorage.getItem('bb_transactions') || '[]');
+    const txs = (typeof State !== 'undefined' && State.getTransactions) ? State.getTransactions() : readLegacyStorageArray(LEGACY_STORAGE_KEYS.transactions, 'generateSavingsCardHTML transactions fallback');
     const symbol = State.getSymbol ? State.getSymbol() : '$';
     const bucketTxs = txs.filter(tx => tx.category === cat.name && (tx.tag === 'savings' || tx.type === 'savings'));
     const savedAmount = bucketTxs.reduce((sum, tx) => {
