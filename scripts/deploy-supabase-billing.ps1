@@ -1,6 +1,6 @@
 param(
     [string]$ProjectRef = "cmfnmhqyeipgtjktbouk",
-    [string]$AppUrl = "http://localhost:5173"
+    [string]$AppUrl = "https://app.budget-buddy.io"
 )
 
 $ErrorActionPreference = "Stop"

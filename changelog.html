@@ -434,6 +434,22 @@
                                     <span class="tag-detail">If an older billing profile points to a Stripe customer that no longer exists, BudgetBuddy now creates a fresh Stripe customer for the signed-in account before starting Checkout instead of failing with a no-such-customer error.</span>
                                 </div>
                             </div>
+
+                            <div class="tag-item tag-fix">
+                                <span class="tag-icon" aria-hidden="true">SYNC</span>
+                                <div>
+                                    <div class="tag-text">Premium status can recover from missed webhook timing</div>
+                                    <span class="tag-detail">When the app refreshes Premium status, the billing-status function now re-checks Stripe using the account's stored customer, subscription ID, or verified billing email. If a Checkout return or webhook was missed, the next signed-in status check can repair the billing profile from Stripe instead of leaving the app stuck on Free Tier.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-fix">
+                                <span class="tag-icon" aria-hidden="true">URL</span>
+                                <div>
+                                    <div class="tag-text">Billing deploys default to the production app URL</div>
+                                    <span class="tag-detail">The Supabase billing deploy helper now uses https://app.budget-buddy.io as the default app URL so live Checkout sessions do not fall back to a localhost return page after deployment.</span>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- V1 PRODUCTION REPORT -->
