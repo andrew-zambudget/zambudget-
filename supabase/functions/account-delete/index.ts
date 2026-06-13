@@ -11,6 +11,7 @@ import {
 const BLOCKED_BILLING_STATUSES = new Set(['active', 'trialing', 'past_due']);
 const ACTIVE_SUBSCRIPTION_CODE = 'ACTIVE_STRIPE_SUBSCRIPTION';
 const REAUTH_REQUIRED_CODE = 'REAUTH_REQUIRED';
+const AUTH_DELETE_NOT_VERIFIED_CODE = 'AUTH_USER_DELETE_NOT_VERIFIED';
 const NOT_APPLICABLE = 'not_applicable';
 const RECENT_AUTH_WINDOW_SECONDS = 10 * 60;
 const DESTRUCTIVE_AUTH_METHODS = new Set([
@@ -98,6 +99,38 @@ function requireRecentAuthForAccountDeletion(req: Request, userId: string) {
   );
 }
 
+async function verifyAuthUserDeleted(
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
+  userId: string
+) {
+  const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
+
+  if (error) {
+    const typed = error as { status?: number; code?: string; message?: string };
+    const message = String(typed?.message || '').toLowerCase();
+    if (
+      typed?.status === 404
+      || typed?.code === 'user_not_found'
+      || message.includes('user not found')
+      || message.includes('not found')
+    ) {
+      return true;
+    }
+
+    throw error;
+  }
+
+  if (data?.user?.id === userId) {
+    throw new HttpError(
+      500,
+      'Supabase Auth identity deletion did not complete.',
+      AUTH_DELETE_NOT_VERIFIED_CODE
+    );
+  }
+
+  return true;
+}
+
 Deno.serve(async (req) => {
   const optionsResponse = handleOptions(req);
   if (optionsResponse) return optionsResponse;
@@ -158,6 +191,7 @@ Deno.serve(async (req) => {
 
     const { error } = await supabaseAdmin.auth.admin.deleteUser(user.id, false);
     if (error) throw error;
+    await verifyAuthUserDeleted(supabaseAdmin, user.id);
 
     return jsonResponse({
       deleted: true,

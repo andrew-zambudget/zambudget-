@@ -332,6 +332,14 @@
                             </div>
 
                             <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">DEL</span>
+                                <div>
+                                    <div class="tag-text">Account deletion now requires confirmed Supabase Auth removal</div>
+                                    <span class="tag-detail">The account deletion flow no longer treats a generic function success as deletion success. The edge function verifies that Supabase Auth no longer returns the user, and the app only shows the final deletion screen when the response explicitly confirms the auth identity was deleted.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
                                 <span class="tag-icon" aria-hidden="true">DATA</span>
                                 <div>
                                     <div class="tag-text">Data safety moved ahead of feature expansion</div>

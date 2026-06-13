@@ -16436,6 +16436,13 @@ async function invokeAccountDeleteFunction(options = {}) {
         throw createFunctionError(details);
     }
 
+    if (deleteAuthUser && !(data?.deleted === true && data?.authUserDeleted === true)) {
+        throw createFunctionError({
+            code: 'AUTH_USER_DELETE_NOT_VERIFIED',
+            message: 'Account deletion did not complete. Supabase Auth did not confirm that the sign-in identity was deleted.'
+        });
+    }
+
     return data || {};
 }
 

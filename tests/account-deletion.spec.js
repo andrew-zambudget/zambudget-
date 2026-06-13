@@ -368,7 +368,7 @@ test.describe('account deletion safeguards', () => {
                 functions: {
                     invoke: async (name, options) => {
                         calls.push({ method: 'invoke', name, body: options?.body || null });
-                        return { data: { ok: true }, error: null };
+                        return { data: { deleted: true, authUserDeleted: true }, error: null };
                     }
                 }
             };
@@ -395,6 +395,53 @@ test.describe('account deletion safeguards', () => {
         ]);
 
         await page.waitForURL(/https:\/\/budget-buddy\.io\/\?accountDeleted=true&sessionCleared=\d+/, { timeout: 10000 });
+    });
+
+    test('delete account does not clear the browser unless auth deletion is confirmed', async ({ page }) => {
+        await page.route('https://budget-buddy.io/**', route => route.fulfill({
+            status: 200,
+            contentType: 'text/html',
+            body: '<!doctype html><title>BudgetBuddy</title><main>BudgetBuddy website</main>'
+        }));
+
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await page.evaluate(() => {
+            const calls = [];
+            window.currentUser = {
+                id: 'account-delete-unverified-user',
+                email: 'unverified-delete@example.com'
+            };
+            window.bbConfig = { ...(window.bbConfig || {}), billingEnabled: false };
+            window.sb = {
+                auth: {
+                    signOut: async (payload) => {
+                        calls.push({ method: 'signOut', payload });
+                        return { error: null };
+                    }
+                },
+                functions: {
+                    invoke: async (name, options) => {
+                        calls.push({ method: 'invoke', name, body: options?.body || null });
+                        return { data: { reset: true, authUserDeleted: false }, error: null };
+                    }
+                }
+            };
+            window.__accountDeleteCalls = calls;
+            window.handleDeleteBudgetBuddyAccount();
+        });
+
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete BudgetBuddy Account?');
+        await page.locator('#buddyCloudModalInput').fill('DELETE ACCOUNT');
+        await page.getByRole('button', { name: 'Delete Account' }).click();
+
+        await expect(page.locator('#sessionClearingOverlay')).toBeHidden({ timeout: 10000 });
+        await expect(page.locator('#sessionClearingTitle')).not.toHaveText('Account Deleted');
+        await expect(page).toHaveURL(/\/index\.html$/);
+        await expect.poll(() => page.evaluate(() => window.__accountDeleteCalls)).toEqual([
+            { method: 'invoke', name: 'account-delete', body: { deleteAuthUser: true } }
+        ]);
     });
 
     test('premium billing preflight blocks delete confirmation before destructive prompt', async ({ page }) => {
