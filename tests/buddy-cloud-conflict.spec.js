@@ -181,6 +181,120 @@ test.describe('Buddy Cloud conflict sensitivity', () => {
         await resetStorage(page);
     });
 
+    test('stale enabled state without a remote vault allows fresh recovery key setup', async ({ page }) => {
+        const result = await page.evaluate(async ({ stateModulePath, cloudModulePath }) => {
+            const State = await import(stateModulePath);
+            const Cloud = await import(cloudModulePath);
+            const user = { id: 'fresh-devtest-user', email: 'devtest@budget-buddy.io' };
+            const store = { vault: null, snapshots: [] };
+
+            function makeSupabaseStub() {
+                const makeQuery = (table) => {
+                    const query = {
+                        _limit: 0,
+                        select() { return this; },
+                        eq() { return this; },
+                        order() { return this; },
+                        limit(value) {
+                            this._limit = Number(value) || 0;
+                            return this;
+                        },
+                        maybeSingle() {
+                            if (table === 'buddy_cloud_vaults') {
+                                return Promise.resolve({ data: store.vault ? { ...store.vault } : null, error: null });
+                            }
+                            if (table === 'buddy_cloud_vault_snapshots') {
+                                return Promise.resolve({ data: store.snapshots[0] ? { ...store.snapshots[0] } : null, error: null });
+                            }
+                            return Promise.resolve({ data: null, error: null });
+                        },
+                        insert(row) {
+                            if (table === 'buddy_cloud_vault_snapshots') {
+                                store.snapshots.unshift({ ...row });
+                            }
+                            return Promise.resolve({ data: row, error: null });
+                        },
+                        upsert(row) {
+                            if (table === 'buddy_cloud_vaults') {
+                                store.vault = {
+                                    ...(store.vault || {}),
+                                    ...row,
+                                    updated_at: row.updated_at || row.client_updated_at
+                                };
+                            }
+                            return Promise.resolve({ data: store.vault, error: null });
+                        },
+                        then(resolve, reject) {
+                            if (table === 'buddy_cloud_vault_snapshots') {
+                                const rows = this._limit ? store.snapshots.slice(0, this._limit) : [...store.snapshots];
+                                return Promise.resolve({ data: rows, error: null }).then(resolve, reject);
+                            }
+                            return Promise.resolve({ data: [], error: null }).then(resolve, reject);
+                        }
+                    };
+                    return query;
+                };
+
+                return {
+                    from: makeQuery,
+                    channel: () => ({
+                        on() { return this; },
+                        subscribe(callback) {
+                            if (typeof callback === 'function') callback('SUBSCRIBED');
+                            return this;
+                        },
+                        unsubscribe() {}
+                    }),
+                    removeChannel: async () => ({ error: null })
+                };
+            }
+
+            State.replaceSnapshot({
+                transactions: [],
+                categories: [],
+                settings: { currency: '$' }
+            });
+            localStorage.setItem('bb_cloud_sync_enabled', 'true');
+
+            const initResult = await Cloud.init({
+                supabaseClient: makeSupabaseStub(),
+                user,
+                getSnapshot: State.getSnapshot,
+                replaceSnapshot: State.replaceSnapshot,
+                afterRemoteApply: () => {},
+                isPremiumAccount: () => false
+            });
+            const statusAfterInit = Cloud.getStatus();
+            const setup = await Cloud.enableSync();
+            const statusAfterSetup = Cloud.getStatus();
+
+            return {
+                initResult,
+                enabledAfterInit: statusAfterInit.enabled,
+                lastErrorAfterInit: statusAfterInit.lastError,
+                setupEnabled: setup.enabled,
+                remoteExisted: setup.remoteExisted,
+                hasRecoveryKey: typeof setup.recoveryKey === 'string' && setup.recoveryKey.length > 20,
+                enabledAfterSetup: statusAfterSetup.enabled,
+                hasKeyAfterSetup: statusAfterSetup.hasKey,
+                vaultCreated: Boolean(store.vault?.payload)
+            };
+        }, {
+            stateModulePath: modulePath('/js/state.js'),
+            cloudModulePath: modulePath('/js/cloudSync.js')
+        });
+
+        expect(result.initResult).toBe(false);
+        expect(result.enabledAfterInit).toBe(false);
+        expect(result.lastErrorAfterInit).toBe('');
+        expect(result.setupEnabled).toBe(true);
+        expect(result.remoteExisted).toBe(false);
+        expect(result.hasRecoveryKey).toBe(true);
+        expect(result.enabledAfterSetup).toBe(true);
+        expect(result.hasKeyAfterSetup).toBe(true);
+        expect(result.vaultCreated).toBe(true);
+    });
+
     test('trusted sign-in pulls cloud when local copy only has volatile timestamp noise', async ({ page }) => {
         const result = await runTrustedSignInScenario(page, { localAmount: 42 });
 

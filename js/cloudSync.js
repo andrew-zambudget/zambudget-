@@ -678,6 +678,24 @@ function clearConflictState() {
     localStorage.removeItem(CLOUD_CONFLICT_LOCAL_SUMMARY_KEY);
 }
 
+function clearStaleEnabledStateForFreshSetup() {
+    localStorage.removeItem(CLOUD_ENABLED_KEY);
+    localStorage.removeItem(CLOUD_LAST_PUSHED_KEY);
+    localStorage.removeItem(CLOUD_LAST_REMOTE_KEY);
+    localStorage.removeItem(CLOUD_LAST_ERROR_KEY);
+    clearConflictState();
+    rememberStatus({
+        syncing: false,
+        syncSlotBlocked: false,
+        syncSlotOwnerHash: '',
+        syncSlotCurrentHash: '',
+        syncSlotClaimedAt: '',
+        syncSlotLastSeenAt: '',
+        syncSlotCurrentBrowserActive: false,
+        syncSlotRows: []
+    });
+}
+
 function rememberStatus(next = {}) {
     const conflict = getConflictState();
     lastKnownStatus = {
@@ -1623,14 +1641,21 @@ export async function init(options = {}) {
         return false;
     }
 
-    if (!hasLocalCloudKey()) {
-        record('Import your Buddy Cloud recovery key to sync this device.', 'error');
-        return false;
-    }
-
     rememberStatus({ syncing: true, nextSyncAt: '', nextSyncReason: 'Buddy Cloud check running now' });
 
     try {
+        if (!hasLocalCloudKey()) {
+            const remote = await fetchRemoteVault();
+            if (!remote) {
+                clearStaleEnabledStateForFreshSetup();
+                record('Buddy Cloud setup needed. No encrypted cloud vault exists for this account yet.', 'local');
+                return false;
+            }
+
+            record('Import your Buddy Cloud recovery key to sync this device.', 'error');
+            return false;
+        }
+
         const rawKey = getStoredCloudKey();
         const remote = await fetchRemoteVault();
         if (!remote) {
