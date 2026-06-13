@@ -57,13 +57,15 @@ test.describe('account deletion safeguards', () => {
         await expect(modal).toBeVisible();
         await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Settings');
         await expect(modal.getByRole('button', { name: 'Advanced Features' })).toBeVisible();
+        await expect(modal.getByRole('button', { name: 'Version History' })).toHaveCount(0);
         await expect(modal.getByRole('button', { name: 'Reset Buddy Cloud' })).toHaveCount(0);
         await expect(modal.getByRole('button', { name: 'Delete Account' })).toHaveCount(0);
 
         await modal.getByRole('button', { name: 'Advanced Features' }).click();
-        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Destructive Actions');
-        await expect(modal).toContainText('These tools are for account recovery and permanent cleanup only.');
-        await expect(modal).toContainText('Destructive actions can remove encrypted cloud data');
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Advanced Recovery & Destructive Actions');
+        await expect(modal).toContainText('These tools can restore, replace, reset, or permanently delete account data.');
+        await expect(modal).toContainText('Some actions can replace the current budget');
+        await expect(modal.getByRole('button', { name: 'Version History' })).toBeVisible();
         await expect(modal.getByRole('button', { name: 'Reset Buddy Cloud' })).toBeVisible();
         await expect(modal.getByRole('button', { name: 'Delete Account' })).toBeVisible();
 

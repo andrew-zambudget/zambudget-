@@ -3334,11 +3334,10 @@ async function showAccountSettingsModal() {
         title: 'Settings',
         compact: true,
         modalClass: 'buddy-cloud-settings-modal',
-        body: 'Manage guided recovery, encrypted version history, and local support exports.',
-        assurance: 'Version history stores encrypted snapshots only. Diagnostics are generated locally and require confirmation.',
+        body: 'Manage guided recovery, local support exports, and advanced recovery tools.',
+        assurance: 'Diagnostics are generated locally and require confirmation. Advanced tools are separated because they can replace, reset, or delete data.',
         actions: [
             { id: 'recovery-help', label: 'Recovery Help', className: 'btn-create' },
-            { id: 'version-history', label: 'Version History', className: 'btn-cancel' },
             { id: 'diagnostics', label: 'Diagnostics', className: 'btn-cancel' },
             { id: 'advanced', label: 'Advanced Features', className: 'btn-cancel' },
             { id: 'close', label: 'Close', className: 'btn-cancel' }
@@ -3351,13 +3350,14 @@ async function showAccountSettingsModal() {
 async function showAdvancedAccountSettingsModal() {
     const result = await showBuddyCloudModal({
         eyebrow: 'Advanced Features',
-        title: 'Destructive Actions',
+        title: 'Advanced Recovery & Destructive Actions',
         compact: true,
         modalClass: 'buddy-cloud-settings-modal buddy-cloud-advanced-settings-modal',
-        body: 'These tools are for account recovery and permanent cleanup only.',
-        assurance: 'Use these only when you understand exactly what will be deleted or reset.',
-        warning: 'Destructive actions can remove encrypted cloud data, clear this browser, or delete your BudgetBuddy account. Some data cannot be recovered.',
+        body: 'These tools can restore, replace, reset, or permanently delete account data.',
+        assurance: 'Version history stores encrypted snapshots only. Restores require confirmation.',
+        warning: 'Use these only when you understand what will change. Some actions can replace the current budget, remove encrypted cloud data, clear this browser, or delete your BudgetBuddy account.',
         actions: [
+            { id: 'version-history', label: 'Version History', className: 'btn-cancel' },
             { id: 'reset-cloud', label: 'Reset Buddy Cloud', className: 'btn-danger' },
             { id: 'delete-account', label: 'Delete Account', className: 'btn-danger' },
             { id: 'back', label: 'Back to Settings', className: 'btn-cancel' },
@@ -3400,6 +3400,15 @@ export async function handleAccountSettings(event) {
         if (action === 'advanced') {
             const advancedAction = await showAdvancedAccountSettingsModal();
             if (advancedAction === 'back') continue;
+
+            if (advancedAction === 'version-history') {
+                const versionResult = await runBuddyCloudVersionHistoryFlow();
+                if (versionResult === 'recovery-help') {
+                    const recoveryResult = await handleBuddyCloudRecoveryHelp();
+                    if (recoveryResult === 'reset-started') keepOpen = false;
+                }
+                continue;
+            }
 
             if (advancedAction === 'reset-cloud') {
                 const resetStarted = await handleDeleteAccount();
