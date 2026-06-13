@@ -1399,6 +1399,7 @@ function showBuddyCloudModal({
     selectOptions = [],
     customHtml = '',
     customHtmlBeforeInput = false,
+    inputFeedbackHtml = '',
     modalClass = '',
     inputSingleLine = false,
     inputAutoUppercase = false,
@@ -1490,6 +1491,7 @@ function showBuddyCloudModal({
                 ${selectField}
                 ${warning ? `<div class="warning-box buddy-cloud-warning"><p>${esc(warning)}</p></div>` : ''}
                 ${keyField}
+                ${inputFeedbackHtml}
                 ${customHtml && inputLabel && !customHtmlBeforeInput ? customHtml : ''}
                 ${actionsSection}
             </div>
@@ -16375,10 +16377,56 @@ async function askDeleteBudgetBuddyAccountConfirmation() {
         inputPlaceholder: 'DELETE ACCOUNT',
         inputSingleLine: true,
         inputAutoUppercase: true,
+        inputFeedbackHtml: '<div id="accountDeleteConfirmError" class="buddy-cloud-key-confirm-error" data-account-delete-confirm-error role="alert" aria-live="polite" hidden></div>',
         actions: [
             { id: 'cancel', label: 'Back', className: 'btn-cancel' },
-            { id: 'delete-account', label: 'Delete Account', className: 'btn-danger' }
-        ]
+            { id: 'delete-account', label: 'Delete Account', className: 'btn-danger', persistent: true }
+        ],
+        onReady: ({ modal }) => {
+            const input = modal.querySelector('#buddyCloudModalInput');
+            const error = modal.querySelector('[data-account-delete-confirm-error]');
+            if (input) {
+                const describedBy = input.getAttribute('aria-describedby');
+                input.setAttribute(
+                    'aria-describedby',
+                    [describedBy, 'accountDeleteConfirmError'].filter(Boolean).join(' ')
+                );
+            }
+            input?.addEventListener('input', () => {
+                input.classList.remove('buddy-cloud-input-error');
+                input.removeAttribute('aria-invalid');
+                if (error) {
+                    error.hidden = true;
+                    error.textContent = '';
+                }
+            });
+        },
+        onAction: ({ action, value, modal, input }) => {
+            if (action !== 'delete-account') return false;
+            const error = modal.querySelector('[data-account-delete-confirm-error]');
+            if (String(value || '').toUpperCase() === 'DELETE ACCOUNT') {
+                input?.classList.remove('buddy-cloud-input-error', 'buddy-cloud-input-shake');
+                input?.removeAttribute('aria-invalid');
+                if (error) {
+                    error.hidden = true;
+                    error.textContent = '';
+                }
+                return false;
+            }
+
+            if (error) {
+                error.hidden = false;
+                error.textContent = 'Type DELETE ACCOUNT to confirm account deletion.';
+            }
+            if (input) {
+                input.setAttribute('aria-invalid', 'true');
+                input.classList.remove('buddy-cloud-input-shake');
+                input.classList.add('buddy-cloud-input-error', 'buddy-cloud-input-shake');
+                window.setTimeout(() => input.classList.remove('buddy-cloud-input-shake'), 450);
+                input.focus({ preventScroll: true });
+            }
+            return true;
+        }
     });
 
     if (result.action !== 'delete-account') return false;

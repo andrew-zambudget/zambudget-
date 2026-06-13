@@ -87,6 +87,41 @@ test.describe('account deletion safeguards', () => {
         await expect(modal).not.toContainText('app data only');
     });
 
+    test('invalid delete account confirmation stays open with inline validation', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await page.evaluate(() => {
+            window.currentUser = {
+                id: 'account-delete-invalid-user',
+                email: 'invalid-delete@example.com'
+            };
+            window.bbConfig = { ...(window.bbConfig || {}), billingEnabled: false };
+            window.handleDeleteBudgetBuddyAccount();
+        });
+
+        const modal = page.locator('#buddyCloudModal');
+        const input = page.locator('#buddyCloudModalInput');
+        const error = page.locator('[data-account-delete-confirm-error]');
+
+        await expect(modal).toBeVisible();
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete BudgetBuddy Account?');
+
+        await input.fill('DELETE');
+        await modal.getByRole('button', { name: 'Delete Account' }).click();
+
+        await expect(modal).toBeVisible();
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete BudgetBuddy Account?');
+        await expect(error).toBeVisible();
+        await expect(error).toHaveText('Type DELETE ACCOUNT to confirm account deletion.');
+        await expect(input).toHaveAttribute('aria-invalid', 'true');
+        await expect(input).toHaveClass(/buddy-cloud-input-error/);
+
+        await input.fill('DELETE ACCOUNT');
+        await expect(error).toBeHidden();
+        await expect(input).not.toHaveAttribute('aria-invalid', 'true');
+    });
+
     test('delete account confirmation clarifies Apple sign-in is not Apple ID deletion', async ({ page }) => {
         await page.goto('/index.html');
         await waitForAppReady(page);
