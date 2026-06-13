@@ -15,6 +15,7 @@ const ACCOUNT_PROMPT_DISMISSED_KEY = 'bb_demo_account_prompt_dismissed';
 const TUTORIAL_SKIPPED_KEY = 'bb_demo_tutorial_skipped';
 const BANNER_ID = 'bbDemoModeBanner';
 const MODAL_ID = 'bbDemoEndedModal';
+const ACCOUNT_PROMPT_BANNER_ID = 'bbAccountPromptBanner';
 const ACCOUNT_PROMPT_ID = 'bbDemoAccountPrompt';
 const SIGNED_IN_PROMPT_ID = 'bbDemoSignedInPrompt';
 const SIGNED_IN_PROMPT_TITLE_ID = 'bbDemoSignedInPromptTitle';
@@ -24,11 +25,13 @@ const TUTORIAL_SPOTLIGHT_ID = 'bbDemoTutorialSpotlight';
 const TUTORIAL_SCRIM_ID = 'bbDemoTutorialScrim';
 const STYLE_ID = 'bbDemoModeStyles';
 const MAIN_SITE_URL = 'https://budget-buddy.io';
+const ACCOUNT_PROMPT_DELAY_MS = 30 * 1000;
 
 let countdownTimer = null;
 let loginCaptureAttached = false;
 let tutorialIndex = 0;
 let tutorialResizeAttached = false;
+let accountPromptTimer = null;
 
 const TUTORIAL_STEPS = [
     {
@@ -106,7 +109,7 @@ const TUTORIAL_STEPS = [
         selector: `#${BANNER_ID}`,
         label: 'Demo Timer',
         title: 'This is temporary sample data',
-        body: 'The demo resets after 5 minutes. Create a free account when you want encrypted Buddy Cloud protection for a real budget.'
+        body: 'The demo resets after 5 minutes. Sign in when you want encrypted Buddy Cloud protection for a real budget.'
     }
 ];
 
@@ -466,6 +469,10 @@ function injectStyles() {
             padding-bottom: 96px;
         }
 
+        body.bb-account-prompt-active {
+            padding-bottom: 124px;
+        }
+
         .bb-demo-banner {
             position: fixed;
             left: 50%;
@@ -577,6 +584,50 @@ function injectStyles() {
 
         .bb-demo-action-secondary:hover {
             background: rgba(255, 255, 255, 0.18);
+        }
+
+        .bb-account-banner {
+            position: fixed;
+            left: 50%;
+            bottom: 16px;
+            z-index: 2350;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 14px;
+            align-items: center;
+            width: min(760px, calc(100vw - 32px));
+            padding: 14px 16px;
+            color: #f8fafc;
+            background: rgba(15, 23, 42, 0.94);
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            border-radius: 18px;
+            box-shadow: 0 18px 50px rgba(15, 23, 42, 0.32);
+            backdrop-filter: blur(16px);
+            transform: translateX(-50%);
+            animation: bbDemoSlideUp 260ms ease-out;
+        }
+
+        .bb-account-banner-kicker {
+            margin: 0 0 2px !important;
+            color: #99f6e4 !important;
+            font-size: 0.76rem;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .bb-account-banner-copy {
+            margin: 0 !important;
+            color: #e2e8f0 !important;
+            font-size: 0.94rem;
+            line-height: 1.45;
+        }
+
+        .bb-account-banner-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 8px;
         }
 
         .bb-demo-modal-overlay {
@@ -808,6 +859,10 @@ function injectStyles() {
                 padding-bottom: 176px;
             }
 
+            body.bb-account-prompt-active {
+                padding-bottom: 212px;
+            }
+
             .bb-demo-banner {
                 grid-template-columns: 1fr;
                 align-items: stretch;
@@ -817,6 +872,18 @@ function injectStyles() {
             }
 
             .bb-demo-banner-actions {
+                justify-content: stretch;
+            }
+
+            .bb-account-banner {
+                grid-template-columns: 1fr;
+                align-items: stretch;
+                bottom: 10px;
+                width: min(370px, calc(100vw - 20px));
+                padding: 14px;
+            }
+
+            .bb-account-banner-actions {
                 justify-content: stretch;
             }
 
@@ -882,10 +949,10 @@ function renderBanner() {
     banner.innerHTML = `
         <div class="bb-demo-banner-content">
             <p class="bb-demo-label"><span class="bb-demo-pulse" aria-hidden="true"></span>Demo Mode</p>
-            <p class="bb-demo-copy">Sample data resets in <span class="bb-demo-timer" data-demo-countdown>5:00</span>. Create a free account when you are ready to protect a real budget.</p>
+            <p class="bb-demo-copy">Sample data resets in <span class="bb-demo-timer" data-demo-countdown>5:00</span>. Sign in when you are ready to protect a real budget.</p>
         </div>
         <div class="bb-demo-banner-actions">
-            <button type="button" class="bb-demo-action" data-demo-action="create-account">Create Free Account</button>
+            <button type="button" class="bb-demo-action" data-demo-action="create-account">Log In / Create Account</button>
             <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="tour">Tour</button>
             <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="restart">Restart Demo</button>
             <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="end">End Demo</button>
@@ -935,8 +1002,8 @@ function showEndedModal(reason = 'ended') {
 
     const title = reason === 'expired' ? 'Demo time ended' : 'Demo cleared';
     const body = reason === 'expired'
-        ? 'The 5-minute sample session ended. Your real budget is protected when you create a free account.'
-        : 'The sample demo data has been cleared. Create a free account to start a real budget with encrypted Buddy Cloud protection.';
+        ? 'The sample session ended. Your real budget is protected when you sign in with Buddy Cloud.'
+        : 'The sample demo data has been cleared. Sign in or create an account to start a real budget with encrypted Buddy Cloud protection.';
 
     const overlay = document.createElement('div');
     overlay.id = MODAL_ID;
@@ -946,7 +1013,7 @@ function showEndedModal(reason = 'ended') {
             <h2 id="bbDemoEndedTitle">${title}</h2>
             <p>${body}</p>
             <div class="bb-demo-modal-actions">
-                <button type="button" class="bb-demo-action" data-demo-ended-action="create-account">Create Free Account</button>
+                <button type="button" class="bb-demo-action" data-demo-ended-action="create-account">Log In / Create Account</button>
                 <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-ended-action="restart">Restart Demo</button>
                 <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-ended-action="website">Back to Website</button>
                 <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-ended-action="close">Close</button>
@@ -1073,16 +1140,97 @@ function showSignedInDemoPrompt({ accountTier = '', user } = {}) {
     overlay.querySelector('[data-demo-signed-in-action="stay"]')?.focus({ preventScroll: true });
 }
 
-function renderAccountPrompt() {
-    if (document.getElementById(ACCOUNT_PROMPT_ID) || isDemoModeActive()) return;
+function clearAccountPromptTimer() {
+    if (!accountPromptTimer) return;
+    window.clearTimeout(accountPromptTimer);
+    accountPromptTimer = null;
+}
+
+function dismissAccountPromptSession() {
+    sessionSet(ACCOUNT_PROMPT_DISMISSED_KEY, 'true');
+    clearAccountPromptTimer();
+}
+
+function handleAccountPromptAction(action, sourceEl = null) {
+    if (action === 'login' || action === 'create-account') {
+        dismissAccountPromptSession();
+        window.location.href = loginUrl();
+    } else if (action === 'demo') {
+        dismissAccountPromptSession();
+        window.location.href = cleanAppUrl({ [DEMO_QUERY_PARAM]: '1' });
+    } else if (action === 'website') {
+        dismissAccountPromptSession();
+        window.location.href = mainSiteUrl();
+    } else if (action === 'continue') {
+        dismissAccountPromptSession();
+        document.getElementById(ACCOUNT_PROMPT_ID)?.remove();
+        const sourceBanner = sourceEl?.closest(`#${ACCOUNT_PROMPT_BANNER_ID}`);
+        if (sourceBanner) {
+            sourceBanner.remove();
+            document.body.classList.remove('bb-account-prompt-active');
+        } else if (!document.getElementById(ACCOUNT_PROMPT_BANNER_ID)) {
+            document.body.classList.remove('bb-account-prompt-active');
+        }
+    }
+}
+
+function renderAccountPromptBanner() {
+    if (document.getElementById(ACCOUNT_PROMPT_BANNER_ID) || isDemoModeActive()) return;
+    if (sessionGet(ACCOUNT_PROMPT_DISMISSED_KEY) === 'true') return;
 
     const hasLocalBudget = hasMeaningfulLocalBudget();
-    if (hasLocalBudget && sessionGet(ACCOUNT_PROMPT_DISMISSED_KEY) === 'true') return;
+    const copy = hasLocalBudget
+        ? 'This browser has a local budget. Sign in for Buddy Cloud protection, or keep using this browser.'
+        : 'Sign in for Buddy Cloud protection, or try the demo first.';
+    const continueButton = hasLocalBudget
+        ? '<button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-prompt-action="continue">Keep Using Browser</button>'
+        : '';
 
-    const title = hasLocalBudget ? 'Protect this browser budget' : 'Create a free account to start BudgetBuddy';
+    const banner = document.createElement('section');
+    banner.id = ACCOUNT_PROMPT_BANNER_ID;
+    banner.className = 'bb-account-banner';
+    banner.setAttribute('aria-label', 'BudgetBuddy account options');
+    banner.innerHTML = `
+        <div>
+            <p class="bb-account-banner-kicker">Ready when you are</p>
+            <p class="bb-account-banner-copy">${copy}</p>
+        </div>
+        <div class="bb-account-banner-actions">
+            <button type="button" class="bb-demo-action" data-demo-prompt-action="login">Log In / Create Account</button>
+            <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-prompt-action="demo">Try Demo</button>
+            <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-prompt-action="website">Back to Website</button>
+            ${continueButton}
+        </div>
+    `;
+
+    banner.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-demo-prompt-action]');
+        if (!button) return;
+        handleAccountPromptAction(button.getAttribute('data-demo-prompt-action'), button);
+    });
+
+    document.body.appendChild(banner);
+    document.body.classList.add('bb-account-prompt-active');
+}
+
+function scheduleAccountPromptModal() {
+    if (accountPromptTimer || sessionGet(ACCOUNT_PROMPT_DISMISSED_KEY) === 'true') return;
+    accountPromptTimer = window.setTimeout(() => {
+        accountPromptTimer = null;
+        renderAccountPrompt();
+    }, ACCOUNT_PROMPT_DELAY_MS);
+}
+
+function renderAccountPrompt() {
+    if (document.getElementById(ACCOUNT_PROMPT_ID) || isDemoModeActive()) return;
+    if (sessionGet(ACCOUNT_PROMPT_DISMISSED_KEY) === 'true') return;
+
+    const hasLocalBudget = hasMeaningfulLocalBudget();
+    const title = hasLocalBudget ? 'Protect this browser budget' : 'Ready to start BudgetBuddy?';
     const body = hasLocalBudget
-        ? 'This browser already has a local budget. Create a free account for encrypted Buddy Cloud protection, or keep using this browser without recovery support.'
-        : 'Free accounts protect real budgets with encrypted Buddy Cloud and two active sync slots. Want to look around first? Try a 5-minute sample demo.';
+        ? 'This browser already has a local budget. Log in or create an account for encrypted Buddy Cloud protection, or keep using this browser without recovery support.'
+        : 'Log in or create a free account for encrypted Buddy Cloud and two active sync slots. You can also keep exploring or try the demo first.';
+    const continueLabel = hasLocalBudget ? 'Keep Using Browser' : 'Keep Exploring';
 
     const overlay = document.createElement('div');
     overlay.id = ACCOUNT_PROMPT_ID;
@@ -1092,10 +1240,10 @@ function renderAccountPrompt() {
             <h2 id="bbDemoAccountPromptTitle">${title}</h2>
             <p>${body}</p>
             <div class="bb-demo-modal-actions bb-demo-account-actions">
-                <button type="button" class="bb-demo-action" data-demo-prompt-action="create-account">Create Free Account</button>
-                <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-prompt-action="demo">Try 5-Minute Demo</button>
+                <button type="button" class="bb-demo-action" data-demo-prompt-action="login">Log In / Create Account</button>
+                <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-prompt-action="demo">Try Demo</button>
                 <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-prompt-action="website">Back to Website</button>
-                ${hasLocalBudget ? '<button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-prompt-action="continue">Keep Using Browser</button>' : ''}
+                <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-prompt-action="continue">${continueLabel}</button>
             </div>
         </div>
     `;
@@ -1103,22 +1251,11 @@ function renderAccountPrompt() {
     overlay.addEventListener('click', (event) => {
         const button = event.target.closest('[data-demo-prompt-action]');
         if (!button) return;
-
-        const action = button.getAttribute('data-demo-prompt-action');
-        if (action === 'create-account') {
-            window.location.href = loginUrl();
-        } else if (action === 'demo') {
-            window.location.href = cleanAppUrl({ [DEMO_QUERY_PARAM]: '1' });
-        } else if (action === 'website') {
-            window.location.href = mainSiteUrl();
-        } else if (action === 'continue') {
-            sessionSet(ACCOUNT_PROMPT_DISMISSED_KEY, 'true');
-            overlay.remove();
-        }
+        handleAccountPromptAction(button.getAttribute('data-demo-prompt-action'), button);
     });
 
     document.body.appendChild(overlay);
-    overlay.querySelector('[data-demo-prompt-action="create-account"]')?.focus({ preventScroll: true });
+    overlay.querySelector('[data-demo-prompt-action="login"]')?.focus({ preventScroll: true });
 }
 
 function attachLoginCapture() {
@@ -1332,7 +1469,14 @@ export function initDemoMode({ demoModeState, user, accountTier = '' } = {}) {
 }
 
 export function initSignedOutAccountPrompt({ user } = {}) {
-    if (user || demoRequested() || isDemoModeActive()) return;
+    if (user || demoRequested() || isDemoModeActive()) {
+        clearAccountPromptTimer();
+        document.getElementById(ACCOUNT_PROMPT_BANNER_ID)?.remove();
+        document.getElementById(ACCOUNT_PROMPT_ID)?.remove();
+        document.body.classList.remove('bb-account-prompt-active');
+        return;
+    }
     injectStyles();
-    renderAccountPrompt();
+    renderAccountPromptBanner();
+    scheduleAccountPromptModal();
 }
