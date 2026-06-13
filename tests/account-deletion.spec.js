@@ -46,13 +46,39 @@ test.describe('account deletion safeguards', () => {
             'Supabase auth identity for this account'
         ]);
         await expect(modal).toContainText('Household or family memberships are not currently stored');
-        await expect(modal).toContainText('Active Stripe subscriptions must be cancelled');
-        await expect(modal).toContainText('Stripe may retain billing records');
-        await expect(modal).toContainText('This cannot be recovered');
+        await expect(modal.locator('.buddy-cloud-account-delete-warning')).toContainText('Account deletion is permanent and cannot be undone.');
+        await expect(modal.locator('.buddy-cloud-account-delete-warning')).toContainText('BudgetBuddy cannot decrypt, restore, or recover a deleted Buddy Cloud vault, deleted snapshots, or a deleted account.');
+        await expect(modal.locator('.buddy-cloud-account-delete-warning')).toContainText('If you have an active Stripe subscription, you must cancel it in Stripe before account deletion can be completed.');
+        await expect(modal.locator('.buddy-cloud-account-delete-warning')).toContainText("Browser-only copies on other devices may remain until that device's local site data is cleared.");
         await expect(page.locator('#buddyCloudModalInput')).toHaveAttribute('placeholder', 'DELETE ACCOUNT');
 
         await modal.getByRole('button', { name: 'Back' }).click();
         await expect(modal).toBeHidden();
+    });
+
+    test('email-link delete account confirmation only identifies the signed-in account', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await page.evaluate(() => {
+            window.currentUser = {
+                id: 'account-delete-email-user',
+                email: 'email-delete@example.com',
+                app_metadata: {
+                    provider: 'email',
+                    providers: ['email']
+                },
+                identities: [
+                    { provider: 'email' }
+                ]
+            };
+            window.handleDeleteBudgetBuddyAccount();
+        });
+
+        const modal = page.locator('#buddyCloudModal');
+        await expect(modal).toBeVisible();
+        await expect(modal).toContainText('Signed in as email-delete@example.com using email link.');
+        await expect(modal).not.toContainText('app data only');
     });
 
     test('delete account confirmation clarifies Apple sign-in is not Apple ID deletion', async ({ page }) => {

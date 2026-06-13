@@ -15558,7 +15558,7 @@ function getAccountDeletionAuthContextCopy() {
         return `Signed in as ${email} using Apple. Deleting your BudgetBuddy account removes your BudgetBuddy account and app data only. It does not delete your Apple ID. You can also remove BudgetBuddy from your Apple account settings.`;
     }
 
-    return `Signed in as ${email} using email link. Deleting your BudgetBuddy account removes your BudgetBuddy account and app data only.`;
+    return `Signed in as ${email} using email link.`;
 }
 
 function getAccountDeletionScopeHtml(email, authContextCopy) {
@@ -15577,6 +15577,17 @@ function getAccountDeletionScopeHtml(email, authContextCopy) {
                 <li>Supabase auth identity for this account</li>
             </ul>
             <p>Household or family memberships are not currently stored by BudgetBuddy.</p>
+        </div>
+    `;
+}
+
+function getAccountDeletionWarningHtml() {
+    return `
+        <div class="warning-box buddy-cloud-warning buddy-cloud-account-delete-warning">
+            <p>Account deletion is permanent and cannot be undone.</p>
+            <p>BudgetBuddy cannot decrypt, restore, or recover a deleted Buddy Cloud vault, deleted snapshots, or a deleted account.</p>
+            <p>If you have an active Stripe subscription, you must cancel it in Stripe before account deletion can be completed. Stripe may retain billing records required for payments, taxes, legal compliance, or dispute handling.</p>
+            <p>Browser-only copies on other devices may remain until that device's local site data is cleared.</p>
         </div>
     `;
 }
@@ -16357,8 +16368,7 @@ async function askDeleteBudgetBuddyAccountConfirmation() {
         title: 'Delete BudgetBuddy Account?',
         compact: true,
         modalClass: 'buddy-cloud-account-delete-modal',
-        customHtml: getAccountDeletionScopeHtml(email, authContextCopy),
-        warning: 'This cannot be recovered. BudgetBuddy cannot decrypt or restore a deleted Buddy Cloud vault, deleted snapshots, or a deleted account. Active Stripe subscriptions must be cancelled in Stripe before account deletion can finish. Stripe may retain billing records required for payments, tax, legal, or dispute handling. Browser-only copies on other devices may remain only in those browsers until their local site data is cleared.',
+        customHtml: `${getAccountDeletionScopeHtml(email, authContextCopy)}${getAccountDeletionWarningHtml()}`,
         inputLabel: 'Type DELETE ACCOUNT to confirm',
         inputPlaceholder: 'DELETE ACCOUNT',
         inputSingleLine: true,
