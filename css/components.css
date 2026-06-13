@@ -7197,6 +7197,7 @@ input.error, select.error {
 }
 
 .add-category-insight {
+    position: relative;
     width: min(100%, 520px);
     margin-top: 0.35rem;
     border: 1px solid color-mix(in srgb, var(--accent, #14b8a6) 22%, var(--border, #e2e8f0));
@@ -7253,6 +7254,8 @@ input.error, select.error {
 .add-category-insight:not(.is-empty) .add-category-insight-head {
     grid-area: head;
     align-self: center;
+    grid-template-columns: 42px minmax(0, 1fr);
+    padding-right: 3.25rem;
 }
 
 .add-category-insight-icon {
@@ -7309,6 +7312,12 @@ input.error, select.error {
 }
 
 .add-category-insight-action {
+    position: absolute;
+    top: 0.58rem;
+    right: 0.58rem;
+    min-height: 28px;
+    padding: 0 0.58rem;
+    z-index: 2;
     cursor: pointer;
     transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
@@ -7460,6 +7469,7 @@ input.error, select.error {
     .add-category-insight:not(.is-empty) .add-category-insight-head {
         grid-template-columns: 32px minmax(0, 1fr);
         gap: 0.42rem;
+        padding-right: 2.85rem;
     }
 
     .add-category-insight-icon {
@@ -7482,10 +7492,15 @@ input.error, select.error {
         font-size: 0.88rem;
     }
 
-    .add-category-insight:not(.is-empty) .add-category-insight-action,
+    .add-category-insight:not(.is-empty) .add-category-insight-action {
+        top: 0.5rem;
+        right: 0.5rem;
+        min-height: 26px;
+        padding: 0 0.5rem;
+        font-size: 0.68rem;
+    }
+
     .add-category-insight:not(.is-empty) .add-category-insight-badge {
-        grid-column: 1 / -1;
-        justify-self: start;
         min-height: 28px;
         padding: 0 0.58rem;
         font-size: 0.7rem;
