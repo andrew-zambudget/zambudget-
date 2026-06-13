@@ -97,9 +97,14 @@ test.describe('Buddy Cloud device management', () => {
         await expect(modal).toBeVisible();
         await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Buddy Cloud Devices');
         await expect(modal).toContainText('This browser is signed in but is not using a Free sync slot yet.');
+        await expect(modal).toContainText('Unlinked sync slot');
+        await expect(modal).toContainText('Not tied to a visible browser');
         await expect(modal).toContainText('Current browser · Sync slot inactive');
         await expect(modal).toContainText('Available sync slot');
         await expect(modal.getByRole('button', { name: 'Use This Browser' })).toBeVisible();
+        await modal.getByRole('button', { name: 'Release sync slot' }).click();
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Release Unlinked Sync Slot?');
+        await expect(page.locator('#buddyCloudModal')).toContainText('not tied to a visible BudgetBuddy browser record');
         await expect(modal).not.toContainText('Current browser · Sync paused');
     });
 

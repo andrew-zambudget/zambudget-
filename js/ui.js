@@ -2834,14 +2834,15 @@ function buildBrowserAccessDeviceListHtml(context = {}, { includeGlobalSignOut =
     }).join('');
     const unmatchedRows = unmatchedSyncSlots.map((slot, index) => {
         const label = unmatchedSyncSlots.length > 1
-            ? `Unmatched sync slot ${index + 1}`
-            : 'Unmatched sync slot';
+            ? `Unlinked sync slot ${index + 1}`
+            : 'Unlinked sync slot';
         return `
             <div class="buddy-cloud-device-row buddy-cloud-device-row-unmatched" role="listitem">
                 <div class="buddy-cloud-device-main">
                     <span class="buddy-cloud-device-icon" aria-hidden="true">${getBrowserAccessIconSvg()}</span>
                     <span class="buddy-cloud-device-copy">
                         <strong>${esc(label)}</strong>
+                        <span>Not tied to a visible browser</span>
                         <span>${esc(formatUnmatchedSyncSlotStatus(slot))}</span>
                     </span>
                 </div>
@@ -3758,8 +3759,8 @@ async function confirmRevokeBrowserAccess(label = 'that browser') {
 
 async function confirmReleaseSyncSlot() {
     const result = await showBuddyCloudModal({
-        title: 'Release Sync Slot?',
-        body: 'This sync slot is consuming Free Tier Buddy Cloud capacity but is not matched to a known active browser access row.',
+        title: 'Release Unlinked Sync Slot?',
+        body: 'This sync slot is consuming Free Tier Buddy Cloud capacity but is not tied to a visible BudgetBuddy browser record.',
         assurance: 'BudgetBuddy releases only the selected Buddy Cloud sync slot record. It does not revoke your recovery key, delete your encrypted vault, or store a new device identifier.',
         warning: 'Release this only when no visible browser should still own the slot. A browser can claim a slot again only after the recovery key is imported for that session.',
         actions: [
