@@ -9,6 +9,8 @@ node_modules/
 *.log
 server.err.log
 server.out.log
+test-results/
+playwright-report/
 
 # Local Supabase CLI binaries/runtime artifacts
 *.exe

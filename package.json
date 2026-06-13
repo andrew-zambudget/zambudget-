@@ -1,9 +1,13 @@
 {
   "scripts": {
     "build": "node scripts/build-cloudflare.js",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "test": "npm run test:e2e",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "supabase": "^2.105.0"
   }
 }
