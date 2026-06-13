@@ -2243,9 +2243,9 @@ input.error, select.error {
 .recent-tx-swipe-bg {
   position: absolute;
   inset: 0 0 0 auto;
-  width: 10rem;
+  width: 13.5rem;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: center;
   justify-content: center;
   background: transparent;
@@ -2280,8 +2280,18 @@ input.error, select.error {
   touch-action: manipulation;
 }
 
+.recent-tx-swipe-edit-btn {
+  background: color-mix(in srgb, var(--accent, #14b8a6) 92%, #0f766e);
+}
+
 .recent-tx-swipe-delete-btn {
   background: color-mix(in srgb, var(--red, #ef4444) 94%, #7f1d1d);
+}
+
+.recent-tx-swipe-edit-btn:hover,
+.recent-tx-swipe-edit-btn:focus-visible {
+  background: color-mix(in srgb, var(--accent, #14b8a6) 82%, #134e4a);
+  outline: none;
 }
 
 .recent-tx-swipe-move-btn:hover,
@@ -2296,14 +2306,16 @@ input.error, select.error {
   outline: none;
 }
 
-.recent-tx-menu-wrap {
+.recent-tx-menu-wrap,
+.drilldown-tx-menu-wrap {
   position: static;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-.recent-tx-menu-btn {
+.recent-tx-menu-btn,
+.drilldown-tx-menu-btn {
   width: 32px;
   height: 32px;
   display: inline-flex;
@@ -2320,7 +2332,8 @@ input.error, select.error {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
-.recent-tx-menu-btn span {
+.recent-tx-menu-btn span,
+.drilldown-tx-menu-btn span {
   width: 13px;
   height: 2px;
   border-radius: 999px;
@@ -2329,7 +2342,10 @@ input.error, select.error {
 
 .recent-tx-menu-btn:hover,
 .recent-tx-menu-btn:focus-visible,
-.recent-tx-menu-wrap.is-menu-open .recent-tx-menu-btn {
+.recent-tx-menu-wrap.is-menu-open .recent-tx-menu-btn,
+.drilldown-tx-menu-btn:hover,
+.drilldown-tx-menu-btn:focus-visible,
+.drilldown-tx-menu-wrap.is-menu-open .drilldown-tx-menu-btn {
   border-color: var(--accent, #14b8a6);
   background: color-mix(in srgb, var(--accent, #14b8a6) 10%, var(--surface, #ffffff));
   color: var(--accent, #14b8a6);
@@ -2789,6 +2805,58 @@ input.error, select.error {
   font-size: 0.82rem;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
+}
+
+.transaction-edit-modal {
+  text-align: left;
+}
+
+.transaction-edit-meta {
+  margin: -0.35rem 0 0.95rem;
+  color: var(--text-dim, #64748b);
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.transaction-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.transaction-edit-full {
+  grid-column: 1 / -1;
+}
+
+.transaction-edit-money {
+  position: relative;
+}
+
+.transaction-edit-money span {
+  position: absolute;
+  top: 50%;
+  left: 0.78rem;
+  z-index: 1;
+  color: var(--text-dim, #64748b);
+  font-weight: 900;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.transaction-edit-money .form-input {
+  padding-left: 2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.transaction-edit-error {
+  margin-top: 0.85rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--red, #ef4444) 34%, var(--border, #e2e8f0));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--red, #ef4444) 8%, var(--surface, #ffffff));
+  color: color-mix(in srgb, var(--red, #ef4444) 82%, #7f1d1d);
+  font-size: 0.82rem;
+  font-weight: 800;
 }
 
 .settings-csv-actions {
@@ -5020,6 +5088,11 @@ input.error, select.error {
     font-weight: 900;
   }
 
+  #view-recent .recent-tx-menu-wrap,
+  .drilldown-tx-menu-wrap {
+    display: none;
+  }
+
   #view-recent .recent-tx-menu-btn {
     width: 44px;
     height: 44px;
@@ -5037,6 +5110,10 @@ input.error, select.error {
   .recent-overview-panel {
     width: 100vw;
     padding: max(1rem, env(safe-area-inset-top)) 1rem calc(1rem + env(safe-area-inset-bottom));
+  }
+
+  .transaction-edit-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -5195,7 +5272,7 @@ input.error, select.error {
 }
 
 .drilldown-tx-main,
-.drilldown-tx-amount {
+.drilldown-tx-actions {
   position: relative;
   z-index: 1;
   transform: translateX(var(--drilldown-swipe-x, 0));
@@ -5212,12 +5289,20 @@ input.error, select.error {
   white-space: nowrap;
 }
 
+.drilldown-tx-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+
 .drilldown-tx-swipe-bg {
   position: absolute;
   inset: 0 0 0 auto;
-  width: 10rem;
+  width: 13.5rem;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: center;
   justify-content: center;
   background: transparent;
@@ -5252,8 +5337,18 @@ input.error, select.error {
   touch-action: manipulation;
 }
 
+.drilldown-tx-swipe-edit-btn {
+  background: color-mix(in srgb, var(--accent, #14b8a6) 92%, #0f766e);
+}
+
 .drilldown-tx-swipe-delete-btn {
   background: color-mix(in srgb, var(--red, #ef4444) 94%, #7f1d1d);
+}
+
+.drilldown-tx-swipe-edit-btn:hover,
+.drilldown-tx-swipe-edit-btn:focus-visible {
+  background: color-mix(in srgb, var(--accent, #14b8a6) 82%, #134e4a);
+  outline: none;
 }
 
 .drilldown-tx-swipe-move-btn:hover,
