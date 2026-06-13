@@ -26,6 +26,7 @@ import * as UI from './ui.js';
 import * as BuddyCloud from './cloudSync.js';
 import * as DemoMode from './demoMode.js';
 import * as BudgetPrep from './budgetPrep.js';
+import { runPrivacyStorageCleanup } from './privacyStorageCleanup.js';
 
 // Global Supabase variables
 window.sb = null;
@@ -68,6 +69,7 @@ bridgeAll();
  */
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('[main.js] Initializing Application...');
+    runPrivacyStorageCleanup();
 
     try {
         // --- SUPABASE INITIALIZATION START ---
