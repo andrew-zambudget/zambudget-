@@ -480,7 +480,7 @@ test.describe('account deletion safeguards', () => {
         const modal = page.locator('#buddyCloudModal');
         await expect(modal).toBeVisible();
         await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Cancel Premium First');
-        await expect(modal).toContainText('active Premium subscription');
+        await expect(modal).toContainText('This account has an active Premium subscription.');
         await expect(modal).toContainText('Cancel Premium in Stripe before deleting your BudgetBuddy account.');
         await expect(modal.getByRole('button', { name: 'Delete Account' })).toHaveCount(0);
         await expect(page.locator('#buddyCloudModalInput')).toHaveCount(0);

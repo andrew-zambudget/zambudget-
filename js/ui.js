@@ -16688,8 +16688,9 @@ async function runAccountDeletionBillingPreflight() {
     const statusLabel = preflight.subscriptionStatus
         ? preflight.subscriptionStatus.replace(/_/g, ' ')
         : 'active';
+    const statusArticle = /^[aeiou]/i.test(statusLabel) ? 'an' : 'a';
     await showActiveSubscriptionDeletionBlockedModal(
-        `This account has a ${statusLabel} Premium subscription. Cancel Premium in Stripe before deleting your BudgetBuddy account.`
+        `This account has ${statusArticle} ${statusLabel} Premium subscription. Cancel Premium in Stripe before deleting your BudgetBuddy account.`
     );
     return false;
 }
