@@ -12868,6 +12868,7 @@ window.openRecentSwipeDeleteTxId = window.openRecentSwipeDeleteTxId || '';
 window.currentDrillDownMetricMode = window.currentDrillDownMetricMode || 'spent';
 let pendingRecentDeleteTxId = '';
 let deleteTxTimerInterval = null;
+let recentEditDateCursor = null;
 const RECENT_FILTER_VALUES = new Set(['all', 'expense', 'income', 'savings', 'debt']);
 
 function normalizeRecentFilter(filterType) {
@@ -13299,6 +13300,149 @@ function getTransactionById(txId) {
     return (State.getTransactions ? State.getTransactions() : []).find(tx => String(tx.id) === String(txId));
 }
 
+function getRelativeEditDateLabel(dateKey) {
+    const today = getLocalISODate();
+    if (dateKey === today) return 'Today';
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (dateKey === getLocalISODate(yesterday)) return 'Yesterday';
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    if (dateKey === getLocalISODate(tomorrow)) return 'Tomorrow';
+
+    return formatDate(dateKey);
+}
+
+function updateRecentEditDateDisplay(dateKey) {
+    const validDate = isValidLocalISODate(dateKey) ? dateKey : getLocalISODate();
+    const input = document.getElementById('editTxDate');
+    const label = document.getElementById('editTxDateLabel');
+    const subLabel = document.getElementById('editTxDateSubLabel');
+
+    if (input) input.value = validDate;
+    if (label) label.textContent = getRelativeEditDateLabel(validDate);
+    if (subLabel) subLabel.textContent = formatCalendarDateLabel(validDate) || validDate;
+    setEditTransactionError('');
+}
+
+function getRecentEditDateValue() {
+    const value = document.getElementById('editTxDate')?.value || '';
+    return isValidLocalISODate(value) ? value : getLocalISODate();
+}
+
+function getRecentEditDateCursorDate() {
+    if (recentEditDateCursor instanceof Date && !Number.isNaN(recentEditDateCursor.getTime())) {
+        return new Date(recentEditDateCursor.getFullYear(), recentEditDateCursor.getMonth(), 1);
+    }
+
+    const selected = parseDateKeyLocal(getRecentEditDateValue()) || new Date();
+    return new Date(selected.getFullYear(), selected.getMonth(), 1);
+}
+
+function renderRecentEditDatePicker() {
+    const picker = document.getElementById('recentEditDatePicker');
+    if (!picker) return;
+
+    const cursor = getRecentEditDateCursorDate();
+    recentEditDateCursor = cursor;
+    const selectedKey = getRecentEditDateValue();
+    const todayKey = getLocalISODate();
+    const monthLabel = new Intl.DateTimeFormat('en-US', {
+        month: 'long',
+        year: 'numeric'
+    }).format(cursor);
+
+    const gridStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1 - cursor.getDay());
+    const days = [];
+    for (let i = 0; i < 42; i += 1) {
+        const day = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
+        const dayKey = getLocalDateKey(day);
+        const isOutside = day.getMonth() !== cursor.getMonth();
+        const isSelected = dayKey === selectedKey;
+        const isToday = dayKey === todayKey;
+        days.push(`
+            <button type="button" class="transaction-edit-date-day${isOutside ? ' is-outside' : ''}${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}" onclick="window.selectRecentEditDate(${jsArg(dayKey)})" aria-label="${esc(formatCalendarDateLabel(dayKey) || dayKey)}" aria-pressed="${isSelected ? 'true' : 'false'}">
+                ${day.getDate()}
+            </button>
+        `);
+    }
+
+    picker.innerHTML = `
+        <div class="transaction-edit-date-picker-head">
+            <button type="button" onclick="window.moveRecentEditDatePickerMonth(-1)" aria-label="Previous month">&lsaquo;</button>
+            <strong>${esc(monthLabel)}</strong>
+            <button type="button" onclick="window.moveRecentEditDatePickerMonth(1)" aria-label="Next month">&rsaquo;</button>
+        </div>
+        <div class="transaction-edit-date-weekdays" aria-hidden="true">
+            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+        </div>
+        <div class="transaction-edit-date-grid">
+            ${days.join('')}
+        </div>
+        <div class="transaction-edit-date-quick">
+            <button type="button" onclick="window.setRecentEditDateQuick(0)">Today</button>
+            <button type="button" onclick="window.setRecentEditDateQuick(-1)">Yesterday</button>
+        </div>
+    `;
+}
+
+window.openRecentEditDatePicker = function(event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
+    const picker = document.getElementById('recentEditDatePicker');
+    const trigger = document.getElementById('editTxDateTrigger');
+    if (!picker) return;
+
+    recentEditDateCursor = getRecentEditDateCursorDate();
+    renderRecentEditDatePicker();
+    picker.hidden = false;
+    trigger?.setAttribute('aria-expanded', 'true');
+};
+
+window.closeRecentEditDatePicker = function() {
+    const picker = document.getElementById('recentEditDatePicker');
+    const trigger = document.getElementById('editTxDateTrigger');
+    if (!picker) return;
+
+    picker.hidden = true;
+    trigger?.setAttribute('aria-expanded', 'false');
+};
+
+window.toggleRecentEditDatePicker = function(event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
+    const picker = document.getElementById('recentEditDatePicker');
+    if (!picker || picker.hidden) {
+        window.openRecentEditDatePicker(event);
+    } else {
+        window.closeRecentEditDatePicker();
+    }
+};
+
+window.moveRecentEditDatePickerMonth = function(delta = 0) {
+    const cursor = getRecentEditDateCursorDate();
+    recentEditDateCursor = new Date(cursor.getFullYear(), cursor.getMonth() + Number(delta || 0), 1);
+    renderRecentEditDatePicker();
+};
+
+window.selectRecentEditDate = function(dateKey) {
+    if (!isValidLocalISODate(dateKey)) return;
+    updateRecentEditDateDisplay(dateKey);
+    recentEditDateCursor = getRecentEditDateCursorDate();
+    window.closeRecentEditDatePicker();
+    document.getElementById('editTxDateTrigger')?.focus();
+};
+
+window.setRecentEditDateQuick = function(offsetDays = 0) {
+    const date = new Date();
+    date.setDate(date.getDate() + Number(offsetDays || 0));
+    window.selectRecentEditDate(getLocalDateKey(date));
+};
+
 function openRecentDeleteTransactionModal(txId) {
     const tx = getTransactionById(txId);
     if (!tx) return false;
@@ -13393,6 +13537,8 @@ function openTransactionEditModal(txId) {
     const currentCategory = String(tx.category || categoryOptions[0]?.name || '');
     const amountValue = formatMoney(Math.abs(parseFloat(tx.amount) || 0));
     const dateValue = isValidLocalISODate(tx.date) ? tx.date : getLocalISODate();
+    const dateLabel = getRelativeEditDateLabel(dateValue);
+    const dateSubLabel = formatCalendarDateLabel(dateValue) || dateValue;
     const paymentMethod = ADD_TX_PAYMENT_METHODS.has(String(tx.paymentMethod || '')) ? String(tx.paymentMethod || '') : '';
 
     const modal = document.createElement('div');
@@ -13420,8 +13566,18 @@ function openTransactionEditModal(txId) {
                     </div>
                 </div>
                 <div class="add-form-group">
-                    <label for="editTxDate">Date</label>
-                    <input type="date" id="editTxDate" class="form-input" value="${esc(dateValue)}" required>
+                    <label for="editTxDateTrigger">Date</label>
+                    <div class="transaction-edit-date-shell">
+                        <input type="hidden" id="editTxDate" value="${esc(dateValue)}" required>
+                        <button type="button" id="editTxDateTrigger" class="transaction-edit-date-trigger" onclick="window.toggleRecentEditDatePicker(event)" aria-haspopup="dialog" aria-expanded="false" aria-controls="recentEditDatePicker">
+                            <span class="transaction-edit-date-copy">
+                                <strong id="editTxDateLabel">${esc(dateLabel)}</strong>
+                                <em id="editTxDateSubLabel">${esc(dateSubLabel)}</em>
+                            </span>
+                            <span class="transaction-edit-date-action">Change</span>
+                        </button>
+                        <div id="recentEditDatePicker" class="transaction-edit-date-picker" role="dialog" aria-label="Choose transaction date" hidden onclick="event.stopPropagation()"></div>
+                    </div>
                 </div>
                 <div class="add-form-group transaction-edit-full">
                     <label for="editTxCategory">${display.kind === 'income' ? 'Income source' : 'Category'}</label>
@@ -13473,6 +13629,7 @@ window.openRecentEditTransactionModal = function(event, txId) {
 window.closeRecentEditTransactionModal = function() {
     const modal = document.getElementById('recentEditTransactionModal');
     if (!modal) return;
+    window.closeRecentEditDatePicker();
     modal.classList.add('closing');
     window.setTimeout(() => {
         modal.remove();
@@ -13524,7 +13681,7 @@ window.confirmRecentEditTransaction = function(event, txId) {
 
     if (!isValidLocalISODate(date)) {
         setEditTransactionError('Choose a valid date.');
-        document.getElementById('editTxDate')?.focus();
+        document.getElementById('editTxDateTrigger')?.focus();
         return;
     }
 
@@ -13868,6 +14025,12 @@ function bindRecentSwipeActions(listContainer) {
 
 document.addEventListener('pointerdown', (event) => {
     const target = event.target;
+    const editDatePicker = document.getElementById('recentEditDatePicker');
+    if (editDatePicker && !editDatePicker.hidden) {
+        const dateShell = target instanceof Element ? target.closest('.transaction-edit-date-shell') : null;
+        if (!dateShell) window.closeRecentEditDatePicker();
+    }
+
     if (window.openRecentSwipeDeleteTxId) {
         const openCard = target instanceof Element ? target.closest('.recent-tx-card') : null;
         if (!openCard || openCard.dataset.txId !== String(window.openRecentSwipeDeleteTxId)) {
@@ -13882,6 +14045,14 @@ document.addEventListener('pointerdown', (event) => {
 }, true);
 
 document.addEventListener('keydown', (event) => {
+    const editDatePicker = document.getElementById('recentEditDatePicker');
+    if (event.key === 'Escape' && editDatePicker && !editDatePicker.hidden) {
+        event.preventDefault();
+        window.closeRecentEditDatePicker();
+        document.getElementById('editTxDateTrigger')?.focus();
+        return;
+    }
+
     if (event.key !== 'Escape' || (!window.openRecentMenuTxId && !window.openRecentSwipeDeleteTxId)) return;
     event.preventDefault();
     closeRecentSwipeDelete();
