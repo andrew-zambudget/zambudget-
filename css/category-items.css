@@ -224,6 +224,8 @@
 .category-position-input {
   width: 100%;
   height: 2.15rem;
+  appearance: textfield;
+  -moz-appearance: textfield;
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 8px;
   background: var(--surface, #ffffff);
@@ -242,6 +244,7 @@
 
 .category-position-input::-webkit-outer-spin-button,
 .category-position-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
   margin: 0;
 }
 
