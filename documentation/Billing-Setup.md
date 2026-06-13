@@ -19,9 +19,9 @@ When `"billingEnabled": false`, the app keeps Premium visible but blocks checkou
 - Publishable key: stored in `config.json` for Stripe.js when billing is enabled.
 - Price ID: `price_1TgrnvJYNoBMRccPPRxiOOid`.
 - Product ID: `prod_UgD9jxvduxmkiM`.
-- Product tax code: `txcd_10103000`.
+- Premium price: $3.99/month.
 
-The app sends users to Checkout with a Stripe Price ID. The Product ID is not used by the front end. Configure the tax code on the Stripe product/price in the Stripe Dashboard when using automatic tax.
+The app sends users to Checkout with a Stripe Price ID. The Product ID is not used by the front end. Automatic tax is disabled in the checkout function for the current $3.99/month SaaS plan; do not enable automatic tax without a billing/tax review and updated public copy.
 
 ## Required Supabase Secrets
 
@@ -67,7 +67,7 @@ https://cmfnmhqyeipgtjktbouk.supabase.co/functions/v1/stripe-webhook
 
 ## Account Deletion and Billing
 
-BudgetBuddy does not silently cancel paid Stripe subscriptions during account deletion. If a user has an active, trialing, or past-due Stripe subscription, `account-delete` returns `ACTIVE_STRIPE_SUBSCRIPTION` and the app sends the user to Stripe Billing Portal first.
+BudgetBuddy does not silently cancel paid Stripe subscriptions during account deletion. If a user has an active or past-due Stripe subscription, `account-delete` returns `ACTIVE_STRIPE_SUBSCRIPTION` and the app sends the user to Stripe Billing Portal first.
 
 After Stripe reports the subscription as cancelled or inactive, account deletion may remove the inactive billing profile record along with the user's Buddy Cloud records and auth identity. Stripe may retain billing records required for payments, tax, legal, or dispute handling.
 
@@ -79,5 +79,5 @@ Account deletion also requires recent login verification. If the signed-in sessi
 2. `billing-create-checkout` creates the Checkout Session server-side.
 3. Stripe redirects back to `index.html?payment=success&session_id=...`.
 4. The app calls `billing-status` with that session ID.
-5. Premium turns on only after the server confirms an active or trialing subscription.
+5. Premium turns on only after the server confirms an active subscription.
 6. Stripe webhooks keep `billing_profiles` current after future renewals, cancellation, or status changes.

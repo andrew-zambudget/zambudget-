@@ -12169,8 +12169,8 @@ const BILLING_FUNCTIONS = {
 const ACCOUNT_DELETE_FUNCTION = 'account-delete';
 const ACCOUNT_DELETE_ACTIVE_SUBSCRIPTION_CODE = 'ACTIVE_STRIPE_SUBSCRIPTION';
 const ACCOUNT_DELETE_REAUTH_REQUIRED_CODE = 'REAUTH_REQUIRED';
-const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing']);
-const ACCOUNT_DELETE_BLOCKED_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing', 'past_due']);
+const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['active']);
+const ACCOUNT_DELETE_BLOCKED_SUBSCRIPTION_STATUSES = new Set(['active', 'past_due']);
 const LOGOUT_BACKUP_BLOCKED_CODE = 'BUDDY_CLOUD_LOGOUT_BACKUP_BLOCKED';
 const LOCAL_DEV_HOSTS = new Set(['localhost', '127.0.0.1', '']);
 const STRIPE_REDIRECT_REVIEW_SECONDS = 3;
@@ -12359,7 +12359,7 @@ function showStripeRedirectNotice(destinationUrl = 'https://checkout.stripe.com/
                     You are about to leave BudgetBuddy and continue payment on Stripe's secure checkout page.
                 </p>
                 <p class="stripe-redirect-privacy">
-                    Once you continue, Stripe may process payment, billing, tax, and device information under Stripe's
+                    Once you continue, Stripe may process payment, billing, and device information under Stripe's
                     <a href="https://stripe.com/privacy" target="_blank" rel="noopener">Privacy Policy</a>
                     and
                     <a href="https://stripe.com/legal/ssa" target="_blank" rel="noopener">Services Agreement</a>.
@@ -12662,12 +12662,11 @@ window.openUpgradeModal = function(featureName = 'this premium feature') {
             <div style="border: 1px solid var(--border); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; background: var(--bg);">
                 <div style="font-size: 1.5rem; font-weight: 800; color: var(--text);">$3.99<span style="font-size: 0.9rem; color: var(--text-dim); font-weight: 500;"> / month</span></div>
                 <div style="font-size: 0.85rem; color: var(--positive); font-weight: 700; margin-top: 0.25rem;">A full month of budgeting for less than one daily $5 coffee.</div>
-                <div style="font-size: 0.85rem; color: var(--positive); font-weight: 600; margin-top: 0.25rem;">30-day trial before billing starts</div>
             </div>
 
             <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                 <button type="button" id="upgrade-btn" class="btn-primary" onclick="window.startStripeCheckout(event)" style="width: 100%; padding: 1rem; border-radius: 12px; font-weight: 700; font-size: 1rem; border: none; background: var(--primary); color: white; cursor: pointer;">
-                    Start 30-day trial
+                    Subscribe to Premium
                 </button>
                 <button type="button" onclick="document.getElementById('upgradeModal').remove()" style="width: 100%; padding: 1rem; background: none; border: none; color: var(--text-dim); font-weight: 600; cursor: pointer; font-size: 0.95rem;">
                     No Thanks
@@ -12700,7 +12699,7 @@ window.openUpgradeModal = function(featureName = 'this premium feature') {
 
             <div class="premium-price-panel">
                 <div class="premium-price">$3.99 <span>/ month</span></div>
-                <div class="premium-price-note">A full month of budgeting for less than one daily $5 coffee. 30-day trial. Secure subscription checkout powered by Stripe.</div>
+                <div class="premium-price-note">A full month of budgeting for less than one daily $5 coffee. Secure subscription checkout powered by Stripe.</div>
             </div>
 
             <ul class="premium-feature-list">
@@ -12716,7 +12715,7 @@ window.openUpgradeModal = function(featureName = 'this premium feature') {
 
             <div class="account-actions">
                 <button type="button" id="upgrade-btn" class="btn-create account-action-btn" onclick="window.startStripeCheckout(event)">
-                    Start 30-day trial
+                    Subscribe to Premium
                 </button>
                 <button type="button" class="btn-cancel account-action-btn" onclick="document.getElementById('upgradeModal').remove()">
                     No Thanks

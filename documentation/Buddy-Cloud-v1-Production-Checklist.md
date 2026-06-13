@@ -60,7 +60,7 @@ Buddy Cloud v1 is the default protection path for signed-in users. The app still
 - Reset Buddy Cloud deletes encrypted vault data and encrypted snapshots without deleting the auth account.
 - Delete Account removes encrypted vault data, encrypted snapshots, browser access records, inactive billing profile records, legacy profile rows if present, and the Supabase auth identity, then clears the local browser session.
 - Delete Account requires a fresh login verification before the permanent deletion request runs.
-- Delete Account is blocked while Stripe subscription status is active, trialing, or past_due.
+- Delete Account is blocked while Stripe subscription status is active or past_due.
 - Delete Account copy explains that deleted Buddy Cloud data, deleted snapshots, deleted account identities, and lost recovery keys cannot be recovered, and that Stripe may retain billing records required for payments, tax, legal, or dispute handling.
 - Delete Account shows a post-deletion confirmation screen and redirects to `https://budget-buddy.io/?accountDeleted=true`. Email confirmation is deferred until transactional support email is configured.
 

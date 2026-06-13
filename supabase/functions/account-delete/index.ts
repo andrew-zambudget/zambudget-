@@ -8,7 +8,7 @@ import {
   requireUser
 } from '../_shared/billing.ts';
 
-const BLOCKED_BILLING_STATUSES = new Set(['active', 'trialing', 'past_due']);
+const BLOCKED_BILLING_STATUSES = new Set(['active', 'past_due']);
 const ACTIVE_SUBSCRIPTION_CODE = 'ACTIVE_STRIPE_SUBSCRIPTION';
 const REAUTH_REQUIRED_CODE = 'REAUTH_REQUIRED';
 const AUTH_DELETE_NOT_VERIFIED_CODE = 'AUTH_USER_DELETE_NOT_VERIFIED';

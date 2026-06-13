@@ -60,8 +60,8 @@ Deno.serve(async (req) => {
       client_reference_id: user.id,
       metadata: { user_id: user.id },
       subscription_data: { metadata: { user_id: user.id } },
-      automatic_tax: { enabled: true },
-      billing_address_collection: 'required',
+      automatic_tax: { enabled: false },
+      billing_address_collection: 'auto',
       customer_update: {
         address: 'auto',
         name: 'auto'

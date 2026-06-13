@@ -10,7 +10,7 @@ import {
   requireUser
 } from '../_shared/billing.ts';
 
-const activeStatuses = new Set(['active', 'trialing']);
+const activeStatuses = new Set(['active']);
 
 function stripeId(value: string | Stripe.Customer | Stripe.Subscription | null) {
   if (!value) return '';
