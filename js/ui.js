@@ -178,7 +178,8 @@ const BROWSER_ACCESS_SELECT_COLUMNS = 'browser_hash, created_at, last_seen_at, r
 const BROWSER_ACCESS_LEGACY_SELECT_COLUMNS = 'browser_hash, created_at, last_seen_at, revoked_at, revoked_by_hash';
 const BROWSER_ACCESS_CHECK_MS = 60 * 1000;
 const BROWSER_ACCESS_OPEN_PANEL_REFRESH_MS = 5000;
-const UNMATCHED_SYNC_SLOT_AUTO_RELEASE_MS = 2 * 60 * 60 * 1000;
+const FREE_SYNC_SLOT_LEASE_LABEL = '60 minutes';
+const UNMATCHED_SYNC_SLOT_AUTO_RELEASE_MS = 60 * 60 * 1000;
 const BROWSER_ACCESS_PRIVACY_COPY = 'Device management stores only the private browser records, sync slot links, and timestamps needed to manage sign-out and Free Tier sync slots. No device names, user agents, IP-derived locations, or readable budget data are stored.';
 const LEGACY_STORAGE_QUARANTINE_ID = 'LEGACY_STORAGE_QUARANTINE_2026_06';
 const LEGACY_STORAGE_KEYS = Object.freeze({
@@ -1690,11 +1691,11 @@ function getBuddyCloudHumanStatus(status = window.BuddyCloud?.getStatus?.() || {
 
     if (isBuddyCloudMultiDeviceLimit(status)) {
         const freeLimit = Number(status.freeDeviceLimit || status.syncSlotLimit || 2);
-        const idleHours = getFreeSyncSlotIdleReclaimHours(status);
+        const leaseWindow = getFreeSyncSlotLeaseLabel(status);
         return {
             severity: 'warning',
             title: 'Free sync slot limit reached',
-            detail: `Free Tier includes ${freeLimit} active Buddy Cloud sync slots. Browsers inactive for ${idleHours} hours are released automatically.`,
+            detail: `Free Tier includes ${freeLimit} active Buddy Cloud sync slots. Browsers inactive for ${leaseWindow} are released automatically.`,
             recommendedNextStep: 'Open Devices to release an unmatched slot, use this browser now, or wait for an inactive browser slot to release.'
         };
     }
@@ -2079,12 +2080,24 @@ function isBuddyCloudMultiDeviceLimit(errorOrStatus = {}) {
     const message = String(errorOrStatus?.message || errorOrStatus?.lastError || '').toLowerCase();
     return errorOrStatus?.code === BUDDY_CLOUD_MULTI_DEVICE_LIMIT_CODE
         || Boolean(errorOrStatus?.syncSlotBlocked)
-        || message.includes('active synced browser');
+        || message.includes('active synced browser')
+        || message.includes('active buddy cloud sync slots')
+        || message.includes('free sync slot limit');
 }
 
-function getFreeSyncSlotIdleReclaimHours(details = {}) {
+function getFreeSyncSlotLeaseLabel(details = {}) {
     const status = window.BuddyCloud?.getStatus?.() || {};
-    return Number(details.slotIdleReclaimHours || details.freeSyncSlotIdleReclaimHours || status.freeSyncSlotIdleReclaimHours || 24);
+    if (details.slotIdleReclaimLabel) return String(details.slotIdleReclaimLabel);
+    if (details.freeSyncSlotIdleReclaimLabel) return String(details.freeSyncSlotIdleReclaimLabel);
+    if (status.freeSyncSlotIdleReclaimLabel) return String(status.freeSyncSlotIdleReclaimLabel);
+
+    const minutes = Number(details.slotIdleReclaimMinutes || details.freeSyncSlotIdleReclaimMinutes || status.freeSyncSlotIdleReclaimMinutes || 0);
+    if (minutes > 0) return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+
+    const hours = Number(details.slotIdleReclaimHours || details.freeSyncSlotIdleReclaimHours || status.freeSyncSlotIdleReclaimHours || 0);
+    if (hours > 0) return `${hours} hour${hours === 1 ? '' : 's'}`;
+
+    return FREE_SYNC_SLOT_LEASE_LABEL;
 }
 
 function getBuddyCloudSyncSlotRows(details = {}) {
@@ -2109,11 +2122,11 @@ function getBuddyCloudSyncSlotRows(details = {}) {
 
 async function confirmBuddyCloudSyncSlotTransfer(details = {}) {
     const freeLimit = Number(details.slotLimit || details.freeDeviceLimit || window.BuddyCloud?.getStatus?.()?.freeDeviceLimit || 2);
-    const idleHours = getFreeSyncSlotIdleReclaimHours(details);
+    const leaseWindow = getFreeSyncSlotLeaseLabel(details);
     const result = await showBuddyCloudModal({
         eyebrow: 'Buddy Cloud Sync Plus',
         title: 'Multi-Device Sync Plus',
-        body: `Free Tier includes ${freeLimit} active Buddy Cloud sync slots. Browsers inactive for ${idleHours} hours are released automatically.`,
+        body: `Free Tier includes ${freeLimit} active Buddy Cloud sync slots. Browsers inactive for ${leaseWindow} are released automatically.`,
         assurance: 'Budget contents remain encrypted. BudgetBuddy does not store device names, user agents, IP-derived locations, or readable budget data for this limit.',
         detailRows: getBuddyCloudSyncSlotRows(details),
         warning: 'Use This Browser Instead replaces the oldest active Free sync slot immediately. Inactive browser slots can be reused automatically without removing that browser recovery key.',
@@ -3612,10 +3625,10 @@ async function showBuddyCloudDeviceManagementFlow() {
 function getBuddyCloudDeviceStatusCopy() {
     const status = window.BuddyCloud?.getStatus?.() || {};
     const freeLimit = Number(status.freeDeviceLimit || status.syncSlotLimit || 2);
-    const idleHours = getFreeSyncSlotIdleReclaimHours(status);
+    const leaseWindow = getFreeSyncSlotLeaseLabel(status);
     if (!status.signedIn) return 'Sign in to manage Buddy Cloud on this browser.';
     if (!status.enabled || !status.hasKey) return 'Manage known BudgetBuddy browsers for this account.';
-    if (isBuddyCloudMultiDeviceLimit(status)) return `Free Tier includes ${freeLimit} active Buddy Cloud sync slots. Browsers inactive for ${idleHours} hours are released automatically, or you can use this browser now.`;
+    if (isBuddyCloudMultiDeviceLimit(status)) return `Free Tier includes ${freeLimit} active Buddy Cloud sync slots. Browsers inactive for ${leaseWindow} are released automatically, or you can use this browser now.`;
     if (hasBuddyCloudConflict(status)) return 'Possible data loss prevented. Compare the saved versions before Buddy Cloud overwrites either copy.';
     if (status.lastError) return status.lastError;
     if (status.syncing) return 'Buddy Cloud is syncing on this browser.';
@@ -3763,8 +3776,8 @@ function getBuddyCloudErrorMessage(error) {
     const code = String(error?.code || '').trim();
 
     if (code === BUDDY_CLOUD_MULTI_DEVICE_LIMIT_CODE) {
-        const idleHours = getFreeSyncSlotIdleReclaimHours(error);
-        return `Free Tier includes 2 active Buddy Cloud sync slots. Browsers inactive for ${idleHours} hours are released automatically, or use this browser instead.`;
+        const leaseWindow = getFreeSyncSlotLeaseLabel(error);
+        return `Free Tier includes 2 active Buddy Cloud sync slots. Browsers inactive for ${leaseWindow} are released automatically, or use this browser instead.`;
     }
 
     if (

@@ -25,8 +25,9 @@ const CLOUD_VERSION_HISTORY_PREMIUM_LIMIT = 10;
 const CLOUD_VERSION_HISTORY_MIN_INTERVAL_MS = 60 * 60 * 1000;
 const CLOUD_CONFLICT_GRACE_MS = 5 * 60 * 1000;
 const FREE_SYNC_DEVICE_LIMIT = 2;
-const FREE_SYNC_SLOT_IDLE_RECLAIM_MS = 24 * 60 * 60 * 1000;
-const FREE_SYNC_SLOT_IDLE_RECLAIM_HOURS = Math.round(FREE_SYNC_SLOT_IDLE_RECLAIM_MS / (60 * 60 * 1000));
+const FREE_SYNC_SLOT_IDLE_RECLAIM_MINUTES = 60;
+const FREE_SYNC_SLOT_IDLE_RECLAIM_MS = FREE_SYNC_SLOT_IDLE_RECLAIM_MINUTES * 60 * 1000;
+const FREE_SYNC_SLOT_IDLE_RECLAIM_LABEL = `${FREE_SYNC_SLOT_IDLE_RECLAIM_MINUTES} minutes`;
 const MULTI_DEVICE_LIMIT_CODE = 'BUDDY_CLOUD_MULTI_DEVICE_LIMIT';
 
 let sb = null;
@@ -737,7 +738,7 @@ function getCloudErrorMessage(error, fallback = 'Buddy Cloud sync failed.') {
     const code = String(error?.code || '').trim();
 
     if (code === MULTI_DEVICE_LIMIT_CODE) {
-        return `Free Tier includes ${FREE_SYNC_DEVICE_LIMIT} active Buddy Cloud sync slots. Browsers inactive for ${FREE_SYNC_SLOT_IDLE_RECLAIM_HOURS} hours are released automatically, or use this browser instead.`;
+        return `Free Tier includes ${FREE_SYNC_DEVICE_LIMIT} active Buddy Cloud sync slots. Browsers inactive for ${FREE_SYNC_SLOT_IDLE_RECLAIM_LABEL} are released automatically, or use this browser instead.`;
     }
 
     if (
@@ -793,7 +794,8 @@ function createMultiDeviceLimitError(remote = null, slots = normalizeSyncOwnerSl
     error.slotLastSeenAt = slots[0]?.last_seen_at || remote?.sync_owner_last_seen_at || '';
     error.slotCount = slots.length;
     error.slotLimit = FREE_SYNC_DEVICE_LIMIT;
-    error.slotIdleReclaimHours = FREE_SYNC_SLOT_IDLE_RECLAIM_HOURS;
+    error.slotIdleReclaimMinutes = FREE_SYNC_SLOT_IDLE_RECLAIM_MINUTES;
+    error.slotIdleReclaimLabel = FREE_SYNC_SLOT_IDLE_RECLAIM_LABEL;
     return error;
 }
 
@@ -1797,7 +1799,8 @@ export function getStatus() {
         isPremium,
         multiDeviceAllowed: isPremium,
         freeDeviceLimit: FREE_SYNC_DEVICE_LIMIT,
-        freeSyncSlotIdleReclaimHours: FREE_SYNC_SLOT_IDLE_RECLAIM_HOURS,
+        freeSyncSlotIdleReclaimMinutes: FREE_SYNC_SLOT_IDLE_RECLAIM_MINUTES,
+        freeSyncSlotIdleReclaimLabel: FREE_SYNC_SLOT_IDLE_RECLAIM_LABEL,
         syncSlotLimit: lastKnownStatus.syncSlotLimit || FREE_SYNC_DEVICE_LIMIT,
         syncSlotRows: isPremium ? [] : syncSlotRows
     };

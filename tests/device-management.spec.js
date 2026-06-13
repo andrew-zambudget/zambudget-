@@ -5,6 +5,10 @@ const {
     waitForAppReady
 } = require('./helpers/appHarness');
 
+function modulePath(path) {
+    return `${path}?test=${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 test.describe('Buddy Cloud device management', () => {
     test.beforeEach(async ({ page }) => {
         await installSignedOutSupabaseStub(page);
@@ -97,5 +101,90 @@ test.describe('Buddy Cloud device management', () => {
         await expect(modal).toContainText('Available sync slot');
         await expect(modal.getByRole('button', { name: 'Use This Browser' })).toBeVisible();
         await expect(modal).not.toContainText('Current browser · Sync paused');
+    });
+
+    test('reclaims inactive Free sync slots after the active-browser lease window', async ({ page }) => {
+        const result = await page.evaluate(async (cloudModulePath) => {
+            const realNow = Date.now;
+            Date.now = () => new Date('2026-06-13T12:00:00.000Z').getTime();
+
+            const remote = {
+                payload: null,
+                payload_checksum: '',
+                client_updated_at: '2026-06-13T10:00:00.000Z',
+                updated_at: '2026-06-13T10:00:00.000Z',
+                sync_owner_slots: [
+                    {
+                        hash: 'stale-slot',
+                        claimed_at: '2026-06-13T09:00:00.000Z',
+                        last_seen_at: '2026-06-13T10:59:59.000Z'
+                    },
+                    {
+                        hash: 'active-slot',
+                        claimed_at: '2026-06-13T11:20:00.000Z',
+                        last_seen_at: '2026-06-13T11:20:00.000Z'
+                    }
+                ]
+            };
+            let persistedFields = null;
+            const makeQuery = () => {
+                const query = {
+                    select() { return this; },
+                    eq() { return this; },
+                    maybeSingle() {
+                        return Promise.resolve({ data: { ...remote }, error: null });
+                    },
+                    update(fields) {
+                        persistedFields = fields;
+                        remote.sync_owner_slots = fields.sync_owner_slots;
+                        remote.sync_owner_hash = fields.sync_owner_hash;
+                        remote.sync_owner_claimed_at = fields.sync_owner_claimed_at;
+                        remote.sync_owner_last_seen_at = fields.sync_owner_last_seen_at;
+                        this._result = { data: { ...remote }, error: null };
+                        return this;
+                    },
+                    then(resolve, reject) {
+                        return Promise.resolve(this._result || { data: [], error: null }).then(resolve, reject);
+                    }
+                };
+                return query;
+            };
+
+            const Cloud = await import(cloudModulePath);
+            try {
+                await Cloud.init({
+                    supabaseClient: {
+                        from: () => makeQuery(),
+                        channel: () => ({
+                            on() { return this; },
+                            subscribe(callback) {
+                                if (typeof callback === 'function') callback('SUBSCRIBED');
+                                return this;
+                            },
+                            unsubscribe() {}
+                        }),
+                        removeChannel: async () => ({ error: null })
+                    },
+                    user: { id: 'lease-window-user', email: 'lease@example.com' },
+                    getSnapshot: () => ({ transactions: [], categories: [], settings: {}, meta: {} }),
+                    replaceSnapshot: () => {},
+                    afterRemoteApply: () => {},
+                    isPremiumAccount: () => false
+                });
+                await Cloud.refreshSyncSlotStatus();
+                const status = Cloud.getStatus();
+                return {
+                    persistedHashes: persistedFields?.sync_owner_slots?.map(slot => slot.hash) || [],
+                    deviceCount: status.syncSlotDeviceCount,
+                    leaseLabel: status.freeSyncSlotIdleReclaimLabel
+                };
+            } finally {
+                Date.now = realNow;
+            }
+        }, modulePath('/js/cloudSync.js'));
+
+        expect(result.persistedHashes).toEqual(['active-slot']);
+        expect(result.deviceCount).toBe(1);
+        expect(result.leaseLabel).toBe('60 minutes');
     });
 });
