@@ -15561,6 +15561,22 @@ function getAccountDeletionAuthContextCopy() {
     return `Signed in as ${email} using email link. Deleting your BudgetBuddy account removes your BudgetBuddy account and app data only.`;
 }
 
+function getAccountDeletionScopeHtml() {
+    return `
+        <div class="buddy-cloud-assurance buddy-cloud-account-delete-scope">
+            <p>BudgetBuddy will delete:</p>
+            <ul>
+                <li>Encrypted Buddy Cloud vault</li>
+                <li>Encrypted version-history snapshots</li>
+                <li>Device/browser access records</li>
+                <li>Inactive billing profile</li>
+                <li>Supabase auth identity for this account</li>
+            </ul>
+            <p>Household or family memberships are not currently stored by BudgetBuddy.</p>
+        </div>
+    `;
+}
+
 function canCurrentUserResetPassword() {
     return getCurrentUserAuthProviders().has('email');
 }
@@ -16338,7 +16354,7 @@ async function askDeleteBudgetBuddyAccountConfirmation() {
         compact: true,
         modalClass: 'buddy-cloud-account-delete-modal',
         body: `This permanently deletes the BudgetBuddy sign-in for ${email}. ${authContextCopy}`,
-        assurance: 'BudgetBuddy will delete the encrypted Buddy Cloud vault, encrypted version-history snapshots, device/browser access records, inactive billing profile, and Supabase auth identity for this account. Household or family memberships are not currently stored by BudgetBuddy.',
+        customHtml: getAccountDeletionScopeHtml(),
         warning: 'This cannot be recovered. BudgetBuddy cannot decrypt or restore a deleted Buddy Cloud vault, deleted snapshots, or a deleted account. Active Stripe subscriptions must be cancelled in Stripe before account deletion can finish. Stripe may retain billing records required for payments, tax, legal, or dispute handling. Browser-only copies on other devices may remain only in those browsers until their local site data is cleared.',
         inputLabel: 'Type DELETE ACCOUNT to confirm',
         inputPlaceholder: 'DELETE ACCOUNT',

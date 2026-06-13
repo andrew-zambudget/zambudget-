@@ -36,11 +36,14 @@ test.describe('account deletion safeguards', () => {
         await expect(modal).toContainText('Signed in as delete-safety@gmail.com using Google');
         await expect(modal).toContainText('It does not delete your Google account');
         await expect(modal).toContainText('Google connected-app settings');
-        await expect(modal).toContainText('encrypted Buddy Cloud vault');
-        await expect(modal).toContainText('encrypted version-history snapshots');
-        await expect(modal).toContainText('device/browser access records');
-        await expect(modal).toContainText('inactive billing profile');
-        await expect(modal).toContainText('Supabase auth identity');
+        await expect(modal.locator('.buddy-cloud-account-delete-scope')).toContainText('BudgetBuddy will delete:');
+        await expect(modal.locator('.buddy-cloud-account-delete-scope li')).toHaveText([
+            'Encrypted Buddy Cloud vault',
+            'Encrypted version-history snapshots',
+            'Device/browser access records',
+            'Inactive billing profile',
+            'Supabase auth identity for this account'
+        ]);
         await expect(modal).toContainText('Household or family memberships are not currently stored');
         await expect(modal).toContainText('Active Stripe subscriptions must be cancelled');
         await expect(modal).toContainText('Stripe may retain billing records');
