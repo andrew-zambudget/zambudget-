@@ -13,6 +13,8 @@ npm run build
 
 `npm test` runs the Playwright workbench. The authenticated smoke test is included, but it skips automatically until a dedicated test account is configured.
 
+GitLab separates the always-on storage lifecycle suite from the optional authenticated smoke suite. The authenticated job appears only when both test-account variables exist.
+
 ## Authenticated smoke account
 
 Use a disposable Supabase user created only for automated testing. Do not use a personal account or a real customer account.

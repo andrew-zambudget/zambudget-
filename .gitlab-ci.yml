@@ -20,13 +20,30 @@ storage_lifecycle_tests:
   extends: .npm_ci
   script:
     - npx playwright install chromium
-    - npm test
+    - npm run test:e2e:storage
   artifacts:
     when: always
     expire_in: 7 days
     paths:
       - playwright-report/
       - test-results/
+
+authenticated_smoke_test:
+  image: mcr.microsoft.com/playwright:v1.60.0-noble
+  stage: test
+  extends: .npm_ci
+  script:
+    - npx playwright install chromium
+    - npm run test:e2e:auth
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths:
+      - playwright-report/
+      - test-results/
+  rules:
+    - if: '$BUDGETBUDDY_TEST_EMAIL && $BUDGETBUDDY_TEST_PASSWORD'
+    - when: never
 
 build_static_assets:
   image: node:24-bookworm-slim
