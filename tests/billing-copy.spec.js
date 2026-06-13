@@ -167,11 +167,15 @@ test.describe('Premium billing copy', () => {
 
             await window.refreshPremiumAccess({ silent: true });
             const badge = document.getElementById('accountBillingStatus');
+            const manageButton = document.getElementById('accountUpgradeBtn');
             return {
                 text: badge?.textContent || '',
                 active: badge?.classList.contains('is-active') || false,
                 canceling: badge?.classList.contains('is-canceling') || false,
-                tooltip: badge?.getAttribute('data-tooltip') || ''
+                tooltip: badge?.getAttribute('data-tooltip') || '',
+                manageLabel: manageButton?.querySelector('.account-action-label')?.textContent || '',
+                manageSubline: manageButton?.querySelector('.account-action-subline')?.textContent || '',
+                manageSublineHidden: manageButton?.querySelector('.account-action-subline')?.hidden ?? true
             };
         });
 
@@ -180,5 +184,8 @@ test.describe('Premium billing copy', () => {
         expect(result.active).toBe(true);
         expect(result.canceling).toBe(true);
         expect(result.tooltip).toContain('scheduled to cancel');
+        expect(result.manageLabel).toBe('Manage');
+        expect(result.manageSubline).toBe('Thank you');
+        expect(result.manageSublineHidden).toBe(false);
     });
 });

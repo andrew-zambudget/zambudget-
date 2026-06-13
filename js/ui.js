@@ -12286,6 +12286,7 @@ function syncBillingUi() {
 
     if (accountUpgradeBtn) {
         const upgradeLabel = accountUpgradeBtn.querySelector('.account-action-label');
+        const upgradeSubline = accountUpgradeBtn.querySelector('.account-action-subline');
         const billingEnabled = isBillingEnabled();
         const labelText = isPro ? 'Manage' : billingEnabled ? 'Upgrade' : 'Premium';
         if (upgradeLabel) {
@@ -12296,10 +12297,14 @@ function syncBillingUi() {
         accountUpgradeBtn.onclick = isPro ? window.handleManageSubscription : window.startStripeCheckout;
         accountUpgradeBtn.classList.toggle('is-manage-subscription', isPro);
         accountUpgradeBtn.classList.toggle('is-billing-disabled', !isPro && !billingEnabled);
+        if (upgradeSubline) {
+            upgradeSubline.textContent = isPro ? 'Thank you' : '';
+            upgradeSubline.hidden = !isPro;
+        }
         accountUpgradeBtn.setAttribute('aria-label', !isPro && !billingEnabled
             ? getBillingDisabledMessage()
             : isPro
-            ? 'Manage Premium subscription'
+            ? 'Manage Premium subscription. Thank you for supporting BudgetBuddy.'
             : 'Upgrade to Premium');
     }
 

@@ -357,6 +357,7 @@
 
 .account-action-tile {
   display: flex;
+  position: relative;
   min-width: 0;
   min-height: 82px;
   flex-direction: column;
@@ -412,6 +413,29 @@
   background: rgba(var(--accent-rgb), 0.13);
 }
 
+.account-action-upgrade {
+  overflow: hidden;
+}
+
+.account-action-upgrade::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 0%, rgba(255, 255, 255, 0.16) 44%, transparent 62%);
+  transform: translateX(-120%);
+  opacity: 0;
+}
+
+.account-action-upgrade:not(.is-manage-subscription) {
+  border-color: color-mix(in srgb, var(--accent, #14b8a6) 36%, var(--border, #374151));
+  box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.05), 0 12px 26px rgba(var(--accent-rgb), 0.08);
+}
+
+.account-action-upgrade:not(.is-manage-subscription):hover {
+  box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.12), 0 16px 34px rgba(var(--accent-rgb), 0.14);
+}
+
 .account-action-sync .account-action-icon {
   color: var(--blue, #3b82f6);
   background: var(--blue-bg, rgba(59, 130, 246, 0.1));
@@ -447,9 +471,33 @@
   white-space: nowrap;
 }
 
+.account-action-subline {
+  max-width: 100%;
+  margin-top: -0.2rem;
+  color: var(--text-dim, #9ca3af);
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.account-action-subline[hidden] {
+  display: none;
+}
+
 .account-action-tile.is-manage-subscription .account-action-icon {
   color: var(--green, #22c55e);
   background: var(--green-bg, rgba(34, 197, 94, 0.1));
+}
+
+.account-action-tile.is-manage-subscription {
+  border-color: color-mix(in srgb, var(--green, #22c55e) 42%, var(--border, #374151));
+  background: color-mix(in srgb, var(--green, #22c55e) 7%, var(--bg, #0f1117));
+}
+
+.account-action-tile.is-manage-subscription .account-action-subline {
+  color: var(--green, #22c55e);
 }
 
 @media (max-width: 420px) {
@@ -500,6 +548,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  overflow: hidden;
   min-height: 28px;
   padding: 0.25rem 0.65rem;
   border: 1px solid var(--border, #374151);
@@ -508,6 +558,16 @@
   color: var(--text-dim, #9ca3af);
   font-size: 0.8rem;
   font-weight: 700;
+}
+
+.account-billing-status::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 0%, rgba(255, 255, 255, 0.2) 42%, transparent 62%);
+  transform: translateX(-125%);
+  opacity: 0;
 }
 
 .account-billing-status[data-tooltip]::after {
@@ -519,12 +579,80 @@
   border-color: var(--green, #22c55e);
   background: var(--green-bg, rgba(34, 197, 94, 0.1));
   color: var(--green, #22c55e);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--green, #22c55e) 12%, transparent);
 }
 
 .account-billing-status.is-canceling {
   border-color: var(--warning, #f59e0b);
   background: rgba(245, 158, 11, 0.12);
   color: var(--warning, #f59e0b);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .account-action-upgrade:not(.is-manage-subscription) {
+    animation: premiumUpgradePulse 3.8s ease-in-out infinite;
+  }
+
+  .account-action-upgrade:not(.is-manage-subscription)::before {
+    animation: premiumUpgradeShine 5.5s ease-in-out infinite;
+  }
+
+  .account-action-tile.is-manage-subscription .account-action-icon svg {
+    animation: premiumManageStar 4.4s ease-in-out infinite;
+  }
+
+  .account-billing-status.is-active::before {
+    animation: premiumBadgeShine 4.8s ease-in-out infinite;
+  }
+}
+
+@keyframes premiumUpgradePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.05), 0 12px 26px rgba(var(--accent-rgb), 0.08);
+  }
+  50% {
+    box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.18), 0 16px 34px rgba(var(--accent-rgb), 0.17);
+  }
+}
+
+@keyframes premiumUpgradeShine {
+  0%, 46% {
+    opacity: 0;
+    transform: translateX(-120%);
+  }
+  58% {
+    opacity: 1;
+  }
+  72%, 100% {
+    opacity: 0;
+    transform: translateX(120%);
+  }
+}
+
+@keyframes premiumBadgeShine {
+  0%, 42% {
+    opacity: 0;
+    transform: translateX(-125%);
+  }
+  55% {
+    opacity: 1;
+  }
+  72%, 100% {
+    opacity: 0;
+    transform: translateX(125%);
+  }
+}
+
+@keyframes premiumManageStar {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  45% {
+    transform: scale(1.07) rotate(6deg);
+  }
+  70% {
+    transform: scale(0.98) rotate(-3deg);
+  }
 }
 
 .account-recovery-status {
