@@ -51,6 +51,12 @@ test.describe('account deletion safeguards', () => {
         await expect(modal.locator('.buddy-cloud-account-delete-warning')).toContainText('If you have an active Stripe subscription, you must cancel it in Stripe before account deletion can be completed.');
         await expect(modal.locator('.buddy-cloud-account-delete-warning')).toContainText("Browser-only copies on other devices may remain until that device's local site data is cleared.");
         await expect(page.locator('#buddyCloudModalInput')).toHaveAttribute('placeholder', 'DELETE ACCOUNT');
+        await expect.poll(() => modal.evaluate((element) => {
+            const warning = element.querySelector('.buddy-cloud-account-delete-warning');
+            const input = element.querySelector('#buddyCloudModalInput');
+            if (!warning || !input) return false;
+            return Boolean(warning.compareDocumentPosition(input) & Node.DOCUMENT_POSITION_FOLLOWING);
+        })).toBe(true);
 
         await modal.getByRole('button', { name: 'Back' }).click();
         await expect(modal).toBeHidden();

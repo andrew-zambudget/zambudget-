@@ -1398,6 +1398,7 @@ function showBuddyCloudModal({
     selectLabel = '',
     selectOptions = [],
     customHtml = '',
+    customHtmlBeforeInput = false,
     modalClass = '',
     inputSingleLine = false,
     inputAutoUppercase = false,
@@ -1485,11 +1486,11 @@ function showBuddyCloudModal({
                 ${body ? `<p class="buddy-cloud-modal-copy">${esc(body)}</p>` : ''}
                 ${assurance ? `<div class="buddy-cloud-assurance">${esc(assurance)}</div>` : ''}
                 ${detailList}
-                ${customHtml && !inputLabel ? customHtml : ''}
+                ${customHtml && (!inputLabel || customHtmlBeforeInput) ? customHtml : ''}
                 ${selectField}
                 ${warning ? `<div class="warning-box buddy-cloud-warning"><p>${esc(warning)}</p></div>` : ''}
                 ${keyField}
-                ${customHtml && inputLabel ? customHtml : ''}
+                ${customHtml && inputLabel && !customHtmlBeforeInput ? customHtml : ''}
                 ${actionsSection}
             </div>
         `;
@@ -16369,6 +16370,7 @@ async function askDeleteBudgetBuddyAccountConfirmation() {
         compact: true,
         modalClass: 'buddy-cloud-account-delete-modal',
         customHtml: `${getAccountDeletionScopeHtml(email, authContextCopy)}${getAccountDeletionWarningHtml()}`,
+        customHtmlBeforeInput: true,
         inputLabel: 'Type DELETE ACCOUNT to confirm',
         inputPlaceholder: 'DELETE ACCOUNT',
         inputSingleLine: true,
