@@ -41,6 +41,36 @@ test.describe('account deletion safeguards', () => {
         await expect(modal).toBeHidden();
     });
 
+    test('account settings tucks destructive actions under advanced warning', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await page.evaluate(() => {
+            window.currentUser = {
+                id: 'account-settings-advanced-user',
+                email: 'advanced-settings@example.com'
+            };
+            window.handleAccountSettings();
+        });
+
+        const modal = page.locator('#buddyCloudModal');
+        await expect(modal).toBeVisible();
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Settings');
+        await expect(modal.getByRole('button', { name: 'Advanced Features' })).toBeVisible();
+        await expect(modal.getByRole('button', { name: 'Reset Buddy Cloud' })).toHaveCount(0);
+        await expect(modal.getByRole('button', { name: 'Delete Account' })).toHaveCount(0);
+
+        await modal.getByRole('button', { name: 'Advanced Features' }).click();
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Destructive Actions');
+        await expect(modal).toContainText('These tools are for account recovery and permanent cleanup only.');
+        await expect(modal).toContainText('Destructive actions can remove encrypted cloud data');
+        await expect(modal.getByRole('button', { name: 'Reset Buddy Cloud' })).toBeVisible();
+        await expect(modal.getByRole('button', { name: 'Delete Account' })).toBeVisible();
+
+        await modal.getByRole('button', { name: 'Back to Settings' }).click();
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Settings');
+    });
+
     test('delete account requires a fresh verification code before invoking deletion', async ({ page }) => {
         await page.goto('/index.html');
         await waitForAppReady(page);

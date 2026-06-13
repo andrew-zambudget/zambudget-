@@ -3334,14 +3334,33 @@ async function showAccountSettingsModal() {
         title: 'Settings',
         compact: true,
         modalClass: 'buddy-cloud-settings-modal',
-        body: 'Manage guided recovery, version history, support exports, and Buddy Cloud account recovery tools.',
+        body: 'Manage guided recovery, encrypted version history, and local support exports.',
         assurance: 'Version history stores encrypted snapshots only. Diagnostics are generated locally and require confirmation.',
         actions: [
             { id: 'recovery-help', label: 'Recovery Help', className: 'btn-create' },
             { id: 'version-history', label: 'Version History', className: 'btn-cancel' },
             { id: 'diagnostics', label: 'Diagnostics', className: 'btn-cancel' },
+            { id: 'advanced', label: 'Advanced Features', className: 'btn-cancel' },
+            { id: 'close', label: 'Close', className: 'btn-cancel' }
+        ]
+    });
+
+    return result.action;
+}
+
+async function showAdvancedAccountSettingsModal() {
+    const result = await showBuddyCloudModal({
+        eyebrow: 'Advanced Features',
+        title: 'Destructive Actions',
+        compact: true,
+        modalClass: 'buddy-cloud-settings-modal buddy-cloud-advanced-settings-modal',
+        body: 'These tools are for account recovery and permanent cleanup only.',
+        assurance: 'Use these only when you understand exactly what will be deleted or reset.',
+        warning: 'Destructive actions can remove encrypted cloud data, clear this browser, or delete your BudgetBuddy account. Some data cannot be recovered.',
+        actions: [
             { id: 'reset-cloud', label: 'Reset Buddy Cloud', className: 'btn-danger' },
             { id: 'delete-account', label: 'Delete Account', className: 'btn-danger' },
+            { id: 'back', label: 'Back to Settings', className: 'btn-cancel' },
             { id: 'close', label: 'Close', className: 'btn-cancel' }
         ]
     });
@@ -3378,15 +3397,23 @@ export async function handleAccountSettings(event) {
             continue;
         }
 
-        if (action === 'reset-cloud') {
-            const resetStarted = await handleDeleteAccount();
-            if (resetStarted) keepOpen = false;
-            continue;
-        }
+        if (action === 'advanced') {
+            const advancedAction = await showAdvancedAccountSettingsModal();
+            if (advancedAction === 'back') continue;
 
-        if (action === 'delete-account') {
-            const deleteStarted = await handleDeleteBudgetBuddyAccount();
-            if (deleteStarted) keepOpen = false;
+            if (advancedAction === 'reset-cloud') {
+                const resetStarted = await handleDeleteAccount();
+                if (resetStarted) keepOpen = false;
+                continue;
+            }
+
+            if (advancedAction === 'delete-account') {
+                const deleteStarted = await handleDeleteBudgetBuddyAccount();
+                if (deleteStarted) keepOpen = false;
+                continue;
+            }
+
+            keepOpen = false;
             continue;
         }
 
