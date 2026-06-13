@@ -12482,7 +12482,7 @@ export function setPremiumAccess(active = true, metadata = {}) {
 }
 
 export async function refreshPremiumAccess(options = {}) {
-    const { silent = false, checkoutSessionId = '' } = options;
+    const { silent = false, checkoutSessionId = '', throwOnError = false } = options;
 
     if (!isBillingEnabled() || !window.currentUser || !window.sb?.functions?.invoke) {
         setPremiumAccess(false, { source: 'billing_status_unavailable' });
@@ -12499,6 +12499,7 @@ export async function refreshPremiumAccess(options = {}) {
         return active;
     } catch (err) {
         console.error('[Billing] Premium status refresh failed:', err);
+        if (throwOnError) throw err;
         if (!silent && window.showToast) window.showToast(err.message || 'Could not verify Premium status.');
         syncBillingUi();
         return Boolean(State.getIsPro?.());
@@ -12581,7 +12582,8 @@ export async function handleManageSubscription(event) {
     }
 }
 
-export function showPremiumSuccessModal(title = 'Welcome to BudgetBuddy Pro!', message = 'Your payment was successful and premium access is now active.') {
+export function showPremiumSuccessModal(title = 'Welcome to BudgetBuddy Pro!', message = 'Your payment was successful and premium access is now active.', options = {}) {
+    const { buttonLabel = 'Start using Pro' } = options;
     document.getElementById('premiumSuccessModal')?.remove();
 
     const modal = document.createElement('div');
@@ -12594,7 +12596,7 @@ export function showPremiumSuccessModal(title = 'Welcome to BudgetBuddy Pro!', m
                 <div class="icon-large" aria-hidden="true">$</div>
                 <h3 id="premiumSuccessTitle" class="modal-title mb-sm">${esc(title)}</h3>
                 <p class="text-sm text-muted">${esc(message)}</p>
-                <button type="button" class="btn-create account-action-btn mt-lg" onclick="document.getElementById('premiumSuccessModal')?.remove()">Start using Pro</button>
+                <button type="button" class="btn-create account-action-btn mt-lg" onclick="document.getElementById('premiumSuccessModal')?.remove()">${esc(buttonLabel)}</button>
             </div>
         </div>
     `;
@@ -12608,16 +12610,29 @@ export async function handleStripeCheckoutReturn() {
     const sessionId = urlParams.get('session_id');
 
     if (paymentStatus === 'success' && sessionId) {
-        const verified = await refreshPremiumAccess({ silent: true, checkoutSessionId: sessionId });
-        if (verified) {
+        try {
+            const verified = await refreshPremiumAccess({ silent: true, checkoutSessionId: sessionId, throwOnError: true });
+            if (verified) {
+                showPremiumSuccessModal(
+                    'Welcome to BudgetBuddy Pro!',
+                    'Your payment was verified and premium access is now active.'
+                );
+            } else {
+                showPremiumSuccessModal(
+                    'Payment received',
+                    'Stripe is still confirming your subscription. Premium access will turn on after verification finishes.',
+                    { buttonLabel: 'Close' }
+                );
+            }
+        } catch (error) {
+            const message = String(error?.message || '');
+            const isWrongAccount = message.toLowerCase().includes('does not belong to this account');
             showPremiumSuccessModal(
-                'Welcome to BudgetBuddy Pro!',
-                'Your payment was verified and premium access is now active.'
-            );
-        } else {
-            showPremiumSuccessModal(
-                'Payment received',
-                'Stripe is still confirming your subscription. Premium access will turn on after verification finishes.'
+                isWrongAccount ? 'Payment Linked To Another Account' : 'Payment Verification Needed',
+                isWrongAccount
+                    ? 'This Stripe checkout was completed for a different BudgetBuddy sign-in. Sign into the account that started checkout to verify Premium, or manage the subscription in Stripe.'
+                    : message || 'BudgetBuddy could not verify this checkout session yet. Refresh and try again, or contact support if the payment appears in Stripe.',
+                { buttonLabel: 'Close' }
             );
         }
         window.history.replaceState({}, document.title, window.location.pathname);

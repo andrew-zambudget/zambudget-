@@ -43,6 +43,73 @@ test.describe('Premium billing copy', () => {
         await expect(modal).not.toContainText('â');
     });
 
+    test('pending payment return does not claim Premium is usable yet', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await page.evaluate(async () => {
+            window.currentUser = { id: 'billing-pending-user', email: 'billing-pending@example.com' };
+            window.bbConfig = { ...(window.bbConfig || {}), billingEnabled: true };
+            window.sb = {
+                ...(window.sb || {}),
+                functions: {
+                    invoke: async () => ({
+                        data: {
+                            active: false,
+                            subscriptionStatus: 'incomplete',
+                            checkoutSessionId: 'cs_live_pending'
+                        },
+                        error: null
+                    })
+                }
+            };
+            window.history.pushState({}, '', '/index.html?payment=success&session_id=cs_live_pending');
+            await window.handleStripeCheckoutReturn();
+        });
+
+        const modal = page.locator('#premiumSuccessModal');
+        await expect(modal).toBeVisible();
+        await expect(page.locator('#premiumSuccessTitle')).toHaveText('Payment received');
+        await expect(modal).toContainText('Stripe is still confirming your subscription');
+        await expect(modal.getByRole('button', { name: 'Close', exact: true })).toBeVisible();
+        await expect(modal).not.toContainText('Start using Pro');
+    });
+
+    test('wrong-account checkout return explains the account mismatch', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await page.evaluate(async () => {
+            window.currentUser = { id: 'billing-wrong-user', email: 'billing-wrong@example.com' };
+            window.bbConfig = { ...(window.bbConfig || {}), billingEnabled: true };
+            window.sb = {
+                ...(window.sb || {}),
+                functions: {
+                    invoke: async () => ({
+                        data: null,
+                        error: {
+                            message: 'Edge Function returned a non-2xx status code',
+                            context: {
+                                json: async () => ({
+                                    error: 'Checkout session does not belong to this account.'
+                                })
+                            }
+                        }
+                    })
+                }
+            };
+            window.history.pushState({}, '', '/index.html?payment=success&session_id=cs_live_wrong_account');
+            await window.handleStripeCheckoutReturn();
+        });
+
+        const modal = page.locator('#premiumSuccessModal');
+        await expect(modal).toBeVisible();
+        await expect(page.locator('#premiumSuccessTitle')).toHaveText('Payment Linked To Another Account');
+        await expect(modal).toContainText('completed for a different BudgetBuddy sign-in');
+        await expect(modal.getByRole('button', { name: 'Close', exact: true })).toBeVisible();
+        await expect(modal).not.toContainText('Stripe is still confirming your subscription');
+    });
+
     test('live billing is blocked from localhost before checkout starts', async ({ page }) => {
         await page.goto('/index.html');
         await waitForAppReady(page);
