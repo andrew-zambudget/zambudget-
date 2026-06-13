@@ -31,6 +31,30 @@ let state = {
 
 let suppressCloudQueue = false;
 
+// Best-effort overwrite before removal.
+// Browser storage engines do not guarantee true secure deletion.
+function secureRemove(key) {
+    try {
+        localStorage.setItem(key, '0'.repeat(1024));
+    } catch {
+        // Ignore quota limits during overwrite attempt.
+    }
+
+    try {
+        localStorage.removeItem(key);
+    } catch {
+        // Keep cleanup moving even if this browser blocks removal.
+    }
+}
+
+function secureRemoveSession(key) {
+    try {
+        sessionStorage.removeItem(key);
+    } catch {
+        // Keep cleanup moving even if this browser blocks removal.
+    }
+}
+
 function getLocalUpdatedAt() {
     return localStorage.getItem('bb_local_updated_at') || '';
 }
@@ -98,16 +122,30 @@ export function initState() {
         }
     }
     if (loadedSavedPayload) {
-        if (loadedPayloadChanged || !getLocalUpdatedAt()) setLocalUpdatedAt();
-        if (loadedPayloadChanged) localStorage.setItem('bb_data', JSON.stringify(getDurablePayload()));
+        if (loadedPayloadChanged) {
+            try {
+                localStorage.setItem('bb_data', JSON.stringify(getDurablePayload()));
+                setLocalUpdatedAt();
+            } catch (e) {
+                console.error('[State] CRITICAL: Storage limits prevented state correction on boot', e);
+            }
+        } else if (!getLocalUpdatedAt()) {
+            try {
+                setLocalUpdatedAt();
+            } catch (e) {
+                console.warn('[State] Could not write missing local update timestamp on boot.', e);
+            }
+        }
     }
     console.log('[State] Engine initialized.');
 }
 
 export function save() {
     try {
+        const payload = JSON.stringify(getDurablePayload());
+        localStorage.setItem('bb_data', payload);
         const localUpdatedAt = setLocalUpdatedAt();
-        localStorage.setItem('bb_data', JSON.stringify(getDurablePayload()));
+
         if (!suppressCloudQueue && window.BuddyCloud?.queuePush) {
             window.BuddyCloud.queuePush('Budget synced to Buddy Cloud.', { localUpdatedAt });
         }
@@ -135,8 +173,12 @@ export function replaceSnapshot(snapshot = {}, options = {}) {
         premiumSinceUTC: state.settings.premiumSinceUTC,
         stripeCheckoutSessionId: state.settings.stripeCheckoutSessionId
     };
+    const rollbackTransactions = [...state.transactions];
+    const rollbackCategories = [...state.categories];
+    const rollbackSettings = { ...state.settings };
 
     suppressCloudQueue = true;
+
     try {
         applyLoadedPayload({
             transactions: snapshot.transactions || [],
@@ -146,9 +188,31 @@ export function replaceSnapshot(snapshot = {}, options = {}) {
                 ...currentBilling
             }
         });
+    } catch (e) {
+        console.error('[State] CRITICAL: Failed to apply snapshot payload to memory. Rolling back memory state.', e);
+        state.transactions = rollbackTransactions;
+        state.categories = rollbackCategories;
+        state.settings = rollbackSettings;
+        suppressCloudQueue = false;
+        throw e;
+    }
+
+    try {
+        localStorage.setItem('bb_data', JSON.stringify(getDurablePayload()));
+    } catch (e) {
+        console.error('[State] CRITICAL: Snapshot replacement failed disk write. Rolling back memory state.', e);
+        state.transactions = rollbackTransactions;
+        state.categories = rollbackCategories;
+        state.settings = rollbackSettings;
+        suppressCloudQueue = false;
+        throw e;
+    }
+
+    try {
         const remoteUpdatedAt = options.remoteUpdatedAt || snapshot.meta?.localUpdatedAt || new Date().toISOString();
         setLocalUpdatedAt(remoteUpdatedAt);
-        localStorage.setItem('bb_data', JSON.stringify(getDurablePayload()));
+    } catch (e) {
+        console.warn('[State] WARNING: Snapshot written to disk, but metadata timestamp failed.', e);
     } finally {
         suppressCloudQueue = false;
     }
@@ -692,27 +756,13 @@ export const getCurrentDrilldownCat = () => state.currentDrilldownCat;
 export const setCurrentDrilldownCat = (c) => state.currentDrilldownCat = c;
 
 export const factoryReset = () => {
-    localStorage.removeItem('bb_data');
-    localStorage.removeItem('bb_local_updated_at');
-    localStorage.removeItem('bb_cloud_sync_enabled');
-    localStorage.removeItem('bb_cloud_last_pushed_at');
-    localStorage.removeItem('bb_cloud_last_remote_at');
-    localStorage.removeItem('bb_cloud_last_error');
-    localStorage.removeItem('bb_cloud_device_id');
-    Object.keys(localStorage)
-        .filter(key => key.startsWith('bb_cloud_key_') || key.startsWith('bb_cloud_sync_slot_') || key.startsWith('bb_browser_access_token_') || key.startsWith('bb_cloud_recovery_key_saved_'))
-        .forEach(key => localStorage.removeItem(key));
-    localStorage.removeItem('bb_skip_cat_warn');
-    localStorage.removeItem('bb_skip_tx_warn');
-    localStorage.removeItem('bb_sync_history');
-    localStorage.removeItem('bb_pro_status');
-    localStorage.removeItem('bb_premium_active');
-    localStorage.removeItem('bb_stripe_checkout_session_id');
-    localStorage.removeItem('bb_premium_activated_at');
-    localStorage.removeItem('bb_stripe_redirect_acknowledged');
-    localStorage.removeItem('bb_accent_color');
-    Object.keys(localStorage)
-        .filter(key => key.startsWith('bb_cloud_force_pull_after_sign_in_'))
-        .forEach(key => localStorage.removeItem(key));
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('bb_')) secureRemove(key);
+    });
+
+    Object.keys(sessionStorage).forEach(key => {
+        if (key.startsWith('bb_')) secureRemoveSession(key);
+    });
+
     window.location.reload();
 };
