@@ -4,6 +4,7 @@
     "deploy": "wrangler deploy",
     "test": "npm run test:e2e",
     "test:e2e": "playwright test",
+    "test:e2e:auth": "playwright test tests/authenticated-smoke.spec.js",
     "test:e2e:headed": "playwright test --headed"
   },
   "devDependencies": {
