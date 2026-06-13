@@ -9072,6 +9072,23 @@ const TX_SCROLL_TRIGGER_ID = 'drillDownScrollTrigger';
 let openDrillDownSwipeTxId = '';
 const DRILLDOWN_ACTION_REVEAL_OFFSET = -216;
 const DRILLDOWN_ACTION_REVEAL_THRESHOLD = -68;
+const ACTION_WHEEL_REVEAL_THRESHOLD = 42;
+const ACTION_WHEEL_IDLE_RESET_MS = 180;
+const ACTION_WHEEL_COOLDOWN_MS = 260;
+
+function shouldIgnoreActionGestureTarget(target) {
+    return target instanceof Element && target.closest('button, input, select, textarea, a');
+}
+
+function getHorizontalActionWheelDelta(event) {
+    const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 240 : 1;
+    const deltaX = (Number(event.deltaX) || 0) * scale;
+    const deltaY = (Number(event.deltaY) || 0) * scale;
+
+    if (Math.abs(deltaX) < 2) return 0;
+    if (Math.abs(deltaX) < Math.abs(deltaY) * 1.25) return 0;
+    return deltaX;
+}
 
 /**
  * NEW HELPER: Renders the transaction list with infinite scroll.
@@ -9286,6 +9303,9 @@ function bindDrillDownSwipeActions(listContainer) {
         let pointerId = null;
         let isSwiping = false;
         let suppressClick = false;
+        let wheelIntentX = 0;
+        let wheelIntentTimer = null;
+        let wheelActionLocked = false;
 
         const resetSwipe = () => {
             card.style.removeProperty('--drilldown-swipe-x');
@@ -9295,6 +9315,19 @@ function bindDrillDownSwipeActions(listContainer) {
             card.querySelector('.drilldown-tx-menu-wrap')?.classList.remove('is-menu-open');
             card.querySelector('.drilldown-tx-menu-btn')?.setAttribute('aria-expanded', 'false');
             window.setTimeout(() => { suppressClick = false; }, 0);
+        };
+
+        const resetWheelIntent = () => {
+            wheelIntentX = 0;
+            if (wheelIntentTimer) {
+                clearTimeout(wheelIntentTimer);
+                wheelIntentTimer = null;
+            }
+        };
+
+        const lockWheelAction = () => {
+            wheelActionLocked = true;
+            window.setTimeout(() => { wheelActionLocked = false; }, ACTION_WHEEL_COOLDOWN_MS);
         };
 
         card.addEventListener('click', (event) => {
@@ -9333,6 +9366,34 @@ function bindDrillDownSwipeActions(listContainer) {
             currentX = startX;
             isSwiping = false;
         });
+
+        card.addEventListener('wheel', (event) => {
+            if (shouldIgnoreActionGestureTarget(event.target)) return;
+
+            const deltaX = getHorizontalActionWheelDelta(event);
+            if (!deltaX) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (wheelActionLocked) return;
+
+            wheelIntentX += deltaX;
+            if (wheelIntentTimer) clearTimeout(wheelIntentTimer);
+            wheelIntentTimer = setTimeout(resetWheelIntent, ACTION_WHEEL_IDLE_RESET_MS);
+
+            if (Math.abs(wheelIntentX) < ACTION_WHEEL_REVEAL_THRESHOLD) return;
+
+            suppressClick = true;
+            if (card.classList.contains('is-swipe-actions-open')) {
+                resetSwipe();
+            } else {
+                openDrillDownSwipeCard(card);
+                window.setTimeout(() => { suppressClick = false; }, 0);
+            }
+            resetWheelIntent();
+            lockWheelAction();
+        }, { passive: false });
 
         card.addEventListener('pointermove', (event) => {
             if (pointerId !== event.pointerId) return;
@@ -13515,6 +13576,18 @@ function closeRecentSwipeDelete() {
     });
 }
 
+function openRecentSwipeCard(card) {
+    if (!card?.dataset?.txId) return;
+    closeRecentSwipeDelete();
+    window.openRecentMenuTxId = '';
+    window.openRecentSwipeDeleteTxId = card.dataset.txId;
+    card.style.setProperty('--recent-swipe-x', `${RECENT_ACTION_REVEAL_OFFSET}px`);
+    card.classList.add('is-swiping-delete', 'is-swipe-delete-open', 'is-menu-open');
+    card.querySelectorAll('.recent-tx-swipe-action-btn').forEach(btn => { btn.tabIndex = 0; });
+    card.querySelector('.recent-tx-menu-wrap')?.classList.add('is-menu-open');
+    card.querySelector('.recent-tx-menu-btn')?.setAttribute('aria-expanded', 'true');
+}
+
 window.toggleRecentTxActionMenu = function(event, txId) {
     event?.preventDefault?.();
     event?.stopPropagation?.();
@@ -13652,6 +13725,9 @@ function bindRecentSwipeActions(listContainer) {
         let pointerId = null;
         let isSwiping = false;
         let suppressClick = false;
+        let wheelIntentX = 0;
+        let wheelIntentTimer = null;
+        let wheelActionLocked = false;
 
         const resetSwipe = () => {
             card.style.removeProperty('--recent-swipe-x');
@@ -13661,6 +13737,19 @@ function bindRecentSwipeActions(listContainer) {
             card.querySelector('.recent-tx-menu-wrap')?.classList.remove('is-menu-open');
             card.querySelector('.recent-tx-menu-btn')?.setAttribute('aria-expanded', 'false');
             window.setTimeout(() => { suppressClick = false; }, 0);
+        };
+
+        const resetWheelIntent = () => {
+            wheelIntentX = 0;
+            if (wheelIntentTimer) {
+                clearTimeout(wheelIntentTimer);
+                wheelIntentTimer = null;
+            }
+        };
+
+        const lockWheelAction = () => {
+            wheelActionLocked = true;
+            window.setTimeout(() => { wheelActionLocked = false; }, ACTION_WHEEL_COOLDOWN_MS);
         };
 
         card.addEventListener('click', (event) => {
@@ -13706,6 +13795,35 @@ function bindRecentSwipeActions(listContainer) {
             isSwiping = false;
         });
 
+        card.addEventListener('wheel', (event) => {
+            if (window.isBulkMode) return;
+            if (shouldIgnoreActionGestureTarget(event.target)) return;
+
+            const deltaX = getHorizontalActionWheelDelta(event);
+            if (!deltaX) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (wheelActionLocked) return;
+
+            wheelIntentX += deltaX;
+            if (wheelIntentTimer) clearTimeout(wheelIntentTimer);
+            wheelIntentTimer = setTimeout(resetWheelIntent, ACTION_WHEEL_IDLE_RESET_MS);
+
+            if (Math.abs(wheelIntentX) < ACTION_WHEEL_REVEAL_THRESHOLD) return;
+
+            suppressClick = true;
+            if (card.classList.contains('is-swipe-delete-open')) {
+                resetSwipe();
+            } else {
+                openRecentSwipeCard(card);
+                window.setTimeout(() => { suppressClick = false; }, 0);
+            }
+            resetWheelIntent();
+            lockWheelAction();
+        }, { passive: false });
+
         card.addEventListener('pointermove', (event) => {
             if (pointerId !== event.pointerId) return;
 
@@ -13735,10 +13853,7 @@ function bindRecentSwipeActions(listContainer) {
             isSwiping = false;
 
             if (shouldReveal && txId) {
-                window.openRecentSwipeDeleteTxId = txId;
-                card.style.setProperty('--recent-swipe-x', `${RECENT_ACTION_REVEAL_OFFSET}px`);
-                card.classList.add('is-swiping-delete', 'is-swipe-delete-open');
-                card.querySelectorAll('.recent-tx-swipe-action-btn').forEach(btn => { btn.tabIndex = 0; });
+                openRecentSwipeCard(card);
                 window.setTimeout(() => { suppressClick = false; }, 0);
                 return;
             }
