@@ -23,11 +23,11 @@ const DESTRUCTIVE_AUTH_METHODS = new Set([
   'recovery'
 ]);
 
-function isMissingOptionalTableError(error: unknown) {
+function isMissingOptionalTableError(error: unknown, table = '') {
   const typed = error as { code?: string; message?: string };
   const message = String(typed?.message || '');
   return typed?.code === '42P01'
-    || message.includes('buddy_cloud_vault_snapshots')
+    || (table && message.includes(table))
     || message.toLowerCase().includes('schema cache');
 }
 
@@ -35,15 +35,16 @@ async function deleteRowsForUser(
   supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
   table: string,
   userId: string,
-  options: { optional?: boolean } = {}
+  options: { optional?: boolean; column?: string } = {}
 ) {
+  const column = options.column || 'user_id';
   const { error } = await supabaseAdmin
     .from(table)
     .delete()
-    .eq('user_id', userId);
+    .eq(column, userId);
 
   if (error) {
-    if (options.optional && isMissingOptionalTableError(error)) return NOT_APPLICABLE;
+    if (options.optional && isMissingOptionalTableError(error, table)) return NOT_APPLICABLE;
     throw error;
   }
 
@@ -117,7 +118,7 @@ Deno.serve(async (req) => {
         .select('subscription_status, stripe_subscription_id')
         .eq('user_id', user.id)
         .maybeSingle();
-      if (billingReadError && !isMissingOptionalTableError(billingReadError)) {
+      if (billingReadError && !isMissingOptionalTableError(billingReadError, 'billing_profiles')) {
         throw billingReadError;
       }
 
@@ -147,6 +148,7 @@ Deno.serve(async (req) => {
 
     const browserAccessDeleted = await deleteRowsForUser(supabaseAdmin, 'buddy_cloud_browser_access', user.id, { optional: true });
     const billingProfileDeleted = await deleteRowsForUser(supabaseAdmin, 'billing_profiles', user.id, { optional: true });
+    const legacyProfileDeleted = await deleteRowsForUser(supabaseAdmin, 'profiles', user.id, { optional: true, column: 'id' });
 
     // Household/family sharing is not implemented in the current schema.
     // Return an explicit marker so account deletion reports stay truthful.
@@ -164,6 +166,7 @@ Deno.serve(async (req) => {
       buddyCloudSnapshotsDeleted,
       browserAccessDeleted,
       billingProfileDeleted,
+      legacyProfileDeleted,
       householdMembershipsDeleted,
       sharedBudgetOwnershipHandled,
       supportContactRecordsDeleted,

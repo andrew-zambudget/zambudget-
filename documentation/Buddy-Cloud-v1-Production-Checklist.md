@@ -11,6 +11,7 @@ Buddy Cloud v1 is the default protection path for signed-in users. The app still
 - Apply `supabase/migrations/202606100005_buddy_cloud_browser_access.sql`.
 - Apply `supabase/migrations/202606100006_buddy_cloud_vault_snapshots.sql`.
 - Apply `supabase/migrations/202606100007_buddy_cloud_two_free_sync_slots.sql`.
+- Apply `supabase/migrations/202606130001_profiles_delete_cascade.sql` if the production project has a legacy `public.profiles` table.
 - Confirm RLS is enabled on `public.buddy_cloud_vaults`.
 - Confirm authenticated users can only read, insert, update, and delete rows where `auth.uid() = user_id`.
 - Confirm `account-delete` Edge Function is deployed for Buddy Cloud reset and full account deletion.
@@ -57,11 +58,11 @@ Buddy Cloud v1 is the default protection path for signed-in users. The app still
 - Browser-only/local budgets have no support commitment after local storage is lost.
 - Factory reset removes local cloud settings and local recovery keys.
 - Reset Buddy Cloud deletes encrypted vault data and encrypted snapshots without deleting the auth account.
-- Delete Account removes encrypted vault data, encrypted snapshots, browser access records, inactive billing profile records, and the Supabase auth identity, then clears the local browser session.
+- Delete Account removes encrypted vault data, encrypted snapshots, browser access records, inactive billing profile records, legacy profile rows if present, and the Supabase auth identity, then clears the local browser session.
 - Delete Account requires a fresh login verification before the permanent deletion request runs.
 - Delete Account is blocked while Stripe subscription status is active, trialing, or past_due.
 - Delete Account copy explains that deleted Buddy Cloud data, deleted snapshots, deleted account identities, and lost recovery keys cannot be recovered, and that Stripe may retain billing records required for payments, tax, legal, or dispute handling.
-- Delete Account shows a post-deletion confirmation on `login.html?accountDeleted=true`. Email confirmation is deferred until transactional support email is configured.
+- Delete Account shows a post-deletion confirmation screen and redirects to `https://budget-buddy.io/?accountDeleted=true`. Email confirmation is deferred until transactional support email is configured.
 
 ## Live Beta Gate
 
