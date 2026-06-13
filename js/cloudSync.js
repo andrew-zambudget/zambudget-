@@ -578,6 +578,47 @@ function summariesHaveSameShape(a = null, b = null) {
         && Number(a.incomeSourceCount || 0) === Number(b.incomeSourceCount || 0);
 }
 
+const VOLATILE_SNAPSHOT_KEYS = new Set([
+    'meta',
+    'createdAt',
+    'createdAtUTC',
+    'serverLoggedAtUTC',
+    'updatedAtUTC'
+]);
+
+function normalizeSnapshotForContentCompare(value, key = '') {
+    if (VOLATILE_SNAPSHOT_KEYS.has(key)) return undefined;
+
+    if (Array.isArray(value)) {
+        return value.map(item => normalizeSnapshotForContentCompare(item));
+    }
+
+    if (value && typeof value === 'object') {
+        return Object.keys(value)
+            .sort()
+            .reduce((normalized, childKey) => {
+                const childValue = normalizeSnapshotForContentCompare(value[childKey], childKey);
+                if (childValue !== undefined) normalized[childKey] = childValue;
+                return normalized;
+            }, {});
+    }
+
+    return value;
+}
+
+function getSnapshotContentSignature(snapshot = {}) {
+    return JSON.stringify(normalizeSnapshotForContentCompare({
+        transactions: Array.isArray(snapshot.transactions) ? snapshot.transactions : [],
+        categories: Array.isArray(snapshot.categories) ? snapshot.categories : [],
+        settings: snapshot.settings || {}
+    }));
+}
+
+function snapshotsHaveSameBudgetContent(a = null, b = null) {
+    if (!a || !b) return false;
+    return getSnapshotContentSignature(a) === getSnapshotContentSignature(b);
+}
+
 function storeConflictSummary(key, summary = null) {
     if (!key) return;
     if (!summary) {
@@ -1276,6 +1317,11 @@ export async function enableSync(options = {}) {
     const hasLocalData = localSnapshotHasBudgetData();
     if (hasLocalData && !options.prefer) {
         const localSnapshot = getLocalSnapshot();
+        if (shouldForcePullAfterSignIn() && snapshotsHaveSameBudgetContent(localSnapshot, remoteSnapshot)) {
+            await forcePull();
+            return { enabled: true, recoveryKey: rawKey, remoteExisted: true, usedRemote: true };
+        }
+
         const localUpdatedAt = localSnapshot.meta?.localUpdatedAt || '';
         rememberStatus();
         return {
@@ -1625,6 +1671,12 @@ export async function init(options = {}) {
             record('Possible data loss prevented. Review saved versions before Buddy Cloud overwrites either copy.', 'error');
             return false;
         };
+        const trustedSignInCanUseCloudVersion = async () => {
+            if (!forcePullAfterSignIn) return false;
+            if (!localHasBudgetData) return true;
+            await getRemoteSummary();
+            return snapshotsHaveSameBudgetContent(localSnapshot, remoteSnapshot);
+        };
 
         if (!localHasBudgetData) {
             const nextRemoteSummary = await getRemoteSummary();
@@ -1640,6 +1692,12 @@ export async function init(options = {}) {
         }
 
         if (remoteChanged && localChanged) {
+            if (await trustedSignInCanUseCloudVersion()) {
+                clearConflictState();
+                await forcePull();
+                return true;
+            }
+
             const waitMs = getConflictGraceWaitMs(remote.client_updated_at, localUpdatedAt);
             if (waitMs > 0) {
                 clearConflictState();
@@ -1657,6 +1715,10 @@ export async function init(options = {}) {
 
         if (remoteChanged) {
             const nextRemoteSummary = await getRemoteSummary();
+            if (await trustedSignInCanUseCloudVersion()) {
+                await forcePull();
+                return true;
+            }
             if (localHasBudgetData && !summariesHaveSameShape(localSummary, nextRemoteSummary)) {
                 return stopForVersionReview();
             }
