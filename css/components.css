@@ -6949,25 +6949,40 @@ input.error, select.error {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    margin-bottom: 2rem;
-    gap: 0.45rem;
+    margin-bottom: 1.25rem;
+    gap: 0.4rem;
 }
 
 #heroInputWrapper {
-    min-height: 112px;
-    padding: 1rem 1.25rem;
-    border: 1px solid color-mix(in srgb, var(--accent, #14b8a6) 18%, var(--border, #e2e8f0));
-    border-radius: 24px;
+    width: min(100%, 390px) !important;
+    min-height: 78px;
+    gap: 0.24rem;
+    padding: 0.72rem 1rem;
+    border: 1px solid color-mix(in srgb, var(--accent, #14b8a6) 22%, var(--border, #e2e8f0));
+    border-radius: 20px;
     background:
-        radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent, #14b8a6) 10%, transparent), transparent 52%),
+        radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent, #14b8a6) 8%, transparent), transparent 58%),
         linear-gradient(180deg, var(--surface, #ffffff), var(--bg, #f8fafc));
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 14px 34px rgba(15, 23, 42, 0.06);
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78), 0 10px 24px rgba(15, 23, 42, 0.06);
+    transition: width 0.2s ease, min-height 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+#heroInputWrapper.amount-empty {
+    width: min(100%, 320px) !important;
+}
+
+#heroInputWrapper.amount-medium {
+    width: min(100%, 420px) !important;
+}
+
+#heroInputWrapper.amount-long,
+#heroInputWrapper.amount-xlong {
+    width: min(100%, 460px) !important;
 }
 
 #heroInputWrapper:focus-within {
     border-color: var(--accent, #14b8a6);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent, #14b8a6) 14%, transparent), 0 16px 34px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent, #14b8a6) 12%, transparent), 0 12px 28px rgba(15, 23, 42, 0.08);
     transform: translateY(-1px);
 }
 
@@ -6977,28 +6992,49 @@ input.error, select.error {
 }
 
 .hero-currency {
-    font-size: 2.5rem;
+    align-self: center;
+    transform: translateY(-0.04em);
+    font-size: 2rem;
+    font-weight: 850;
+    line-height: 1;
     color: var(--text-dim, #64748b);
-    margin-right: 0.25rem;
+    margin-right: 0;
 }
 
 .hero-amount-input {
-    font-size: 4rem;
-    font-weight: 700;
-    width: 100%;
-    max-width: 250px;
+    width: var(--amount-input-width, 5.5ch);
+    max-width: min(100%, 14ch);
     background: transparent;
     border: none;
     outline: none;
     color: var(--text, #0f172a);
-    text-align: center;
+    font-size: 3.05rem;
+    font-weight: 900;
+    line-height: 1;
+    text-align: left;
     padding: 0;
-    min-height: 72px;
+    min-height: 54px;
     caret-color: var(--accent, #14b8a6);
     font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+    transition: width 0.18s ease, font-size 0.18s ease;
 }
 
-.hero-amount-input::placeholder { color: var(--border, #e2e8f0); }
+#heroInputWrapper.amount-medium .hero-amount-input {
+    font-size: 2.72rem;
+}
+
+#heroInputWrapper.amount-long .hero-amount-input {
+    font-size: 2.38rem;
+}
+
+#heroInputWrapper.amount-xlong .hero-amount-input {
+    font-size: 2.08rem;
+}
+
+.hero-amount-input::placeholder {
+    color: color-mix(in srgb, var(--text-dim, #64748b) 42%, var(--border, #e2e8f0));
+}
 
 .add-field-hint {
     color: var(--text-dim, #64748b);
@@ -7423,19 +7459,30 @@ input.error, select.error {
     }
 
     #heroInputWrapper {
-        min-height: 94px;
-        padding: 0.75rem;
-        border-radius: 20px;
+        min-height: 72px;
+        padding: 0.65rem 0.82rem;
+        border-radius: 18px;
     }
 
     .hero-currency {
-        font-size: 1.8rem;
+        font-size: 1.76rem;
     }
 
     .hero-amount-input {
-        max-width: 210px;
-        min-height: 58px;
-        font-size: clamp(2.4rem, 14vw, 3.25rem);
+        min-height: 48px;
+        font-size: 2.66rem;
+    }
+
+    #heroInputWrapper.amount-medium .hero-amount-input {
+        font-size: 2.38rem;
+    }
+
+    #heroInputWrapper.amount-long .hero-amount-input {
+        font-size: 2.1rem;
+    }
+
+    #heroInputWrapper.amount-xlong .hero-amount-input {
+        font-size: 1.82rem;
     }
 
     .cat-pill-v2,
@@ -8349,25 +8396,46 @@ input.error, select.error {
     }
 
     #view-add #heroInputWrapper {
-        width: 100%;
-        min-height: 84px;
-        padding: 0.65rem 0.8rem;
-        border-radius: 22px;
+        width: min(100%, 360px) !important;
+        min-height: 72px;
+        padding: 0.62rem 0.8rem;
+        border-radius: 18px;
         background:
             radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent, #14b8a6) 12%, transparent), transparent 62%),
             var(--surface, #ffffff);
-        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    #view-add #heroInputWrapper.amount-empty {
+        width: min(100%, 300px) !important;
+    }
+
+    #view-add #heroInputWrapper.amount-medium,
+    #view-add #heroInputWrapper.amount-long,
+    #view-add #heroInputWrapper.amount-xlong {
+        width: min(100%, 380px) !important;
     }
 
     #view-add .hero-currency {
-        font-size: clamp(1.65rem, 8vw, 2.15rem);
+        font-size: 1.72rem;
     }
 
     #view-add .hero-amount-input {
-        max-width: min(72vw, 260px);
-        min-height: 58px;
-        font-size: clamp(2.55rem, 15vw, 3.75rem);
+        min-height: 48px;
+        font-size: 2.58rem;
         line-height: 1;
+    }
+
+    #view-add #heroInputWrapper.amount-medium .hero-amount-input {
+        font-size: 2.32rem;
+    }
+
+    #view-add #heroInputWrapper.amount-long .hero-amount-input {
+        font-size: 2.04rem;
+    }
+
+    #view-add #heroInputWrapper.amount-xlong .hero-amount-input {
+        font-size: 1.78rem;
     }
 
     #view-add .add-form-group {

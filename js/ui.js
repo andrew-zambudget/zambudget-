@@ -7294,16 +7294,36 @@ export function numpadDelete() {
     }
 }
 
+function updateAmountInputPresentation() {
+    const amountInput = document.getElementById('txAmount');
+    const wrapper = document.getElementById('heroInputWrapper');
+    if (!amountInput || !wrapper) return;
+
+    const displayValue = String(amountInput.value || '');
+    const rawValue = sanitizeMoneyValue(displayValue);
+    const digitCount = rawValue.replace(/\D/g, '').length;
+    const isEmpty = rawValue.length === 0;
+    const widthCh = isEmpty ? 5.5 : Math.max(5.5, Math.min(14, displayValue.length + 0.65));
+
+    amountInput.style.setProperty('--amount-input-width', `${widthCh}ch`);
+    wrapper.classList.toggle('amount-empty', isEmpty);
+    wrapper.classList.toggle('amount-medium', digitCount >= 5 && digitCount < 7);
+    wrapper.classList.toggle('amount-long', digitCount >= 7 && digitCount < 9);
+    wrapper.classList.toggle('amount-xlong', digitCount >= 9);
+}
+
 function updateAmountDisplay() {
     const amountInput = document.getElementById('txAmount');
     if (!amountInput) return;
     if (rawAmountString === "") {
         amountInput.value = "";
+        updateAmountInputPresentation();
         return;
     }
     let parts = rawAmountString.split('.');
     parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     amountInput.value = parts.join('.');
+    updateAmountInputPresentation();
 }
 
 function getLocalISODate(date = new Date()) {
@@ -7351,6 +7371,7 @@ function formatAddAmountInput() {
 
     amountInput.value = formatMoney(Math.min(amount, ADD_TX_MAX_AMOUNT));
     rawAmountString = sanitizeMoneyValue(amountInput.value);
+    updateAmountInputPresentation();
     clearAddSavedPreview();
     renderAddCategoryInsight();
 }
@@ -7727,6 +7748,7 @@ function handleAddAmountInput(event) {
     if (input.value !== sanitized) input.value = sanitized;
 
     rawAmountString = sanitized;
+    updateAmountInputPresentation();
     if (parseAddAmountInput(sanitized) > 0) setAddFieldError('amount', '');
     clearAddSavedPreview();
     renderAddCategoryInsight();
@@ -7739,6 +7761,7 @@ function bindAddFormInputEvents() {
         amountInput.addEventListener('input', handleAddAmountInput);
         amountInput.addEventListener('focus', () => {
             amountInput.value = sanitizeMoneyValue(amountInput.value);
+            updateAmountInputPresentation();
             amountInput.select();
         });
         amountInput.addEventListener('blur', formatAddAmountInput);
@@ -7771,6 +7794,7 @@ export function initAddTransactionForm() {
         dateInput.max = '2100-12-31';
     }
     updateAddTransactionDate(document.getElementById('txDateHidden')?.value || getLocalISODate());
+    updateAmountInputPresentation();
     renderAddCategoryInsight();
     clearAddFormErrors();
 }
