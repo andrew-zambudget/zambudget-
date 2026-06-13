@@ -31,7 +31,7 @@ test.describe('login page safeguards', () => {
         await page.goto('/login.html');
         await expect(page.locator('#magicEmail')).toBeVisible();
 
-        await page.locator('#magicEmail').fill('astruck92@gmail.com');
+        await page.locator('#magicEmail').fill('devtest@budget-buddy.io');
         await page.locator('#magicLinkBtn').click();
 
         const message = page.locator('#authMessage');
