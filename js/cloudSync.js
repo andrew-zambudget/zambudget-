@@ -379,62 +379,146 @@ function formatWaitMinutes(ms = 0) {
     return `${minutes} minute${minutes === 1 ? '' : 's'}`;
 }
 
-function pluralizeSyncLabel(count, singular, plural = `${singular}s`) {
-    return `${count} ${count === 1 ? singular : plural}`;
+function getShortChecksum(value = '', fallback = 'none') {
+    const normalized = String(value || '').replace(/[^a-zA-Z0-9_-]/g, '');
+    return normalized ? `${normalized.slice(0, 4)}...` : fallback;
 }
 
-function formatSyncAmount(amount, currencySymbol = '$') {
-    const parsed = Number.parseFloat(amount);
-    if (!Number.isFinite(parsed)) return '';
+function getSyncDeviceLabel() {
+    const nav = typeof navigator === 'object' ? navigator : null;
+    const ua = String(nav?.userAgent || '');
+    const brands = Array.isArray(nav?.userAgentData?.brands) ? nav.userAgentData.brands : [];
+    const brandNames = brands.map(item => String(item?.brand || '').toLowerCase());
+    const platform = String(nav?.userAgentData?.platform || nav?.platform || '');
 
-    return `${currencySymbol}${Math.abs(parsed).toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    })}`;
+    let browser = 'Browser';
+    if (/Edg\//i.test(ua) || brandNames.some(name => name.includes('edge'))) browser = 'Edge';
+    else if (brandNames.some(name => name.includes('chrome')) || /Chrome\//i.test(ua)) browser = 'Chrome';
+    else if (/Firefox\//i.test(ua)) browser = 'Firefox';
+    else if (/Safari\//i.test(ua)) browser = 'Safari';
+
+    let os = '';
+    if (/Win/i.test(platform) || /Windows/i.test(ua)) os = 'Windows';
+    else if (/Mac/i.test(platform) || /Mac OS/i.test(ua)) os = 'macOS';
+    else if (/iPhone|iPad|iPod/i.test(platform) || /iPhone|iPad|iPod/i.test(ua)) os = 'iOS';
+    else if (/Android/i.test(platform) || /Android/i.test(ua)) os = 'Android';
+    else if (/Linux/i.test(platform) || /Linux/i.test(ua)) os = 'Linux';
+
+    return [browser, os].filter(Boolean).join(' ') || 'This device';
 }
 
-function formatSyncDate(value = '') {
-    const normalized = String(value || '').trim();
-    const dateOnly = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    const date = dateOnly
-        ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
-        : new Date(normalized);
-    if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+function getTransactionSyncId(tx = {}, index = 0) {
+    return String(tx?.id || tx?.transactionId || tx?.uuid || tx?.createdAtUTC || tx?.serverLoggedAtUTC || tx?.createdAt || `index-${index}`);
 }
 
-function getSyncTransactionTime(tx = {}) {
-    const value = tx?.updatedAtUTC || tx?.serverLoggedAtUTC || tx?.createdAtUTC || tx?.createdAt || tx?.date || '';
-    return getTimestampMs(value);
+function sortForSyncComparison(value) {
+    if (Array.isArray(value)) return value.map(sortForSyncComparison);
+    if (!value || typeof value !== 'object') return value;
+
+    return Object.keys(value)
+        .sort()
+        .reduce((next, key) => {
+            next[key] = sortForSyncComparison(value[key]);
+            return next;
+        }, {});
 }
 
-function formatSyncTransactionDetail(tx = {}, currencySymbol = '$') {
-    const cleanText = value => String(value || '').replace(/\s+/g, ' ').trim();
-    const description = cleanText(tx.description || tx.category || tx.type || 'Transaction').slice(0, 48);
-    const amount = formatSyncAmount(tx.amount, currencySymbol);
-    const type = cleanText(tx.type).slice(0, 18);
-    const date = formatSyncDate(tx.date || tx.serverLoggedAtUTC || tx.createdAtUTC || tx.createdAt);
-    const meta = [type, amount, date].filter(Boolean).join(' - ');
-
-    return meta ? `${description} (${meta})` : description;
+function getTransactionSignature(tx = {}) {
+    try {
+        return JSON.stringify(sortForSyncComparison(tx));
+    } catch {
+        return '';
+    }
 }
 
-function buildSyncSnapshotDetails(snapshot = {}) {
-    const transactions = Array.isArray(snapshot.transactions) ? snapshot.transactions : [];
-    const categories = Array.isArray(snapshot.categories) ? snapshot.categories : [];
-    const activeTransactions = transactions.filter(tx => !tx?.isDeleted);
-    const currencySymbol = String(snapshot.settings?.currency || '$').trim().slice(0, 4) || '$';
-    const recentTransactions = activeTransactions
-        .slice()
-        .sort((a, b) => getSyncTransactionTime(b) - getSyncTransactionTime(a))
-        .slice(0, 5)
-        .map(tx => formatSyncTransactionDetail(tx, currencySymbol))
-        .filter(Boolean);
+function getTransactionMap(snapshot = {}) {
+    const transactions = Array.isArray(snapshot?.transactions) ? snapshot.transactions : [];
+    return transactions.reduce((map, tx, index) => {
+        map.set(getTransactionSyncId(tx, index), tx || {});
+        return map;
+    }, new Map());
+}
+
+function getSyncTransactionDelta(beforeSnapshot = null, afterSnapshot = {}) {
+    const before = getTransactionMap(beforeSnapshot || {});
+    const after = getTransactionMap(afterSnapshot || {});
+    let added = 0;
+    let updated = 0;
+    let deleted = 0;
+
+    after.forEach((nextTx, id) => {
+        const previousTx = before.get(id);
+        const wasDeleted = Boolean(previousTx?.isDeleted);
+        const isDeleted = Boolean(nextTx?.isDeleted);
+
+        if (!previousTx) {
+            if (!isDeleted) added += 1;
+            return;
+        }
+
+        if (!wasDeleted && isDeleted) {
+            deleted += 1;
+            return;
+        }
+
+        if (wasDeleted && !isDeleted) {
+            added += 1;
+            return;
+        }
+
+        if (!isDeleted && getTransactionSignature(previousTx) !== getTransactionSignature(nextTx)) {
+            updated += 1;
+        }
+    });
+
+    before.forEach((previousTx, id) => {
+        if (!after.has(id) && !previousTx?.isDeleted) deleted += 1;
+    });
+
+    return { added, updated, deleted };
+}
+
+function buildSyncSnapshotDetails({
+    beforeSnapshot = null,
+    afterSnapshot = {},
+    beforeChecksum = '',
+    afterChecksum = '',
+    resultStatus = 'success'
+} = {}) {
+    return {
+        kind: 'buddy_cloud_sync_summary',
+        privacySafe: true,
+        device: getSyncDeviceLabel(),
+        transactions: getSyncTransactionDelta(beforeSnapshot, afterSnapshot),
+        snapshot: {
+            before: getShortChecksum(beforeChecksum),
+            after: getShortChecksum(afterChecksum, 'pending')
+        },
+        resultStatus
+    };
+}
+
+function getSafeSyncRecordDetails(details = null) {
+    if (!details || typeof details !== 'object') return null;
+    if (details.kind !== 'buddy_cloud_sync_summary' || details.privacySafe !== true) return null;
+
+    const count = value => Math.max(0, Number.parseInt(value, 10) || 0);
+    const cleanText = (value, fallback = '') => String(value || fallback).replace(/\s+/g, ' ').trim().slice(0, 64);
 
     return {
-        summary: `Snapshot included ${pluralizeSyncLabel(activeTransactions.length, 'active transaction')} and ${pluralizeSyncLabel(categories.length, 'category', 'categories')}.`,
-        items: recentTransactions,
-        note: 'Shown only on this device before encryption.'
+        kind: 'buddy_cloud_sync_summary',
+        privacySafe: true,
+        device: cleanText(details.device, 'This device'),
+        transactions: {
+            added: count(details.transactions?.added),
+            updated: count(details.transactions?.updated),
+            deleted: count(details.transactions?.deleted)
+        },
+        snapshot: {
+            before: cleanText(details.snapshot?.before, 'none'),
+            after: cleanText(details.snapshot?.after, 'pending')
+        },
+        resultStatus: cleanText(details.resultStatus, 'success')
     };
 }
 
@@ -586,7 +670,8 @@ function record(message, status = 'synced', details = null) {
         try {
             const history = JSON.parse(localStorage.getItem(CLOUD_HISTORY_KEY) || '[]');
             const event = { id: Date.now(), time: new Date().toISOString(), status, message };
-            if (details && typeof details === 'object') event.details = details;
+            const safeDetails = getSafeSyncRecordDetails(details);
+            if (safeDetails) event.details = safeDetails;
             history.unshift(event);
             localStorage.setItem(CLOUD_HISTORY_KEY, JSON.stringify(history.slice(0, CLOUD_HISTORY_LIMIT)));
         } catch {
@@ -1026,16 +1111,23 @@ async function performPushSnapshotNow(reason = 'Budget synced to Buddy Cloud.') 
 
     rememberStatus({ syncing: true, nextSyncAt: '', nextSyncReason: 'Buddy Cloud upload running now' });
     const snapshot = getLocalSnapshot();
-    const syncDetails = buildSyncSnapshotDetails(snapshot);
-    record('Syncing with Buddy Cloud...', 'syncing', syncDetails);
+    record('Syncing with Buddy Cloud...', 'syncing');
     const clientUpdatedAt = snapshot.meta?.localUpdatedAt || new Date().toISOString();
     const existingRemote = await fetchRemoteVault();
     await claimSyncSlot(existingRemote);
+    let remoteSnapshot = null;
     if (existingRemote) {
-        await decryptSnapshot(existingRemote.payload, rawKey);
+        remoteSnapshot = await decryptSnapshot(existingRemote.payload, rawKey);
     }
     const payload = await encryptSnapshot(snapshot, rawKey);
     const checksum = await sha256(JSON.stringify(payload));
+    const syncDetails = buildSyncSnapshotDetails({
+        beforeSnapshot: remoteSnapshot,
+        afterSnapshot: snapshot,
+        beforeChecksum: existingRemote?.payload_checksum || '',
+        afterChecksum: checksum,
+        resultStatus: 'success'
+    });
     const syncSlotFields = await getSyncSlotUpsertFields(existingRemote);
 
     const { error } = await sb
@@ -1071,7 +1163,7 @@ async function performPushSnapshotNow(reason = 'Budget synced to Buddy Cloud.') 
     localStorage.setItem(CLOUD_LAST_REMOTE_KEY, clientUpdatedAt);
     clearConflictState();
     clearForcePullAfterSignIn();
-    record(reason, 'synced', syncDetails);
+    record('Sync completed', 'synced', syncDetails);
     return true;
 }
 

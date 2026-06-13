@@ -283,17 +283,78 @@ function isPausedSyncMessage(message = '') {
         || normalized.includes('use this browser instead');
 }
 
+function cleanSyncHistoryText(value, maxLength = 140) {
+    return String(value || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, maxLength);
+}
+
+function normalizeSyncCount(value) {
+    return Math.max(0, Number.parseInt(value, 10) || 0);
+}
+
+function normalizeSyncEventDetails(details = null) {
+    if (!details || typeof details !== 'object') return null;
+    if (details.kind !== 'buddy_cloud_sync_summary' || details.privacySafe !== true) return null;
+
+    const device = cleanSyncHistoryText(details.device, 64) || 'This device';
+    const before = cleanSyncHistoryText(details.snapshot?.before, 32) || 'none';
+    const after = cleanSyncHistoryText(details.snapshot?.after, 32) || 'pending';
+    const resultStatus = cleanSyncHistoryText(details.resultStatus, 32) || 'success';
+
+    return {
+        kind: 'buddy_cloud_sync_summary',
+        privacySafe: true,
+        device,
+        transactions: {
+            added: normalizeSyncCount(details.transactions?.added),
+            updated: normalizeSyncCount(details.transactions?.updated),
+            deleted: normalizeSyncCount(details.transactions?.deleted)
+        },
+        snapshot: { before, after },
+        resultStatus
+    };
+}
+
+function sanitizeSyncHistoryEvent(event = {}, index = 0) {
+    const source = event && typeof event === 'object' ? event : {};
+    const safeStatus = getSafeSyncEventStatus(source.status);
+    const fallbackTime = new Date().toISOString();
+    const eventTime = cleanSyncHistoryText(source.time, 40) || fallbackTime;
+    const safeEvent = {
+        id: source.id || `${eventTime}-${index}`,
+        time: Number.isNaN(new Date(eventTime).getTime()) ? fallbackTime : eventTime,
+        status: safeStatus,
+        message: cleanSyncHistoryText(source.message, 160) || getSyncStatusMessage(safeStatus)
+    };
+    const details = normalizeSyncEventDetails(source.details);
+    if (details) safeEvent.details = details;
+    return safeEvent;
+}
+
 function getSyncHistory() {
     try {
         const parsed = JSON.parse(localStorage.getItem(SYNC_HISTORY_KEY) || '[]');
-        return Array.isArray(parsed) ? parsed : [];
+        if (!Array.isArray(parsed)) return [];
+        const sanitized = parsed
+            .slice(0, SYNC_HISTORY_VISIBLE_LIMIT)
+            .map((event, index) => sanitizeSyncHistoryEvent(event, index));
+        const nextValue = JSON.stringify(sanitized);
+        if (JSON.stringify(parsed.slice(0, SYNC_HISTORY_VISIBLE_LIMIT)) !== nextValue) {
+            localStorage.setItem(SYNC_HISTORY_KEY, nextValue);
+        }
+        return sanitized;
     } catch {
         return [];
     }
 }
 
 function saveSyncHistory(events) {
-    localStorage.setItem(SYNC_HISTORY_KEY, JSON.stringify(events.slice(0, SYNC_HISTORY_VISIBLE_LIMIT)));
+    const sanitized = Array.isArray(events)
+        ? events.slice(0, SYNC_HISTORY_VISIBLE_LIMIT).map((event, index) => sanitizeSyncHistoryEvent(event, index))
+        : [];
+    localStorage.setItem(SYNC_HISTORY_KEY, JSON.stringify(sanitized));
 }
 
 function formatSyncTime(iso) {
@@ -316,38 +377,54 @@ function getSyncEventStatusTooltip(status) {
     return 'Warning';
 }
 
-function normalizeSyncEventDetails(details = null) {
-    if (!details || typeof details !== 'object') return null;
-
-    const cleanText = (value, maxLength = 140) => String(value || '')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .slice(0, maxLength);
-    const summary = cleanText(details.summary, 180);
-    const items = Array.isArray(details.items)
-        ? details.items.map(item => cleanText(item, 120)).filter(Boolean).slice(0, 5)
-        : [];
-    const note = cleanText(details.note, 120);
-
-    if (!summary && !items.length && !note) return null;
-    return { summary, items, note };
+function formatSyncDetailTime(iso) {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return 'Unknown';
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const time = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        minute: '2-digit'
+    }).format(date);
+    return `${yyyy}-${mm}-${dd} ${time}`;
 }
 
-function renderSyncEventDetails(details = null) {
+function getSyncDetailStatusLabel(eventStatus = 'local', resultStatus = '') {
+    const normalized = cleanSyncHistoryText(resultStatus, 32).toLowerCase();
+    if (normalized) return normalized;
+    if (eventStatus === 'synced') return 'success';
+    if (eventStatus === 'syncing') return 'syncing';
+    if (eventStatus === 'error') return 'failed';
+    if (eventStatus === 'paused') return 'paused';
+    return 'partial';
+}
+
+function renderSyncEventDetails(details = null, event = {}) {
     const normalized = normalizeSyncEventDetails(details);
     if (!normalized) return '';
+    const eventStatus = getSafeSyncEventStatus(event.status);
+    const rows = [
+        ['Device', normalized.device],
+        ['Transactions', `+${normalized.transactions.added} / updated ${normalized.transactions.updated} / deleted ${normalized.transactions.deleted}`],
+        ['Snapshot', `${normalized.snapshot.before} \u2192 ${normalized.snapshot.after}`],
+        ['Status', getSyncDetailStatusLabel(eventStatus, normalized.resultStatus)],
+        ['Time', formatSyncDetailTime(event.time)]
+    ];
 
     return `
         <details class="sync-history-details">
             <summary>Snapshot details</summary>
             <div class="sync-history-details-body">
-                ${normalized.summary ? `<p class="sync-history-detail-summary">${esc(normalized.summary)}</p>` : ''}
-                ${normalized.items.length ? `
-                    <ul class="sync-history-detail-list">
-                        ${normalized.items.map(item => `<li>${esc(item)}</li>`).join('')}
-                    </ul>
-                ` : ''}
-                ${normalized.note ? `<div class="sync-history-detail-note">${esc(normalized.note)}</div>` : ''}
+                <dl class="sync-history-detail-grid">
+                    ${rows.map(([label, value]) => `
+                        <div class="sync-history-detail-row">
+                            <dt>${esc(label)}</dt>
+                            <dd>${esc(value)}</dd>
+                        </div>
+                    `).join('')}
+                </dl>
+                <div class="sync-history-detail-note">No descriptions, categories, notes, or amounts are stored in sync history.</div>
             </div>
         </details>
     `;
@@ -363,7 +440,7 @@ function renderSyncHistory() {
             ? history.slice(0, SYNC_HISTORY_VISIBLE_LIMIT).map(event => {
                 const eventStatus = getSafeSyncEventStatus(event.status);
                 const eventMessage = event.message || 'Local data saved.';
-                const detailsHtml = renderSyncEventDetails(event.details);
+                const detailsHtml = renderSyncEventDetails(event.details, event);
                 return `
                 <div class="sync-history-item sync-history-item-${eventStatus}">
                     <span class="sync-history-time">${esc(formatSyncTime(event.time))}</span>

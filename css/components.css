@@ -3324,6 +3324,41 @@ input.error, select.error {
   margin: 0;
 }
 
+.sync-history-detail-grid {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+}
+
+.sync-history-detail-row {
+  display: grid;
+  grid-template-columns: minmax(5.1rem, 0.72fr) minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.sync-history-detail-row dt,
+.sync-history-detail-row dd {
+  margin: 0;
+}
+
+.sync-history-detail-row dt {
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sync-history-detail-row dd {
+  min-width: 0;
+  color: var(--text, #0f172a);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
 .sync-history-detail-list {
   display: grid;
   gap: 0.18rem;
