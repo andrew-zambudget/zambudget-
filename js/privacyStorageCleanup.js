@@ -5,6 +5,10 @@ const SYNC_HISTORY_LIMIT = 5;
 const CLOUD_KEY_PREFIX = 'bb_cloud_key_';
 const BB_DATA_KEY = 'bb_data';
 const BB_LOCAL_UPDATED_AT_KEY = 'bb_local_updated_at';
+const LEGACY_TRANSACTIONS_KEY = 'bb_transactions';
+const LEGACY_CATEGORIES_KEY = 'bb_categories';
+const LEGACY_CUSTOM_CATEGORIES_KEY = 'bb_custom_categories';
+const LEGACY_DESCRIPTION_BUFFER_KEY = 'bb_circular_buffer';
 const DEMO_ACTIVE_KEY = 'bb_demo_active';
 const DEMO_BACKUP_HAS_DATA_KEY = 'bb_demo_backup_has_data';
 const DEMO_BACKUP_DATA_KEY = 'bb_demo_backup_bb_data';
@@ -44,8 +48,139 @@ function storageRemove(key) {
     }
 }
 
+function parseStoredJson(key, fallback = null) {
+    const raw = storageGet(key);
+    if (!raw) return fallback;
+
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return fallback;
+    }
+}
+
 function cleanText(value, maxLength = 160) {
     return String(value || '').replace(/\s+/g, ' ').trim().slice(0, maxLength);
+}
+
+function hasModernBudgetShape(payload = null) {
+    if (!payload || typeof payload !== 'object') return false;
+
+    return Array.isArray(payload.transactions) && Array.isArray(payload.categories);
+}
+
+function getExistingBudgetState() {
+    const raw = storageGet(BB_DATA_KEY);
+    if (!raw) return { exists: false, valid: false, payload: null };
+
+    const payload = parseStoredJson(BB_DATA_KEY, null);
+    return {
+        exists: true,
+        valid: hasModernBudgetShape(payload),
+        payload
+    };
+}
+
+function getLegacyArray(key) {
+    const parsed = parseStoredJson(key, []);
+    return Array.isArray(parsed) ? parsed.filter(item => item && typeof item === 'object') : [];
+}
+
+function normalizeLegacyTransaction(tx = {}, index = 0) {
+    const now = new Date().toISOString();
+    const createdAt = tx.createdAt || tx.createdAtUTC || tx.serverLoggedAtUTC || tx.date || now;
+
+    return {
+        ...tx,
+        id: tx.id || `legacy-tx-${Date.now()}-${index}`,
+        amount: Number.isFinite(Number(tx.amount)) ? Number(tx.amount) : 0,
+        type: tx.type || 'expense',
+        category: typeof tx.category === 'string' ? tx.category : '',
+        description: typeof tx.description === 'string' ? tx.description : '',
+        date: typeof tx.date === 'string' && tx.date ? tx.date : now.slice(0, 10),
+        createdAt,
+        createdAtUTC: tx.createdAtUTC || createdAt,
+        serverLoggedAtUTC: tx.serverLoggedAtUTC || createdAt,
+        updatedAtUTC: tx.updatedAtUTC || now,
+        isDeleted: tx.isDeleted === true
+    };
+}
+
+function getCategoryIdentity(cat = {}) {
+    const type = String(cat.type || 'expense').trim().toLowerCase();
+    const name = String(cat.name || '').trim().toLowerCase();
+    const id = String(cat.id || '').trim().toLowerCase();
+    return `${type}:${name || id}`;
+}
+
+function normalizeLegacyCategory(cat = {}, index = 0) {
+    const now = new Date().toISOString();
+    const name = String(cat.name || '').replace(/\s+/g, ' ').trim();
+    if (!name) return null;
+
+    return {
+        ...cat,
+        id: cat.id || `legacy-cat-${Date.now()}-${index}`,
+        name,
+        icon: cat.icon || '\u{1F4C1}',
+        type: cat.type || 'expense',
+        budget: Number.isFinite(Number(cat.budget)) ? Number(cat.budget) : 0,
+        createdAt: cat.createdAt || now
+    };
+}
+
+function getMergedLegacyCategories() {
+    const legacyCategories = [
+        ...getLegacyArray(LEGACY_CATEGORIES_KEY),
+        ...getLegacyArray(LEGACY_CUSTOM_CATEGORIES_KEY)
+    ];
+    const seen = new Set();
+
+    return legacyCategories
+        .map(normalizeLegacyCategory)
+        .filter(Boolean)
+        .filter(cat => {
+            const identity = getCategoryIdentity(cat);
+            if (!identity || seen.has(identity)) return false;
+            seen.add(identity);
+            return true;
+        });
+}
+
+function migrateLegacyBudgetStorage() {
+    const existing = getExistingBudgetState();
+    if (existing.valid) {
+        return { migrated: false, reason: 'bb_data_present' };
+    }
+
+    const transactions = getLegacyArray(LEGACY_TRANSACTIONS_KEY)
+        .map(normalizeLegacyTransaction)
+        .filter(tx => tx.description || tx.category || Number(tx.amount) !== 0);
+    const categories = getMergedLegacyCategories();
+
+    if (!transactions.length && !categories.length) {
+        return { migrated: false, reason: 'legacy_empty' };
+    }
+
+    const payload = {
+        transactions,
+        categories,
+        settings: {
+            lastCategorySort: 'manual'
+        }
+    };
+    const migrated = storageSet(BB_DATA_KEY, JSON.stringify(payload));
+    if (!migrated) return { migrated: false, reason: 'write_failed' };
+
+    if (!storageGet(BB_LOCAL_UPDATED_AT_KEY)) {
+        storageSet(BB_LOCAL_UPDATED_AT_KEY, new Date().toISOString());
+    }
+
+    return {
+        migrated: true,
+        transactionCount: transactions.length,
+        categoryCount: categories.length
+    };
 }
 
 function normalizeCount(value) {
@@ -125,6 +260,10 @@ function cleanupPersistedCloudKeys() {
     } catch {
         // Privacy cleanup must never block app startup.
     }
+}
+
+function cleanupLegacyDescriptionBuffer() {
+    storageRemove(LEGACY_DESCRIPTION_BUFFER_KEY);
 }
 
 function hasStrandedDemoBackup() {
@@ -290,12 +429,14 @@ function mountDemoBackupRecoveryModal() {
 export function runPrivacyStorageCleanup() {
     cleanupSyncHistory();
     cleanupPersistedCloudKeys();
+    cleanupLegacyDescriptionBuffer();
 
     if (hasStrandedDemoBackup()) {
         mountDemoBackupRecoveryModal();
         return { blocked: true, reason: 'demo_backup_restore_required' };
     }
 
+    const legacyMigration = migrateLegacyBudgetStorage();
     cleanupInactiveDemoBackup();
-    return { blocked: false };
+    return { blocked: false, legacyMigration };
 }

@@ -14775,12 +14775,18 @@ window.setUnifiedType = function(type) {
 };
 
 // --- THE CIRCULAR BUFFER (Spec 3.2) ---
+function getSessionCircularBufferData() {
+    if (!window.bbCircularBufferData || typeof window.bbCircularBufferData !== 'object') {
+        window.bbCircularBufferData = {};
+    }
+    return window.bbCircularBufferData;
+}
+
 window.renderCircularBuffer = function(type) {
     const container = document.getElementById('smartSuggestionsRow');
     if (!container) return;
 
-    // Pull from localStorage, or default to empty object
-    const bufferData = JSON.parse(localStorage.getItem('bb_circular_buffer') || '{}');
+    const bufferData = getSessionCircularBufferData();
     const typeBuffer = bufferData[type] || [];
 
     container.innerHTML = '';
@@ -14818,7 +14824,7 @@ window.renderCircularBuffer = function(type) {
 window.saveToCircularBuffer = function(type, description) {
     if (!description) return;
 
-    const bufferData = JSON.parse(localStorage.getItem('bb_circular_buffer') || '{}');
+    const bufferData = getSessionCircularBufferData();
     let typeBuffer = bufferData[type] || [];
 
     // Remove if it already exists to prevent duplicates, then push to front
@@ -14831,7 +14837,6 @@ window.saveToCircularBuffer = function(type, description) {
     }
 
     bufferData[type] = typeBuffer;
-    localStorage.setItem('bb_circular_buffer', JSON.stringify(bufferData));
 };
 
 // --- SMART ICON AUTO-FILL (Spec 4.1 & 4.2) ---
