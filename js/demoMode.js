@@ -197,12 +197,16 @@ function clearDemoBackup() {
     ].forEach(storageRemove);
 }
 
-function clearDemoKeys() {
+function clearDemoSessionKeys() {
     [
         ACTIVE_KEY,
         STARTED_AT_KEY,
         EXPIRES_AT_KEY
     ].forEach(storageRemove);
+}
+
+function clearDemoKeys() {
+    clearDemoSessionKeys();
     clearDemoBackup();
 }
 
@@ -256,7 +260,11 @@ function restorePreviousBudget() {
     const backupUpdatedAt = storageGet(BACKUP_UPDATED_AT_KEY);
 
     if (hadData && backupData) {
-        storageSet(BB_DATA_KEY, backupData);
+        storageRemove(BB_DATA_KEY);
+        if (!storageSet(BB_DATA_KEY, backupData)) {
+            console.warn('[Demo Mode] Could not restore the pre-demo budget. Keeping demo backup for retry.');
+            return false;
+        }
     } else {
         storageRemove(BB_DATA_KEY);
     }
@@ -268,6 +276,18 @@ function restorePreviousBudget() {
     }
 
     clearDemoBackup();
+    return true;
+}
+
+function restoreAndClearDemo(reason = 'ended') {
+    const restored = restorePreviousBudget();
+    if (restored) {
+        clearDemoKeys();
+        return true;
+    }
+
+    console.warn(`[Demo Mode] Cleanup paused after ${reason}; pre-demo backup is still available for retry.`);
+    return false;
 }
 
 function dateFor(dayOffset = 0) {
@@ -361,21 +381,45 @@ function hasMeaningfulLocalBudget() {
 function seedDemoBudget() {
     const payload = getSampleBudget();
     const stampedAt = new Date().toISOString();
-    storageSet(BB_DATA_KEY, JSON.stringify(payload));
-    storageSet(BB_LOCAL_UPDATED_AT_KEY, stampedAt);
+    const wroteData = storageSet(BB_DATA_KEY, JSON.stringify(payload));
+    const wroteTimestamp = storageSet(BB_LOCAL_UPDATED_AT_KEY, stampedAt);
+    return wroteData && wroteTimestamp;
+}
+
+function markDemoSessionActive(now = Date.now()) {
+    const wroteActive = storageSet(ACTIVE_KEY, 'true');
+    const wroteStartedAt = storageSet(STARTED_AT_KEY, String(now));
+    const wroteExpiresAt = storageSet(EXPIRES_AT_KEY, String(now + DEMO_DURATION_MS));
+    return wroteActive && wroteStartedAt && wroteExpiresAt;
+}
+
+function abortDemoStart(reason = 'startup_failed') {
+    const restored = restoreAndClearDemo(reason);
+    if (!restored) {
+        markDemoEnded('restore_failed');
+        return { active: true, restoreFailed: true };
+    }
+
+    clearDemoSessionKeys();
+    markDemoEnded(reason);
+    return { active: false, startupFailed: true };
 }
 
 function startDemo() {
     if (!backupCurrentBudget()) {
-        markDemoEnded('backup_failed');
-        return { active: false, backupFailed: true };
+        markDemoEnded('startup_failed');
+        return { active: false, startupFailed: true };
     }
 
     const now = Date.now();
-    storageSet(ACTIVE_KEY, 'true');
-    storageSet(STARTED_AT_KEY, String(now));
-    storageSet(EXPIRES_AT_KEY, String(now + DEMO_DURATION_MS));
-    seedDemoBudget();
+    if (!markDemoSessionActive(now)) {
+        return abortDemoStart('startup_failed');
+    }
+
+    if (!seedDemoBudget()) {
+        return abortDemoStart('startup_failed');
+    }
+
     return getDemoState();
 }
 
@@ -433,8 +477,13 @@ function completeDemo({ reason = 'ended', navigateTo = '', restart = false, show
         countdownTimer = null;
     }
 
-    restorePreviousBudget();
-    clearDemoKeys();
+    if (!restoreAndClearDemo(reason)) {
+        markDemoEnded('restore_failed');
+        if (window.showToast) {
+            window.showToast('Demo cleanup paused. BudgetBuddy kept the restore backup and will retry before leaving demo mode.');
+        }
+        return;
+    }
 
     if (showNotice) markDemoEnded(reason);
 
@@ -455,8 +504,10 @@ export function prepareDemoMode({ user } = {}) {
     }
 
     if (user && (requested || active)) {
-        if (active) restorePreviousBudget();
-        clearDemoKeys();
+        if (active && !restoreAndClearDemo('signed_in')) {
+            return { active: true, restoreFailed: true };
+        }
+        if (!active) clearDemoKeys();
         return {
             active: false,
             disabledForSignedInUser: true,
@@ -466,17 +517,19 @@ export function prepareDemoMode({ user } = {}) {
         };
     }
 
-    if (active && !requested) {
-        restorePreviousBudget();
-        clearDemoKeys();
-        return { active: false, leftDemo: true };
-    }
-
     if (active && demoExpired()) {
-        restorePreviousBudget();
-        clearDemoKeys();
+        if (!restoreAndClearDemo('expired')) {
+            return { active: true, restoreFailed: true };
+        }
         markDemoEnded('expired');
         return { active: false, expired: true };
+    }
+
+    if (active && !requested) {
+        if (!restoreAndClearDemo('left_demo')) {
+            return { active: true, restoreFailed: true };
+        }
+        return { active: false, leftDemo: true };
     }
 
     if (requested && !active) {
@@ -484,7 +537,9 @@ export function prepareDemoMode({ user } = {}) {
     }
 
     if (isDemoModeActive() && !storageGet(BB_DATA_KEY)) {
-        seedDemoBudget();
+        if (!seedDemoBudget()) {
+            return abortDemoStart('startup_failed');
+        }
     }
 
     return getDemoState();
@@ -1038,11 +1093,12 @@ function startCountdown() {
 function showEndedModal(reason = 'ended') {
     if (document.getElementById(MODAL_ID) || isDemoModeActive()) return;
 
-    const title = reason === 'backup_failed'
+    const startupFailed = reason === 'backup_failed' || reason === 'startup_failed';
+    const title = startupFailed
         ? 'Demo start paused'
         : reason === 'expired' ? 'Demo time ended' : 'Demo cleared';
-    const body = reason === 'backup_failed'
-        ? 'BudgetBuddy could not safely save a temporary restore point for this browser budget, so demo mode did not start.'
+    const body = startupFailed
+        ? 'BudgetBuddy could not safely prepare a temporary demo session for this browser budget, so demo mode did not start.'
         : reason === 'expired'
             ? 'The sample session ended. Your real budget is protected when you sign in with Buddy Cloud.'
             : 'The sample demo data has been cleared. Sign in or create an account to start a real budget with encrypted Buddy Cloud protection.';
