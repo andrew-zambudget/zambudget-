@@ -2558,11 +2558,37 @@ function getCurrentBrowserSyncDeviceStatusLabel() {
     if (!status.signedIn || !status.enabled) return 'Current browser \u00b7 Sync slot inactive';
     if (!status.hasKey) return 'Current browser \u00b7 Recovery key needed';
     if (status.isPremium || status.multiDeviceAllowed) return 'Current browser \u00b7 Premium unlimited';
-    if (status.syncing || hasBuddyCloudConflict(status) || isBuddyCloudMultiDeviceLimit(status) || status.lastError) {
-        return 'Current browser \u00b7 Sync paused';
-    }
+    if (status.syncing) return 'Current browser \u00b7 Syncing';
+    if (hasBuddyCloudConflict(status)) return 'Current browser \u00b7 Review needed';
+    if (isBuddyCloudMultiDeviceLimit(status)) return 'Current browser \u00b7 Sync slot needed';
+    if (status.lastError) return 'Current browser \u00b7 Needs attention';
     if (status.syncSlotCurrentBrowserActive) return 'Current browser \u00b7 Sync active';
     return 'Current browser \u00b7 Sync slot inactive';
+}
+
+function getAvailableFreeSyncSlotCount() {
+    const status = window.BuddyCloud?.getStatus?.() || {};
+    if (!status.signedIn || !status.enabled || !status.hasKey) return 0;
+    if (status.isPremium || status.multiDeviceAllowed) return 0;
+
+    const freeLimit = Math.max(0, Number(status.freeDeviceLimit || status.syncSlotLimit || 2) || 0);
+    const usedSlots = getBuddyCloudActiveSyncSlotRowsForDevices().length;
+    return Math.max(0, freeLimit - usedSlots);
+}
+
+function canUseAvailableFreeSyncSlot(status = window.BuddyCloud?.getStatus?.() || {}) {
+    return Boolean(
+        status.signedIn
+        && status.enabled
+        && status.hasKey
+        && status.canUseCloud
+        && !status.syncing
+        && !status.syncSlotCurrentBrowserActive
+        && !status.syncSlotBlocked
+        && !hasBuddyCloudConflict(status)
+        && !isBuddyCloudMultiDeviceLimit(status)
+        && getAvailableFreeSyncSlotCount() > 0
+    );
 }
 
 function buildBrowserAccessDeviceListHtml(context = {}, { includeGlobalSignOut = false } = {}) {
@@ -2626,11 +2652,35 @@ function buildBrowserAccessDeviceListHtml(context = {}, { includeGlobalSignOut =
             </div>
         `;
     }).join('');
+    const availableFreeSlotCount = getAvailableFreeSyncSlotCount();
+    const availableRows = context.available && availableFreeSlotCount > 0
+        ? Array.from({ length: availableFreeSlotCount }, (_, index) => {
+            const label = availableFreeSlotCount > 1
+                ? `Available sync slot ${index + 1}`
+                : 'Available sync slot';
+            const action = index === 0 && canUseAvailableFreeSyncSlot()
+                ? '<button type="button" class="btn-create buddy-cloud-action buddy-cloud-device-signout-btn" data-action="activate-sync-slot" data-persistent="false">Use This Browser</button>'
+                : '<span class="buddy-cloud-device-current">Unused</span>';
+            return `
+                <div class="buddy-cloud-device-row buddy-cloud-device-row-available" role="listitem">
+                    <div class="buddy-cloud-device-main">
+                        <span class="buddy-cloud-device-icon" aria-hidden="true">${getBrowserAccessIconSvg()}</span>
+                        <span class="buddy-cloud-device-copy">
+                            <strong>${esc(label)}</strong>
+                            <span>Ready for another active browser</span>
+                        </span>
+                    </div>
+                    ${action}
+                </div>
+            `;
+        }).join('')
+        : '';
 
     return `
         <div class="buddy-cloud-device-list" role="list" aria-label="Known Buddy Cloud browsers">
             ${deviceRows}
             ${unmatchedRows}
+            ${availableRows}
         </div>
         <div class="buddy-cloud-device-privacy">
             <button type="button" class="buddy-cloud-action buddy-cloud-privacy-details-btn" data-action="privacy-details" data-persistent="false" aria-label="Privacy details for device management">
@@ -3569,6 +3619,7 @@ function getBuddyCloudDeviceStatusCopy() {
     if (hasBuddyCloudConflict(status)) return 'Possible data loss prevented. Compare the saved versions before Buddy Cloud overwrites either copy.';
     if (status.lastError) return status.lastError;
     if (status.syncing) return 'Buddy Cloud is syncing on this browser.';
+    if (canUseAvailableFreeSyncSlot(status)) return 'This browser is signed in but is not using a Free sync slot yet. Use this browser to claim an available slot and resume Buddy Cloud.';
     return status.isPremium
         ? 'Buddy Cloud is active with Multi-Device Sync Plus.'
         : 'Buddy Cloud is active on this browser.';
@@ -3983,6 +4034,14 @@ async function handleBuddyCloudDeviceAction(action) {
         const result = await completeBuddyCloudEnableFlow({ replaceSyncSlot: true });
         if (result && window.showToast) window.showToast('This browser is now the active Buddy Cloud browser.');
         return;
+    }
+
+    if (action === 'activate-sync-slot') {
+        recordSyncEvent('Activating this browser for Buddy Cloud...', 'syncing');
+        await window.BuddyCloud?.syncNow?.();
+        await refreshBrowserAccessRegistry({ silent: true });
+        if (window.showToast) window.showToast('This browser is now using an available Buddy Cloud sync slot.');
+        return 'back-to-devices';
     }
 
     if (action === 'download') {

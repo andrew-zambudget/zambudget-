@@ -4280,6 +4280,10 @@ input.error, select.error {
     background: color-mix(in srgb, var(--amber, #f59e0b) 5%, var(--surface, #ffffff));
 }
 
+.buddy-cloud-devices-modal .buddy-cloud-device-row-available {
+    background: color-mix(in srgb, var(--accent, #6366f1) 4%, var(--surface, #ffffff));
+}
+
 .buddy-cloud-devices-modal .buddy-cloud-device-main {
     gap: 0.72rem;
 }
