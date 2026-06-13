@@ -298,7 +298,6 @@ function normalizeSyncEventDetails(details = null) {
     if (!details || typeof details !== 'object') return null;
     if (details.kind !== 'buddy_cloud_sync_summary' || details.privacySafe !== true) return null;
 
-    const device = cleanSyncHistoryText(details.device, 64) || 'This device';
     const before = cleanSyncHistoryText(details.snapshot?.before, 32) || 'none';
     const after = cleanSyncHistoryText(details.snapshot?.after, 32) || 'pending';
     const resultStatus = cleanSyncHistoryText(details.resultStatus, 32) || 'success';
@@ -306,7 +305,6 @@ function normalizeSyncEventDetails(details = null) {
     return {
         kind: 'buddy_cloud_sync_summary',
         privacySafe: true,
-        device,
         transactions: {
             added: normalizeSyncCount(details.transactions?.added),
             updated: normalizeSyncCount(details.transactions?.updated),
@@ -405,7 +403,6 @@ function renderSyncEventDetails(details = null, event = {}) {
     if (!normalized) return '';
     const eventStatus = getSafeSyncEventStatus(event.status);
     const rows = [
-        ['Device', normalized.device],
         ['Transactions', `+${normalized.transactions.added} / updated ${normalized.transactions.updated} / deleted ${normalized.transactions.deleted}`],
         ['Snapshot', `${normalized.snapshot.before} \u2192 ${normalized.snapshot.after}`],
         ['Status', getSyncDetailStatusLabel(eventStatus, normalized.resultStatus)],
@@ -424,7 +421,7 @@ function renderSyncEventDetails(details = null, event = {}) {
                         </div>
                     `).join('')}
                 </dl>
-                <div class="sync-history-detail-note">No descriptions, categories, notes, or amounts are stored in sync history.</div>
+                <div class="sync-history-detail-note">No descriptions, categories, notes, amounts, browser, or OS details are stored in sync history.</div>
             </div>
         </details>
     `;
@@ -813,7 +810,7 @@ function initSyncObserver() {
     }
 
     window.addEventListener('offline', () => {
-        recordSyncEvent('Device offline. Changes remain partially saved until Buddy Cloud verifies backup.', 'error');
+        recordSyncEvent('Offline. Changes remain partially saved until Buddy Cloud verifies backup.', 'error');
     });
     window.addEventListener('online', () => {
         recordSyncEvent('Back online. Buddy Cloud backup pending.', 'local');
@@ -2110,19 +2107,8 @@ function getApproxByteRange(value = '') {
 }
 
 function getBrowserDiagnosticSummary() {
-    if (navigator.userAgentData?.brands) {
-        return {
-            brands: navigator.userAgentData.brands.map(item => ({
-                brand: item.brand,
-                majorVersion: String(item.version || '').split('.')[0] || ''
-            })),
-            platform: navigator.userAgentData.platform || 'unknown'
-        };
-    }
-
     return {
-        brands: [],
-        platform: 'not collected'
+        metadata: 'not collected'
     };
 }
 
@@ -2784,7 +2770,6 @@ function buildBuddyCloudDiagnosticReport() {
                 'recent sync messages',
                 'sync timestamps',
                 'app page',
-                'browser brand/platform summary',
                 'local storage size ranges'
             ],
             excludesBudgetContents: true,
@@ -3381,18 +3366,11 @@ export function handleAccountSupport(event) {
 }
 
 async function confirmSignOutAllDevices() {
-    const browserSummary = getBrowserDiagnosticSummary();
     const cloudStatus = window.BuddyCloud?.getStatus?.() || {};
     const needsRecoveryKeyBackup = Boolean(cloudStatus.enabled && cloudStatus.hasKey && !hasRecoveryKeyBackedUpFlag());
-    const platform = browserSummary.platform && browserSummary.platform !== 'not collected'
-        ? browserSummary.platform
-        : 'Not collected';
-    const browserBrands = Array.isArray(browserSummary.brands) && browserSummary.brands.length
-        ? browserSummary.brands.map(item => `${item.brand} ${item.majorVersion}`.trim()).join(', ')
-        : 'Not collected';
     const result = await showBuddyCloudModal({
         title: 'Sign Out All Devices?',
-        body: `Current browser summary: ${browserBrands}. Platform: ${platform}.`,
+        body: 'This revokes account sessions and known BudgetBuddy browser access records without collecting browser brand, OS, user agent, or IP-derived location.',
         assurance: 'Supabase will revoke account sessions, and BudgetBuddy will mark known browser access records as revoked. Your encrypted Buddy Cloud vault is not deleted, and BudgetBuddy still cannot read it.',
         warning: needsRecoveryKeyBackup
             ? 'This clears this browser. BudgetBuddy will require a recovery key download before continuing so this account is not locked out of the encrypted cloud budget.'

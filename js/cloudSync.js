@@ -384,29 +384,6 @@ function getShortChecksum(value = '', fallback = 'none') {
     return normalized ? `${normalized.slice(0, 4)}...` : fallback;
 }
 
-function getSyncDeviceLabel() {
-    const nav = typeof navigator === 'object' ? navigator : null;
-    const ua = String(nav?.userAgent || '');
-    const brands = Array.isArray(nav?.userAgentData?.brands) ? nav.userAgentData.brands : [];
-    const brandNames = brands.map(item => String(item?.brand || '').toLowerCase());
-    const platform = String(nav?.userAgentData?.platform || nav?.platform || '');
-
-    let browser = 'Browser';
-    if (/Edg\//i.test(ua) || brandNames.some(name => name.includes('edge'))) browser = 'Edge';
-    else if (brandNames.some(name => name.includes('chrome')) || /Chrome\//i.test(ua)) browser = 'Chrome';
-    else if (/Firefox\//i.test(ua)) browser = 'Firefox';
-    else if (/Safari\//i.test(ua)) browser = 'Safari';
-
-    let os = '';
-    if (/Win/i.test(platform) || /Windows/i.test(ua)) os = 'Windows';
-    else if (/Mac/i.test(platform) || /Mac OS/i.test(ua)) os = 'macOS';
-    else if (/iPhone|iPad|iPod/i.test(platform) || /iPhone|iPad|iPod/i.test(ua)) os = 'iOS';
-    else if (/Android/i.test(platform) || /Android/i.test(ua)) os = 'Android';
-    else if (/Linux/i.test(platform) || /Linux/i.test(ua)) os = 'Linux';
-
-    return [browser, os].filter(Boolean).join(' ') || 'This device';
-}
-
 function getTransactionSyncId(tx = {}, index = 0) {
     return String(tx?.id || tx?.transactionId || tx?.uuid || tx?.createdAtUTC || tx?.serverLoggedAtUTC || tx?.createdAt || `index-${index}`);
 }
@@ -488,7 +465,6 @@ function buildSyncSnapshotDetails({
     return {
         kind: 'buddy_cloud_sync_summary',
         privacySafe: true,
-        device: getSyncDeviceLabel(),
         transactions: getSyncTransactionDelta(beforeSnapshot, afterSnapshot),
         snapshot: {
             before: getShortChecksum(beforeChecksum),
@@ -508,7 +484,6 @@ function getSafeSyncRecordDetails(details = null) {
     return {
         kind: 'buddy_cloud_sync_summary',
         privacySafe: true,
-        device: cleanText(details.device, 'This device'),
         transactions: {
             added: count(details.transactions?.added),
             updated: count(details.transactions?.updated),
