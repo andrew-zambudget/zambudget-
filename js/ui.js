@@ -9224,7 +9224,7 @@ function updateDrillDownCategoryProgress({ budget = 0, spent = 0, catType = 'exp
 
 window.toggleDrillDownMetric = function() {
     window.currentDrillDownMetricMode = window.currentDrillDownMetricMode === 'left' ? 'spent' : 'left';
-    const categoryName = document.getElementById('drillDownTitle')?.textContent || '';
+    const categoryName = getOpenDrillDownCategoryName();
     const categories = State.getCategories ? State.getCategories() : [];
     const targetCategory = categories.find(c => c.name === categoryName) || { type: 'expense', budget: 0 };
     const catType = targetCategory.type || 'expense';
@@ -9238,11 +9238,178 @@ window.toggleDrillDownMetric = function() {
     renderCategoryList();
 };
 
+function getOpenDrillDownCategoryName() {
+    const panel = document.getElementById('categoryDrillDownPanel');
+    return panel?.dataset?.categoryName || document.getElementById('drillDownTitle')?.textContent || '';
+}
+
+function getCategoryByName(name) {
+    const categories = State.getCategories ? State.getCategories() : [];
+    return categories.find(cat => cat.name === name);
+}
+
+function refreshAfterDrillDownIdentityEdit(categoryName) {
+    const category = getCategoryByName(categoryName);
+    if (!category) {
+        window.closeCategoryDrillDown?.();
+        return;
+    }
+
+    renderCategoryList();
+    renderFormCategories();
+    renderIncomeTab();
+    if (typeof renderSavingsTab === 'function') renderSavingsTab();
+    if (typeof renderDebtTab === 'function') renderDebtTab();
+    if (typeof renderZBBDashboard === 'function') renderZBBDashboard();
+    window.openCategoryDrillDown?.(category.name, category.icon || '');
+}
+
+function saveDrillDownIdentityEdit(oldName, nextName, nextIcon) {
+    const currentCategory = getCategoryByName(oldName);
+    if (!currentCategory) {
+        if (window.showToast) window.showToast('Category could not be found.');
+        window.closeCategoryDrillDown?.();
+        return { success: false };
+    }
+
+    const cleanName = String(nextName || '').trim();
+    if (!cleanName) {
+        if (window.showToast) window.showToast('Category name cannot be blank.');
+        return { success: false };
+    }
+
+    const result = State.editCategory?.(oldName, cleanName, nextIcon || currentCategory.icon || String.fromCodePoint(0x1F4C1));
+    if (result?.success === false) {
+        if (window.showToast) window.showToast(result.error || 'Category could not be updated.');
+        return result;
+    }
+
+    const savedName = result?.name || cleanName;
+    refreshAfterDrillDownIdentityEdit(savedName);
+    return { success: true, name: savedName };
+}
+
+function closeDrillDownEmojiPicker() {
+    document.getElementById('drillDownEmojiPicker')?.remove();
+}
+
+function openDrillDownEmojiPicker(anchor, categoryName) {
+    if (!anchor) return;
+
+    const category = getCategoryByName(categoryName);
+    if (!category) return;
+
+    const existing = document.getElementById('drillDownEmojiPicker');
+    if (existing) {
+        existing.remove();
+        return;
+    }
+
+    const picker = document.createElement('div');
+    picker.id = 'drillDownEmojiPicker';
+    picker.className = 'emoji-picker-grid drill-down-emoji-picker';
+    picker.innerHTML = `
+        <div class="emoji-picker-header">
+            <div class="emoji-picker-rule" aria-hidden="true"></div>
+            <button type="button" class="emoji-picker-close" aria-label="Close emoji picker">&times;</button>
+        </div>
+        <div class="emoji-picker-options">
+            ${COMMON_EMOJIS.map(e =>
+                `<button type="button" class="emoji-opt" aria-label="Choose icon ${e}">${e}</button>`
+            ).join('')}
+        </div>
+    `;
+
+    const hero = anchor.closest('.drill-down-hero') || document.getElementById('categoryDrillDownPanel');
+    hero?.appendChild(picker);
+
+    picker.querySelector('.emoji-picker-close')?.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        closeDrillDownEmojiPicker();
+        anchor.focus?.();
+    });
+
+    picker.querySelectorAll('.emoji-opt').forEach(option => {
+        option.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const activeName = getOpenDrillDownCategoryName() || categoryName;
+            saveDrillDownIdentityEdit(activeName, activeName, option.textContent);
+            closeDrillDownEmojiPicker();
+        });
+    });
+
+    setTimeout(() => {
+        const handleOutside = (event) => {
+            if (picker.contains(event.target) || anchor.contains(event.target)) return;
+            closeDrillDownEmojiPicker();
+            document.removeEventListener('pointerdown', handleOutside, true);
+        };
+        document.addEventListener('pointerdown', handleOutside, true);
+    }, 0);
+}
+
+function startDrillDownTitleEdit(titleEl, categoryName) {
+    if (!titleEl || titleEl.querySelector('input')) return;
+
+    closeDrillDownEmojiPicker();
+    const category = getCategoryByName(categoryName);
+    if (!category) return;
+
+    const originalName = category.name;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'drill-down-title-input';
+    input.value = originalName;
+    input.maxLength = 24;
+    input.setAttribute('aria-label', 'Category name');
+
+    let finished = false;
+    const restoreTitle = (name = originalName) => {
+        titleEl.textContent = name;
+        titleEl.setAttribute('aria-label', `Rename ${name}`);
+        titleEl.title = `Rename ${name}`;
+    };
+
+    const finish = (shouldSave) => {
+        if (finished) return;
+        finished = true;
+
+        const nextName = input.value.trim();
+        if (!shouldSave || nextName === originalName) {
+            restoreTitle(originalName);
+            return;
+        }
+
+        const result = saveDrillDownIdentityEdit(originalName, nextName, category.icon || String.fromCodePoint(0x1F4C1));
+        if (!result?.success) restoreTitle(originalName);
+    };
+
+    input.addEventListener('click', event => event.stopPropagation());
+    input.addEventListener('pointerdown', event => event.stopPropagation());
+    input.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            finish(true);
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            finish(false);
+        }
+    });
+    input.addEventListener('blur', () => finish(true));
+
+    titleEl.replaceChildren(input);
+    input.focus();
+    input.select();
+}
+
 window.openCategoryDrillDown = function(categoryName, categoryIcon) {
     if (isCategoryEditMode) return;
 
     const overlay = document.getElementById('categoryDrillDownOverlay');
     const panel = document.getElementById('categoryDrillDownPanel');
+    if (panel) panel.dataset.categoryName = categoryName;
 
     document.getElementById('drillDownIcon').textContent = categoryIcon || '📁';
     document.getElementById('drillDownTitle').textContent = categoryName;
@@ -9261,20 +9428,26 @@ window.openCategoryDrillDown = function(categoryName, categoryIcon) {
             window.openCategoryModal('edit', categoryName, currentIcon);
         }
     };
-    const bindDrillDownEditTarget = (el, label) => {
+    const bindDrillDownEditTarget = (el, label, handler) => {
         if (!el) return;
         el.title = label;
         el.setAttribute('aria-label', label);
-        el.onclick = openDrillDownEditor;
+        el.onclick = handler;
         el.onkeydown = (event) => {
             if (event.key !== 'Enter' && event.key !== ' ') return;
             event.preventDefault();
-            openDrillDownEditor();
+            handler(event);
         };
     };
 
-    bindDrillDownEditTarget(document.getElementById('drillDownIcon'), `Edit ${categoryName} icon`);
-    bindDrillDownEditTarget(document.getElementById('drillDownTitle'), `Edit ${categoryName} name`);
+    bindDrillDownEditTarget(document.getElementById('drillDownIcon'), `Change ${categoryName} icon`, (event) => {
+        event?.stopPropagation?.();
+        openDrillDownEmojiPicker(document.getElementById('drillDownIcon'), getOpenDrillDownCategoryName() || categoryName);
+    });
+    bindDrillDownEditTarget(document.getElementById('drillDownTitle'), `Rename ${categoryName}`, (event) => {
+        event?.stopPropagation?.();
+        startDrillDownTitleEdit(document.getElementById('drillDownTitle'), getOpenDrillDownCategoryName() || categoryName);
+    });
 
     // 2. Sum up ONLY the transactions that match this category's type
     const totalAmount = getCategoryTransactionSummary(categoryName, catType).total;
@@ -9605,8 +9778,10 @@ window.closeCategoryDrillDown = function() {
     const overlay = document.getElementById('categoryDrillDownOverlay');
     const panel = document.getElementById('categoryDrillDownPanel');
     closeDrillDownSwipeActions();
+    closeDrillDownEmojiPicker();
     if (overlay) overlay.classList.remove('active');
     if (panel) panel.classList.remove('active');
+    if (panel) delete panel.dataset.categoryName;
     syncOverlayScrollTopState();
 };
 
@@ -9614,7 +9789,7 @@ function refreshOpenCategoryDrillDown() {
     const panel = document.getElementById('categoryDrillDownPanel');
     if (!panel?.classList.contains('active')) return;
 
-    const categoryName = document.getElementById('drillDownTitle')?.textContent || '';
+    const categoryName = getOpenDrillDownCategoryName();
     if (!categoryName) return;
 
     const categories = State.getCategories ? State.getCategories() : [];
