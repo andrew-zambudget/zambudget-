@@ -52,6 +52,34 @@ async function deleteRowsForUser(
   return true;
 }
 
+async function verifyNoRowsForUser(
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
+  table: string,
+  userId: string,
+  options: { optional?: boolean; column?: string } = {}
+) {
+  const column = options.column || 'user_id';
+  const { count, error } = await supabaseAdmin
+    .from(table)
+    .select(column, { count: 'exact', head: true })
+    .eq(column, userId);
+
+  if (error) {
+    if (options.optional && isMissingOptionalTableError(error, table)) return NOT_APPLICABLE;
+    throw error;
+  }
+
+  if ((count || 0) > 0) {
+    throw new HttpError(
+      500,
+      `Account deletion did not complete. ${table} still contains account rows.`,
+      'ACCOUNT_ROWS_DELETE_NOT_VERIFIED'
+    );
+  }
+
+  return true;
+}
+
 function getBearerToken(req: Request) {
   return (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
 }
@@ -182,6 +210,11 @@ Deno.serve(async (req) => {
     const browserAccessDeleted = await deleteRowsForUser(supabaseAdmin, 'buddy_cloud_browser_access', user.id, { optional: true });
     const billingProfileDeleted = await deleteRowsForUser(supabaseAdmin, 'billing_profiles', user.id, { optional: true });
     const legacyProfileDeleted = await deleteRowsForUser(supabaseAdmin, 'profiles', user.id, { optional: true, column: 'id' });
+    const buddyCloudVaultsVerifiedDeleted = await verifyNoRowsForUser(supabaseAdmin, 'buddy_cloud_vaults', user.id);
+    const buddyCloudSnapshotsVerifiedDeleted = await verifyNoRowsForUser(supabaseAdmin, 'buddy_cloud_vault_snapshots', user.id, { optional: true });
+    const browserAccessVerifiedDeleted = await verifyNoRowsForUser(supabaseAdmin, 'buddy_cloud_browser_access', user.id, { optional: true });
+    const billingProfileVerifiedDeleted = await verifyNoRowsForUser(supabaseAdmin, 'billing_profiles', user.id, { optional: true });
+    const legacyProfileVerifiedDeleted = await verifyNoRowsForUser(supabaseAdmin, 'profiles', user.id, { optional: true, column: 'id' });
 
     // Household/family sharing is not implemented in the current schema.
     // Return an explicit marker so account deletion reports stay truthful.
@@ -198,9 +231,14 @@ Deno.serve(async (req) => {
       authUserDeleted: true,
       buddyCloudVaultsDeleted,
       buddyCloudSnapshotsDeleted,
+      buddyCloudVaultsVerifiedDeleted,
+      buddyCloudSnapshotsVerifiedDeleted,
       browserAccessDeleted,
+      browserAccessVerifiedDeleted,
       billingProfileDeleted,
+      billingProfileVerifiedDeleted,
       legacyProfileDeleted,
+      legacyProfileVerifiedDeleted,
       householdMembershipsDeleted,
       sharedBudgetOwnershipHandled,
       supportContactRecordsDeleted,

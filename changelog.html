@@ -340,6 +340,14 @@
                             </div>
 
                             <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">UID</span>
+                                <div>
+                                    <div class="tag-text">Account deletion verifies app-owned UID cleanup</div>
+                                    <span class="tag-detail">Before returning success, the deletion function now verifies that BudgetBuddy-owned vault, snapshot, browser-access, billing-profile, and profile rows no longer contain the deleted account UID. Supabase Auth hard deletion remains the scrub path for the auth UID, created-at, and last-sign-in fields.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
                                 <span class="tag-icon" aria-hidden="true">DATA</span>
                                 <div>
                                     <div class="tag-text">Data safety moved ahead of feature expansion</div>
