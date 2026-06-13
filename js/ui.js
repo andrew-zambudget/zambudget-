@@ -11909,6 +11909,7 @@ const ACCOUNT_DELETE_FUNCTION = 'account-delete';
 const ACCOUNT_DELETE_ACTIVE_SUBSCRIPTION_CODE = 'ACTIVE_STRIPE_SUBSCRIPTION';
 const ACCOUNT_DELETE_REAUTH_REQUIRED_CODE = 'REAUTH_REQUIRED';
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing']);
+const ACCOUNT_DELETE_BLOCKED_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing', 'past_due']);
 const LOCAL_DEV_HOSTS = new Set(['localhost', '127.0.0.1', '']);
 const STRIPE_REDIRECT_REVIEW_SECONDS = 3;
 
@@ -16217,6 +16218,69 @@ async function invokeAccountDeleteFunction(options = {}) {
     return data || {};
 }
 
+async function getAccountDeletionBillingPreflight() {
+    if (!isBillingEnabled() || !window.currentUser || !window.sb?.functions?.invoke) {
+        return { blocked: false, unavailable: !isBillingEnabled() ? false : true };
+    }
+
+    try {
+        const status = await invokeBillingFunction(BILLING_FUNCTIONS.status);
+        const subscriptionStatus = String(status.subscriptionStatus || '').toLowerCase();
+        const blocked = Boolean(status.active) || ACCOUNT_DELETE_BLOCKED_SUBSCRIPTION_STATUSES.has(subscriptionStatus);
+        return {
+            blocked,
+            subscriptionStatus,
+            cancelAtPeriodEnd: Boolean(status.cancelAtPeriodEnd)
+        };
+    } catch (error) {
+        console.warn('[Account] Account deletion billing preflight failed:', error);
+        return { blocked: false, unavailable: true, error };
+    }
+}
+
+async function showAccountDeletionBillingUnavailableModal(message = '') {
+    const actions = [
+        { id: 'back', label: 'Back', className: 'btn-cancel' }
+    ];
+    if (isBillingEnabled() && window.currentUser) {
+        actions.push({ id: 'manage-billing', label: 'Manage Billing', className: 'btn-create' });
+    }
+
+    const result = await showBuddyCloudModal({
+        eyebrow: 'Premium Subscription',
+        title: 'Billing Check Required',
+        compact: true,
+        body: message || 'BudgetBuddy could not verify whether this account has an active Premium subscription.',
+        assurance: 'Account deletion did not start. Try again after billing status is available, or check Stripe Billing Portal.',
+        warning: 'BudgetBuddy will not ask you to confirm account deletion until subscription status is verified.',
+        actions
+    });
+
+    if (result.action === 'manage-billing') {
+        await handleManageSubscription();
+    }
+}
+
+async function runAccountDeletionBillingPreflight() {
+    const preflight = await getAccountDeletionBillingPreflight();
+    if (preflight.unavailable) {
+        await showAccountDeletionBillingUnavailableModal(preflight.error?.message);
+        return false;
+    }
+
+    if (!preflight.blocked) {
+        return true;
+    }
+
+    const statusLabel = preflight.subscriptionStatus
+        ? preflight.subscriptionStatus.replace(/_/g, ' ')
+        : 'active';
+    await showActiveSubscriptionDeletionBlockedModal(
+        `This account has a ${statusLabel} Premium subscription. Cancel Premium in Stripe before deleting your BudgetBuddy account.`
+    );
+    return false;
+}
+
 async function askResetBuddyCloudConfirmation() {
     const result = await showBuddyCloudModal({
         eyebrow: 'Account Security',
@@ -16398,6 +16462,9 @@ export async function handleDeleteAccount(e) {
 export async function handleDeleteBudgetBuddyAccount(e) {
     if (e) e.preventDefault();
     closeAccountModal();
+
+    const billingReady = await runAccountDeletionBillingPreflight();
+    if (!billingReady) return false;
 
     const confirmed = await askDeleteBudgetBuddyAccountConfirmation();
     if (!confirmed) return false;

@@ -83,6 +83,7 @@ test.describe('account deletion safeguards', () => {
                 id: 'account-delete-reauth-user',
                 email: 'reauth-delete@example.com'
             };
+            window.bbConfig = { ...(window.bbConfig || {}), billingEnabled: false };
             window.sb = {
                 auth: {
                     reauthenticate: async () => {
@@ -132,6 +133,139 @@ test.describe('account deletion safeguards', () => {
             },
             { method: 'refreshSession' },
             { method: 'invoke', name: 'account-delete', body: { deleteAuthUser: true } }
+        ]);
+    });
+
+    test('premium billing preflight blocks delete confirmation before destructive prompt', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await page.evaluate(() => {
+            const calls = [];
+            window.currentUser = {
+                id: 'account-delete-premium-user',
+                email: 'premium-delete@example.com'
+            };
+            window.bbConfig = { ...(window.bbConfig || {}), billingEnabled: true };
+            window.sb = {
+                functions: {
+                    invoke: async (name, options) => {
+                        calls.push({ method: 'invoke', name, body: options?.body || null });
+                        if (name === 'billing-status') {
+                            return {
+                                data: {
+                                    active: true,
+                                    subscriptionStatus: 'active',
+                                    cancelAtPeriodEnd: false
+                                },
+                                error: null
+                            };
+                        }
+                        return { data: null, error: null };
+                    }
+                }
+            };
+            window.__accountDeleteCalls = calls;
+            window.handleDeleteBudgetBuddyAccount();
+        });
+
+        const modal = page.locator('#buddyCloudModal');
+        await expect(modal).toBeVisible();
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Cancel Premium First');
+        await expect(modal).toContainText('active Premium subscription');
+        await expect(modal).toContainText('Cancel Premium in Stripe before deleting your BudgetBuddy account.');
+        await expect(modal.getByRole('button', { name: 'Delete Account' })).toHaveCount(0);
+        await expect(page.locator('#buddyCloudModalInput')).toHaveCount(0);
+
+        await expect.poll(() => page.evaluate(() => window.__accountDeleteCalls)).toEqual([
+            { method: 'invoke', name: 'billing-status', body: {} }
+        ]);
+    });
+
+    test('billing preflight failure blocks delete confirmation', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await page.evaluate(() => {
+            const calls = [];
+            window.currentUser = {
+                id: 'account-delete-billing-fail-user',
+                email: 'billing-fail-delete@example.com'
+            };
+            window.bbConfig = { ...(window.bbConfig || {}), billingEnabled: true };
+            window.sb = {
+                functions: {
+                    invoke: async (name, options) => {
+                        calls.push({ method: 'invoke', name, body: options?.body || null });
+                        return {
+                            data: null,
+                            error: { message: 'Billing status is temporarily unavailable.' }
+                        };
+                    }
+                }
+            };
+            window.__accountDeleteCalls = calls;
+            window.handleDeleteBudgetBuddyAccount();
+        });
+
+        const modal = page.locator('#buddyCloudModal');
+        await expect(modal).toBeVisible();
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Billing Check Required');
+        await expect(modal).toContainText('Billing status is temporarily unavailable.');
+        await expect(modal).toContainText('Account deletion did not start');
+        await expect(modal.getByRole('button', { name: 'Delete Account' })).toHaveCount(0);
+        await expect(page.locator('#buddyCloudModalInput')).toHaveCount(0);
+
+        await expect.poll(() => page.evaluate(() => window.__accountDeleteCalls)).toEqual([
+            { method: 'invoke', name: 'billing-status', body: {} }
+        ]);
+    });
+
+    test('inactive billing preflight allows delete confirmation to proceed', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await page.evaluate(() => {
+            const calls = [];
+            window.currentUser = {
+                id: 'account-delete-free-user',
+                email: 'free-delete@example.com'
+            };
+            window.bbConfig = { ...(window.bbConfig || {}), billingEnabled: true };
+            window.sb = {
+                functions: {
+                    invoke: async (name, options) => {
+                        calls.push({ method: 'invoke', name, body: options?.body || null });
+                        if (name === 'billing-status') {
+                            return {
+                                data: {
+                                    active: false,
+                                    subscriptionStatus: 'inactive',
+                                    cancelAtPeriodEnd: false
+                                },
+                                error: null
+                            };
+                        }
+                        return { data: null, error: null };
+                    }
+                },
+                auth: {
+                    reauthenticate: async () => ({ error: null }),
+                    verifyOtp: async () => ({ error: null }),
+                    refreshSession: async () => ({ data: {}, error: null }),
+                    signOut: async () => ({ error: null })
+                }
+            };
+            window.__accountDeleteCalls = calls;
+            window.handleDeleteBudgetBuddyAccount();
+        });
+
+        const modal = page.locator('#buddyCloudModal');
+        await expect(modal).toBeVisible();
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete BudgetBuddy Account?');
+        await expect(page.locator('#buddyCloudModalInput')).toHaveAttribute('placeholder', 'DELETE ACCOUNT');
+        await expect.poll(() => page.evaluate(() => window.__accountDeleteCalls)).toEqual([
+            { method: 'invoke', name: 'billing-status', body: {} }
         ]);
     });
 
