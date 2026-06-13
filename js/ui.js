@@ -7569,7 +7569,7 @@ function renderAddCategoryInsight() {
                 </div>
                 <span class="add-category-insight-badge">Saved</span>
             </div>
-            <div class="add-category-insight-grid">
+            <div class="add-category-insight-grid" tabindex="0" aria-label="Last logged budget details">
                 <div class="add-category-insight-stat">
                     <span>${isExpense ? 'Budget' : 'Target'}</span>
                     <strong>${hasBudget ? getCurrencyText(preview.budgetAmount, preview.symbol) : 'No budget'}</strong>
@@ -7655,7 +7655,7 @@ function renderAddCategoryInsight() {
             </div>
             <button type="button" class="add-category-insight-action" onclick="window.toggleAddCategoryPicker(true)">Change</button>
         </div>
-        <div class="add-category-insight-grid">
+        <div class="add-category-insight-grid" tabindex="0" aria-label="Budget preview details">
             <div class="add-category-insight-stat">
                 <span>${isExpense ? 'Budget' : 'Target'}</span>
                 <strong>${hasBudget ? getCurrencyText(budgetAmount, symbol) : 'No budget'}</strong>
