@@ -33,6 +33,7 @@ test.describe('account deletion safeguards', () => {
         const modal = page.locator('#buddyCloudModal');
         await expect(modal).toBeVisible();
         await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete BudgetBuddy Account?');
+        await expect(modal.locator('.buddy-cloud-account-delete-intro strong')).toHaveText('This permanently deletes the BudgetBuddy sign-in for delete-safety@gmail.com.');
         await expect(modal).toContainText('Signed in as delete-safety@gmail.com using Google');
         await expect(modal).toContainText('It does not delete your Google account');
         await expect(modal).toContainText('Google connected-app settings');

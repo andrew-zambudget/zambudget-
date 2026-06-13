@@ -15561,8 +15561,12 @@ function getAccountDeletionAuthContextCopy() {
     return `Signed in as ${email} using email link. Deleting your BudgetBuddy account removes your BudgetBuddy account and app data only.`;
 }
 
-function getAccountDeletionScopeHtml() {
+function getAccountDeletionScopeHtml(email, authContextCopy) {
     return `
+        <p class="buddy-cloud-modal-copy buddy-cloud-account-delete-intro">
+            <strong>This permanently deletes the BudgetBuddy sign-in for ${esc(email)}.</strong>
+            ${esc(authContextCopy)}
+        </p>
         <div class="buddy-cloud-assurance buddy-cloud-account-delete-scope">
             <p>BudgetBuddy will delete:</p>
             <ul>
@@ -16353,8 +16357,7 @@ async function askDeleteBudgetBuddyAccountConfirmation() {
         title: 'Delete BudgetBuddy Account?',
         compact: true,
         modalClass: 'buddy-cloud-account-delete-modal',
-        body: `This permanently deletes the BudgetBuddy sign-in for ${email}. ${authContextCopy}`,
-        customHtml: getAccountDeletionScopeHtml(),
+        customHtml: getAccountDeletionScopeHtml(email, authContextCopy),
         warning: 'This cannot be recovered. BudgetBuddy cannot decrypt or restore a deleted Buddy Cloud vault, deleted snapshots, or a deleted account. Active Stripe subscriptions must be cancelled in Stripe before account deletion can finish. Stripe may retain billing records required for payments, tax, legal, or dispute handling. Browser-only copies on other devices may remain only in those browsers until their local site data is cleared.',
         inputLabel: 'Type DELETE ACCOUNT to confirm',
         inputPlaceholder: 'DELETE ACCOUNT',
