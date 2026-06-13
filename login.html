@@ -354,6 +354,8 @@
     var SUPABASE_URL = '';
     var SUPABASE_KEY = '';
     var sb = null;
+    var magicLinkCooldownTimer = null;
+    var MAGIC_LINK_RATE_LIMIT_SECONDS = 60;
 
     // --- THEME HANDLING ---
     function applyTheme(mode) {
@@ -404,6 +406,47 @@
 
     function getAppUrl(path) {
         return new URL(path, window.location.href).href;
+    }
+
+    function showAuthMessage(text, type) {
+        var msg = document.getElementById('authMessage');
+        if (!msg) return;
+        msg.textContent = text;
+        msg.className = 'message ' + (type || 'error');
+        msg.style.display = 'block';
+    }
+
+    function setMagicLinkButtonState(disabled, label) {
+        var btn = document.getElementById('magicLinkBtn');
+        if (!btn) return;
+        btn.disabled = Boolean(disabled);
+        btn.textContent = label || 'Email me a sign-in link';
+    }
+
+    function isAuthRateLimitError(error) {
+        var text = String(error && error.message ? error.message : '').toLowerCase();
+        return text.indexOf('rate limit') !== -1
+            || text.indexOf('too many') !== -1
+            || text.indexOf('429') !== -1;
+    }
+
+    function startMagicLinkCooldown(seconds) {
+        var remaining = Number(seconds) || MAGIC_LINK_RATE_LIMIT_SECONDS;
+        window.clearInterval(magicLinkCooldownTimer);
+
+        function renderCooldown() {
+            if (remaining <= 0) {
+                window.clearInterval(magicLinkCooldownTimer);
+                magicLinkCooldownTimer = null;
+                setMagicLinkButtonState(false, 'Email me a sign-in link');
+                return;
+            }
+            setMagicLinkButtonState(true, 'Try email again in ' + remaining + 's');
+            remaining -= 1;
+        }
+
+        renderCooldown();
+        magicLinkCooldownTimer = window.setInterval(renderCooldown, 1000);
     }
 
     function showInitialAuthMessage() {
@@ -506,19 +549,15 @@
     async function handleMagicLink(e) {
         e.preventDefault();
         var email = document.getElementById('magicEmail').value.trim();
-        var msg = document.getElementById('authMessage');
-        var btn = document.getElementById('magicLinkBtn');
 
         if (!sb) {
-            msg.textContent = 'Connection not available. Please reload.';
-            msg.className = 'message error';
-            msg.style.display = 'block';
+            showAuthMessage('Connection not available. Please reload.', 'error');
             return;
         }
 
-        btn.disabled = true;
-        btn.textContent = 'Sending link...';
-        msg.style.display = 'none';
+        setMagicLinkButtonState(true, 'Sending link...');
+        var msg = document.getElementById('authMessage');
+        if (msg) msg.style.display = 'none';
 
         var { error } = await sb.auth.signInWithOtp({
             email: email,
@@ -529,17 +568,16 @@
         });
 
         if (error) {
-            msg.textContent = error.message;
-            msg.className = 'message error';
-            msg.style.display = 'block';
-            btn.disabled = false;
-            btn.textContent = 'Email me a sign-in link';
+            if (isAuthRateLimitError(error)) {
+                showAuthMessage('Email sign-in is cooling down. Wait about a minute before requesting another link, or continue with Google if this email was recently used.', 'error');
+                startMagicLinkCooldown(MAGIC_LINK_RATE_LIMIT_SECONDS);
+            } else {
+                showAuthMessage(error.message || 'Could not send sign-in link. Please try again.', 'error');
+                setMagicLinkButtonState(false, 'Email me a sign-in link');
+            }
         } else {
-            msg.textContent = 'Check your inbox for your secure sign-in link.';
-            msg.className = 'message success';
-            msg.style.display = 'block';
-            btn.disabled = false;
-            btn.textContent = 'Email me a sign-in link';
+            showAuthMessage('Check your inbox for your secure sign-in link. If you need another link, wait about a minute before requesting it again.', 'success');
+            startMagicLinkCooldown(MAGIC_LINK_RATE_LIMIT_SECONDS);
         }
     }
 
