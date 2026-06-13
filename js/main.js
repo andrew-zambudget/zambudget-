@@ -27,6 +27,7 @@ import * as BuddyCloud from './cloudSync.js';
 import * as DemoMode from './demoMode.js';
 import * as BudgetPrep from './budgetPrep.js';
 import { runPrivacyStorageCleanup } from './privacyStorageCleanup.js';
+import { guardSignedInLocalOwner } from './accountLocalState.js';
 
 // Global Supabase variables
 window.sb = null;
@@ -101,6 +102,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     window.currentUser = session ? session.user : null;
                     if (!appStateInitialized) return;
 
+                    if (window.currentUser) {
+                        const ownerGuard = guardSignedInLocalOwner(window.currentUser.id);
+                        if (ownerGuard.changed) {
+                            console.warn('[main.js] Signed-in account changed. Clearing account-scoped local state before reload.');
+                            window.location.reload();
+                            return;
+                        }
+                    }
+
                     if (window.currentUser && DemoMode.isDemoModeActive?.()) {
                         const demoCleanup = DemoMode.prepareDemoMode?.({ user: window.currentUser });
                         if (demoCleanup?.disabledForSignedInUser) {
@@ -161,6 +171,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         // --- SUPABASE INITIALIZATION END ---
 
         const demoModeState = DemoMode.prepareDemoMode?.({ user: window.currentUser });
+        if (window.currentUser) {
+            const ownerGuard = guardSignedInLocalOwner(window.currentUser.id);
+            if (ownerGuard.changed) {
+                BudgetPrep.updatePreparingBudget?.({
+                    title: 'Preparing fresh budget...',
+                    detail: 'This browser was previously tied to a different BudgetBuddy account, so local account data was cleared.'
+                });
+            }
+        }
 
         // Initialize the data engine
         BudgetPrep.updatePreparingBudget?.({ detail: 'Loading this browser budget before cloud checks.' });

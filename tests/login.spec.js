@@ -88,6 +88,49 @@ test.describe('login page safeguards', () => {
         ]);
     });
 
+    test('magic link submit is single-flight during duplicate submit events', async ({ page }) => {
+        await page.route('**/@supabase/supabase-js@2', route => route.fulfill({
+            status: 200,
+            contentType: 'application/javascript',
+            body: `
+                window.__otpCalls = [];
+                window.supabase = {
+                    createClient() {
+                        return {
+                            auth: {
+                                getSession: async () => ({ data: { session: null }, error: null }),
+                                signInWithOtp: async (payload) => {
+                                    window.__otpCalls.push(payload);
+                                    await new Promise(resolve => setTimeout(resolve, 150));
+                                    return { data: {}, error: null };
+                                },
+                                signInWithOAuth: async () => ({ error: null })
+                            }
+                        };
+                    }
+                };
+            `
+        }));
+
+        await page.goto('/login.html');
+        await page.locator('#magicEmail').fill('single-flight@example.com');
+        await page.evaluate(() => {
+            const form = document.getElementById('magicLinkForm');
+            form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+            form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        });
+
+        await expect(page.locator('#authMessage')).toContainText('If this email belongs to a BudgetBuddy account');
+        await expect.poll(() => page.evaluate(() => window.__otpCalls)).toEqual([
+            expect.objectContaining({
+                email: 'single-flight@example.com',
+                options: expect.objectContaining({
+                    shouldCreateUser: false
+                })
+            })
+        ]);
+    });
+
     test('unknown existing-account sign-in does not expose account absence', async ({ page }) => {
         await page.route('**/@supabase/supabase-js@2', route => route.fulfill({
             status: 200,

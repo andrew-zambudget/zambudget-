@@ -272,6 +272,93 @@ test.describe('BudgetBuddy storage lifecycle', () => {
         expect(result.history[0].message).toBe('Budget synced.');
     });
 
+    test('signed-in owner change clears stale account-scoped budget state', async ({ page }) => {
+        const result = await page.evaluate(async (ownerModulePath) => {
+            localStorage.setItem('bb_signed_in_owner_id', 'deleted-user-id');
+            localStorage.setItem('bb_data', JSON.stringify({
+                transactions: [{ id: 'old-budget', amount: 50, category: 'Old' }],
+                categories: [{ id: 'old-cat', name: 'Old', type: 'expense' }],
+                settings: {}
+            }));
+            localStorage.setItem('bb_local_updated_at', '2026-06-13T01:00:00.000Z');
+            localStorage.setItem('bb_cloud_sync_enabled', 'true');
+            localStorage.setItem('bb_cloud_sync_slot_deleted-user-id', 'old-slot-token');
+            localStorage.setItem('bb_browser_access_token_deleted-user-id', 'old-browser-token');
+            localStorage.setItem('bb_cloud_recovery_key_saved_deleted-user-id', 'true');
+            localStorage.setItem('bb_theme_mode', 'dark');
+            localStorage.setItem('bb_accent_color', 'teal');
+
+            const Owner = await import(ownerModulePath);
+            const guard = Owner.guardSignedInLocalOwner('fresh-user-id');
+
+            return {
+                guard,
+                owner: localStorage.getItem('bb_signed_in_owner_id'),
+                data: localStorage.getItem('bb_data'),
+                updatedAt: localStorage.getItem('bb_local_updated_at'),
+                cloudEnabled: localStorage.getItem('bb_cloud_sync_enabled'),
+                slot: localStorage.getItem('bb_cloud_sync_slot_deleted-user-id'),
+                browserToken: localStorage.getItem('bb_browser_access_token_deleted-user-id'),
+                recoverySaved: localStorage.getItem('bb_cloud_recovery_key_saved_deleted-user-id'),
+                theme: localStorage.getItem('bb_theme_mode'),
+                accent: localStorage.getItem('bb_accent_color')
+            };
+        }, modulePath('/js/accountLocalState.js'));
+
+        expect(result.guard).toEqual({
+            changed: true,
+            previousUserId: 'deleted-user-id',
+            nextUserId: 'fresh-user-id'
+        });
+        expect(result.owner).toBe('fresh-user-id');
+        expect(result.data).toBeNull();
+        expect(result.updatedAt).toBeNull();
+        expect(result.cloudEnabled).toBeNull();
+        expect(result.slot).toBeNull();
+        expect(result.browserToken).toBeNull();
+        expect(result.recoverySaved).toBeNull();
+        expect(result.theme).toBe('dark');
+        expect(result.accent).toBe('teal');
+    });
+
+    test('signed-in owner guard preserves same-owner and unmarked existing budgets', async ({ page }) => {
+        const result = await page.evaluate(async (ownerModulePath) => {
+            const Owner = await import(ownerModulePath);
+
+            localStorage.setItem('bb_data', JSON.stringify({
+                transactions: [{ id: 'unmarked-budget', amount: 25, category: 'Groceries' }],
+                categories: [],
+                settings: {}
+            }));
+
+            const firstRunGuard = Owner.guardSignedInLocalOwner('existing-user-id');
+            const firstRunData = JSON.parse(localStorage.getItem('bb_data') || '{}');
+
+            localStorage.setItem('bb_data', JSON.stringify({
+                transactions: [{ id: 'same-owner-budget', amount: 30, category: 'Fuel' }],
+                categories: [],
+                settings: {}
+            }));
+
+            const sameOwnerGuard = Owner.guardSignedInLocalOwner('existing-user-id');
+            const sameOwnerData = JSON.parse(localStorage.getItem('bb_data') || '{}');
+
+            return {
+                firstRunGuard,
+                firstRunData,
+                sameOwnerGuard,
+                sameOwnerData,
+                owner: localStorage.getItem('bb_signed_in_owner_id')
+            };
+        }, modulePath('/js/accountLocalState.js'));
+
+        expect(result.firstRunGuard.changed).toBe(false);
+        expect(result.firstRunData.transactions[0].id).toBe('unmarked-budget');
+        expect(result.sameOwnerGuard.changed).toBe(false);
+        expect(result.sameOwnerData.transactions[0].id).toBe('same-owner-budget');
+        expect(result.owner).toBe('existing-user-id');
+    });
+
     test('demo mode restores the pre-demo budget when the user exits', async ({ page }) => {
         await resetStorage(page, `${BLANK_PAGE}?setup=real-budget`);
         await page.evaluate(() => {

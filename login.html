@@ -356,6 +356,7 @@
     var sb = null;
     var authMode = 'signin';
     var magicLinkCooldownTimer = null;
+    var magicLinkRequestInFlight = false;
     var MAGIC_LINK_RATE_LIMIT_SECONDS = 60;
 
     // --- THEME HANDLING ---
@@ -592,42 +593,52 @@
     async function handleMagicLink(e) {
         e.preventDefault();
         var email = document.getElementById('magicEmail').value.trim();
+        var btn = document.getElementById('magicLinkBtn');
+
+        if (magicLinkRequestInFlight || (btn && btn.disabled)) {
+            return;
+        }
 
         if (!sb) {
             showAuthMessage('Connection not available. Please reload.', 'error');
             return;
         }
 
+        magicLinkRequestInFlight = true;
         setMagicLinkButtonState(true, 'Sending link...');
         var msg = document.getElementById('authMessage');
         if (msg) msg.style.display = 'none';
 
-        var { error } = await sb.auth.signInWithOtp({
-            email: email,
-            options: {
-                emailRedirectTo: getAppUrl('index.html'),
-                shouldCreateUser: authMode === 'signup'
-            }
-        });
+        try {
+            var { error } = await sb.auth.signInWithOtp({
+                email: email,
+                options: {
+                    emailRedirectTo: getAppUrl('index.html'),
+                    shouldCreateUser: authMode === 'signup'
+                }
+            });
 
-        if (error) {
-            if (isAuthRateLimitError(error)) {
-                showAuthMessage('Email sign-in is cooling down. Wait about a minute before requesting another link, or continue with Google if this email was recently used.', 'error');
-                startMagicLinkCooldown(MAGIC_LINK_RATE_LIMIT_SECONDS);
-            } else if (authMode === 'signin' && isMissingAccountSignInError(error)) {
-                showAuthMessage('If this email belongs to a BudgetBuddy account, check your inbox for a secure sign-in link. If you are new, choose Create one.', 'success');
-                startMagicLinkCooldown(MAGIC_LINK_RATE_LIMIT_SECONDS);
+            if (error) {
+                if (isAuthRateLimitError(error)) {
+                    showAuthMessage('Email sign-in is cooling down. Wait about a minute before requesting another link, or continue with Google if this email was recently used.', 'error');
+                    startMagicLinkCooldown(MAGIC_LINK_RATE_LIMIT_SECONDS);
+                } else if (authMode === 'signin' && isMissingAccountSignInError(error)) {
+                    showAuthMessage('If this email belongs to a BudgetBuddy account, check your inbox for a secure sign-in link. If you are new, choose Create one.', 'success');
+                    startMagicLinkCooldown(MAGIC_LINK_RATE_LIMIT_SECONDS);
+                } else {
+                    showAuthMessage(error.message || 'Could not send sign-in link. Please try again.', 'error');
+                    setMagicLinkButtonState(false);
+                }
             } else {
-                showAuthMessage(error.message || 'Could not send sign-in link. Please try again.', 'error');
-                setMagicLinkButtonState(false);
+                if (authMode === 'signup') {
+                    showAuthMessage('Check your inbox to finish creating or signing in to BudgetBuddy. If you need another link, wait about a minute before requesting it again.', 'success');
+                } else {
+                    showAuthMessage('If this email belongs to a BudgetBuddy account, check your inbox for a secure sign-in link.', 'success');
+                }
+                startMagicLinkCooldown(MAGIC_LINK_RATE_LIMIT_SECONDS);
             }
-        } else {
-            if (authMode === 'signup') {
-                showAuthMessage('Check your inbox to finish creating or signing in to BudgetBuddy. If you need another link, wait about a minute before requesting it again.', 'success');
-            } else {
-                showAuthMessage('If this email belongs to a BudgetBuddy account, check your inbox for a secure sign-in link.', 'success');
-            }
-            startMagicLinkCooldown(MAGIC_LINK_RATE_LIMIT_SECONDS);
+        } finally {
+            magicLinkRequestInFlight = false;
         }
     }
 
