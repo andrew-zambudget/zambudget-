@@ -10853,7 +10853,7 @@ export function renderDebtTab() {
                         </div>
                         <div class="debt-card-balance">
                             <div class="debt-card-balance-label">${isPaidOff ? 'Status' : 'Balance'}</div>
-                            <div class="debt-card-balance-value blur-value">${isPaidOff ? 'Paid' : `${symbol}${formatMoney(balance)}`}</div>
+                            <div class="debt-card-balance-value">${isPaidOff ? 'Paid' : `${symbol}${formatMoney(balance)}`}</div>
                         </div>
                     </div>
                     <div class="debt-progress-track" aria-label="${esc(debt.name)} ${paidPercent.toFixed(0)} percent paid off">
@@ -10986,7 +10986,7 @@ export function renderDebtTab() {
                     </div>
                 </div>
                 <div class="debt-card-balance">
-                    <div class="debt-card-balance-value blur-value">${symbol}${formatMoney(balance)}</div>
+                    <div class="debt-card-balance-value">${symbol}${formatMoney(balance)}</div>
                 </div>
             </div>
 
