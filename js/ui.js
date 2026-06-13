@@ -7,6 +7,7 @@ import { esc, generateId, formatMoney, formatDate, validateCategoryName, getIcon
 let rawAmountString = "";
 let morphTimeout = null;
 let lastSavedTxId = null;
+let addLastSavedPreview = null;
 let lastMobileCommandTab = 'income';
 let mobileCommandNavInitialized = false;
 let addDatePickerRequestAt = 0;
@@ -7072,7 +7073,8 @@ export function initMobileCommandNav() {
 }
 
 
-export function setType(type) {
+export function setType(type, options = {}) {
+    if (!options.preserveSavedPreview) clearAddSavedPreview();
     State.setCurrentType(type);
     const btnIncome = document.getElementById('btnIncome');
     const btnExpense = document.getElementById('btnExpense');
@@ -7101,6 +7103,7 @@ export function setType(type) {
             suggestionsRow.innerHTML = '';
         }
     setAddFieldError('category', '');
+    renderAddCategoryInsight();
 }
 
 // ==========================================
@@ -7126,6 +7129,8 @@ export function renderFormCategories() {
         `;
         const hiddenInput = document.getElementById('txCategory');
         if (hiddenInput) hiddenInput.value = '';
+        setAddCategoryPickerExpanded(true);
+        renderAddCategoryInsight();
         return;
     }
 
@@ -7138,13 +7143,21 @@ export function renderFormCategories() {
     const hiddenInput = document.getElementById('txCategory');
     const hiddenCategoryIsValid = hiddenInput && categories.some(cat => cat.name === hiddenInput.value);
     if (hiddenInput && !hiddenCategoryIsValid) {
-        selectFormCategory(categories[0].name);
+        hiddenInput.value = '';
+        document.querySelectorAll('.cat-pill-v2').forEach(pill => {
+            pill.classList.remove('active');
+            pill.setAttribute('aria-pressed', 'false');
+        });
+        setAddCategoryPickerExpanded(true);
+        hideSmartSuggestions();
+        renderAddCategoryInsight();
     } else if (hiddenInput) {
-        selectFormCategory(hiddenInput.value);
+        selectFormCategory(hiddenInput.value, { preserveSavedPreview: true });
     }
 }
 
-export function selectFormCategory(name) {
+export function selectFormCategory(name, options = {}) {
+    if (!options.preserveSavedPreview) clearAddSavedPreview();
     const hiddenInput = document.getElementById('txCategory');
     if (hiddenInput) hiddenInput.value = name;
     document.querySelectorAll('.cat-pill-v2').forEach(pill => {
@@ -7156,6 +7169,8 @@ export function selectFormCategory(name) {
     setAddFieldError('category', '');
     centerSelectedFormCategoryPill(name);
     renderSmartSuggestions(name);
+    setAddCategoryPickerExpanded(false);
+    renderAddCategoryInsight();
 }
 
 function centerSelectedFormCategoryPill(name) {
@@ -7263,15 +7278,19 @@ export function numpadInput(val) {
     }
 
     rawAmountString += val;
+    clearAddSavedPreview();
     updateAmountDisplay();
     if (parseAddAmountInput(rawAmountString) > 0) setAddFieldError('amount', '');
+    renderAddCategoryInsight();
 }
 
 export function numpadDelete() {
     if (rawAmountString.length > 0) {
         rawAmountString = rawAmountString.slice(0, -1);
+        clearAddSavedPreview();
         updateAmountDisplay();
         if (parseAddAmountInput(rawAmountString) > 0) setAddFieldError('amount', '');
+        renderAddCategoryInsight();
     }
 }
 
@@ -7332,6 +7351,8 @@ function formatAddAmountInput() {
 
     amountInput.value = formatMoney(Math.min(amount, ADD_TX_MAX_AMOUNT));
     rawAmountString = sanitizeMoneyValue(amountInput.value);
+    clearAddSavedPreview();
+    renderAddCategoryInsight();
 }
 
 function setAddFormStatus(message = '') {
@@ -7410,6 +7431,210 @@ function getAddTransactionCategories(type) {
         if (type === 'income') return cat.type === 'income';
         return !cat.type || cat.type === 'expense';
     });
+}
+
+function ensureAddCategoryInsight() {
+    const existing = document.getElementById('addCategoryInsight');
+    if (existing) return existing;
+
+    const insertAfter = document.getElementById('heroFeedbackWrapper') || document.getElementById('txAmountError');
+    if (!insertAfter) return null;
+
+    const insight = document.createElement('div');
+    insight.id = 'addCategoryInsight';
+    insight.className = 'add-category-insight is-empty';
+    insight.setAttribute('aria-live', 'polite');
+    insertAfter.insertAdjacentElement('afterend', insight);
+    return insight;
+}
+
+function getSelectedAddCategory() {
+    const currentType = State.getCurrentType ? State.getCurrentType() : 'expense';
+    const selectedName = String(document.getElementById('txCategory')?.value || '').trim();
+    if (!selectedName) return null;
+    return getAddTransactionCategories(currentType).find(cat => cat.name === selectedName) || null;
+}
+
+function setAddCategoryPickerExpanded(isExpanded) {
+    const container = document.getElementById('addTxCategoryContainer');
+    const group = container?.closest('.add-category-picker');
+    if (!group) return;
+
+    group.classList.toggle('is-expanded', Boolean(isExpanded));
+    group.classList.toggle('is-collapsed', !isExpanded);
+    if (container) container.setAttribute('aria-hidden', isExpanded ? 'false' : 'true');
+}
+
+export function toggleAddCategoryPicker(forceExpanded = null) {
+    const group = document.getElementById('addTxCategoryContainer')?.closest('.add-category-picker');
+    const shouldExpand = forceExpanded === null
+        ? group?.classList.contains('is-collapsed')
+        : Boolean(forceExpanded);
+
+    setAddCategoryPickerExpanded(shouldExpand);
+
+    if (shouldExpand) {
+        const selectedName = document.getElementById('txCategory')?.value;
+        if (selectedName) centerSelectedFormCategoryPill(selectedName);
+    }
+}
+
+function clearAddSavedPreview() {
+    addLastSavedPreview = null;
+}
+
+function getAddAmountPreviewValue() {
+    const amountInput = document.getElementById('txAmount');
+    return parseAddAmountInput(amountInput?.value || rawAmountString || '0');
+}
+
+function getCurrencyText(value, symbol) {
+    const numericValue = Number(value) || 0;
+    return numericValue < 0
+        ? `-${symbol}${formatMoney(Math.abs(numericValue))}`
+        : `${symbol}${formatMoney(numericValue)}`;
+}
+
+function renderAddCategoryInsight() {
+    const card = ensureAddCategoryInsight();
+    if (!card) return;
+
+    const currentType = State.getCurrentType ? State.getCurrentType() : 'expense';
+    const symbol = State.getSymbol ? State.getSymbol() : '$';
+
+    if (addLastSavedPreview) {
+        const preview = addLastSavedPreview;
+        const isExpense = preview.type !== 'income';
+        const hasBudget = preview.budgetAmount > 0;
+        const isOver = hasBudget && preview.remaining < -0.005;
+        const remainingLabel = isExpense
+            ? (hasBudget ? (isOver ? 'Over budget' : 'Left now') : 'Spent now')
+            : 'Received now';
+        const remainingValue = isExpense
+            ? (hasBudget
+                ? (isOver ? getCurrencyText(Math.abs(preview.remaining), preview.symbol) : getCurrencyText(preview.remaining, preview.symbol))
+                : getCurrencyText(preview.spent, preview.symbol))
+            : getCurrencyText(preview.spent, preview.symbol);
+        const undoCopy = lastSavedTxId === preview.id ? 'Undo is still available.' : 'Last transaction summary.';
+        const progressWidth = hasBudget ? Math.min(100, Math.max(0, (preview.spent / preview.budgetAmount) * 100)) : 0;
+
+        card.className = `add-category-insight is-saved${isOver ? ' is-over' : ''}`;
+        card.innerHTML = `
+            <div class="add-category-insight-head">
+                <div class="add-category-insight-icon">${esc(preview.icon || 'OK')}</div>
+                <div class="add-category-insight-title-wrap">
+                    <div class="add-category-insight-kicker">Last logged</div>
+                    <div class="add-category-insight-title">${esc(preview.category)}</div>
+                </div>
+                <span class="add-category-insight-badge">Saved</span>
+            </div>
+            <div class="add-category-insight-grid">
+                <div class="add-category-insight-stat">
+                    <span>${isExpense ? 'Budget' : 'Target'}</span>
+                    <strong>${hasBudget ? getCurrencyText(preview.budgetAmount, preview.symbol) : 'No budget'}</strong>
+                </div>
+                <div class="add-category-insight-stat">
+                    <span>${isExpense ? 'Logged expense' : 'Logged income'}</span>
+                    <strong>${getCurrencyText(preview.amount, preview.symbol)}</strong>
+                </div>
+                <div class="add-category-insight-stat ${isOver ? 'is-negative' : ''}">
+                    <span>${remainingLabel}</span>
+                    <strong>${remainingValue}</strong>
+                </div>
+            </div>
+            ${hasBudget ? `
+                <div class="add-category-insight-progress" aria-hidden="true">
+                    <span style="width: ${progressWidth}%"></span>
+                </div>
+            ` : ''}
+            <div class="add-category-insight-note">${esc(undoCopy)}</div>
+        `;
+        return;
+    }
+
+    const selectedCategory = getSelectedAddCategory();
+    const categories = getAddTransactionCategories(currentType);
+
+    if (!selectedCategory) {
+        const emptyCopy = categories.length
+            ? (currentType === 'income'
+                ? 'Pick an income source to preview the deposit.'
+                : 'Pick a category to preview what this transaction does.')
+            : (currentType === 'income'
+                ? 'Create an income source to start logging deposits.'
+                : 'Create a category to start logging expenses.');
+
+        card.className = 'add-category-insight is-empty';
+        card.innerHTML = `
+            <div class="add-category-insight-head">
+                <div class="add-category-insight-icon">?</div>
+                <div class="add-category-insight-title-wrap">
+                    <div class="add-category-insight-kicker">${currentType === 'income' ? 'Income source' : 'Category'}</div>
+                    <div class="add-category-insight-title">Choose where this goes</div>
+                </div>
+            </div>
+            <div class="add-category-insight-note">${emptyCopy}</div>
+        `;
+        return;
+    }
+
+    const amount = getAddAmountPreviewValue();
+    const hasAmount = Number.isFinite(amount) && amount > 0;
+    const isExpense = currentType !== 'income';
+    const budgetAmount = Math.max(0, parseFloat(selectedCategory.budget) || 0);
+    const transactionType = isExpense ? (selectedCategory.type || 'expense') : 'income';
+    const alreadyLogged = getCategoryTransactionSummary(selectedCategory.name, transactionType).total;
+    const projectedTotal = alreadyLogged + (hasAmount ? amount : 0);
+    const remainingBefore = budgetAmount - alreadyLogged;
+    const remainingAfter = budgetAmount - projectedTotal;
+    const hasBudget = budgetAmount > 0;
+    const isOver = isExpense && hasBudget && remainingAfter < -0.005;
+    const progressWidth = hasBudget ? Math.min(100, Math.max(0, (projectedTotal / budgetAmount) * 100)) : 0;
+    const resultLabel = isExpense
+        ? (hasBudget ? (isOver ? 'Over after' : 'Left after') : 'Spent after')
+        : 'Income after';
+    const resultValue = isExpense
+        ? (hasBudget
+            ? (isOver ? getCurrencyText(Math.abs(remainingAfter), symbol) : getCurrencyText(remainingAfter, symbol))
+            : getCurrencyText(projectedTotal, symbol))
+        : getCurrencyText(projectedTotal, symbol);
+    const note = hasAmount
+        ? (hasBudget
+            ? `${getCurrencyText(remainingBefore, symbol)} left before this transaction.`
+            : `No budget set yet. This will still save to ${selectedCategory.name}.`)
+        : 'Enter an amount to preview the final result.';
+
+    card.className = `add-category-insight${isOver ? ' is-over' : ''}`;
+    card.innerHTML = `
+        <div class="add-category-insight-head">
+            <div class="add-category-insight-icon">${esc(selectedCategory.icon || '?')}</div>
+            <div class="add-category-insight-title-wrap">
+                <div class="add-category-insight-kicker">${isExpense ? 'Expense category' : 'Income source'}</div>
+                <div class="add-category-insight-title">${esc(selectedCategory.name)}</div>
+            </div>
+            <button type="button" class="add-category-insight-action" onclick="window.toggleAddCategoryPicker(true)">Change</button>
+        </div>
+        <div class="add-category-insight-grid">
+            <div class="add-category-insight-stat">
+                <span>${isExpense ? 'Budget' : 'Target'}</span>
+                <strong>${hasBudget ? getCurrencyText(budgetAmount, symbol) : 'No budget'}</strong>
+            </div>
+            <div class="add-category-insight-stat">
+                <span>${isExpense ? 'This expense' : 'This deposit'}</span>
+                <strong>${hasAmount ? getCurrencyText(amount, symbol) : `${symbol}0.00`}</strong>
+            </div>
+            <div class="add-category-insight-stat ${isOver ? 'is-negative' : ''}">
+                <span>${resultLabel}</span>
+                <strong>${resultValue}</strong>
+            </div>
+        </div>
+        ${hasBudget ? `
+            <div class="add-category-insight-progress" aria-hidden="true">
+                <span style="width: ${progressWidth}%"></span>
+            </div>
+        ` : ''}
+        <div class="add-category-insight-note">${esc(note)}</div>
+    `;
 }
 
 function updateAddTransactionDate(value) {
@@ -7503,6 +7728,8 @@ function handleAddAmountInput(event) {
 
     rawAmountString = sanitized;
     if (parseAddAmountInput(sanitized) > 0) setAddFieldError('amount', '');
+    clearAddSavedPreview();
+    renderAddCategoryInsight();
 }
 
 function bindAddFormInputEvents() {
@@ -7537,12 +7764,14 @@ function bindAddFormInputEvents() {
 export function initAddTransactionForm() {
     bindAddFormInputEvents();
     bindAddDatePickerEvents();
+    ensureAddCategoryInsight();
     const dateInput = document.getElementById('txDateNative');
     if (dateInput) {
         dateInput.min = '1900-01-01';
         dateInput.max = '2100-12-31';
     }
     updateAddTransactionDate(document.getElementById('txDateHidden')?.value || getLocalISODate());
+    renderAddCategoryInsight();
     clearAddFormErrors();
 }
 
@@ -7783,15 +8012,26 @@ export function submitTransaction() {
         State.addTransaction(newTx);
         observeLocalSave('1 transaction saved partially.');
         lastSavedTxId = newTx.id;
+        const targetCategory = validCategories.find(c => c.name === category) || {};
+        const budgetAmount = targetCategory.budget || 0;
+        const spent = getCategoryTransactionSummary(category, currentType === 'income' ? 'income' : 'expense').total;
+        const remaining = budgetAmount - spent;
+        const symbol = State.getSymbol ? State.getSymbol() : '$';
+        addLastSavedPreview = {
+            id: newTx.id,
+            type: currentType,
+            category,
+            icon: targetCategory.icon || '',
+            amount,
+            budgetAmount,
+            spent,
+            remaining,
+            symbol
+        };
         setAddFormStatus(`${currentType === 'income' ? 'Deposit' : 'Expense'} saved. Undo is available for a few seconds.`);
         showToast(`${currentType === 'income' ? 'Deposit' : 'Expense'} saved.`);
         render();
-
-        const targetCategory = validCategories.find(c => c.name === category) || {};
-        const budgetAmount = targetCategory.budget || 0;
-        const spent = getCategoryTransactionSummary(category, 'expense').total;
-        const remaining = budgetAmount - spent;
-        const symbol = State.getSymbol ? State.getSymbol() : '$';
+        renderAddCategoryInsight();
 
         triggerSuccessMorph(newTx, remaining, symbol, budgetAmount);
         return;
@@ -7836,15 +8076,27 @@ export function submitTransaction() {
     State.addTransaction(newTx);
     observeLocalSave('1 transaction saved partially.');
     lastSavedTxId = newTx.id;
-    render();
 
     const categories = State.getCategories() || [];
     const targetCategory = categories.find(c => c.name === category) || {};
     const budgetAmount = targetCategory.budget || 0;
-    const spent = getCategoryTransactionSummary(category, 'expense').total;
+    const spent = getCategoryTransactionSummary(category, currentType === 'income' ? 'income' : 'expense').total;
 
     const remaining = budgetAmount - spent;
     const symbol = State.getSymbol ? State.getSymbol() : '$';
+    addLastSavedPreview = {
+        id: newTx.id,
+        type: currentType,
+        category,
+        icon: targetCategory.icon || '',
+        amount,
+        budgetAmount,
+        spent,
+        remaining,
+        symbol
+    };
+    render();
+    renderAddCategoryInsight();
 
     triggerSuccessMorph(newTx, remaining, symbol, budgetAmount);
 }
@@ -7891,6 +8143,7 @@ export function undoLastTransaction() {
     if (lastSavedTxId) {
         State.deleteTransaction(lastSavedTxId);
         lastSavedTxId = null;
+        clearAddSavedPreview();
         clearTimeout(morphTimeout);
         render();
 
@@ -7948,18 +8201,18 @@ export function hardResetForm() {
         const defType = State.getDefaultType ? State.getDefaultType() : 'expense';
         const defMethod = State.getDefaultPayment ? State.getDefaultPayment() : '';
 
-        setType(defType);
+        setType(defType, { preserveSavedPreview: true });
         rawAmountString = "";
         updateAmountDisplay();
 
-        const categories = getAddTransactionCategories(defType);
-        if (categories.length > 0) {
-            selectFormCategory(categories[0].name);
-        } else {
-            const catInput = document.getElementById('txCategory');
-            if(catInput) catInput.value = '';
-            document.querySelectorAll('.cat-pill-v2').forEach(pill => pill.classList.remove('active'));
-        }
+        const catInput = document.getElementById('txCategory');
+        if (catInput) catInput.value = '';
+        document.querySelectorAll('.cat-pill-v2').forEach(pill => {
+            pill.classList.remove('active');
+            pill.setAttribute('aria-pressed', 'false');
+        });
+        setAddCategoryPickerExpanded(true);
+        renderAddCategoryInsight();
 
         hideSmartSuggestions();
 
@@ -15523,6 +15776,7 @@ window.submitTransaction = submitTransaction;
 window.handleDateChange = handleDateChange;
 window.setAddTransactionDate = setAddTransactionDate;
 window.openAddDatePicker = openAddDatePicker;
+window.toggleAddCategoryPicker = toggleAddCategoryPicker;
 window.initAddTransactionForm = initAddTransactionForm;
 window.hardResetForm = hardResetForm;
 window.initCategoryUI = initCategoryUI;
