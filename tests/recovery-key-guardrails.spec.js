@@ -4,7 +4,7 @@ const {
 } = require('./helpers/appHarness');
 
 const TEST_USER_ID = 'fresh-recovery-key-user';
-const TEST_EMAIL = 'devtest@budget-buddy.io';
+const TEST_EMAIL = 'test-user@example.invalid';
 
 function installFreshSignedInSupabaseStub(page) {
     return page.route('**/@supabase/supabase-js@2', route => route.fulfill({

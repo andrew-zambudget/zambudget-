@@ -185,7 +185,7 @@ test.describe('Buddy Cloud conflict sensitivity', () => {
         const result = await page.evaluate(async ({ stateModulePath, cloudModulePath }) => {
             const State = await import(stateModulePath);
             const Cloud = await import(cloudModulePath);
-            const user = { id: 'fresh-devtest-user', email: 'devtest@budget-buddy.io' };
+            const user = { id: 'fresh-test-user', email: 'test-user@example.invalid' };
             const store = { vault: null, snapshots: [] };
 
             function makeSupabaseStub() {
