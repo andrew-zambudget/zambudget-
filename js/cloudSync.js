@@ -11,6 +11,9 @@ const CLOUD_CONFLICT_LAST_SYNCED_KEY = 'bb_cloud_conflict_last_synced_at';
 const CLOUD_CONFLICT_REMOTE_SUMMARY_KEY = 'bb_cloud_conflict_remote_summary';
 const CLOUD_CONFLICT_LOCAL_SUMMARY_KEY = 'bb_cloud_conflict_local_summary';
 const CLOUD_KEY_PREFIX = 'bb_cloud_key_';
+const CLOUD_TRUSTED_KEY_DB_NAME = 'budgetbuddy_buddy_cloud_keys';
+const CLOUD_TRUSTED_KEY_DB_VERSION = 1;
+const CLOUD_TRUSTED_KEY_STORE = 'trusted_keys';
 const CLOUD_SYNC_SLOT_PREFIX = 'bb_cloud_sync_slot_';
 const CLOUD_FORCE_PULL_AFTER_SIGN_IN_PREFIX = 'bb_cloud_force_pull_after_sign_in_';
 const CLOUD_TABLE = 'buddy_cloud_vaults';
@@ -81,6 +84,168 @@ async function sha256(value) {
     return encodeBase64Url(new Uint8Array(digest));
 }
 
+function isCryptoKey(value) {
+    return typeof CryptoKey !== 'undefined' && value instanceof CryptoKey;
+}
+
+function canUseTrustedCloudKeyStorage() {
+    return typeof indexedDB !== 'undefined' && Boolean(crypto?.subtle);
+}
+
+function openTrustedCloudKeyDb() {
+    if (!canUseTrustedCloudKeyStorage()) return Promise.resolve(null);
+
+    return new Promise(resolve => {
+        let settled = false;
+        const settle = value => {
+            if (settled) return;
+            settled = true;
+            resolve(value);
+        };
+
+        let request;
+        try {
+            request = indexedDB.open(CLOUD_TRUSTED_KEY_DB_NAME, CLOUD_TRUSTED_KEY_DB_VERSION);
+        } catch (error) {
+            console.warn('[Buddy Cloud] Trusted key storage unavailable:', error);
+            settle(null);
+            return;
+        }
+
+        request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(CLOUD_TRUSTED_KEY_STORE)) {
+                db.createObjectStore(CLOUD_TRUSTED_KEY_STORE, { keyPath: 'userId' });
+            }
+        };
+        request.onsuccess = () => settle(request.result);
+        request.onerror = () => {
+            console.warn('[Buddy Cloud] Could not open trusted key storage:', request.error);
+            settle(null);
+        };
+        request.onblocked = () => {
+            console.warn('[Buddy Cloud] Trusted key storage is blocked by another tab.');
+            settle(null);
+        };
+    });
+}
+
+async function readTrustedCloudKey(userId) {
+    if (!userId) return null;
+    const db = await openTrustedCloudKeyDb();
+    if (!db) return null;
+
+    return new Promise(resolve => {
+        let settled = false;
+        const settle = value => {
+            if (settled) return;
+            settled = true;
+            try { db.close(); } catch {}
+            resolve(value);
+        };
+
+        try {
+            const tx = db.transaction(CLOUD_TRUSTED_KEY_STORE, 'readonly');
+            const request = tx.objectStore(CLOUD_TRUSTED_KEY_STORE).get(userId);
+            request.onsuccess = () => {
+                const key = request.result?.key || null;
+                settle(isCryptoKey(key) ? key : null);
+            };
+            request.onerror = () => settle(null);
+            tx.onabort = () => settle(null);
+        } catch (error) {
+            console.warn('[Buddy Cloud] Could not read trusted key:', error);
+            settle(null);
+        }
+    });
+}
+
+async function persistTrustedCloudKey(userId, cryptoKey) {
+    if (!userId || !isCryptoKey(cryptoKey)) return false;
+    const db = await openTrustedCloudKeyDb();
+    if (!db) return false;
+
+    return new Promise(resolve => {
+        let settled = false;
+        const settle = value => {
+            if (settled) return;
+            settled = true;
+            try { db.close(); } catch {}
+            resolve(value);
+        };
+
+        try {
+            const tx = db.transaction(CLOUD_TRUSTED_KEY_STORE, 'readwrite');
+            const request = tx.objectStore(CLOUD_TRUSTED_KEY_STORE).put({
+                userId,
+                key: cryptoKey,
+                algorithm: 'AES-GCM',
+                usages: ['encrypt', 'decrypt'],
+                updatedAt: new Date().toISOString()
+            });
+            request.onerror = () => settle(false);
+            tx.oncomplete = () => settle(true);
+            tx.onabort = () => settle(false);
+        } catch (error) {
+            console.warn('[Buddy Cloud] Could not save trusted key:', error);
+            settle(false);
+        }
+    });
+}
+
+async function deleteTrustedCloudKey(userId) {
+    if (!userId) return false;
+    const db = await openTrustedCloudKeyDb();
+    if (!db) return false;
+
+    return new Promise(resolve => {
+        let settled = false;
+        const settle = value => {
+            if (settled) return;
+            settled = true;
+            try { db.close(); } catch {}
+            resolve(value);
+        };
+
+        try {
+            const tx = db.transaction(CLOUD_TRUSTED_KEY_STORE, 'readwrite');
+            tx.objectStore(CLOUD_TRUSTED_KEY_STORE).delete(userId);
+            tx.oncomplete = () => settle(true);
+            tx.onabort = () => settle(false);
+            tx.onerror = () => settle(false);
+        } catch (error) {
+            console.warn('[Buddy Cloud] Could not delete trusted key:', error);
+            settle(false);
+        }
+    });
+}
+
+async function deleteAllTrustedCloudKeys() {
+    if (typeof indexedDB === 'undefined') return false;
+
+    return new Promise(resolve => {
+        let settled = false;
+        const settle = value => {
+            if (settled) return;
+            settled = true;
+            resolve(value);
+        };
+
+        let request;
+        try {
+            request = indexedDB.deleteDatabase(CLOUD_TRUSTED_KEY_DB_NAME);
+        } catch (error) {
+            console.warn('[Buddy Cloud] Could not clear trusted key storage:', error);
+            settle(false);
+            return;
+        }
+
+        request.onsuccess = () => settle(true);
+        request.onerror = () => settle(false);
+        request.onblocked = () => settle(false);
+    });
+}
+
 function getUserKeyName(userId = currentUser?.id) {
     return userId ? `${CLOUD_KEY_PREFIX}${userId}` : '';
 }
@@ -109,6 +274,21 @@ function clearMemoryCloudKey(userId = currentUser?.id) {
     purgePersistedCloudKey(userId);
 }
 
+function getMemoryCloudKeyEntry(userId = currentUser?.id) {
+    const normalizedUserId = userId || '';
+    purgePersistedCloudKey(normalizedUserId);
+    return normalizedUserId ? memoryCloudKeys.get(normalizedUserId) || null : null;
+}
+
+function getStoredCloudRawKey() {
+    return getMemoryCloudKeyEntry()?.rawKey || '';
+}
+
+function getStoredCloudKeyMaterial() {
+    const entry = getMemoryCloudKeyEntry();
+    return entry?.rawKey || entry?.cryptoKey || null;
+}
+
 function getSyncSlotKeyName(userId = currentUser?.id) {
     return userId ? `${CLOUD_SYNC_SLOT_PREFIX}${userId}` : '';
 }
@@ -128,23 +308,67 @@ function clearForcePullAfterSignIn() {
 }
 
 function hasLocalCloudKey() {
-    return Boolean(getStoredCloudKey());
+    return Boolean(getStoredCloudKeyMaterial());
 }
 
-function getStoredCloudKey() {
-    const userId = currentUser?.id || '';
-    purgePersistedCloudKey(userId);
-    return userId ? memoryCloudKeys.get(userId) || '' : '';
+function hasExportableCloudKey() {
+    return Boolean(getStoredCloudRawKey());
 }
 
-function storeCloudKey(value) {
+function hasTrustedCloudKey() {
+    return Boolean(getMemoryCloudKeyEntry()?.cryptoKey);
+}
+
+async function restoreTrustedCloudKey(userId = currentUser?.id) {
+    const normalizedUserId = userId || '';
+    if (!normalizedUserId || getMemoryCloudKeyEntry(normalizedUserId)?.cryptoKey) {
+        return Boolean(getMemoryCloudKeyEntry(normalizedUserId)?.cryptoKey);
+    }
+
+    const cryptoKey = await readTrustedCloudKey(normalizedUserId);
+    if (!cryptoKey) return false;
+
+    const existing = getMemoryCloudKeyEntry(normalizedUserId) || {};
+    memoryCloudKeys.set(normalizedUserId, {
+        ...existing,
+        cryptoKey,
+        trustedKeyAvailable: true
+    });
+    purgePersistedCloudKey(normalizedUserId);
+    return true;
+}
+
+async function clearTrustedCloudKey(userId = currentUser?.id) {
+    const normalizedUserId = userId || '';
+    if (!normalizedUserId) return false;
+    clearMemoryCloudKey(normalizedUserId);
+    return deleteTrustedCloudKey(normalizedUserId);
+}
+
+async function clearAllTrustedCloudKeys() {
+    memoryCloudKeys.clear();
+    purgeAllPersistedCloudKeys();
+    return deleteAllTrustedCloudKeys();
+}
+
+async function storeCloudKey(value, options = {}) {
     const userId = currentUser?.id || '';
     if (!userId) throw new Error('Sign in before setting a Buddy Cloud key.');
 
     const normalized = String(value || '').trim();
     if (!normalized) throw new Error('Buddy Cloud recovery key is invalid.');
-    memoryCloudKeys.set(userId, normalized);
+    const cryptoKey = options.cryptoKey || await importAesKey(normalized);
+    memoryCloudKeys.set(userId, {
+        rawKey: normalized,
+        cryptoKey,
+        trustedKeyAvailable: false
+    });
     purgePersistedCloudKey(userId);
+    if (options.persistTrusted !== false) {
+        const trustedKeyAvailable = await persistTrustedCloudKey(userId, cryptoKey);
+        const entry = getMemoryCloudKeyEntry(userId);
+        if (entry) memoryCloudKeys.set(userId, { ...entry, trustedKeyAvailable });
+    }
     return normalized;
 }
 
@@ -340,10 +564,15 @@ async function importAesKey(rawKey) {
     return crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
 }
 
-async function encryptSnapshot(snapshot, rawKey) {
+async function getAesKey(keyMaterial) {
+    if (isCryptoKey(keyMaterial)) return keyMaterial;
+    return importAesKey(keyMaterial);
+}
+
+async function encryptSnapshot(snapshot, keyMaterial) {
     const iv = new Uint8Array(12);
     crypto.getRandomValues(iv);
-    const key = await importAesKey(rawKey);
+    const key = await getAesKey(keyMaterial);
     const plaintext = JSON.stringify({
         app: 'BudgetBuddy',
         schemaVersion: SCHEMA_VERSION,
@@ -359,12 +588,12 @@ async function encryptSnapshot(snapshot, rawKey) {
     };
 }
 
-async function decryptSnapshot(payload, rawKey) {
+async function decryptSnapshot(payload, keyMaterial) {
     if (!payload || payload.algorithm !== 'AES-GCM' || !payload.iv || !payload.ciphertext) {
         throw new Error('Buddy Cloud vault payload is not recognized.');
     }
 
-    const key = await importAesKey(rawKey);
+    const key = await getAesKey(keyMaterial);
     const decrypted = await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv: decodeBase64Url(payload.iv) },
         key,
@@ -735,6 +964,8 @@ function rememberStatus(next = {}) {
         enabled: isEnabled(),
         signedIn: Boolean(currentUser?.id),
         hasKey: hasLocalCloudKey(),
+        hasExportableKey: hasExportableCloudKey(),
+        hasTrustedKey: hasTrustedCloudKey(),
         lastPushedAt: localStorage.getItem(CLOUD_LAST_PUSHED_KEY) || '',
         lastRemoteAt: localStorage.getItem(CLOUD_LAST_REMOTE_KEY) || '',
         lastError: localStorage.getItem(CLOUD_LAST_ERROR_KEY) || '',
@@ -875,8 +1106,8 @@ async function fetchLatestVaultSnapshot() {
     return data || null;
 }
 
-async function fetchLatestRecoverableVaultSnapshot(rawKey) {
-    if (!rawKey) return null;
+async function fetchLatestRecoverableVaultSnapshot(keyMaterial) {
+    if (!keyMaterial) return null;
 
     const retentionLimit = getVersionHistoryLimit();
     const { data, error } = await sb
@@ -890,7 +1121,7 @@ async function fetchLatestRecoverableVaultSnapshot(rawKey) {
     if (error) throw createVersionHistoryError(error);
 
     for (const row of data || []) {
-        const snapshot = await decryptSnapshot(row.payload, rawKey);
+        const snapshot = await decryptSnapshot(row.payload, keyMaterial);
         const summary = getSnapshotSummary(snapshot);
         if (summaryHasBudgetData(summary)) {
             return { row, snapshot, summary };
@@ -972,10 +1203,10 @@ async function maybeCreateVaultSnapshot({ payload, checksum, clientUpdatedAt, re
     return true;
 }
 
-async function createPreRestoreSafetySnapshot(rawKey) {
+async function createPreRestoreSafetySnapshot(keyMaterial) {
     const snapshot = getLocalSnapshot();
     const clientUpdatedAt = snapshot.meta?.localUpdatedAt || new Date().toISOString();
-    const payload = await encryptSnapshot(snapshot, rawKey);
+    const payload = await encryptSnapshot(snapshot, keyMaterial);
     const checksum = await sha256(JSON.stringify(payload));
     const created = await maybeCreateVaultSnapshot({
         payload,
@@ -988,12 +1219,12 @@ async function createPreRestoreSafetySnapshot(rawKey) {
     return true;
 }
 
-async function createLocalVersionSafetySnapshot(rawKey, reason = 'Before keeping cloud version.') {
+async function createLocalVersionSafetySnapshot(keyMaterial, reason = 'Before keeping cloud version.') {
     const snapshot = getLocalSnapshot();
     if (!localSnapshotHasBudgetData(snapshot)) return false;
 
     const clientUpdatedAt = snapshot.meta?.localUpdatedAt || new Date().toISOString();
-    const payload = await encryptSnapshot(snapshot, rawKey);
+    const payload = await encryptSnapshot(snapshot, keyMaterial);
     const checksum = await sha256(JSON.stringify(payload));
     const created = await maybeCreateVaultSnapshot({
         payload,
@@ -1006,8 +1237,8 @@ async function createLocalVersionSafetySnapshot(rawKey, reason = 'Before keeping
     return true;
 }
 
-async function recoverLatestVersionSnapshot(rawKey, reason = 'Recovered Buddy Cloud version after blank sign-in.') {
-    const recoverable = await fetchLatestRecoverableVaultSnapshot(rawKey);
+async function recoverLatestVersionSnapshot(keyMaterial, reason = 'Recovered Buddy Cloud version after blank sign-in.') {
+    const recoverable = await fetchLatestRecoverableVaultSnapshot(keyMaterial);
     if (!recoverable) return false;
 
     record('Recovering latest Buddy Cloud saved version...', 'syncing');
@@ -1200,8 +1431,8 @@ async function performPushSnapshotNow(reason = 'Budget synced to Buddy Cloud.') 
         return false;
     }
 
-    const rawKey = getStoredCloudKey();
-    if (!rawKey) {
+    const keyMaterial = getStoredCloudKeyMaterial();
+    if (!keyMaterial) {
         rememberStatus({ syncing: false, nextSyncAt: '', nextSyncReason: '' });
         record('Buddy Cloud needs your recovery key on this device.', 'error');
         return false;
@@ -1215,9 +1446,9 @@ async function performPushSnapshotNow(reason = 'Budget synced to Buddy Cloud.') 
     await claimSyncSlot(existingRemote);
     let remoteSnapshot = null;
     if (existingRemote) {
-        remoteSnapshot = await decryptSnapshot(existingRemote.payload, rawKey);
+        remoteSnapshot = await decryptSnapshot(existingRemote.payload, keyMaterial);
     }
-    const payload = await encryptSnapshot(snapshot, rawKey);
+    const payload = await encryptSnapshot(snapshot, keyMaterial);
     const checksum = await sha256(JSON.stringify(payload));
     const syncDetails = buildSyncSnapshotDetails({
         beforeSnapshot: remoteSnapshot,
@@ -1310,8 +1541,8 @@ export async function forcePush() {
 
 export async function forcePull() {
     if (!isEnabled() || !canUseCloud()) throw new Error('Sign in to use Buddy Cloud first.');
-    const rawKey = getStoredCloudKey();
-    if (!rawKey) throw new Error('Import your Buddy Cloud recovery key on this device first.');
+    const keyMaterial = getStoredCloudKeyMaterial();
+    if (!keyMaterial) throw new Error('Import your Buddy Cloud recovery key on this device first.');
 
     record('Downloading Buddy Cloud vault...', 'syncing');
     const remote = await fetchRemoteVault();
@@ -1321,9 +1552,9 @@ export async function forcePull() {
     }
 
     await claimSyncSlot(remote);
-    const snapshot = await decryptSnapshot(remote.payload, rawKey);
+    const snapshot = await decryptSnapshot(remote.payload, keyMaterial);
     record('Saving this browser version before keeping cloud...', 'syncing');
-    await createLocalVersionSafetySnapshot(rawKey);
+    await createLocalVersionSafetySnapshot(keyMaterial);
     isApplyingRemote = true;
     try {
         replaceSnapshot?.(snapshot, { source: 'buddy_cloud', remoteUpdatedAt: remote.client_updated_at });
@@ -1344,21 +1575,28 @@ export async function enableSync(options = {}) {
     if (!canUseCloud()) throw new Error('Sign in before setting up Buddy Cloud.');
     if (!crypto?.subtle) throw new Error('This browser does not support secure Buddy Cloud encryption.');
 
-    const existingKey = getStoredCloudKey();
+    const existingKeyMaterial = getStoredCloudKeyMaterial();
+    const existingRawKey = getStoredCloudRawKey();
     const remote = await fetchRemoteVault();
-    if (remote && !existingKey && !options.recoveryKey) {
+    if (remote && !existingKeyMaterial && !options.recoveryKey) {
         localStorage.setItem(CLOUD_ENABLED_KEY, 'true');
         rememberStatus();
         return { enabled: true, remoteExisted: true, needsKey: true };
     }
 
-    const rawKey = options.recoveryKey || existingKey || generateCloudKey();
+    const providedRawKey = String(options.recoveryKey || '').trim();
+    const generatedRawKey = !providedRawKey && !existingKeyMaterial ? generateCloudKey() : '';
+    const rawKey = providedRawKey || generatedRawKey;
+    const keyMaterial = rawKey || existingKeyMaterial;
+    const recoveryKeyForDisplay = rawKey || existingRawKey || '';
+    if (!keyMaterial) throw new Error('Import your Buddy Cloud recovery key before syncing this device.');
+
     let remoteSnapshot = null;
     if (remote) {
-        remoteSnapshot = await decryptSnapshot(remote.payload, rawKey);
+        remoteSnapshot = await decryptSnapshot(remote.payload, keyMaterial);
         await claimSyncSlot(remote, { replace: options.replaceSyncSlot === true });
     }
-    storeCloudKey(rawKey);
+    if (rawKey) await storeCloudKey(rawKey);
     localStorage.setItem(CLOUD_ENABLED_KEY, 'true');
     if (!remote) {
         await pushSnapshotNow('Buddy Cloud enabled. Local budget uploaded.');
@@ -1371,14 +1609,14 @@ export async function enableSync(options = {}) {
         const localSnapshot = getLocalSnapshot();
         if (shouldForcePullAfterSignIn() && snapshotsHaveSameBudgetContent(localSnapshot, remoteSnapshot)) {
             await forcePull();
-            return { enabled: true, recoveryKey: rawKey, remoteExisted: true, usedRemote: true };
+            return { enabled: true, recoveryKey: recoveryKeyForDisplay, remoteExisted: true, usedRemote: true };
         }
 
         const localUpdatedAt = localSnapshot.meta?.localUpdatedAt || '';
         rememberStatus();
         return {
             enabled: true,
-            recoveryKey: rawKey,
+            recoveryKey: recoveryKeyForDisplay,
             remoteExisted: true,
             needsChoice: true,
             remoteUpdatedAt: remote.client_updated_at || remote.updated_at || '',
@@ -1391,22 +1629,22 @@ export async function enableSync(options = {}) {
 
     if (options.prefer === 'remote' || !hasLocalData) {
         await forcePull();
-        return { enabled: true, recoveryKey: rawKey, remoteExisted: true, usedRemote: true };
+        return { enabled: true, recoveryKey: recoveryKeyForDisplay, remoteExisted: true, usedRemote: true };
     }
 
     await forcePush();
-    return { enabled: true, recoveryKey: rawKey, remoteExisted: true, usedLocal: true };
+    return { enabled: true, recoveryKey: recoveryKeyForDisplay, remoteExisted: true, usedLocal: true };
 }
 
 export async function replaceSyncSlot() {
     if (!canUseCloud()) throw new Error('Sign in before managing Buddy Cloud devices.');
-    const rawKey = getStoredCloudKey();
-    if (!rawKey) throw new Error('Import your Buddy Cloud recovery key before making this browser active.');
+    const keyMaterial = getStoredCloudKeyMaterial();
+    if (!keyMaterial) throw new Error('Import your Buddy Cloud recovery key before making this browser active.');
 
     const remote = await fetchRemoteVault();
     if (!remote) throw new Error('No Buddy Cloud vault exists yet.');
 
-    await decryptSnapshot(remote.payload, rawKey);
+    await decryptSnapshot(remote.payload, keyMaterial);
     await claimSyncSlot(remote, { replace: true });
     record('This browser is now the active Buddy Cloud browser.', 'synced');
     return true;
@@ -1545,6 +1783,7 @@ export async function releaseOtherSyncSlots() {
 export function removeThisDevice() {
     clearTimeout(pushTimer);
     const slotKeyName = getSyncSlotKeyName();
+    void clearTrustedCloudKey();
     clearMemoryCloudKey();
     if (slotKeyName) localStorage.removeItem(slotKeyName);
     clearForcePullAfterSignIn();
@@ -1567,23 +1806,31 @@ export function removeThisDevice() {
 }
 
 export function exportRecoveryKey() {
-    const rawKey = getStoredCloudKey();
+    const rawKey = getStoredCloudRawKey();
+    if (!rawKey && hasLocalCloudKey()) {
+        throw new Error('Import your Buddy Cloud recovery key again before viewing it. This trusted browser can sync, but the saved browser key cannot be displayed.');
+    }
     if (!rawKey) throw new Error('Import your Buddy Cloud recovery key before viewing it.');
     return rawKey;
 }
 
 export async function importRecoveryKey(rawKey) {
-    await importAesKey(rawKey);
-    storeCloudKey(String(rawKey || '').trim());
+    const normalized = String(rawKey || '').trim();
+    const cryptoKey = await importAesKey(normalized);
+    if (canUseCloud()) {
+        const remote = await fetchRemoteVault();
+        if (remote) await decryptSnapshot(remote.payload, cryptoKey);
+    }
+    await storeCloudKey(normalized, { cryptoKey });
     localStorage.setItem(CLOUD_ENABLED_KEY, 'true');
     rememberStatus();
-    record('Buddy Cloud recovery key imported for this session.', 'local');
+    record('Buddy Cloud recovery key trusted on this browser.', 'local');
     return true;
 }
 
 export async function listVersionHistory(limit = 10) {
     if (!isEnabled() || !canUseCloud()) throw new Error('Sign in to use Buddy Cloud first.');
-    if (!getStoredCloudKey()) throw new Error('Import your Buddy Cloud recovery key before using version history.');
+    if (!getStoredCloudKeyMaterial()) throw new Error('Import your Buddy Cloud recovery key before using version history.');
 
     const retentionLimit = getVersionHistoryLimit();
     const safeLimit = Math.max(1, Math.min(Number(limit) || retentionLimit, retentionLimit));
@@ -1601,8 +1848,8 @@ export async function listVersionHistory(limit = 10) {
 
 export async function restoreVersion(snapshotId) {
     if (!isEnabled() || !canUseCloud()) throw new Error('Sign in to use Buddy Cloud first.');
-    const rawKey = getStoredCloudKey();
-    if (!rawKey) throw new Error('Import your Buddy Cloud recovery key before restoring a version.');
+    const keyMaterial = getStoredCloudKeyMaterial();
+    if (!keyMaterial) throw new Error('Import your Buddy Cloud recovery key before restoring a version.');
     if (!snapshotId) throw new Error('Choose a Buddy Cloud version to restore.');
 
     record('Restoring Buddy Cloud version...', 'syncing');
@@ -1617,9 +1864,9 @@ export async function restoreVersion(snapshotId) {
     if (error) throw createVersionHistoryError(error);
     if (!data) throw new Error('That Buddy Cloud version was not found.');
 
-    const snapshot = await decryptSnapshot(data.payload, rawKey);
+    const snapshot = await decryptSnapshot(data.payload, keyMaterial);
     record('Creating pre-restore safety snapshot...', 'syncing');
-    await createPreRestoreSafetySnapshot(rawKey);
+    await createPreRestoreSafetySnapshot(keyMaterial);
     const restoredAt = new Date().toISOString();
     const restoredSnapshot = {
         ...snapshot,
@@ -1659,6 +1906,7 @@ export async function init(options = {}) {
     afterRemoteApply = options.afterRemoteApply;
     isPremiumAccount = typeof options.isPremiumAccount === 'function' ? options.isPremiumAccount : isPremiumAccount;
     isInitialized = true;
+    if (nextUserId) await restoreTrustedCloudKey(nextUserId);
     rememberStatus();
 
     if (!currentUser) {
@@ -1688,12 +1936,12 @@ export async function init(options = {}) {
             return false;
         }
 
-        const rawKey = getStoredCloudKey();
+        const keyMaterial = getStoredCloudKeyMaterial();
         const remote = await fetchRemoteVault();
         if (!remote) {
             const localSnapshot = getLocalSnapshot();
             if (shouldForcePullAfterSignIn() && !localSnapshotHasBudgetData(localSnapshot)) {
-                const recovered = await recoverLatestVersionSnapshot(rawKey);
+                const recovered = await recoverLatestVersionSnapshot(keyMaterial);
                 if (recovered) return true;
             }
 
@@ -1714,7 +1962,7 @@ export async function init(options = {}) {
         let remoteSnapshot = null;
         let remoteSummary = null;
         const getRemoteSummary = async () => {
-            if (!remoteSnapshot) remoteSnapshot = await decryptSnapshot(remote.payload, rawKey);
+            if (!remoteSnapshot) remoteSnapshot = await decryptSnapshot(remote.payload, keyMaterial);
             if (!remoteSummary) remoteSummary = getSnapshotSummary(remoteSnapshot);
             return remoteSummary;
         };
@@ -1745,7 +1993,7 @@ export async function init(options = {}) {
                 return true;
             }
             if (forcePullAfterSignIn) {
-                const recovered = await recoverLatestVersionSnapshot(rawKey);
+                const recovered = await recoverLatestVersionSnapshot(keyMaterial);
                 if (recovered) return true;
             }
         }
@@ -1826,6 +2074,7 @@ export async function refreshUser(user) {
         });
         return false;
     }
+    await restoreTrustedCloudKey(nextUserId);
     rememberStatus();
     ensureSyncSlotRealtimeSubscription();
     return init({ supabaseClient: sb, user: currentUser, getSnapshot, replaceSnapshot, afterRemoteApply, isPremiumAccount });
@@ -1853,6 +2102,8 @@ export function getStatus() {
         enabled: isEnabled(),
         signedIn: Boolean(currentUser?.id),
         hasKey: hasLocalCloudKey(),
+        hasExportableKey: hasExportableCloudKey(),
+        hasTrustedKey: hasTrustedCloudKey(),
         canUseCloud: canUseCloud(),
         isPremium,
         multiDeviceAllowed: isPremium,
@@ -1883,6 +2134,8 @@ window.BuddyCloud = {
     releaseSyncSlotByHash,
     releaseOtherSyncSlots,
     removeThisDevice,
+    clearTrustedKey: clearTrustedCloudKey,
+    clearTrustedKeys: clearAllTrustedCloudKeys,
     exportRecoveryKey,
     importRecoveryKey,
     listVersionHistory,

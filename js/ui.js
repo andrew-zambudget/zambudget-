@@ -556,10 +556,13 @@ function syncCloudActionButtons() {
     }
     if (keyBtn) {
         const canUseRecoveryKeyAction = signedIn && enabled;
+        const hasExportableKey = Boolean(status.hasExportableKey);
         keyBtn.textContent = !canUseRecoveryKeyAction
             ? 'Recovery Key'
             : !status.hasKey
             ? 'Import Key'
+            : !hasExportableKey
+            ? hasRecoveryKeyBackedUpFlag() ? 'Import to View' : 'Save Key'
             : !hasRecoveryKeyBackedUpFlag()
             ? 'Save Key'
             : isRecoveryKeyDisplayUnlocked()
@@ -620,7 +623,7 @@ function syncCloudActionButtons() {
                 <p>${showKeyReminder
                     ? grace.expired
                         ? 'Save your recovery key before relying on Buddy Cloud as your backup. If this browser is lost or cleared, we cannot recover your encrypted cloud budget.'
-                        : `Save your recovery key within ${formatGraceHours(grace.remainingMs)}. Signing out or clearing this browser removes local key access.`
+                        : `Save your recovery key within ${formatGraceHours(grace.remainingMs)}. Clearing this browser or losing this device can remove trusted key access.`
                     : esc(humanStatus.detail)}</p>
             `;
         } else if (signedIn) {
@@ -1400,7 +1403,7 @@ function formatGraceHours(ms) {
 
 function needsRecoveryKeySaveReminder() {
     const status = window.BuddyCloud?.getStatus?.() || {};
-    const needsReminder = Boolean(status.signedIn && status.enabled && status.hasKey && !hasRecoveryKeySavedFlag());
+    const needsReminder = Boolean(status.signedIn && status.enabled && status.hasKey && status.hasExportableKey && !hasRecoveryKeySavedFlag());
     if (needsReminder) startRecoveryKeyGracePeriod();
     return needsReminder;
 }
@@ -1857,6 +1860,15 @@ function getBuddyCloudHumanStatus(status = window.BuddyCloud?.getStatus?.() || {
         };
     }
 
+    if (status.hasKey && !status.hasExportableKey && !hasRecoveryKeyBackedUpFlag()) {
+        return {
+            severity: 'warning',
+            title: 'Recovery key backup needed',
+            detail: 'This trusted browser can sync, but the recovery-key text is not viewable after refresh. Import the saved key to verify your backup.',
+            recommendedNextStep: 'Import your recovery key to save a backup.'
+        };
+    }
+
     return {
         severity: 'synced',
         title: status.isPremium ? 'Buddy Cloud active - unlimited syncs' : 'Buddy Cloud active - Free Tier',
@@ -1874,10 +1886,15 @@ function getBuddyCloudRecoveryRows(status = window.BuddyCloud?.getStatus?.() || 
     const recommendedStep = status.signedIn && status.enabled && !status.hasKey
         ? 'Import your saved recovery key'
         : humanStatus.recommendedNextStep;
+    const keyHereValue = status.hasExportableKey
+        ? 'Present and viewable'
+        : status.hasKey
+        ? 'Trusted for sync only'
+        : 'Not present';
     return [
         { label: 'Current status', value: humanStatus.title },
         { label: 'Recommended step', value: recommendedStep },
-        { label: 'Recovery key here', value: status.hasKey ? 'Present locally' : 'Not present' },
+        { label: 'Recovery key here', value: keyHereValue },
         { label: 'Recovery key backup', value: hasRecoveryKeyBackedUpFlag() ? 'Verified' : 'Not verified' },
         { label: 'Last verified sync', value: formatBuddyCloudReviewTime(status.lastRemoteAt || status.lastPushedAt || '') }
     ];
@@ -3526,9 +3543,9 @@ async function showLostRecoveryKeyModal() {
 async function runRecoveryKeyImportFlow() {
     const recoveryKey = await askForRecoveryKey();
     if (!recoveryKey) return false;
-    await window.BuddyCloud.importRecoveryKey(recoveryKey);
+    const result = await completeBuddyCloudEnableFlow({ recoveryKey });
+    if (!result) return false;
     markRecoveryKeyBackedUp();
-    await completeBuddyCloudEnableFlow({ recoveryKey });
     return true;
 }
 
@@ -4063,13 +4080,12 @@ async function completeBuddyCloudEnableFlow(initialOptions = {}) {
             recordSyncEvent('Buddy Cloud needs the recovery key before syncing this device.', 'error');
             return null;
         }
-        await window.BuddyCloud.importRecoveryKey(recoveryKey);
-        markRecoveryKeyBackedUp();
         result = await enableBuddyCloudStep({
             ...initialOptions,
             recoveryKey
         });
         if (!result) return null;
+        markRecoveryKeyBackedUp();
     }
 
     if (result.needsChoice) {
@@ -4188,6 +4204,11 @@ window.showBuddyCloudRecoveryKey = function(event) {
         if (!status.hasKey) {
             await runRecoveryKeyImportFlow();
             return;
+        }
+
+        if (!status.hasExportableKey) {
+            const imported = await runRecoveryKeyImportFlow();
+            if (!imported) return;
         }
 
         const authorized = await authorizeRecoveryKeyDisplay();
@@ -16878,11 +16899,19 @@ function restorePreservedLocalStorage(entries = []) {
     });
 }
 
-function clearBudgetBuddyBrowserSessionState(options = {}) {
+async function clearBudgetBuddyBrowserSessionState(options = {}) {
     const { preserveTrustedBuddyCloud = false, preservedLocalStorage = null } = options;
     const preservedEntries = preserveTrustedBuddyCloud
         ? preservedLocalStorage || getTrustedBuddyCloudPreservedLocalStorage()
         : [];
+
+    if (!preserveTrustedBuddyCloud) {
+        try {
+            await window.BuddyCloud?.clearTrustedKeys?.({ all: true });
+        } catch (error) {
+            console.warn('[Buddy Cloud] Could not clear trusted browser key storage:', error);
+        }
+    }
 
     try {
         localStorage.clear();
@@ -16927,7 +16956,7 @@ async function clearBrowserSessionAndRefresh({
         { status, variant }
     );
     await wait(3000);
-    clearBudgetBuddyBrowserSessionState({ preserveTrustedBuddyCloud, preservedLocalStorage });
+    await clearBudgetBuddyBrowserSessionState({ preserveTrustedBuddyCloud, preservedLocalStorage });
     await wait(450);
     forceBudgetBuddyRefresh(target);
 }
@@ -17858,7 +17887,7 @@ export function handleLogout(e) {
     const isOutsideFreeDeviceLimit = isBuddyCloudMultiDeviceLimit(cloudStatus);
     const noteParts = [];
     if (needsRecoveryKeyBackup) {
-        noteParts.push('This browser forgets the in-memory Buddy Cloud recovery key after sign-out. Save a backup copy somewhere safe before clearing this browser.');
+        noteParts.push('This browser uses a local trusted Buddy Cloud key when available, but you still need a saved recovery key before clearing this browser.');
     }
     if (isOutsideFreeDeviceLimit) {
         noteParts.push('Final Buddy Cloud backup will be skipped because this browser is not an active Free sync device. Sign-out still works; unsynced edits on this browser will not be uploaded.');
@@ -18031,6 +18060,10 @@ async function requireRecoveryKeySavedBeforeLocalClear() {
     const status = window.BuddyCloud?.getStatus?.() || {};
     if (!status.enabled || !status.hasKey) return true;
     if (hasRecoveryKeyBackedUpFlag()) return true;
+    if (!status.hasExportableKey) {
+        const imported = await runRecoveryKeyImportFlow();
+        return Boolean(imported && hasRecoveryKeyBackedUpFlag());
+    }
 
     const recoveryKey = window.BuddyCloud?.exportRecoveryKey?.();
     if (!recoveryKey) return true;
