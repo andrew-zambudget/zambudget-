@@ -7723,7 +7723,6 @@ input.error, select.error {
     margin-bottom: 2rem;
 }
 
-.type-toggle-v2 > .expense-type-control,
 .type-toggle-v2 > .type-btn-v2 {
     flex: 1 1 0;
 }
@@ -7739,39 +7738,6 @@ input.error, select.error {
     border-bottom: 2px solid transparent;
     transition: all 0.2s ease;
     touch-action: manipulation;
-}
-
-.expense-type-control {
-    display: flex;
-    min-width: 0;
-}
-
-.expense-type-control > .type-btn-v2,
-.expense-mode-select {
-    width: 100%;
-}
-
-.expense-mode-select[hidden] {
-    display: none !important;
-}
-
-.expense-mode-select {
-    min-height: 42px;
-    padding: 0.5rem 2rem 0.5rem 1rem;
-    border: 0;
-    border-bottom: 2px solid var(--text, #0f172a);
-    border-radius: 0;
-    background:
-        linear-gradient(45deg, transparent 50%, currentColor 50%) calc(100% - 16px) 50% / 6px 6px no-repeat,
-        linear-gradient(135deg, currentColor 50%, transparent 50%) calc(100% - 11px) 50% / 6px 6px no-repeat,
-        transparent;
-    color: var(--text, #0f172a);
-    font: inherit;
-    font-weight: 800;
-    text-align: center;
-    text-align-last: center;
-    appearance: none;
-    cursor: pointer;
 }
 
 .active-expense-v2 { color: var(--text, #0f172a); border-bottom-color: var(--text, #0f172a); }
@@ -9361,25 +9327,7 @@ input.error, select.error {
 	        border-bottom: 0;
 	    }
 
-	    #view-add .expense-type-control {
-	        min-width: 0;
-	    }
-
-	    #view-add .expense-mode-select {
-	        min-height: 42px;
-	        padding: 0.6rem 1.9rem 0.6rem 0.75rem;
-	        border: 0;
-	        border-radius: 999px;
-	        background:
-	            linear-gradient(45deg, transparent 50%, currentColor 50%) calc(100% - 16px) 50% / 6px 6px no-repeat,
-	            linear-gradient(135deg, currentColor 50%, transparent 50%) calc(100% - 11px) 50% / 6px 6px no-repeat,
-	            var(--surface, #ffffff);
-	        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
-	        font-size: 0.92rem;
-	        font-weight: 800;
-	    }
-
-    #view-add .type-btn-v2.active-expense-v2,
+	    #view-add .type-btn-v2.active-expense-v2,
     #view-add .type-btn-v2.active-income-v2 {
         background: var(--surface, #ffffff);
         box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);

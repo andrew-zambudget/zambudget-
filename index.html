@@ -332,15 +332,9 @@
                                             </div>
                                             <form class="form-panel add-transaction-form" id="addTxForm" aria-label="Add Transaction Form" onsubmit="event.preventDefault(); window.submitTransaction();" novalidate>
                                                 <!-- 1. Minimalist Type Toggle -->
-                                                <div class="add-type-reset-row">
+	                                                <div class="add-type-reset-row">
 	                                                    <div class="type-toggle-v2" role="group" aria-label="Transaction Type">
-	                                                        <div class="expense-type-control">
-	                                                            <button type="button" id="btnExpense" class="type-btn-v2 active-expense-v2" onclick="window.setType('expense')" aria-pressed="true">Expense</button>
-	                                                            <select id="expenseModeSelect" class="expense-mode-select" onchange="window.setExpenseModeFromSelect(this.value)" aria-label="Expense mode" hidden>
-	                                                                <option value="expense">Expense</option>
-	                                                                <option value="gift_card">Gift Card</option>
-	                                                            </select>
-	                                                        </div>
+	                                                        <button type="button" id="btnExpense" class="type-btn-v2 active-expense-v2" onclick="window.setType('expense')" aria-pressed="true">Expense</button>
 	                                                        <button type="button" id="btnIncome" class="type-btn-v2" onclick="window.setType('income')" aria-pressed="false">Deposit</button>
 	                                                    </div>
                                                     <button type="button" class="add-form-reset-btn" onclick="window.resetAddTransactionForm(event)" aria-label="Reset add transaction form" data-tooltip="Reset form">
