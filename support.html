@@ -39,6 +39,14 @@
         .contact-box{background:var(--surface-hover);border-radius:10px;padding:1rem 1.25rem;margin-top:1rem;font-size:.92rem;line-height:1.6}
         .contact-box a{color:var(--accent);font-weight:700;text-decoration:none}
         .contact-box a:hover{text-decoration:underline}
+        .contact-directory{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.85rem;margin-top:1rem}
+        .contact-tile{border:1px solid var(--border);border-radius:10px;padding:1rem;background:var(--surface-hover)}
+        .contact-tile h3{margin:0 0 .35rem;color:var(--text);font-size:.98rem}
+        .contact-tile p{margin:0 0 .45rem;color:var(--text-dim);font-size:.88rem;line-height:1.5}
+        .contact-tile a{overflow-wrap:anywhere}
+        .public-social-list{display:flex;flex-wrap:wrap;gap:.65rem;margin-top:1rem}
+        .footer-social-pill{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:.35rem .75rem;border:1px solid var(--border);border-radius:8px;color:var(--text);background:var(--surface-hover);font-size:.85rem;font-weight:700;text-decoration:none;transition:border-color .2s,color .2s,transform .2s}
+        .footer-social-pill:hover,.footer-social-pill:focus-visible{border-color:var(--accent);color:var(--accent);text-decoration:none;transform:translateY(-1px)}
         footer{padding:2rem;border-top:1px solid var(--border);text-align:center;color:var(--text-dim);font-size:.8rem;background:var(--surface);margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:.75rem;transition:background-color .3s,border-color .3s}
         .footer-main{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:0}
         .footer-btn-pill{background:var(--accent);color:#fff;padding:.25rem .85rem;border-radius:20px;font-size:.75rem;font-weight:600;text-decoration:none;transition:opacity .2s,transform .1s,box-shadow .2s;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,.1)}
@@ -47,7 +55,7 @@
         .footer-link:hover{color:var(--accent);text-decoration:underline}
         .footer-dot{color:var(--border);margin:0 .75rem;user-select:none;font-size:.8rem}
         .copyright-text{font-size:.75rem;line-height:1.4}
-        @media(max-width:720px){main{padding:2rem 1rem}.support-grid{grid-template-columns:1fr}.page-title{font-size:1.65rem}.footer-page-actions{flex-wrap:wrap;justify-content:flex-end}}
+        @media(max-width:720px){main{padding:2rem 1rem}.support-grid,.contact-directory{grid-template-columns:1fr}.page-title{font-size:1.65rem}.footer-page-actions{flex-wrap:wrap;justify-content:flex-end}}
     </style>
 </head>
 <body>
@@ -113,11 +121,50 @@
         </section>
 
         <section class="section">
-            <h2 class="section-title">Contact</h2>
+            <h2 class="section-title">Contact Directory</h2>
             <div class="section-body">
-                <p>For beta support, send a concise description and attach the diagnostic report only if you already reviewed it.</p>
-                <div class="contact-box">
-                    Email: <a href="mailto:support@budget-buddy.io">support@budget-buddy.io</a>
+                <p>Use the mailbox that matches the issue. Send concise context and only attach a diagnostic report after reviewing it yourself.</p>
+                <div class="contact-directory" aria-label="BudgetBuddy contact email directory">
+                    <article class="contact-tile">
+                        <h3>Support</h3>
+                        <p>App help, Buddy Cloud questions, beta feedback, and diagnostics.</p>
+                        <a href="mailto:support@budget-buddy.io">support@budget-buddy.io</a>
+                    </article>
+                    <article class="contact-tile">
+                        <h3>Auth</h3>
+                        <p>Sign-in, magic-link, account access, and identity-provider questions.</p>
+                        <a href="mailto:auth@budget-buddy.io">auth@budget-buddy.io</a>
+                    </article>
+                    <article class="contact-tile">
+                        <h3>Billing</h3>
+                        <p>Premium subscriptions, Stripe checkout, invoices, and billing support.</p>
+                        <a href="mailto:billing@budget-buddy.io">billing@budget-buddy.io</a>
+                    </article>
+                    <article class="contact-tile">
+                        <h3>Legal</h3>
+                        <p>Terms, privacy rights, data requests, and formal legal notices.</p>
+                        <a href="mailto:legal@budget-buddy.io">legal@budget-buddy.io</a>
+                    </article>
+                    <article class="contact-tile">
+                        <h3>Accessibility</h3>
+                        <p>Accessibility barriers, assistive technology issues, and inclusive-use feedback.</p>
+                        <a href="mailto:accessibility@budget-buddy.io">accessibility@budget-buddy.io</a>
+                    </article>
+                    <article class="contact-tile">
+                        <h3>Social</h3>
+                        <p>Public updates, community posts, media, and launch-channel coordination.</p>
+                        <a href="mailto:social@budget-buddy.io">social@budget-buddy.io</a>
+                    </article>
+                    <article class="contact-tile">
+                        <h3>Dev Test</h3>
+                        <p>Development test messages and internal test-flow verification.</p>
+                        <a href="mailto:devtest@budget-buddy.io">devtest@budget-buddy.io</a>
+                    </article>
+                </div>
+                <div class="public-social-list" aria-label="BudgetBuddy public social channels">
+                    <a class="footer-social-pill" href="https://www.tiktok.com/@budgetbuddyapp" target="_blank" rel="noopener">TikTok</a>
+                    <a class="footer-social-pill" href="https://www.linkedin.com/company/budget-buddy-app/" target="_blank" rel="noopener">LinkedIn</a>
+                    <a class="footer-social-pill" href="https://gitlab.com/andrews.agent949/budget-buddy" target="_blank" rel="noopener">GitLab</a>
                 </div>
             </div>
         </section>
@@ -125,17 +172,17 @@
 
     <footer>
         <div class="footer-main">
-            <a href="https://budget-buddy.io/changelog.html" class="footer-btn-pill" target="_blank" rel="noopener noreferrer">v1.0 RC Changelog</a>
+            <a href="https://budget-buddy.io/changelog" class="footer-btn-pill" target="_blank" rel="noopener noreferrer">v1.0 RC Changelog</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>
-            <a href="https://budget-buddy.io/featurerequest.html" class="footer-link" target="_blank" rel="noopener noreferrer">Feature Request</a>
+            <a href="https://budget-buddy.io/featurerequest" class="footer-link" target="_blank" rel="noopener noreferrer">Feature Request</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>
-            <a href="https://budget-buddy.io/privacy.html" class="footer-link" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+            <a href="https://budget-buddy.io/privacy" class="footer-link" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>
-            <a href="https://budget-buddy.io/roadmap.html" class="footer-link" target="_blank" rel="noopener noreferrer">Roadmap</a>
+            <a href="https://budget-buddy.io/roadmap" class="footer-link" target="_blank" rel="noopener noreferrer">Roadmap</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>
-            <a href="https://budget-buddy.io/support.html" class="footer-link" target="_blank" rel="noopener noreferrer">Support</a>
+            <a href="https://budget-buddy.io/support" class="footer-link" target="_blank" rel="noopener noreferrer">Support</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>
-            <a href="https://budget-buddy.io/terms.html" class="footer-link" target="_blank" rel="noopener noreferrer">Terms of Service</a>
+            <a href="https://budget-buddy.io/terms" class="footer-link" target="_blank" rel="noopener noreferrer">Terms of Service</a>
         </div>
         <div class="copyright-text">
             &copy; 2026 BudgetBuddy. Open source under the <a href="#" onclick="event.preventDefault(); window.openLicenseModal()" class="footer-link">MIT License</a>.
