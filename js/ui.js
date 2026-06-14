@@ -33,6 +33,10 @@ const GIFT_CARD_PAYMENT_METHOD = 'gift_card';
 const ADD_TX_PAYMENT_METHODS = new Set(['', 'card', 'cash', 'bank', GIFT_CARD_PAYMENT_METHOD]);
 const GIFT_CARD_NAME_MAX_LENGTH = 32;
 const GIFT_CARD_NUMBER_MAX_LENGTH = 80;
+const GIFT_CARD_MERCHANT_CACHE_KEY = 'bb_gift_card_merchant_metadata_v1';
+const GIFT_CARD_MERCHANT_BUNDLE_URL = 'data/gift-card-merchants.v1.json';
+const GIFT_CARD_MERCHANT_BUNDLE_VERSION = 1;
+const GIFT_CARD_MERCHANT_SUGGESTION_LIMIT = 8;
 const COMMAND_TAB_NAMES = new Set(['income', 'savings', 'debt', 'add', 'calendar', 'recent']);
 const EMERGENCY_FUND_RECOMMENDATION_TOLERANCE = 0.005;
 const BUDDY_CLOUD_RECENT_RESTORE_PREFIX = 'bb_cloud_recent_restore_';
@@ -42,6 +46,8 @@ const BUDDY_CLOUD_MANUAL_SYNC_COOLDOWN_MS = 60 * 1000;
 let viewportRepairTimer = null;
 let calendarCursorDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let selectedCalendarDateKey = '';
+let giftCardMerchantCache = null;
+let giftCardMerchantCachePromise = null;
 const DESCRIPTION_ROLLOVER_SUGGESTIONS = [
     'Rent',
     'Mortgage',
@@ -7824,6 +7830,276 @@ function formatGiftCardName(card = {}) {
     return `${card.name || 'Gift Card'}${last4 ? ` - ${last4}` : ''}`;
 }
 
+function normalizeGiftCardMerchantText(value = '', maxLength = 80) {
+    return String(value || '')
+        .replace(/[\u0000-\u001F\u007F]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, maxLength);
+}
+
+function normalizeGiftCardMerchantToken(value = '') {
+    return normalizeGiftCardMerchantText(value, 96).toLowerCase();
+}
+
+function normalizeGiftCardMerchantRecord(record = {}) {
+    const canonicalName = normalizeGiftCardMerchantText(record.canonicalName || record.name, GIFT_CARD_NAME_MAX_LENGTH);
+    if (!canonicalName) return null;
+    const aliases = Array.isArray(record.aliases)
+        ? record.aliases.map(alias => normalizeGiftCardMerchantText(alias, GIFT_CARD_NAME_MAX_LENGTH)).filter(Boolean)
+        : [];
+    const cardNumberLengths = Array.isArray(record.cardNumberLengths)
+        ? record.cardNumberLengths.map(length => Number.parseInt(length, 10)).filter(length => Number.isInteger(length) && length > 0 && length <= GIFT_CARD_NUMBER_MAX_LENGTH)
+        : [];
+    const denominations = Array.isArray(record.denominations)
+        ? record.denominations.map(amount => Number.parseFloat(amount)).filter(amount => Number.isFinite(amount) && amount > 0).slice(0, 12)
+        : [];
+    const searchTokens = Array.from(new Set([canonicalName, ...aliases].map(normalizeGiftCardMerchantToken).filter(Boolean)));
+
+    return {
+        id: normalizeGiftCardMerchantText(record.id, 64) || `merchant_${canonicalName.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+        canonicalName,
+        aliases,
+        cardNumberLengths: Array.from(new Set(cardNumberLengths)).sort((a, b) => a - b),
+        denominations,
+        hasPin: Boolean(record.hasPin),
+        expirationPolicy: normalizeGiftCardMerchantText(record.expirationPolicy, 140),
+        formatHints: Array.isArray(record.formatHints)
+            ? record.formatHints.map(hint => normalizeGiftCardMerchantText(hint, 40)).filter(Boolean).slice(0, 5)
+            : [],
+        searchTokens
+    };
+}
+
+function normalizeGiftCardMerchantBundle(bundle = {}) {
+    const merchants = Array.isArray(bundle.merchants)
+        ? bundle.merchants.map(normalizeGiftCardMerchantRecord).filter(Boolean)
+        : [];
+    if (!merchants.length) throw new Error('Gift card merchant bundle is empty.');
+
+    return {
+        kind: 'budgetbuddy_gift_card_merchant_metadata',
+        version: Number.parseInt(bundle.version, 10) || GIFT_CARD_MERCHANT_BUNDLE_VERSION,
+        updatedAt: normalizeGiftCardMerchantText(bundle.updatedAt, 24),
+        cachedAt: normalizeGiftCardMerchantText(bundle.cachedAt, 32) || new Date().toISOString(),
+        merchants
+    };
+}
+
+function readGiftCardMerchantCache() {
+    if (giftCardMerchantCache) return giftCardMerchantCache;
+
+    try {
+        const raw = localStorage.getItem(GIFT_CARD_MERCHANT_CACHE_KEY);
+        if (!raw) return null;
+        giftCardMerchantCache = normalizeGiftCardMerchantBundle(JSON.parse(raw));
+        return giftCardMerchantCache;
+    } catch {
+        localStorage.removeItem(GIFT_CARD_MERCHANT_CACHE_KEY);
+        giftCardMerchantCache = null;
+        return null;
+    }
+}
+
+function writeGiftCardMerchantCache(bundle = {}) {
+    giftCardMerchantCache = normalizeGiftCardMerchantBundle({
+        ...bundle,
+        cachedAt: new Date().toISOString()
+    });
+    localStorage.setItem(GIFT_CARD_MERCHANT_CACHE_KEY, JSON.stringify(giftCardMerchantCache));
+    return giftCardMerchantCache;
+}
+
+function getGiftCardMerchantCacheStatusText() {
+    const cache = readGiftCardMerchantCache();
+    if (!cache) return 'Merchant metadata is not cached on this device.';
+    const count = cache.merchants.length;
+    const cachedDate = cache.cachedAt ? formatDate(cache.cachedAt.slice(0, 10)) : 'recently';
+    return `${count} merchant records cached locally. Last refreshed ${cachedDate}.`;
+}
+
+function updateGiftCardMerchantCacheUi(message = '') {
+    const settingsStatus = document.getElementById('giftCardCacheSettingsStatus');
+    const addStatus = document.getElementById('giftCardMerchantCacheStatus');
+    const statusText = message || getGiftCardMerchantCacheStatusText();
+    if (settingsStatus) settingsStatus.textContent = statusText;
+    if (addStatus) addStatus.textContent = message || (readGiftCardMerchantCache()
+        ? 'Merchant hints are using the local cache.'
+        : '');
+}
+
+async function downloadGiftCardMerchantCache(options = {}) {
+    const { force = false, showStatus = false } = options;
+    if (!force) {
+        const existing = readGiftCardMerchantCache();
+        if (existing) {
+            updateGiftCardMerchantCacheUi();
+            return existing;
+        }
+    }
+
+    if (giftCardMerchantCachePromise) return giftCardMerchantCachePromise;
+
+    if (showStatus) updateGiftCardMerchantCacheUi('Downloading the full merchant metadata bundle...');
+    giftCardMerchantCachePromise = fetch(GIFT_CARD_MERCHANT_BUNDLE_URL, {
+        cache: force ? 'reload' : 'force-cache',
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            if (!response.ok) throw new Error('Gift card merchant metadata is unavailable.');
+            return response.json();
+        })
+        .then(bundle => {
+            const cache = writeGiftCardMerchantCache(bundle);
+            updateGiftCardMerchantCacheUi();
+            syncGiftCardMerchantAutofill();
+            return cache;
+        })
+        .catch(error => {
+            console.warn('[Gift Card Merchant Cache] Full bundle download failed:', error);
+            updateGiftCardMerchantCacheUi('Merchant metadata could not be cached right now.');
+            throw error;
+        })
+        .finally(() => {
+            giftCardMerchantCachePromise = null;
+        });
+
+    return giftCardMerchantCachePromise;
+}
+
+function clearGiftCardMerchantCache() {
+    try {
+        localStorage.removeItem(GIFT_CARD_MERCHANT_CACHE_KEY);
+    } catch {
+        // Local cache cleanup is best-effort.
+    }
+    giftCardMerchantCache = null;
+    renderGiftCardMerchantOptions([]);
+    renderGiftCardDenominationOptions([]);
+    updateGiftCardMerchantCacheUi();
+}
+
+function scoreGiftCardMerchantMatch(merchant = {}, query = '') {
+    const needle = normalizeGiftCardMerchantToken(query);
+    if (!needle) return 0;
+    let best = 0;
+    (merchant.searchTokens || []).forEach(token => {
+        if (token === needle) best = Math.max(best, 100);
+        else if (token.startsWith(needle)) best = Math.max(best, 80);
+        else if (token.includes(needle)) best = Math.max(best, 45);
+    });
+    return best;
+}
+
+function getGiftCardMerchantSuggestions(query = '') {
+    const cache = readGiftCardMerchantCache();
+    const needle = normalizeGiftCardMerchantToken(query);
+    if (!cache || !needle) return [];
+
+    return cache.merchants
+        .map(merchant => ({ merchant, score: scoreGiftCardMerchantMatch(merchant, needle) }))
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score || a.merchant.canonicalName.localeCompare(b.merchant.canonicalName))
+        .slice(0, GIFT_CARD_MERCHANT_SUGGESTION_LIMIT)
+        .map(item => item.merchant);
+}
+
+function findGiftCardMerchantByName(value = '') {
+    const cache = readGiftCardMerchantCache();
+    const needle = normalizeGiftCardMerchantToken(value);
+    if (!cache || !needle) return null;
+
+    return cache.merchants.find(merchant =>
+        (merchant.searchTokens || []).some(token => token === needle)
+    ) || null;
+}
+
+function renderGiftCardMerchantOptions(merchants = []) {
+    const datalist = document.getElementById('giftCardMerchantOptions');
+    if (!datalist) return;
+    datalist.innerHTML = merchants
+        .map(merchant => `<option value="${esc(merchant.canonicalName)}"></option>`)
+        .join('');
+}
+
+function renderGiftCardDenominationOptions(denominations = []) {
+    const datalist = document.getElementById('giftCardDenominationOptions');
+    if (!datalist) return;
+    datalist.innerHTML = denominations
+        .map(amount => `<option value="${esc(formatMoney(amount))}"></option>`)
+        .join('');
+}
+
+function getGiftCardNumberLengthHint(lengths = []) {
+    if (!lengths.length) return '';
+    if (lengths.length === 1) return `${lengths[0]} digits`;
+    return `${lengths[0]}-${lengths[lengths.length - 1]} digits`;
+}
+
+function applyGiftCardMerchantHints(merchant = null) {
+    const numberInput = document.getElementById('giftCardNumber');
+    const totalInput = document.getElementById('giftCardTotalAmount');
+    renderGiftCardDenominationOptions(merchant?.denominations || []);
+
+    if (numberInput) {
+        const lengthHint = getGiftCardNumberLengthHint(merchant?.cardNumberLengths || []);
+        const pinHint = merchant?.hasPin ? ' + PIN' : '';
+        numberInput.placeholder = lengthHint ? `${lengthHint}${pinHint}` : 'Card number or code';
+    }
+    if (totalInput && merchant?.denominations?.length) {
+        totalInput.placeholder = formatMoney(merchant.denominations[0]);
+    } else if (totalInput) {
+        totalInput.placeholder = '50.00';
+    }
+}
+
+function syncGiftCardMerchantAutofill() {
+    const nameInput = document.getElementById('giftCardName');
+    const query = nameInput?.value || '';
+    const suggestions = getGiftCardMerchantSuggestions(query);
+    const exact = findGiftCardMerchantByName(query);
+    renderGiftCardMerchantOptions(suggestions);
+    applyGiftCardMerchantHints(exact);
+}
+
+function shouldPrimeGiftCardMerchantCache(input = null) {
+    const methodSelect = document.getElementById('txPaymentMethod');
+    if (methodSelect?.value !== GIFT_CARD_PAYMENT_METHOD) return false;
+    return Boolean(String(input?.value || '').trim());
+}
+
+function requestGiftCardMerchantCacheForInput(event = null) {
+    const input = event?.target || null;
+    if (!shouldPrimeGiftCardMerchantCache(input)) return;
+
+    const existing = readGiftCardMerchantCache();
+    if (existing) {
+        syncGiftCardMerchantAutofill();
+        updateGiftCardMerchantCacheUi();
+        return;
+    }
+
+    downloadGiftCardMerchantCache({ showStatus: true }).catch(() => {
+        // The add flow remains usable without metadata hints.
+    });
+}
+
+export async function downloadGiftCardMerchantCacheFromSettings(event) {
+    event?.preventDefault?.();
+    try {
+        await downloadGiftCardMerchantCache({ force: true, showStatus: true });
+        showToast('Gift card merchant cache refreshed.');
+    } catch {
+        showToast('Gift card merchant cache could not be refreshed.');
+    }
+}
+
+export function clearGiftCardMerchantCacheFromSettings(event) {
+    event?.preventDefault?.();
+    clearGiftCardMerchantCache();
+    showToast('Gift card merchant cache cleared.');
+}
+
 function getGiftCardExpirationLabel(expirationDate = '') {
     if (!isValidLocalISODate(expirationDate)) return 'No expiration set';
 
@@ -7941,14 +8217,16 @@ function syncGiftCardTrackerPanel(options = {}) {
 
 function bindGiftCardTrackerEvents() {
     const methodSelect = document.getElementById('txPaymentMethod');
-    if (methodSelect && !methodSelect.dataset.giftCardBound) {
-        methodSelect.dataset.giftCardBound = 'true';
-        methodSelect.addEventListener('change', () => {
-            setGiftCardError('');
-            syncGiftCardTrackerPanel();
-            clearAddSavedPreview();
-        });
-    }
+	    if (methodSelect && !methodSelect.dataset.giftCardBound) {
+	        methodSelect.dataset.giftCardBound = 'true';
+	        methodSelect.addEventListener('change', () => {
+	            setGiftCardError('');
+	            syncGiftCardTrackerPanel();
+	            syncGiftCardMerchantAutofill();
+	            updateGiftCardMerchantCacheUi();
+	            clearAddSavedPreview();
+	        });
+	    }
 
     const giftCardSelect = document.getElementById('txGiftCardSelect');
     if (giftCardSelect && !giftCardSelect.dataset.giftCardBound) {
@@ -7991,11 +8269,24 @@ function bindGiftCardTrackerEvents() {
         });
     }
 
-    const nameInput = document.getElementById('giftCardName');
-    if (nameInput) nameInput.maxLength = GIFT_CARD_NAME_MAX_LENGTH;
-    const numberInput = document.getElementById('giftCardNumber');
-    if (numberInput) numberInput.maxLength = GIFT_CARD_NUMBER_MAX_LENGTH;
-}
+	    const nameInput = document.getElementById('giftCardName');
+	    if (nameInput) nameInput.maxLength = GIFT_CARD_NAME_MAX_LENGTH;
+	    if (nameInput && !nameInput.dataset.giftCardMerchantBound) {
+	        nameInput.dataset.giftCardMerchantBound = 'true';
+	        nameInput.addEventListener('input', requestGiftCardMerchantCacheForInput);
+	        nameInput.addEventListener('change', syncGiftCardMerchantAutofill);
+	    }
+	    const numberInput = document.getElementById('giftCardNumber');
+	    if (numberInput) numberInput.maxLength = GIFT_CARD_NUMBER_MAX_LENGTH;
+	    ['giftCardNumber', 'giftCardTotalAmount', 'giftCardCurrentBalance', 'giftCardExpirationDate'].forEach(id => {
+	        const input = document.getElementById(id);
+	        if (!input || input.dataset.giftCardMerchantPrimeBound) return;
+	        input.dataset.giftCardMerchantPrimeBound = 'true';
+	        input.addEventListener('input', requestGiftCardMerchantCacheForInput);
+	    });
+	    syncGiftCardMerchantAutofill();
+	    updateGiftCardMerchantCacheUi();
+	}
 
 export function addGiftCardFromAddForm(event) {
     event?.preventDefault?.();
@@ -11162,6 +11453,7 @@ export function openSettingsModal() {
     applyAccentTheme(savedAccent);
 
     renderSyncHistory();
+    updateGiftCardMerchantCacheUi();
     openModal('settingsModal');
 }
 
@@ -17827,6 +18119,8 @@ window.openAddDatePicker = openAddDatePicker;
 window.toggleAddCategoryPicker = toggleAddCategoryPicker;
 window.toggleGiftCardAddForm = toggleGiftCardAddForm;
 window.addGiftCardFromAddForm = addGiftCardFromAddForm;
+window.downloadGiftCardMerchantCacheFromSettings = downloadGiftCardMerchantCacheFromSettings;
+window.clearGiftCardMerchantCacheFromSettings = clearGiftCardMerchantCacheFromSettings;
 window.initAddTransactionForm = initAddTransactionForm;
 window.resetAddTransactionForm = resetAddTransactionForm;
 window.hardResetForm = hardResetForm;

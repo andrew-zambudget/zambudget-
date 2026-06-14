@@ -3,7 +3,7 @@ const path = require('path');
 
 const root = path.resolve(__dirname, '..');
 const outDir = path.join(root, 'dist');
-const copyDirs = ['css', 'js'];
+const copyDirs = ['css', 'js', 'data'];
 const copyFiles = ['config.json'];
 
 fs.rmSync(outDir, { recursive: true, force: true });

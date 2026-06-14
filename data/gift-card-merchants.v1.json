@@ -1,0 +1,214 @@
+{
+  "kind": "budgetbuddy_gift_card_merchant_metadata",
+  "version": 1,
+  "updatedAt": "2026-06-14",
+  "privacy": {
+    "delivery": "full_bundle",
+    "lookup": "client_only",
+    "perMerchantFetch": false,
+    "queryLogging": false,
+    "suggestionAnalytics": false
+  },
+  "merchants": [
+    {
+      "id": "m_f7c1b7f25c21496c8a3c",
+      "canonicalName": "Amazon",
+      "aliases": ["Amazon.com", "Amazon Gift Card"],
+      "cardNumberLengths": [14, 15, 16],
+      "denominations": [15, 25, 50, 100],
+      "hasPin": false,
+      "expirationPolicy": "No expiration for US Amazon.com gift cards.",
+      "formatHints": ["claim code"]
+    },
+    {
+      "id": "m_7d4adf4c84d74c729136",
+      "canonicalName": "Apple",
+      "aliases": ["Apple Gift Card", "App Store", "iTunes"],
+      "cardNumberLengths": [16],
+      "denominations": [25, 50, 100],
+      "hasPin": false,
+      "expirationPolicy": "No expiration for many Apple gift cards; verify local terms.",
+      "formatHints": ["code"]
+    },
+    {
+      "id": "m_2ffdf9d0bdc04e57a32d",
+      "canonicalName": "Best Buy",
+      "aliases": ["BestBuy", "Best Buy Gift Card"],
+      "cardNumberLengths": [16, 19],
+      "denominations": [25, 50, 100, 200],
+      "hasPin": true,
+      "expirationPolicy": "No expiration for US retail gift cards.",
+      "formatHints": ["card number", "PIN"]
+    },
+    {
+      "id": "m_d4564f35d22d4d4aa9c5",
+      "canonicalName": "Chipotle",
+      "aliases": ["Chipotle Mexican Grill"],
+      "cardNumberLengths": [16, 19],
+      "denominations": [10, 25, 50],
+      "hasPin": true,
+      "expirationPolicy": "No expiration for US gift cards.",
+      "formatHints": ["card number", "PIN"]
+    },
+    {
+      "id": "m_44ab9115618c49f78b32",
+      "canonicalName": "Costco",
+      "aliases": ["Costco Shop Card"],
+      "cardNumberLengths": [16],
+      "denominations": [25, 50, 100, 250],
+      "hasPin": true,
+      "expirationPolicy": "No expiration for Costco Shop Cards.",
+      "formatHints": ["card number", "PIN"]
+    },
+    {
+      "id": "m_15df6516aaf84f478d56",
+      "canonicalName": "DoorDash",
+      "aliases": ["DoorDash Gift Card"],
+      "cardNumberLengths": [16, 19],
+      "denominations": [15, 25, 50, 100],
+      "hasPin": false,
+      "expirationPolicy": "No expiration for US gift cards.",
+      "formatHints": ["code"]
+    },
+    {
+      "id": "m_6d6eb2a1475c45c89e02",
+      "canonicalName": "Dunkin",
+      "aliases": ["Dunkin Donuts", "Dunkin'"],
+      "cardNumberLengths": [16],
+      "denominations": [10, 15, 25, 50],
+      "hasPin": true,
+      "expirationPolicy": "No expiration for many US gift cards; verify terms.",
+      "formatHints": ["card number", "PIN"]
+    },
+    {
+      "id": "m_8f5de90e0ff747ce97c1",
+      "canonicalName": "Home Depot",
+      "aliases": ["The Home Depot"],
+      "cardNumberLengths": [19],
+      "denominations": [25, 50, 100, 200],
+      "hasPin": true,
+      "expirationPolicy": "No expiration for US gift cards.",
+      "formatHints": ["card number", "PIN"]
+    },
+    {
+      "id": "m_7c05a6b42b7042b48740",
+      "canonicalName": "Lowe's",
+      "aliases": ["Lowes", "Lowe's Gift Card"],
+      "cardNumberLengths": [19],
+      "denominations": [25, 50, 100, 200],
+      "hasPin": true,
+      "expirationPolicy": "No expiration for US gift cards.",
+      "formatHints": ["card number", "PIN"]
+    },
+    {
+      "id": "m_8849eb8df64a4286b72a",
+      "canonicalName": "McDonald's",
+      "aliases": ["McDonalds", "Arch Card"],
+      "cardNumberLengths": [16],
+      "denominations": [10, 25, 50],
+      "hasPin": true,
+      "expirationPolicy": "No expiration for US Arch Cards.",
+      "formatHints": ["card number", "PIN"]
+    },
+    {
+      "id": "m_8c7abf998d0447e49e20",
+      "canonicalName": "Netflix",
+      "aliases": ["Netflix Gift Card"],
+      "cardNumberLengths": [11, 12],
+      "denominations": [25, 30, 50, 100],
+      "hasPin": false,
+      "expirationPolicy": "No expiration for many Netflix gift cards; verify local terms.",
+      "formatHints": ["code"]
+    },
+    {
+      "id": "m_56609142a0304c0e9afa",
+      "canonicalName": "Nintendo eShop",
+      "aliases": ["Nintendo", "Nintendo eShop Card"],
+      "cardNumberLengths": [16],
+      "denominations": [10, 20, 35, 50],
+      "hasPin": false,
+      "expirationPolicy": "No expiration for many US cards; verify local terms.",
+      "formatHints": ["code"]
+    },
+    {
+      "id": "m_a8b540f17ef744f9b67f",
+      "canonicalName": "PlayStation Store",
+      "aliases": ["PlayStation", "Sony PlayStation"],
+      "cardNumberLengths": [12],
+      "denominations": [10, 25, 50, 75, 100],
+      "hasPin": false,
+      "expirationPolicy": "No expiration for many US voucher codes; verify local terms.",
+      "formatHints": ["voucher code"]
+    },
+    {
+      "id": "m_634db1b9f07a4a5cab7a",
+      "canonicalName": "Sephora",
+      "aliases": ["Sephora Gift Card"],
+      "cardNumberLengths": [16],
+      "denominations": [25, 50, 100],
+      "hasPin": true,
+      "expirationPolicy": "No expiration for US gift cards.",
+      "formatHints": ["card number", "PIN"]
+    },
+    {
+      "id": "m_9a1b0c48c923479cb547",
+      "canonicalName": "Starbucks",
+      "aliases": ["Starbucks Card", "Starbucks Gift Card"],
+      "cardNumberLengths": [16],
+      "denominations": [10, 15, 25, 50],
+      "hasPin": true,
+      "expirationPolicy": "No expiration for US Starbucks Cards.",
+      "formatHints": ["card number", "security code"]
+    },
+    {
+      "id": "m_54a21b5fae6d44e99e21",
+      "canonicalName": "Steam",
+      "aliases": ["Steam Wallet", "Steam Gift Card"],
+      "cardNumberLengths": [15],
+      "denominations": [20, 50, 100],
+      "hasPin": false,
+      "expirationPolicy": "No expiration for many Steam Wallet codes; verify local terms.",
+      "formatHints": ["wallet code"]
+    },
+    {
+      "id": "m_5cae75c47ef24c1b8cc1",
+      "canonicalName": "Target",
+      "aliases": ["Target Gift Card", "Target GiftCard"],
+      "cardNumberLengths": [15, 16],
+      "denominations": [5, 10, 25, 50, 100],
+      "hasPin": true,
+      "expirationPolicy": "No expiration for US Target GiftCards.",
+      "formatHints": ["card number", "access number"]
+    },
+    {
+      "id": "m_24fd58b49c584f3f85b7",
+      "canonicalName": "Uber",
+      "aliases": ["Uber Eats", "Uber Gift Card"],
+      "cardNumberLengths": [16],
+      "denominations": [15, 25, 50, 100],
+      "hasPin": false,
+      "expirationPolicy": "No expiration for US gift cards.",
+      "formatHints": ["code"]
+    },
+    {
+      "id": "m_962417082bc54e899c46",
+      "canonicalName": "Walmart",
+      "aliases": ["Walmart Gift Card"],
+      "cardNumberLengths": [16],
+      "denominations": [10, 25, 50, 100],
+      "hasPin": true,
+      "expirationPolicy": "No expiration for US Walmart gift cards.",
+      "formatHints": ["card number", "PIN"]
+    },
+    {
+      "id": "m_6dce67c9a94a43fd8c1e",
+      "canonicalName": "Xbox",
+      "aliases": ["Microsoft", "Xbox Gift Card", "Microsoft Store"],
+      "cardNumberLengths": [25],
+      "denominations": [10, 15, 25, 50, 100],
+      "hasPin": false,
+      "expirationPolicy": "No expiration for many US digital codes; verify local terms.",
+      "formatHints": ["25-character code"]
+    }
+  ]
+}

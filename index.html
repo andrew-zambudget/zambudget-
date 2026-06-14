@@ -420,18 +420,20 @@
 
                                                             <div id="giftCardAddForm" class="gift-card-add-form" hidden>
                                                                 <div class="gift-card-add-grid">
-                                                                    <div class="add-form-group">
-                                                                        <label for="giftCardName">Name</label>
-                                                                        <input type="text" id="giftCardName" class="form-input" maxlength="32" placeholder="Coffee card" autocomplete="off">
-                                                                    </div>
+	                                                                    <div class="add-form-group">
+	                                                                        <label for="giftCardName">Name</label>
+	                                                                        <input type="text" id="giftCardName" class="form-input" maxlength="32" placeholder="Coffee card" autocomplete="off" list="giftCardMerchantOptions">
+	                                                                        <datalist id="giftCardMerchantOptions"></datalist>
+	                                                                    </div>
                                                                     <div class="add-form-group">
                                                                         <label for="giftCardNumber">Card Number</label>
                                                                         <input type="text" id="giftCardNumber" class="form-input" maxlength="80" placeholder="Card number or code" autocomplete="off">
                                                                     </div>
-                                                                    <div class="add-form-group">
-                                                                        <label for="giftCardTotalAmount">Total Amount</label>
-                                                                        <input type="text" id="giftCardTotalAmount" class="form-input" inputmode="decimal" placeholder="50.00" autocomplete="off">
-                                                                    </div>
+	                                                                    <div class="add-form-group">
+	                                                                        <label for="giftCardTotalAmount">Total Amount</label>
+	                                                                        <input type="text" id="giftCardTotalAmount" class="form-input" inputmode="decimal" placeholder="50.00" autocomplete="off" list="giftCardDenominationOptions">
+	                                                                        <datalist id="giftCardDenominationOptions"></datalist>
+	                                                                    </div>
                                                                     <div class="add-form-group">
                                                                         <label for="giftCardCurrentBalance">Current Balance</label>
                                                                         <input type="text" id="giftCardCurrentBalance" class="form-input" inputmode="decimal" placeholder="50.00" autocomplete="off">
@@ -439,10 +441,11 @@
                                                                     <div class="add-form-group gift-card-expiration-group">
                                                                         <label for="giftCardExpirationDate">Expiration</label>
                                                                         <input type="date" id="giftCardExpirationDate" class="form-input" min="1900-01-01" max="2100-12-31">
-                                                                    </div>
-                                                                </div>
-                                                                <button type="button" class="gift-card-save-btn" onclick="window.addGiftCardFromAddForm(event)">Save Gift Card</button>
-                                                            </div>
+	                                                                    </div>
+	                                                                </div>
+	                                                                <div id="giftCardMerchantCacheStatus" class="gift-card-merchant-cache-status" aria-live="polite"></div>
+	                                                                <button type="button" class="gift-card-save-btn" onclick="window.addGiftCardFromAddForm(event)">Save Gift Card</button>
+	                                                            </div>
                                                         </div>
                                                     </div>
 
@@ -792,8 +795,20 @@
                                     <div class="help-text">Changes buttons, focus rings, highlights, and progress accents.</div>
                                 </div>
 
-                                <div class="form-group settings-data-tools">
-                                    <label>Transaction Data</label>
+	                                <div class="form-group settings-data-tools">
+	                                    <label>Gift Card Merchant Cache</label>
+	                                    <div class="settings-cache-card">
+	                                        <div id="giftCardCacheSettingsStatus" class="settings-cache-status" aria-live="polite">Not cached on this device.</div>
+	                                        <div class="settings-cache-actions">
+	                                            <button type="button" class="btn-cancel" onclick="window.downloadGiftCardMerchantCacheFromSettings(event)">Download / Refresh</button>
+	                                            <button type="button" class="btn-cancel" onclick="window.clearGiftCardMerchantCacheFromSettings(event)">Clear Cache</button>
+	                                        </div>
+	                                    </div>
+	                                    <div class="help-text">BudgetBuddy downloads one full local merchant metadata bundle. Merchant searches and suggestions stay on this device and are not sent to a server.</div>
+	                                </div>
+
+	                                <div class="form-group settings-data-tools">
+	                                    <label>Transaction Data</label>
                                     <div class="settings-csv-actions">
                                         <button type="button" class="btn-cancel" onclick="window.exportTransactions()">Export CSV</button>
                                         <button type="button" class="btn-create" onclick="document.getElementById('csvImportInput')?.click()">Import CSV</button>
