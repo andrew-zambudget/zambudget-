@@ -44,6 +44,10 @@
 ============================================================================
 5. LEGAL MINIMUMS (Trust & Protection)
 ============================================================================
+- [ ] Major Change Gate: Before every major change, RC, or production release,
+  complete documentation/Major-Change-Release-Gate.md. Update or explicitly
+  verify Privacy Policy, Terms, Changelog, and affected budget-buddy.io
+  marketing copy.
 - [ ] Verify Content: Privacy Policy & Terms of Service pages MUST exist and have text
 - [ ] Key Statement to Include (Copy/Paste this):
   "BudgetBuddy stores budget data locally by default. If you enable free
