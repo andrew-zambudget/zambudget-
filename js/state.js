@@ -33,6 +33,44 @@ let state = {
 };
 
 let suppressCloudQueue = false;
+const DEMO_ACTIVE_KEY = 'bb_demo_active';
+const SIGNED_OUT_WRITE_MESSAGE = 'Sign in or start the demo before adding real budget data.';
+let lastSignedOutWriteNoticeAt = 0;
+
+function isSignedInForBudgetWrites() {
+    return Boolean(typeof window !== 'undefined' && window.currentUser?.id);
+}
+
+function isDemoModeActiveForBudgetWrites() {
+    try {
+        return typeof localStorage !== 'undefined' && localStorage.getItem(DEMO_ACTIVE_KEY) === 'true';
+    } catch {
+        return false;
+    }
+}
+
+export function canWriteBudgetData() {
+    return isSignedInForBudgetWrites() || isDemoModeActiveForBudgetWrites();
+}
+
+function notifySignedOutBudgetWriteBlocked(action = '', options = {}) {
+    const { toast = true } = options;
+    const detail = action ? ` ${action}` : '';
+    console.warn(`[State] Blocked signed-out budget write:${detail}`);
+
+    if (!toast || typeof window === 'undefined' || typeof window.showToast !== 'function') return;
+
+    const now = Date.now();
+    if (now - lastSignedOutWriteNoticeAt < 1200) return;
+    lastSignedOutWriteNoticeAt = now;
+    window.showToast(SIGNED_OUT_WRITE_MESSAGE);
+}
+
+export function requireBudgetWriteAccess(action = 'change budget data') {
+    if (canWriteBudgetData()) return true;
+    notifySignedOutBudgetWriteBlocked(action);
+    return false;
+}
 
 // Best-effort overwrite before removal.
 // Browser storage engines do not guarantee true secure deletion.
@@ -146,7 +184,13 @@ export function initState() {
     console.log('[State] Engine initialized.');
 }
 
-export function save() {
+export function save(options = {}) {
+    const { allowSignedOutWrite = false, action = '' } = options || {};
+    if (!allowSignedOutWrite && !canWriteBudgetData()) {
+        notifySignedOutBudgetWriteBlocked(action || 'save budget data', { toast: Boolean(action) });
+        return false;
+    }
+
     try {
         const payload = JSON.stringify(getDurablePayload());
         localStorage.setItem('bb_data', payload);
@@ -155,9 +199,11 @@ export function save() {
         if (!suppressCloudQueue && window.BuddyCloud?.queuePush) {
             window.BuddyCloud.queuePush('Budget synced to Buddy Cloud.', { localUpdatedAt });
         }
+        return true;
     } catch (e) {
         console.error('[State] CRITICAL: Storage Quota Exceeded or Write Error', e);
         if (window.showToast) window.showToast('⚠️ Storage limit reached. Cannot save data.');
+        return false;
     }
 }
 
@@ -248,18 +294,21 @@ function normalizeTransaction(tx, fillMissingTimestamp = true) {
 }
 
 export const addTransaction = (tx) => {
+    if (!requireBudgetWriteAccess('add transaction')) return false;
     state.transactions.push(normalizeTransaction(tx));
-    save();
+    return save({ action: 'add transaction' });
 };
 
 export const saveTransactions = (txArray) => {
+    if (!requireBudgetWriteAccess('save transactions')) return false;
     state.transactions = Array.isArray(txArray) ? txArray.map(normalizeTransaction) : [];
-    save();
+    return save({ action: 'save transactions' });
 };
 
 export const deleteTransaction = (id) => {
+    if (!requireBudgetWriteAccess('delete transaction')) return false;
     state.transactions = state.transactions.filter(t => t.id !== id);
-    save();
+    return save({ action: 'delete transaction' });
 };
 
 // ==========================================
@@ -349,7 +398,7 @@ function commitCustomCategoryOrder(orderedReorderable) {
     });
     applyCustomOrderToCategoryArray();
     state.settings.lastCategorySort = 'manual';
-    save();
+    save({ action: 'reorder categories' });
 }
 
 /**
@@ -362,6 +411,10 @@ const sanitizeCategoryName = (rawName) => {
 
 export const addCategory = (rawName, icon = '📁', type = 'expense', budget = 0) => {
     const cleanName = sanitizeCategoryName(rawName);
+
+    if (!requireBudgetWriteAccess('create category')) {
+        return { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
+    }
 
     if (!cleanName) {
         console.warn('[State] Invalid category name rejected.');
@@ -386,20 +439,25 @@ export const addCategory = (rawName, icon = '📁', type = 'expense', budget = 0
 
     state.categories.push(newCategory);
 
-    save();
-    return { success: true, name: cleanName };
+    const saved = save({ action: 'create category' });
+    return saved ? { success: true, name: cleanName } : { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
 };
 
 export const saveCategories = (categoryArray) => {
+    if (!requireBudgetWriteAccess('save categories')) return false;
     state.categories = Array.isArray(categoryArray)
         ? categoryArray.filter(Boolean).map(cat => ({ ...cat }))
         : [];
     normalizeCategoryCustomOrder();
     applyCustomOrderToCategoryArray();
-    save();
+    return save({ action: 'save categories' });
 };
 
 export const addIncomeSource = (rawName, icon = '💵', plannedAmount = 0) => {
+    if (!requireBudgetWriteAccess('create income source')) {
+        return { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
+    }
+
     const cleanName = sanitizeCategoryName(rawName);
 
     if (!cleanName) {
@@ -422,11 +480,15 @@ export const addIncomeSource = (rawName, icon = '💵', plannedAmount = 0) => {
         createdAt: new Date().toISOString()
     });
 
-    save();
-    return { success: true, name: cleanName };
+    const saved = save({ action: 'create income source' });
+    return saved ? { success: true, name: cleanName } : { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
 };
 
 export const editIncomeSource = (oldName, rawNewName, icon = '💵', plannedAmount = 0) => {
+    if (!requireBudgetWriteAccess('edit income source')) {
+        return { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
+    }
+
     const source = state.categories.find(c => c.name === oldName && c.type === 'income');
     if (!source) return { success: false, error: 'Income Source Not Found' };
 
@@ -448,23 +510,31 @@ export const editIncomeSource = (oldName, rawNewName, icon = '💵', plannedAmou
         });
     }
 
-    save();
-    return { success: true, name: cleanName };
+    const saved = save({ action: 'edit income source' });
+    return saved ? { success: true, name: cleanName } : { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
 };
 
 export const deleteIncomeSource = (name) => {
+    if (!requireBudgetWriteAccess('delete income source')) {
+        return { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
+    }
+
     state.categories = state.categories.filter(c => !(c.name === name && c.type === 'income'));
     state.transactions.forEach(tx => {
         if (tx.category === name && tx.type === 'income') {
             tx.category = '';
         }
     });
-    save();
-    return { success: true };
+    const saved = save({ action: 'delete income source' });
+    return saved ? { success: true } : { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
 };
 
 export const addSavingsGoal = (rawName, icon = '💰', targetAmount = 0) => {
     const cleanName = sanitizeCategoryName(rawName);
+
+    if (!requireBudgetWriteAccess('create savings goal')) {
+        return { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
+    }
 
     if (!cleanName) {
         console.warn('[State] Invalid savings goal rejected.');
@@ -487,12 +557,16 @@ export const addSavingsGoal = (rawName, icon = '💰', targetAmount = 0) => {
         createdAt: new Date().toISOString()
     });
 
-    save();
-    return { success: true, name: cleanName };
+    const saved = save({ action: 'create savings goal' });
+    return saved ? { success: true, name: cleanName } : { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
 };
 
 export const addDebtAccount = ({ name, balance, apr = 0, minPayment = 0, dueDate = '', icon = '💳' }) => {
     const cleanName = sanitizeCategoryName(name);
+
+    if (!requireBudgetWriteAccess('create debt account')) {
+        return { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
+    }
 
     if (!cleanName) {
         console.warn('[State] Invalid debt name rejected.');
@@ -519,11 +593,15 @@ export const addDebtAccount = ({ name, balance, apr = 0, minPayment = 0, dueDate
         createdAt: new Date().toISOString()
     });
 
-    save();
-    return { success: true, name: cleanName };
+    const saved = save({ action: 'create debt account' });
+    return saved ? { success: true, name: cleanName } : { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
 };
 
 export const editCategory = (oldName, rawNewName, newIcon, newType, budget) => {
+    if (!requireBudgetWriteAccess('edit category')) {
+        return { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
+    }
+
     const cat = state.categories.find(c => c.name === oldName);
     if (!cat) return { success: false, error: 'Category not found' };
 
@@ -550,11 +628,12 @@ export const editCategory = (oldName, rawNewName, newIcon, newType, budget) => {
 
     normalizeCategoryCustomOrder();
     applyCustomOrderToCategoryArray();
-    save();
-    return { success: true };
+    const saved = save({ action: 'edit category' });
+    return saved ? { success: true } : { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
 };
 
 export const deleteCategory = (name, replacement = null) => {
+    if (!requireBudgetWriteAccess('delete category')) return false;
     state.categories = state.categories.filter(c => c.name !== name);
 
     if (replacement) {
@@ -569,22 +648,24 @@ export const deleteCategory = (name, replacement = null) => {
 
     normalizeCategoryCustomOrder();
     applyCustomOrderToCategoryArray();
-    save();
+    return save({ action: 'delete category' });
 };
 
 export const deleteCategoriesBatch = (nameArray) => {
     if (!Array.isArray(nameArray) || nameArray.length === 0) return;
+    if (!requireBudgetWriteAccess('delete categories')) return false;
     state.categories = state.categories.filter(c => !nameArray.includes(c.name));
     state.transactions.forEach(tx => {
         if (nameArray.includes(tx.category)) tx.category = '';
     });
     normalizeCategoryCustomOrder();
     applyCustomOrderToCategoryArray();
-    save();
+    return save({ action: 'delete categories' });
 };
 
 export const changeCategoriesIconBatch = (nameArray, newIcon) => {
     if (!Array.isArray(nameArray) || nameArray.length === 0 || !newIcon) return;
+    if (!requireBudgetWriteAccess('change category icons')) return false;
 
     state.categories.forEach(c => {
         if (nameArray.includes(c.name)) {
@@ -592,18 +673,24 @@ export const changeCategoriesIconBatch = (nameArray, newIcon) => {
         }
     });
 
-    save();
+    return save({ action: 'change category icons' });
 };
 
 export const updateCategoryBudget = (categoryName, newBudgetAmount) => {
+    if (!requireBudgetWriteAccess('update category budget')) return false;
     const cat = state.categories.find(c => c.name === categoryName);
     if (cat) {
         cat.budget = newBudgetAmount;
-        save();
+        return save({ action: 'update category budget' });
     }
+    return false;
 };
 
 export const moveCategory = (name, direction = 'down') => {
+    if (!requireBudgetWriteAccess('reorder categories')) {
+        return { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
+    }
+
     const step = direction === 'up' ? -1 : 1;
     normalizeCategoryCustomOrder();
     const reorderable = sortByCustomOrder(state.categories.filter(canReorderCategory));
@@ -624,6 +711,10 @@ export const moveCategory = (name, direction = 'down') => {
 };
 
 export const moveCategoryToPosition = (name, position = 1) => {
+    if (!requireBudgetWriteAccess('reorder categories')) {
+        return { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
+    }
+
     normalizeCategoryCustomOrder();
     const reorderable = sortByCustomOrder(state.categories.filter(canReorderCategory));
     const currentPosition = reorderable.findIndex(c => c.name === name);
@@ -689,10 +780,11 @@ export const getCategoriesForSort = (type = state.settings.lastCategorySort) => 
 };
 
 export const setCategorySort = (type) => {
+    if (!requireBudgetWriteAccess('change category sort')) return false;
     const nextSort = getValidCategorySort(type);
     if (state.settings.lastCategorySort === nextSort) return;
     state.settings.lastCategorySort = nextSort;
-    save();
+    return save({ action: 'change category sort' });
 };
 
 export const getCategorySort = () => getValidCategorySort(state.settings.lastCategorySort);

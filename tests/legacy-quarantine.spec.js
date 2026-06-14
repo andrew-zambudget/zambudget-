@@ -13,13 +13,14 @@ test.describe('legacy quarantine warnings', () => {
         await resetBrowserStorage(page);
     });
 
-    test('browser-only boot and basic budget flow do not hit quarantined fallbacks', async ({ page }) => {
+    test('demo-mode basic budget flow does not hit quarantined fallbacks', async ({ page }) => {
         const quarantineWarnings = collectConsoleMessages(page, text => text.includes(QUARANTINE_TAG));
 
         await page.goto('/index.html');
         await waitForAppReady(page);
 
         await page.evaluate(() => {
+            localStorage.setItem('bb_demo_active', 'true');
             window.switchTab('income');
             window.switchTab('savings');
             window.switchTab('debt');

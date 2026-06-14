@@ -7,6 +7,7 @@ const {
 
 async function createExpenseFromAddTab(page, description = 'Local status smoke') {
     await page.evaluate(() => {
+        localStorage.setItem('bb_demo_active', 'true');
         window.switchTab?.('add');
         window.setType?.('expense');
     });
@@ -35,11 +36,11 @@ test.describe('Buddy Cloud local save status', () => {
         await resetBrowserStorage(page);
     });
 
-    test('Add transaction in browser-only mode is labeled as a local save', async ({ page }) => {
+    test('Add transaction in demo mode is labeled as a local save', async ({ page }) => {
         await page.goto('/index.html');
         await waitForAppReady(page);
 
-        await createExpenseFromAddTab(page, 'Browser-only local status');
+        await createExpenseFromAddTab(page, 'Demo local status');
 
         await expect(page.locator('#syncStatusBtn')).toHaveAttribute(
             'aria-label',

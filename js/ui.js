@@ -5113,12 +5113,15 @@ export function confirmBulkDelete() {
     if (selectedCategories.size === 0) return;
 
     // Instead of deleting directly, use the new batch delete function in State
+    let deleted = false;
     if (State.deleteCategoriesBatch) {
-        State.deleteCategoriesBatch(Array.from(selectedCategories));
+        deleted = State.deleteCategoriesBatch(Array.from(selectedCategories)) !== false;
     } else {
         // Fallback if state.js isn't updated
         Array.from(selectedCategories).forEach(cat => State.deleteCategory(cat));
+        deleted = true;
     }
+    if (!deleted) return;
 
     selectedCategories.clear();
     isCategoryEditMode = false;
@@ -5198,7 +5201,8 @@ export function confirmBatchIcon() {
     }
 
     if (State.changeCategoriesIconBatch) {
-        State.changeCategoriesIconBatch(Array.from(selectedCategories), newIcon);
+        const changed = State.changeCategoriesIconBatch(Array.from(selectedCategories), newIcon) !== false;
+        if (!changed) return;
     } else {
         // Fallback if state.js isn't updated
         Array.from(selectedCategories).forEach(catName => {
@@ -5862,6 +5866,7 @@ window.closeEmergencyFundPanel = function() {
 
 window.withdrawEmergencyFund = function(event) {
     event?.preventDefault?.();
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('withdraw savings')) return;
 
     const input = document.getElementById('emergencyFundWithdrawAmount');
     const notesInput = document.getElementById('emergencyFundWithdrawNotes');
@@ -5898,7 +5903,8 @@ window.withdrawEmergencyFund = function(event) {
         createdAt: new Date().toISOString()
     };
 
-    State.addTransaction(newTx);
+    const saved = State.addTransaction(newTx);
+    if (saved === false) return;
     observeLocalSave('Emergency fund withdrawal saved partially.');
     if (window.showToast) window.showToast(`Withdrew ${symbol}${formatMoney(amount)} from Emergency Fund.`);
     refreshRecentDependents();
@@ -6635,7 +6641,8 @@ window.saveSavingsCurrentAmount = function(options = {}) {
         createdAt: new Date().toISOString()
     };
 
-    State.addTransaction(newTx);
+    const saved = State.addTransaction(newTx);
+    if (saved === false) return;
     observeLocalSave('Emergency fund balance adjustment saved partially.');
     const fundStage = getSavingsFundStage(desiredAmount);
     setSavingsCurrentAmountDisplay(fundStage.countedSavings, { inputAmount: desiredAmount, forceInput: shouldCloseEditor });
@@ -7208,6 +7215,8 @@ function legacyRenderRecentTransactionsV3() {
 // ==========================================
 
 export function quickAddSavings(amount) {
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('add savings')) return;
+
     const parsedAmount = parseFloat(amount) || 0;
 
     if (parsedAmount <= 0) {
@@ -7230,7 +7239,8 @@ export function quickAddSavings(amount) {
 
     if (blockDebtLockedSavingsIncreaseIfNeeded(newTx)) return;
 
-    State.addTransaction(newTx);
+    const saved = State.addTransaction(newTx);
+    if (saved === false) return;
     observeLocalSave('1 savings transaction saved partially.');
     render();
     const symbol = State.getSymbol ? State.getSymbol() : '$';
@@ -8369,6 +8379,8 @@ function clearSlotAnimations() {
 }
 
 export function submitTransaction() {
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('add transaction')) return;
+
     const descInput = document.getElementById('txDescription');
     const amtInput = document.getElementById('txAmount');
     const catInput = document.getElementById('txCategory');
@@ -8448,7 +8460,8 @@ export function submitTransaction() {
 
         if (blockDebtLockedSavingsIncreaseIfNeeded(newTx)) return;
 
-        State.addTransaction(newTx);
+        const saved = State.addTransaction(newTx);
+        if (saved === false) return;
         observeLocalSave('1 transaction saved partially.');
         lastSavedTxId = newTx.id;
         const targetCategory = validCategories.find(c => c.name === category) || {};
@@ -8512,7 +8525,8 @@ export function submitTransaction() {
 
     if (blockDebtLockedSavingsIncreaseIfNeeded(newTx)) return;
 
-    State.addTransaction(newTx);
+    const saved = State.addTransaction(newTx);
+    if (saved === false) return;
     observeLocalSave('1 transaction saved partially.');
     lastSavedTxId = newTx.id;
 
@@ -8701,8 +8715,14 @@ export function initCategoryUI() {
 }
 
 export function quickAddCategory(name, icon) {
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('create category')) return;
+
     if (State.addCategory) {
-        State.addCategory(name, icon || '📁');
+        const result = State.addCategory(name, icon || '📁');
+        if (result && result.success === false) {
+            if (window.showToast) window.showToast(result.error || 'Category could not be added.');
+            return;
+        }
     }
     renderCategoryList();
     renderFormCategories();
@@ -9154,7 +9174,8 @@ export function removeCategory(name) {
     const count = txList.filter(t => t.category === name).length;
 
     if (skipWarning) {
-        State.deleteCategory(name);
+        const deleted = State.deleteCategory(name) !== false;
+        if (!deleted) return;
         renderCategoryList();
         renderFormCategories();
         render();
@@ -9241,11 +9262,14 @@ export function executeIncomeSourceDelete(directName = null) {
         localStorage.setItem('bb_skip_income_warn', 'true');
     }
 
+    let deleted = false;
     if (State.deleteIncomeSource) {
-        State.deleteIncomeSource(targetName);
+        const result = State.deleteIncomeSource(targetName);
+        deleted = result !== false && result?.success !== false;
     } else {
-        State.deleteCategory(targetName);
+        deleted = State.deleteCategory(targetName) !== false;
     }
+    if (!deleted) return;
 
     renderIncomeTab();
     renderFormCategories();
@@ -9355,6 +9379,8 @@ window.closeCategoryDeleteMoveModal = function() {
 };
 
 window.confirmCategoryDeleteMove = function() {
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('move transactions')) return;
+
     const categoryName = pendingCategoryDelete;
     const select = document.getElementById('categoryDeleteMoveSelect');
     const nextCategory = select?.value || '';
@@ -9372,11 +9398,13 @@ window.confirmCategoryDeleteMove = function() {
         }
     });
 
+    let saved = false;
     if (State.saveTransactions) {
-        State.saveTransactions(txs);
+        saved = State.saveTransactions(txs) !== false;
     } else if (State.save) {
-        State.save();
+        saved = State.save({ action: 'move transactions' }) !== false;
     }
+    if (!saved) return;
 
     refreshCategoryDeleteTransactionCount(categoryName);
     renderCategoryList();
@@ -9444,7 +9472,8 @@ export function executeCategoryDelete(directName = null, targetReplacement = nul
         localStorage.setItem('bb_skip_cat_warn', 'true');
     }
 
-    State.deleteCategory(targetName, targetReplacement);
+    const deleted = State.deleteCategory(targetName, targetReplacement) !== false;
+    if (!deleted) return;
 
     renderCategoryList();
     renderFormCategories();
@@ -10650,7 +10679,8 @@ function setupDrillDownBudgetEdit(categoryName) {
         const newVal = parseFloat(rawVal) || 0;
 
         if (State.updateCategoryBudget) {
-            State.updateCategoryBudget(categoryName, newVal);
+            const saved = State.updateCategoryBudget(categoryName, newVal) !== false;
+            if (!saved) return;
         }
 
         freshInputContainer.style.display = 'none';
@@ -11042,6 +11072,8 @@ window.selectCategoryFromModal = (name) => {
 // ==========================================
 
 export function quickLogIncome(amount) {
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('log income')) return;
+
     // 1. Find an existing income category, or default to Miscellaneous
     let categories = State.getCategories() || [];
     let defaultCategory = categories.find(c => c.type === 'income') || { name: 'Miscellaneous Income' };
@@ -11065,7 +11097,8 @@ export function quickLogIncome(amount) {
         createdAt: new Date().toISOString()
     };
 
-    State.addTransaction(newTx);
+    const saved = State.addTransaction(newTx);
+    if (saved === false) return;
     render(); // Instantly updates the dashboard TBB!
 
     const symbol = State.getSymbol ? State.getSymbol() : '$';
@@ -11123,6 +11156,8 @@ function removeIncomeSourceLoggedDraft() {
 }
 
 function syncIncomeSourceLoggedDraft(finalize = false) {
+    if (State.canWriteBudgetData && !State.canWriteBudgetData()) return false;
+
     const modalState = getIncomeSourceModalState();
     if (!modalState) return false;
 
@@ -11516,6 +11551,8 @@ window.closeIncomeSourceModal = function() {
 };
 
 window.saveIncomeSource = function() {
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('create income source')) return;
+
     const nameInput = document.getElementById('incomeSourceName');
     const rawName = nameInput?.value.trim() || '';
     const name = cleanNameInput(rawName);
@@ -11863,6 +11900,8 @@ window.closeAddDebtModal = function() {
 };
 
 window.saveNewDebt = function() {
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('create debt account')) return;
+
     // Prevent double-clicking
     if (window.isSubmitting) return;
     window.isSubmitting = true;
@@ -12026,6 +12065,8 @@ window.closeAddCategoryModal = function() {
 };
 
 window.saveNewCategory = function() {
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('create category')) return;
+
     // Lock to prevent double-saving
     if (window.isSubmittingCat) return;
     window.isSubmittingCat = true;
@@ -12051,11 +12092,14 @@ window.saveNewCategory = function() {
     categories.push(newCategory);
 
     // Bypass strict addCategory to ensure our object stays intact
+    let saved = false;
     if (State.saveCategories) {
-        State.saveCategories(categories);
+        saved = State.saveCategories(categories) !== false;
     } else {
         writeLegacyStorageArray(LEGACY_STORAGE_KEYS.categories, categories, 'saveNewCategory fallback');
+        saved = true;
     }
+    if (!saved) return;
 
     window.closeAddCategoryModal();
 
@@ -12886,6 +12930,8 @@ window.activateBuddyCloudDev = function() {
 // ==========================================
 
 window.deleteTransaction = function(txId) {
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('delete transaction')) return;
+
     // 1. Fetch existing transactions safely
     let transactions = [];
     if (typeof State !== 'undefined' && State.getTransactions) {
@@ -12937,10 +12983,13 @@ window.deleteTransaction = function(txId) {
 // --- Helpers to keep the function clean ---
 
 window.saveTransactionsHelper = function(txArray) {
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('save transactions')) return false;
+
     if (typeof State !== 'undefined' && State.saveTransactions) {
-        State.saveTransactions(txArray);
+        return State.saveTransactions(txArray) !== false;
     } else {
         writeLegacyStorageArray(LEGACY_STORAGE_KEYS.transactions, txArray, 'saveTransactionsHelper fallback');
+        return true;
     }
 };
 
@@ -13316,6 +13365,8 @@ export function renderBulkActionBar() {
 
 // Mass-Delete Engine (Respects Buddy Cloud tiers)
 export function bulkDeleteTransactions() {
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('delete transactions')) return;
+
     if (window.bulkDeleteRecentTransactions) {
         window.bulkDeleteRecentTransactions();
         return;
@@ -13341,11 +13392,14 @@ export function bulkDeleteTransactions() {
         txs = txs.filter(tx => !window.selectedTxIds.has(tx.id));
     }
 
+    let saved = false;
     if (typeof State !== 'undefined' && State.saveTransactions) {
-        State.saveTransactions(txs);
+        saved = State.saveTransactions(txs) !== false;
     } else {
         writeLegacyStorageArray(LEGACY_STORAGE_KEYS.transactions, txs, 'bulkDeleteTransactions save fallback');
+        saved = true;
     }
+    if (!saved) return;
 
     if (typeof showToast === 'function') showToast(`Deleted ${count} transactions`);
 
@@ -13376,6 +13430,8 @@ export function bulkMoveTransactions() {
     const confirmBtn = document.getElementById('reassignConfirmBtn');
     confirmBtn.textContent = "Move Transactions";
     confirmBtn.onclick = function() {
+        if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('move transactions')) return;
+
         const newCat = select.value;
         if (!newCat) return alert("Please select a category");
 
@@ -13387,11 +13443,14 @@ export function bulkMoveTransactions() {
             }
         });
 
+        let saved = false;
         if (typeof State !== 'undefined' && State.saveTransactions) {
-            State.saveTransactions(txs);
+            saved = State.saveTransactions(txs) !== false;
         } else {
             writeLegacyStorageArray(LEGACY_STORAGE_KEYS.transactions, txs, 'bulkMoveTransactions save fallback');
+            saved = true;
         }
+        if (!saved) return;
 
         if (typeof showToast === 'function') showToast(`Moved ${window.selectedTxIds.size} transactions`);
 
@@ -13799,13 +13858,16 @@ window.openBudgetCalendarFromCategory = function() {
 };
 
 function saveTransactionArray(txArray) {
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('save transactions')) return false;
+
     if (State.saveTransactions) {
-        State.saveTransactions(txArray);
+        return State.saveTransactions(txArray) !== false;
     } else if (State.save) {
         const current = State.getTransactions ? State.getTransactions() : [];
         current.splice(0, current.length, ...txArray);
-        State.save();
+        return State.save({ action: 'save transactions' }) !== false;
     }
+    return false;
 }
 
 function refreshRecentDependents() {
@@ -13829,6 +13891,8 @@ function deleteTransactionsByIds(ids, confirmMessage) {
 }
 
 function performDeleteTransactionsByIds(ids) {
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('delete transaction')) return false;
+
     const idSet = ids instanceof Set ? ids : new Set((ids || []).filter(Boolean));
     if (idSet.size === 0) return false;
 
@@ -13842,9 +13906,9 @@ function performDeleteTransactionsByIds(ids) {
                 tx.deletedAt = new Date().toISOString();
             }
         });
-        if (State.save) State.save();
+        if (State.save && State.save({ action: 'delete transaction' }) === false) return false;
     } else {
-        saveTransactionArray(txs.filter(tx => !idSet.has(tx.id)));
+        if (!saveTransactionArray(txs.filter(tx => !idSet.has(tx.id)))) return false;
     }
 
     idSet.forEach(id => window.selectedTxIds.delete(id));
@@ -14199,6 +14263,7 @@ window.closeRecentEditTransactionModal = function() {
 window.confirmRecentEditTransaction = function(event, txId) {
     event?.preventDefault?.();
     event?.stopPropagation?.();
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('edit transaction')) return;
 
     const txs = State.getTransactions ? State.getTransactions() : [];
     const tx = txs.find(item => String(item.id) === String(txId));
@@ -14252,7 +14317,7 @@ window.confirmRecentEditTransaction = function(event, txId) {
     tx.notes = notes;
     tx.updatedAt = new Date().toISOString();
 
-    saveTransactionArray(txs);
+    if (!saveTransactionArray(txs)) return;
     window.closeRecentEditTransactionModal();
     if (window.showToast) window.showToast('Transaction updated.');
     refreshRecentDependents();
@@ -14407,6 +14472,8 @@ window.closeRecentMoveCategoryModal = function() {
 };
 
 window.confirmRecentMoveCategory = function(txId) {
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('move transaction')) return;
+
     const select = document.getElementById('recentMoveCategorySelect');
     const nextCategory = select?.value || '';
     if (!nextCategory) {
@@ -14420,11 +14487,13 @@ window.confirmRecentMoveCategory = function(txId) {
     if (!tx) return;
 
     tx.category = nextCategory;
+    let saved = false;
     if (State.saveTransactions) {
-        State.saveTransactions(txs);
+        saved = State.saveTransactions(txs) !== false;
     } else if (State.save) {
-        State.save();
+        saved = State.save({ action: 'move transaction' }) !== false;
     }
+    if (!saved) return;
 
     window.closeRecentMoveCategoryModal();
     if (window.showToast) window.showToast(`Moved transaction to ${nextCategory}.`);
@@ -15019,7 +15088,7 @@ window.deleteRecentTransaction = function(txId) {
 window.removeTransaction = window.deleteRecentTransaction;
 
 window.saveTransactionsHelper = function(txArray) {
-    saveTransactionArray(txArray);
+    return saveTransactionArray(txArray);
 };
 
 window.refreshActiveUI = function() {
@@ -15221,7 +15290,7 @@ window.importTransactionsFromCSV = function(event) {
             if (imported.length === 0) throw new Error('No valid transaction rows found.');
 
             const existing = State.getTransactions ? State.getTransactions() : [];
-            saveTransactionArray([...existing, ...imported]);
+            if (!saveTransactionArray([...existing, ...imported])) return;
             observeLocalSave(`Imported ${imported.length} transaction${imported.length === 1 ? '' : 's'} and saved partially.`);
             if (window.showToast) window.showToast(`Imported ${imported.length} transaction${imported.length === 1 ? '' : 's'}.`);
             refreshRecentDependents();
@@ -15379,6 +15448,8 @@ window.calculateDebtTwoYearCheck = function() {
 // 🏗️ UNIFIED SUBMIT ENGINE
 // ==========================================
 window.submitUnifiedTransaction = function() {
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('add transaction')) return;
+
     // 1. Gather Universal Fields
     const amountRaw = document.getElementById('txAmount').value;
     const amount = parseFloat(amountRaw.replace(/[^0-9.-]+/g, ""));
@@ -15441,11 +15512,14 @@ window.submitUnifiedTransaction = function() {
     let txs = (typeof State !== 'undefined' && State.getTransactions) ? State.getTransactions() : readLegacyStorageArray(LEGACY_STORAGE_KEYS.transactions, 'saveTransaction fallback');
     txs.push(newTx);
 
+    let saved = false;
     if (typeof State !== 'undefined' && State.saveTransactions) {
-        State.saveTransactions(txs);
+        saved = State.saveTransactions(txs) !== false;
     } else {
         writeLegacyStorageArray(LEGACY_STORAGE_KEYS.transactions, txs, 'saveTransaction save fallback');
+        saved = true;
     }
+    if (!saved) return;
 
     // 6. UI Cleanup & Feedback
     const form = document.getElementById('addTxForm');
@@ -15726,6 +15800,8 @@ window.closeSavingsGoalModal = function() {
 };
 
 window.saveSavingsGoal = function() {
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('create savings goal')) return;
+
     const nameInput = document.getElementById('savingsGoalName');
     const rawName = nameInput?.value.trim() || '';
     const name = cleanNameInput(rawName);

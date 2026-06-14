@@ -300,6 +300,7 @@ test.describe('Buddy Cloud conflict sensitivity', () => {
             const State = await import(stateModulePath);
             const Cloud = await import(cloudModulePath);
             const user = { id: 'unbacked-local-status-user', email: 'unbacked-status@example.com' };
+            window.currentUser = user;
 
             State.replaceSnapshot({
                 transactions: [{

@@ -22,6 +22,7 @@ test.describe('BudgetBuddy storage lifecycle', () => {
     test('save() does not advance bb_local_updated_at when bb_data write fails', async ({ page }) => {
         const result = await page.evaluate(async (stateModulePath) => {
             const State = await import(stateModulePath);
+            localStorage.setItem('bb_demo_active', 'true');
             const originalSetItem = Storage.prototype.setItem;
             let timestampAttempted = false;
 
