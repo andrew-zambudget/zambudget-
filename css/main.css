@@ -780,6 +780,16 @@ footer {
   text-decoration: none;
 }
 
+.footer-social-link-disabled,
+.footer-social-link-disabled:hover,
+.footer-social-link-disabled:focus-visible {
+  color: var(--text-dim);
+  background: transparent;
+  cursor: not-allowed;
+  opacity: 0.45;
+  text-decoration: none;
+}
+
 .footer-social-icon {
   width: 18px;
   height: 18px;

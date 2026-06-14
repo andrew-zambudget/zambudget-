@@ -48,6 +48,7 @@
         .public-social-list{display:flex;flex-wrap:wrap;gap:.65rem;margin-top:1rem}
         .footer-social-pill{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:.35rem .75rem;border:1px solid var(--border);border-radius:8px;color:var(--text);background:var(--surface-hover);font-size:.85rem;font-weight:700;text-decoration:none;transition:border-color .2s,color .2s,transform .2s}
         .footer-social-pill:hover,.footer-social-pill:focus-visible{border-color:var(--accent);color:var(--accent);text-decoration:none;transform:translateY(-1px)}
+        .footer-social-pill-disabled,.footer-social-pill-disabled:hover,.footer-social-pill-disabled:focus-visible{border-color:var(--border);color:var(--text-dim);background:var(--surface-hover);cursor:not-allowed;opacity:.55;text-decoration:none;transform:none}
         footer{padding:2rem;border-top:1px solid var(--border);text-align:center;color:var(--text-dim);font-size:.8rem;background:var(--surface);margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:.75rem;transition:background-color .3s,border-color .3s}
         .footer-main{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:0}
         .footer-btn-pill{background:var(--accent);color:#fff;padding:.25rem .85rem;border-radius:20px;font-size:.75rem;font-weight:600;text-decoration:none;transition:opacity .2s,transform .1s,box-shadow .2s;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,.1)}
@@ -163,9 +164,9 @@
                     </article>
                 </div>
                 <div class="public-social-list" aria-label="BudgetBuddy public social channels">
-                    <a class="footer-social-pill" href="https://www.tiktok.com/@budgetbuddyapp" target="_blank" rel="noopener">TikTok</a>
-                    <a class="footer-social-pill" href="https://www.linkedin.com/company/budget-buddy-app/" target="_blank" rel="noopener">LinkedIn</a>
-                    <a class="footer-social-pill" href="https://gitlab.com/andrews.agent949/budget-buddy" target="_blank" rel="noopener">GitLab</a>
+                    <span class="footer-social-pill footer-social-pill-disabled" aria-disabled="true" title="TikTok is being prepared">TikTok coming soon</span>
+                    <a class="footer-social-pill" href="https://www.linkedin.com/in/andrew-struck-573a3b416/" target="_blank" rel="noopener" aria-label="Andrew Struck on LinkedIn">LinkedIn: Andrew Struck</a>
+                    <a class="footer-social-pill" href="https://gitlab.com/andrews.agent949/budget-buddy" target="_blank" rel="noopener" aria-label="BudgetBuddy GitLab repository">GitLab Repo</a>
                 </div>
             </div>
         </section>
