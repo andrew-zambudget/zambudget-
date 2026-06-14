@@ -628,18 +628,35 @@
         </aside>
 
         <div class="modal-overlay" id="settingsModal" onclick="window.closeModalOnOutsideClick(event)">
-                    <div class="modal-box modal-box-medium" role="dialog" aria-modal="true" aria-label="Settings">
+                    <div class="modal-box modal-box-medium settings-modal-box" role="dialog" aria-modal="true" aria-label="Settings">
                         <button type="button" class="modal-close" onclick="window.closeSettingsModal()" aria-label="Close Settings">&times;</button>
 
-                        <div class="modal-body">
+                        <div class="modal-body settings-modal-body">
                             <div class="settings-header">
                                 <div class="icon-large" aria-hidden="true">⚙️</div>
+                                <p class="settings-eyebrow">Settings</p>
                                 <h3 class="modal-title mb-sm">App Settings</h3>
-                                <p class="settings-subtitle">Set your defaults once so new transactions stay consistent.</p>
+                                <p class="settings-subtitle">Set your defaults, appearance, imports, and local data behavior.</p>
                             </div>
 
+                            <nav class="settings-section-tabs" aria-label="Settings sections">
+                                <a href="#settingsGeneral" onclick="event.preventDefault(); document.getElementById('settingsGeneral')?.scrollIntoView({ block: 'start' });">General</a>
+                                <a href="#settingsBudgetRules" onclick="event.preventDefault(); document.getElementById('settingsBudgetRules')?.scrollIntoView({ block: 'start' });">Budget Rules</a>
+                                <a href="#settingsAppearance" onclick="event.preventDefault(); document.getElementById('settingsAppearance')?.scrollIntoView({ block: 'start' });">Appearance</a>
+                                <a href="#settingsData" onclick="event.preventDefault(); document.getElementById('settingsData')?.scrollIntoView({ block: 'start' });">Data</a>
+                                <a href="#settingsDanger" onclick="event.preventDefault(); document.getElementById('settingsDanger')?.scrollIntoView({ block: 'start' });">Danger Zone</a>
+                            </nav>
+
                             <form id="settingsForm" onsubmit="event.preventDefault(); window.saveSettings();">
-                                <div class="form-group">
+                                <div class="settings-dashboard">
+                                    <div class="settings-dashboard-column">
+                                        <section id="settingsGeneral" class="settings-card">
+                                            <div class="settings-card-header">
+                                                <h4 class="settings-card-title">General Defaults</h4>
+                                                <p class="settings-card-copy">Used when creating transactions and viewing your dashboard.</p>
+                                            </div>
+
+                                <div class="form-group settings-field">
                                     <label for="currencySelect">Currency Symbol</label>
                                     <select id="currencySelect" class="payment-method-select">
                                         <option value="$">$ (USD, CAD, AUD)</option>
@@ -652,16 +669,20 @@
                                     <div class="help-text">Shown throughout balances, budgets, and totals.</div>
                                 </div>
 
-                                <div class="form-group">
-                                    <label for="defaultTypeSelect">Default Transaction Type</label>
-                                    <select id="defaultTypeSelect" class="payment-method-select">
+                                <div class="form-group settings-field">
+                                    <div class="settings-field-label">Default Add Type</div>
+                                    <select id="defaultTypeSelect" class="settings-hidden-select" aria-hidden="true" tabindex="-1">
                                         <option value="expense">Expense</option>
                                         <option value="income">Income</option>
                                     </select>
+                                    <div class="settings-segmented" role="group" aria-label="Default add type">
+                                        <button type="button" class="settings-segment-option" data-settings-control="defaultTypeSelect" data-settings-value="expense">Expense</button>
+                                        <button type="button" class="settings-segment-option" data-settings-control="defaultTypeSelect" data-settings-value="income">Deposit</button>
+                                    </div>
                                     <div class="help-text">Preselected when you start a new transaction.</div>
                                 </div>
 
-                                <div class="form-group">
+                                <div class="form-group settings-field">
                                     <label for="defaultPaymentSelect">Default Payment Method</label>
                                     <select id="defaultPaymentSelect" class="payment-method-select">
                                         <option value="">None</option>
@@ -675,47 +696,70 @@
                                     <div class="help-text">Optional shortcut for faster data entry.</div>
                                 </div>
 
-                                <div class="form-group">
-                                    <label for="summaryViewSelect">Budget Snapshot Display</label>
-                                    <select id="summaryViewSelect" class="payment-method-select">
+                                <div class="form-group settings-field">
+                                    <div class="settings-field-label">Budget Snapshot Display</div>
+                                    <select id="summaryViewSelect" class="settings-hidden-select" aria-hidden="true" tabindex="-1">
                                         <option value="open">Always Open</option>
                                         <option value="collapsed">Start Collapsed</option>
                                     </select>
-                                    <div class="help-text">Choose how the dashboard snapshot opens when the app loads. You can still collapse or expand it anytime.</div>
+                                    <div class="settings-segmented" role="group" aria-label="Budget snapshot display">
+                                        <button type="button" class="settings-segment-option" data-settings-control="summaryViewSelect" data-settings-value="open">Start Expanded</button>
+                                        <button type="button" class="settings-segment-option" data-settings-control="summaryViewSelect" data-settings-value="collapsed">Start Collapsed</button>
+                                    </div>
+                                    <div class="help-text">Controls how the dashboard snapshot opens. You can still change it anytime.</div>
                                 </div>
+                                        </section>
 
-                                <div class="form-group">
-                                    <label>Treat savings as total income anywhere in BudgetBuddy?</label>
-                                    <div class="settings-radio-row" role="radiogroup" aria-label="Treat savings as total income anywhere in BudgetBuddy">
-                                        <label class="checkbox-label">
+                                        <section id="settingsBudgetRules" class="settings-card">
+                                            <div class="settings-card-header">
+                                                <h4 class="settings-card-title">Budget Rules</h4>
+                                                <p class="settings-card-copy">Control how BudgetBuddy calculates savings, income, and debt priorities.</p>
+                                            </div>
+
+                                <div class="form-group settings-field">
+                                    <div class="settings-field-label">Include savings in income totals?</div>
+                                    <div class="settings-radio-row settings-segmented" role="radiogroup" aria-label="Treat savings as total income anywhere in BudgetBuddy">
+                                        <label class="settings-segment-option">
                                             <input type="radio" name="zbbSavingsAsIncome" id="zbbSavingsAsIncomeNo" value="no">
-                                            <span>No</span>
+                                            <span>No, keep separate</span>
+                                            <span class="settings-recommended-badge">Recommended</span>
                                         </label>
-                                        <label class="checkbox-label">
+                                        <label class="settings-segment-option">
                                             <input type="radio" name="zbbSavingsAsIncome" id="zbbSavingsAsIncomeYes" value="yes">
-                                            <span>Yes</span>
+                                            <span>Yes, include savings</span>
                                         </label>
                                     </div>
-                                    <div class="help-text">Default is No. Choose Yes if you want savings transactions included in BudgetBuddy income totals and the ZBB snapshot.</div>
+                                    <div class="help-text">Default is No. Choose Yes if you want savings transactions included in income totals and the ZBB snapshot.</div>
                                 </div>
 
-                                <div class="form-group">
-                                    <label>Override the $1,000 emergency fund lock while debt exists?</label>
-                                    <div class="settings-radio-row" role="radiogroup" aria-label="Override the emergency fund lock while debt exists">
-                                        <label class="checkbox-label">
+                                <div class="form-group settings-field">
+                                    <div class="settings-field-label">Override emergency fund lock while debt exists?</div>
+                                    <div class="settings-radio-row settings-segmented" role="radiogroup" aria-label="Override the emergency fund lock while debt exists">
+                                        <label class="settings-segment-option">
                                             <input type="radio" name="overrideDebtSavingsLock" id="overrideDebtSavingsLockNo" value="no">
-                                            <span>No</span>
+                                            <span>No, keep $1,000 lock</span>
+                                            <span class="settings-recommended-badge">Recommended</span>
                                         </label>
-                                        <label class="checkbox-label">
+                                        <label class="settings-segment-option">
                                             <input type="radio" name="overrideDebtSavingsLock" id="overrideDebtSavingsLockYes" value="yes">
-                                            <span>Yes</span>
+                                            <span>Yes, allow larger fund</span>
                                         </label>
                                     </div>
                                     <div class="help-text">Default is No. Choose Yes if you want to fund a larger emergency fund before debt is gone.</div>
                                 </div>
+                                        </section>
 
-                                <div class="form-group">
-                                    <label>Accent Color</label>
+                                        <section id="settingsAppearance" class="settings-card">
+                                            <div class="settings-card-header settings-card-header-row">
+                                                <div>
+                                                    <h4 class="settings-card-title">Appearance</h4>
+                                                    <p class="settings-card-copy">Personalize how BudgetBuddy looks.</p>
+                                                </div>
+                                                <div id="settingsAccentSelected" class="settings-selected-pill">Selected: Teal</div>
+                                            </div>
+
+                                <div class="form-group settings-field">
+                                    <div class="settings-field-label">Accent Color</div>
                                     <div class="accent-picker" role="radiogroup" aria-label="Accent color">
                                         <label class="accent-swatch-option" style="--swatch-color:#14b8a6">
                                             <input type="radio" name="accentColor" value="teal">
@@ -795,9 +839,18 @@
                                     </div>
                                     <div class="help-text">Changes buttons, focus rings, highlights, and progress accents.</div>
                                 </div>
+                                        </section>
+                                    </div>
 
-	                                <div class="form-group settings-data-tools">
-	                                    <label>Gift Card Merchant Cache</label>
+                                    <div class="settings-dashboard-column">
+                                        <section id="settingsData" class="settings-card settings-data-card">
+                                            <div class="settings-card-header">
+                                                <h4 class="settings-card-title">Data &amp; Privacy</h4>
+                                                <p class="settings-card-copy">Manage local gift card metadata and transaction files.</p>
+                                            </div>
+
+	                                <div class="form-group settings-field settings-data-tools">
+	                                    <div class="settings-field-label">Gift Card Merchant Cache</div>
 	                                    <div class="settings-cache-card">
 	                                        <div id="giftCardCacheSettingsStatus" class="settings-cache-status" aria-live="polite">Not cached on this device.</div>
 	                                        <div class="settings-cache-actions">
@@ -805,35 +858,50 @@
 	                                            <button type="button" class="btn-cancel" onclick="window.clearGiftCardMerchantCacheFromSettings(event)">Clear Cache</button>
 	                                        </div>
 	                                    </div>
-	                                    <div class="help-text">BudgetBuddy downloads one full local merchant metadata bundle. Merchant searches and suggestions stay on this device and are not sent to a server.</div>
+	                                    <div class="settings-privacy-note">BudgetBuddy downloads one full local merchant metadata bundle. Merchant searches and suggestions stay on this device and are not sent to a server.</div>
 	                                </div>
 
-	                                <div class="form-group settings-data-tools">
-	                                    <label>Transaction Data</label>
-                                    <div class="settings-csv-actions">
-                                        <button type="button" class="btn-cancel" onclick="window.exportTransactions()">Export CSV</button>
-                                        <button type="button" class="btn-create" onclick="document.getElementById('csvImportInput')?.click()">Import CSV</button>
+	                                <div class="form-group settings-field settings-data-tools">
+	                                    <div class="settings-field-label">Transaction Data</div>
+                                    <div class="settings-csv-actions settings-action-grid">
+                                        <button type="button" class="settings-action-tile" onclick="window.exportTransactions()">
+                                            <span class="settings-action-title">Export CSV</span>
+                                            <span class="settings-action-copy">Download your transactions as a CSV file.</span>
+                                        </button>
+                                        <button type="button" class="settings-action-tile settings-action-tile-primary" onclick="document.getElementById('csvImportInput')?.click()">
+                                            <span class="settings-action-title">Import CSV</span>
+                                            <span class="settings-action-copy">Bring transaction history into BudgetBuddy.</span>
+                                        </button>
                                         <input type="file" id="csvImportInput" class="settings-csv-input" accept=".csv,text/csv" onchange="window.importTransactionsFromCSV(event)">
                                     </div>
                                     <div class="help-text">Move transaction history in or out with CSV files.</div>
                                 </div>
 
-                                <div class="modal-actions">
+                                        </section>
+
+                                        <section id="settingsDanger" class="settings-card danger-zone">
+                                            <div class="settings-card-header">
+                                                <p class="text-red">Danger Zone</p>
+                                                <p class="settings-card-copy">Destructive actions that can permanently remove local browser data.</p>
+                                            </div>
+                                            <div class="settings-danger-action">
+                                                <div>
+                                                    <div class="settings-danger-title">Erase Local Budget Data</div>
+                                                    <div class="help-text">Clears BudgetBuddy transactions, categories, and settings stored in this browser. This cannot be undone.</div>
+                                                </div>
+                                                <button type="button" class="btn-outline-danger" onclick="window.openResetModal()">Erase Local Budget Data</button>
+                                            </div>
+                                        </section>
+                                    </div>
+                                </div>
+
+                                <div class="settings-sticky-footer modal-actions">
+                                    <div id="settingsDirtyNotice" class="settings-dirty-notice" aria-live="polite" hidden>Unsaved changes</div>
                                     <button type="button" class="btn-cancel" onclick="window.closeSettingsModal()">Cancel</button>
                                     <button type="submit" class="btn-create">Save Settings</button>
                                 </div>
                             </form>
 
-                            <div class="danger-zone">
-                                <div class="flex items-center gap-sm mb-sm">
-                                    <div class="icon-lg" aria-hidden="true">⚠️</div>
-                                    <div>
-                                        <p class="text-red">Danger Zone</p>
-                                        <div class="help-text">Erase all transactions, categories, and settings. This cannot be undone.</div>
-                                    </div>
-                                </div>
-                                <button type="button" class="btn-outline-danger" onclick="window.openResetModal()">Erase All Data</button>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -941,25 +1009,25 @@
                 </div>
 
                 <div class="modal-overlay" id="resetConfirmModal">
-                    <div class="modal-box modal-box-medium" role="dialog" aria-modal="true" aria-label="Factory Reset">
+                    <div class="modal-box modal-box-medium" role="dialog" aria-modal="true" aria-label="Erase Local Budget Data">
                         <button type="button" class="modal-close" onclick="window.closeResetModal()" aria-label="Close Modal">&times;</button>
 
                         <div class="text-center mb-lg">
                             <div class="icon-large" aria-hidden="true">🚨</div>
-                            <h3 class="modal-title mb-sm">Erase Everything?</h3>
+                            <h3 class="modal-title mb-sm">Erase Local Budget Data?</h3>
 
                             <div class="warning-box">
-                                <div class="warning-title">⚠️ Complete Factory Reset</div>
+                                <div class="warning-title">Local Browser Reset</div>
                                 <p>
-                                    This will instantly delete <strong>all transactions, categories, and settings</strong>.
-                                    Your app will be completely wiped clean. This action absolutely cannot be undone.
+                                    This clears BudgetBuddy <strong>transactions, categories, settings, and local app data stored in this browser</strong>.
+                                    It does not delete your Supabase login or perform an account-wide deletion. This action cannot be undone.
                                 </p>
                             </div>
                         </div>
 
                         <div class="modal-actions">
                             <button type="button" class="btn-cancel" onclick="window.closeResetModal()">Cancel</button>
-                            <button type="button" class="btn-danger" onclick="window.executeFactoryReset()">Wipe My Data</button>
+                            <button type="button" class="btn-danger" onclick="window.executeFactoryReset()">Erase Local Data</button>
                         </div>
                     </div>
                 </div>

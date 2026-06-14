@@ -11453,12 +11453,124 @@ const ACCENT_THEME_VALUES = new Set([
     'zinc'
 ]);
 
+const ACCENT_THEME_LABELS = {
+    teal: 'Teal',
+    blue: 'Blue',
+    green: 'Green',
+    amber: 'Amber',
+    rose: 'Rose',
+    indigo: 'Indigo',
+    slate: 'Slate',
+    orange: 'Orange',
+    cyan: 'Cyan',
+    sky: 'Sky',
+    lime: 'Lime',
+    emerald: 'Emerald',
+    red: 'Red',
+    pink: 'Pink',
+    zinc: 'Zinc'
+};
+
+let settingsInitialSignature = '';
+let settingsDashboardControlsBound = false;
+
+function updateSettingsAccentLabel(accent = 'teal') {
+    const label = document.getElementById('settingsAccentSelected');
+    if (!label) return;
+    const safeAccent = ACCENT_THEME_VALUES.has(accent) ? accent : 'teal';
+    label.textContent = `Selected: ${ACCENT_THEME_LABELS[safeAccent] || 'Teal'}`;
+}
+
+function getSettingsFormSignature() {
+    const currencySelect = document.getElementById('currencySelect');
+    const typeSelect = document.getElementById('defaultTypeSelect');
+    const paymentSelect = document.getElementById('defaultPaymentSelect');
+    const summarySelect = document.getElementById('summaryViewSelect');
+    const savingsAsIncomeYes = document.getElementById('zbbSavingsAsIncomeYes');
+    const overrideDebtLockYes = document.getElementById('overrideDebtSavingsLockYes');
+    const accentSelect = document.querySelector('input[name="accentColor"]:checked');
+
+    return JSON.stringify({
+        currency: currencySelect?.value || '',
+        defaultType: typeSelect?.value || 'expense',
+        defaultPayment: paymentSelect?.value || '',
+        summaryView: summarySelect?.value || 'open',
+        savingsAsIncome: Boolean(savingsAsIncomeYes?.checked),
+        overrideDebtLock: Boolean(overrideDebtLockYes?.checked),
+        accent: accentSelect?.value || 'teal'
+    });
+}
+
+function setSettingsDirtyState(isDirty = false) {
+    const form = document.getElementById('settingsForm');
+    const notice = document.getElementById('settingsDirtyNotice');
+    form?.classList.toggle('is-dirty', Boolean(isDirty));
+    if (notice) notice.hidden = !isDirty;
+}
+
+function refreshSettingsDirtyState() {
+    if (!settingsInitialSignature) {
+        setSettingsDirtyState(false);
+        return;
+    }
+    setSettingsDirtyState(getSettingsFormSignature() !== settingsInitialSignature);
+}
+
+function captureSettingsBaseline() {
+    settingsInitialSignature = getSettingsFormSignature();
+    setSettingsDirtyState(false);
+}
+
+function syncSettingsSegmentedControl(controlId) {
+    const control = document.getElementById(controlId);
+    if (!control) return;
+    document.querySelectorAll(`[data-settings-control="${controlId}"]`).forEach(button => {
+        const active = button.dataset.settingsValue === control.value;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+}
+
+function syncSettingsSegmentedControls() {
+    syncSettingsSegmentedControl('defaultTypeSelect');
+    syncSettingsSegmentedControl('summaryViewSelect');
+}
+
+function setSettingsSegmentedValue(controlId, value) {
+    const control = document.getElementById(controlId);
+    if (!control) return;
+    control.value = value;
+    syncSettingsSegmentedControl(controlId);
+    refreshSettingsDirtyState();
+}
+
+function bindSettingsDashboardControls() {
+    if (settingsDashboardControlsBound) return;
+    settingsDashboardControlsBound = true;
+
+    document.addEventListener('click', event => {
+        const target = event.target instanceof Element ? event.target : null;
+        const button = target?.closest('[data-settings-control][data-settings-value]');
+        if (!button) return;
+        event.preventDefault();
+        setSettingsSegmentedValue(button.dataset.settingsControl, button.dataset.settingsValue);
+    });
+
+    const form = document.getElementById('settingsForm');
+    form?.addEventListener('input', refreshSettingsDirtyState);
+    form?.addEventListener('change', () => {
+        syncSettingsSegmentedControls();
+        refreshSettingsDirtyState();
+    });
+}
+
 export function applyAccentTheme(accent = 'teal') {
     const safeAccent = ACCENT_THEME_VALUES.has(accent) ? accent : 'teal';
     document.documentElement.setAttribute('data-accent', safeAccent);
     document.querySelectorAll('input[name="accentColor"]').forEach(input => {
         input.checked = input.value === safeAccent;
     });
+    updateSettingsAccentLabel(safeAccent);
 }
 
 export function setAccentTheme(accent = 'teal') {
@@ -11497,8 +11609,10 @@ export function initSettingsUI() {
     document.querySelectorAll('input[name="accentColor"]').forEach(input => {
         input.addEventListener('change', () => {
             if (input.checked) applyAccentTheme(input.value);
+            refreshSettingsDirtyState();
         });
     });
+    bindSettingsDashboardControls();
     updateCurrencyUI();
 }
 
@@ -11529,6 +11643,8 @@ export function openSettingsModal() {
     if (overrideDebtLockYes) overrideDebtLockYes.checked = overrideDebtLock;
     if (overrideDebtLockNo) overrideDebtLockNo.checked = !overrideDebtLock;
     applyAccentTheme(savedAccent);
+    syncSettingsSegmentedControls();
+    captureSettingsBaseline();
 
     renderSyncHistory();
     updateGiftCardMerchantCacheUi();
@@ -11537,6 +11653,8 @@ export function openSettingsModal() {
 
 export function closeSettingsModal() {
     applyAccentTheme(localStorage.getItem(ACCENT_THEME_KEY) || 'teal');
+    settingsInitialSignature = '';
+    setSettingsDirtyState(false);
     closeModal('settingsModal');
 }
 
@@ -11566,6 +11684,7 @@ export function saveSettings() {
 
     updateCurrencyUI();
     hardResetForm();
+    captureSettingsBaseline();
 
     closeSettingsModal();
     showToast('✅ Settings saved!');
