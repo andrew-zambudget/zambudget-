@@ -7431,11 +7431,7 @@ input.error, select.error {
     padding-bottom: 5.25rem;
 }
 
-#view-add .add-transaction-form > .add-form-toolbar {
-    order: 0;
-}
-
-#view-add .add-transaction-form > .type-toggle-v2 {
+#view-add .add-transaction-form > .add-type-reset-row {
     order: 1;
 }
 
@@ -7467,18 +7463,27 @@ input.error, select.error {
     order: 8;
 }
 
-.add-form-toolbar {
+.add-type-reset-row {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    min-height: 42px;
-    margin: -0.25rem 0 -0.35rem;
+    justify-content: center;
+    align-self: center;
+    width: min(100%, 390px);
+    gap: 0.55rem;
+    margin: -0.2rem 0 0.65rem;
+}
+
+.add-type-reset-row .type-toggle-v2 {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
 }
 
 .add-form-reset-btn {
     position: relative;
     width: 42px;
     height: 42px;
+    flex: 0 0 42px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -9107,14 +9112,16 @@ input.error, select.error {
         overflow: visible;
     }
 
-    #view-add .add-form-toolbar {
-        min-height: 38px;
-        margin: -0.18rem 0 -0.45rem;
+    #view-add .add-type-reset-row {
+        width: 100%;
+        gap: 0.45rem;
+        margin: -0.18rem 0 -0.18rem;
     }
 
     #view-add .add-form-reset-btn {
         width: 40px;
         height: 40px;
+        flex-basis: 40px;
         background: color-mix(in srgb, var(--surface, #ffffff) 88%, var(--bg, #f8fafc));
         box-shadow: 0 8px 16px color-mix(in srgb, var(--accent, #14b8a6) 16%, transparent);
     }
