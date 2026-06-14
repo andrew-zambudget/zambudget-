@@ -109,17 +109,14 @@ textarea:focus-visible {
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -0.5px;
-  color: var(--text);
+  color: var(--accent);
   text-decoration: none;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
   flex: 0 1 auto;
   min-width: 0;
 }
 
-.logo-mark { color: var(--text); }
-.logo-accent { color: var(--accent); }
 .logo:hover { opacity: 0.9; }
 
 .nav-links { display: flex; gap: 1.5rem; }
