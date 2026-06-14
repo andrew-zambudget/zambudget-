@@ -7431,6 +7431,10 @@ input.error, select.error {
     padding-bottom: 5.25rem;
 }
 
+#view-add .add-transaction-form > .add-form-toolbar {
+    order: 0;
+}
+
 #view-add .add-transaction-form > .type-toggle-v2 {
     order: 1;
 }
@@ -7461,6 +7465,53 @@ input.error, select.error {
 
 #view-add .add-transaction-form > #addTxStatus {
     order: 8;
+}
+
+.add-form-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: 42px;
+    margin: -0.25rem 0 -0.35rem;
+}
+
+.add-form-reset-btn {
+    position: relative;
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid color-mix(in srgb, var(--accent, #14b8a6) 30%, var(--border, #e2e8f0));
+    border-radius: 999px;
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--accent, #14b8a6) 8%, var(--surface, #ffffff)), var(--surface, #ffffff));
+    color: var(--accent, #14b8a6);
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--accent, #14b8a6) 14%, transparent);
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: transform 0.16s ease, border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease, color 0.16s ease;
+}
+
+.add-form-reset-btn svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.add-form-reset-btn:hover {
+    transform: translateY(-1px) rotate(-18deg);
+    border-color: var(--accent, #14b8a6);
+    background: color-mix(in srgb, var(--accent, #14b8a6) 12%, var(--surface, #ffffff));
+    box-shadow: 0 12px 24px color-mix(in srgb, var(--accent, #14b8a6) 22%, transparent);
+}
+
+.add-form-reset-btn:active {
+    transform: translateY(0) scale(0.96);
 }
 
 .add-transaction-form .form-input,
@@ -9056,6 +9107,18 @@ input.error, select.error {
         overflow: visible;
     }
 
+    #view-add .add-form-toolbar {
+        min-height: 38px;
+        margin: -0.18rem 0 -0.45rem;
+    }
+
+    #view-add .add-form-reset-btn {
+        width: 40px;
+        height: 40px;
+        background: color-mix(in srgb, var(--surface, #ffffff) 88%, var(--bg, #f8fafc));
+        box-shadow: 0 8px 16px color-mix(in srgb, var(--accent, #14b8a6) 16%, transparent);
+    }
+
     #view-add .add-transaction-form .sr-only {
         position: absolute !important;
         width: 1px !important;
@@ -9387,6 +9450,7 @@ input.error, select.error {
 .cat-pill-v2:focus-visible,
 .suggestion-chip:focus-visible,
 .toggle-details-btn:focus-visible,
+.add-form-reset-btn:focus-visible,
 .hero-save-btn:focus-visible,
 .hero-undo-btn:focus-visible,
 .bulk-select-cb:focus-visible,
@@ -9402,6 +9466,7 @@ input.error, select.error {
     .category-add-btn,
     .submit-btn,
     .numpad-btn,
+    .add-form-reset-btn,
     .notes-container,
     .cal-day,
     .savings-goal-card,

@@ -8647,6 +8647,40 @@ export function handleDateChange(event) {
     updateAddTransactionDate(selectedDate);
 }
 
+export function resetAddTransactionForm(event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
+    clearTimeout(morphTimeout);
+    morphTimeout = null;
+
+    const inputWrapper = document.getElementById('heroInputWrapper');
+    const feedbackWrapper = document.getElementById('heroFeedbackWrapper');
+
+    if (inputWrapper) {
+        inputWrapper.style.opacity = '1';
+        inputWrapper.style.visibility = 'visible';
+        inputWrapper.style.position = 'relative';
+    }
+    if (feedbackWrapper) {
+        feedbackWrapper.style.opacity = '0';
+        feedbackWrapper.style.visibility = 'hidden';
+        feedbackWrapper.style.position = 'absolute';
+    }
+
+    clearSlotAnimations();
+    lastSavedTxId = null;
+    clearAddSavedPreview();
+    hardResetForm();
+    clearAddSavedPreview();
+    renderAddCategoryInsight();
+    setAddFormStatus('Add transaction form reset.');
+    showToast('Add form reset.');
+
+    const amountInput = document.getElementById('txAmount');
+    amountInput?.focus?.({ preventScroll: true });
+}
+
 export function hardResetForm() {
     const form = document.getElementById('addTxForm');
     if (form) {
@@ -17476,6 +17510,7 @@ window.setAddTransactionDate = setAddTransactionDate;
 window.openAddDatePicker = openAddDatePicker;
 window.toggleAddCategoryPicker = toggleAddCategoryPicker;
 window.initAddTransactionForm = initAddTransactionForm;
+window.resetAddTransactionForm = resetAddTransactionForm;
 window.hardResetForm = hardResetForm;
 window.initCategoryUI = initCategoryUI;
 window.quickLogIncome = quickLogIncome;
