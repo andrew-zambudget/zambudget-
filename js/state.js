@@ -23,7 +23,8 @@ let state = {
         stripeCheckoutSessionId: '',
         billingSubscriptionStatus: '',
         billingCurrentPeriodEnd: '',
-        billingCancelAtPeriodEnd: false
+        billingCancelAtPeriodEnd: false,
+        giftCards: []
     },
     // Runtime helpers
     currentType: 'expense',
@@ -36,6 +37,8 @@ let suppressCloudQueue = false;
 const DEMO_ACTIVE_KEY = 'bb_demo_active';
 const SIGNED_OUT_WRITE_MESSAGE = 'Sign in or start the demo before adding real budget data.';
 let lastSignedOutWriteNoticeAt = 0;
+const GIFT_CARD_NAME_MAX_LENGTH = 32;
+const GIFT_CARD_NUMBER_MAX_LENGTH = 80;
 
 function isSignedInForBudgetWrites() {
     return Boolean(typeof window !== 'undefined' && window.currentUser?.id);
@@ -127,10 +130,81 @@ function getCloudSafeSettings(settings = state.settings) {
     return safeSettings;
 }
 
+function cleanGiftCardText(value, maxLength) {
+    return String(value ?? '')
+        .replace(/[\u0000-\u001F\u007F]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, maxLength);
+}
+
+function normalizeGiftCardDate(value) {
+    const normalized = String(value || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return '';
+
+    const [year, month, day] = normalized.split('-').map(Number);
+    if (year < 1900 || year > 2100) return '';
+
+    const date = new Date(year, month - 1, day);
+    return date.getFullYear() === year
+        && date.getMonth() === month - 1
+        && date.getDate() === day
+        ? normalized
+        : '';
+}
+
+function getGiftCardLast4(cardNumber = '') {
+    const cleanNumber = String(cardNumber || '').replace(/\s+/g, '');
+    return cleanNumber.slice(-4);
+}
+
+function normalizeGiftCard(card = {}) {
+    const totalAmount = Math.max(0, Number.parseFloat(card.totalAmount) || 0);
+    const rawCurrentBalance = Number.parseFloat(card.currentBalance);
+    const fallbackBalance = Number.isFinite(rawCurrentBalance) ? rawCurrentBalance : totalAmount;
+    const currentBalance = totalAmount > 0
+        ? Math.min(totalAmount, Math.max(0, fallbackBalance))
+        : Math.max(0, fallbackBalance);
+    const cardNumber = cleanGiftCardText(card.cardNumber, GIFT_CARD_NUMBER_MAX_LENGTH);
+    const last4 = getGiftCardLast4(cardNumber);
+    const name = cleanGiftCardText(card.name, GIFT_CARD_NAME_MAX_LENGTH) || (last4 ? `Gift Card ${last4}` : 'Gift Card');
+    const createdAt = card.createdAt || new Date().toISOString();
+
+    return {
+        id: String(card.id || `gift_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`),
+        name,
+        cardNumber,
+        totalAmount,
+        currentBalance,
+        expirationDate: normalizeGiftCardDate(card.expirationDate),
+        createdAt,
+        updatedAt: card.updatedAt || createdAt
+    };
+}
+
+function normalizeGiftCards(cards = []) {
+    if (!Array.isArray(cards)) return [];
+    const seenIds = new Set();
+    return cards
+        .filter(Boolean)
+        .map(normalizeGiftCard)
+        .filter(card => {
+            if (!card.id || seenIds.has(card.id)) return false;
+            seenIds.add(card.id);
+            return true;
+        });
+}
+
+function getMutableGiftCards() {
+    state.settings.giftCards = normalizeGiftCards(state.settings.giftCards);
+    return state.settings.giftCards;
+}
+
 function applyLoadedPayload(parsed = {}) {
     state.transactions = (parsed.transactions || []).map(tx => normalizeTransaction(tx, false));
     state.categories = parsed.categories || [];
     state.settings = { ...state.settings, ...parsed.settings };
+    state.settings.giftCards = normalizeGiftCards(state.settings.giftCards);
     const savingsGoal = parseFloat(state.settings.savingsGoal);
     state.settings.savingsGoal = (!Number.isFinite(savingsGoal) || savingsGoal === 10000)
         ? 1000
@@ -299,14 +373,150 @@ export const addTransaction = (tx) => {
     return save({ action: 'add transaction' });
 };
 
+export const getGiftCards = () => getMutableGiftCards().map(card => ({ ...card }));
+
+export const addGiftCard = (card = {}) => {
+    if (!requireBudgetWriteAccess('add gift card')) {
+        return { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
+    }
+
+    const rawTotalAmount = Number.parseFloat(card.totalAmount);
+    const rawCurrentBalance = card.currentBalance === '' || card.currentBalance === undefined
+        ? rawTotalAmount
+        : Number.parseFloat(card.currentBalance);
+    if (!Number.isFinite(rawTotalAmount) || rawTotalAmount <= 0) {
+        return { success: false, error: 'Total amount must be greater than 0.' };
+    }
+    if (!Number.isFinite(rawCurrentBalance) || rawCurrentBalance < 0 || rawCurrentBalance > rawTotalAmount) {
+        return { success: false, error: 'Current balance must be between 0 and the total amount.' };
+    }
+
+    const normalized = normalizeGiftCard(card);
+    if (!normalized.cardNumber) {
+        return { success: false, error: 'Card number is required.' };
+    }
+
+    getMutableGiftCards().push(normalized);
+    const saved = save({ action: 'add gift card' });
+    return saved ? { success: true, card: { ...normalized } } : { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
+};
+
+export const addTransactionWithGiftCard = (tx, giftCardId) => {
+    if (!requireBudgetWriteAccess('add gift card transaction')) return { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
+
+    const cards = getMutableGiftCards();
+    const card = cards.find(item => item.id === giftCardId);
+    if (!card) return { success: false, error: 'Choose a gift card.' };
+
+    const amount = Math.max(0, Number.parseFloat(tx?.amount) || 0);
+    if (amount <= 0) return { success: false, error: 'Enter an amount greater than 0.' };
+    if (amount > card.currentBalance + 0.005) {
+        return { success: false, error: 'Gift card balance is too low.' };
+    }
+
+    const balanceBefore = card.currentBalance;
+    const balanceAfter = Math.max(0, balanceBefore - amount);
+    const nowUtc = new Date().toISOString();
+    card.currentBalance = balanceAfter;
+    card.updatedAt = nowUtc;
+
+    state.transactions.push(normalizeTransaction({
+        ...tx,
+        paymentMethod: 'gift_card',
+        giftCardId: card.id,
+        giftCardName: card.name,
+        giftCardLast4: getGiftCardLast4(card.cardNumber),
+        giftCardBalanceBefore: balanceBefore,
+        giftCardBalanceAfter: balanceAfter
+    }));
+
+    const saved = save({ action: 'add gift card transaction' });
+    return saved ? { success: true, card: { ...card } } : { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
+};
+
 export const saveTransactions = (txArray) => {
     if (!requireBudgetWriteAccess('save transactions')) return false;
     state.transactions = Array.isArray(txArray) ? txArray.map(normalizeTransaction) : [];
     return save({ action: 'save transactions' });
 };
 
+export const updateTransaction = (id, updates = {}) => {
+    if (!requireBudgetWriteAccess('edit transaction')) return { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
+
+    const index = state.transactions.findIndex(t => String(t.id) === String(id));
+    if (index === -1) return { success: false, error: 'Transaction not found.' };
+
+    const previous = state.transactions[index] || {};
+    const next = {
+        ...previous,
+        ...updates,
+        updatedAt: new Date().toISOString()
+    };
+    const previousWasGiftCard = previous.paymentMethod === 'gift_card' && previous.giftCardId;
+    const nextIsGiftCard = next.paymentMethod === 'gift_card';
+    const previousAmount = Math.max(0, Number.parseFloat(previous.amount) || 0);
+    const nextAmount = Math.max(0, Number.parseFloat(next.amount) || 0);
+
+    if (nextIsGiftCard && !previousWasGiftCard) {
+        return { success: false, error: 'Use the Add tab to choose a tracked gift card.' };
+    }
+
+    if (previousWasGiftCard) {
+        const card = getMutableGiftCards().find(item => item.id === previous.giftCardId);
+        if (!card) return { success: false, error: 'Tracked gift card was not found.' };
+
+        const restoredBalance = (Number(card.currentBalance) || 0) + previousAmount;
+        const availableBeforeEdit = card.totalAmount > 0
+            ? Math.min(card.totalAmount, restoredBalance)
+            : Math.max(0, restoredBalance);
+
+        if (nextIsGiftCard) {
+            if (String(next.giftCardId || '') !== String(previous.giftCardId)) {
+                return { success: false, error: 'Choose the gift card from the Add tab before changing cards.' };
+            }
+            if (next.type !== 'expense') {
+                return { success: false, error: 'Gift card tracking is for expenses.' };
+            }
+            if (nextAmount > availableBeforeEdit + 0.005) {
+                return { success: false, error: 'Gift card balance is too low.' };
+            }
+
+            const balanceAfter = Math.max(0, availableBeforeEdit - nextAmount);
+            card.currentBalance = balanceAfter;
+            card.updatedAt = new Date().toISOString();
+            next.giftCardName = card.name;
+            next.giftCardLast4 = getGiftCardLast4(card.cardNumber);
+            next.giftCardBalanceBefore = availableBeforeEdit;
+            next.giftCardBalanceAfter = balanceAfter;
+        } else {
+            card.currentBalance = availableBeforeEdit;
+            card.updatedAt = new Date().toISOString();
+            next.giftCardId = '';
+            next.giftCardName = '';
+            next.giftCardLast4 = '';
+            delete next.giftCardBalanceBefore;
+            delete next.giftCardBalanceAfter;
+        }
+    }
+
+    state.transactions[index] = normalizeTransaction(next);
+    const saved = save({ action: 'edit transaction' });
+    return saved ? { success: true, transaction: { ...state.transactions[index] } } : { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
+};
+
 export const deleteTransaction = (id) => {
     if (!requireBudgetWriteAccess('delete transaction')) return false;
+    const tx = state.transactions.find(t => String(t.id) === String(id));
+    if (tx?.paymentMethod === 'gift_card' && tx.giftCardId && Number(tx.amount) > 0) {
+        const card = getMutableGiftCards().find(item => item.id === tx.giftCardId);
+        if (card) {
+            const restoredBalance = (Number(card.currentBalance) || 0) + (Number(tx.amount) || 0);
+            card.currentBalance = card.totalAmount > 0
+                ? Math.min(card.totalAmount, restoredBalance)
+                : Math.max(0, restoredBalance);
+            card.updatedAt = new Date().toISOString();
+        }
+    }
     state.transactions = state.transactions.filter(t => t.id !== id);
     return save({ action: 'delete transaction' });
 };

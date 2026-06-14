@@ -29,7 +29,10 @@ const DESCRIPTION_ROLLOVER_MAX_LENGTH = 24;
 const ADD_TX_MAX_AMOUNT = 999999999.99;
 const ADD_TX_DESCRIPTION_MAX_LENGTH = 80;
 const ADD_TX_NOTES_MAX_LENGTH = 54;
-const ADD_TX_PAYMENT_METHODS = new Set(['', 'card', 'cash', 'bank']);
+const GIFT_CARD_PAYMENT_METHOD = 'gift_card';
+const ADD_TX_PAYMENT_METHODS = new Set(['', 'card', 'cash', 'bank', GIFT_CARD_PAYMENT_METHOD]);
+const GIFT_CARD_NAME_MAX_LENGTH = 32;
+const GIFT_CARD_NUMBER_MAX_LENGTH = 80;
 const COMMAND_TAB_NAMES = new Set(['income', 'savings', 'debt', 'add', 'calendar', 'recent']);
 const EMERGENCY_FUND_RECOMMENDATION_TOLERANCE = 0.005;
 const BUDDY_CLOUD_RECENT_RESTORE_PREFIX = 'bb_cloud_recent_restore_';
@@ -7528,6 +7531,8 @@ export function setType(type, options = {}) {
         }
     setAddFieldError('category', '');
     renderAddCategoryInsight();
+    setGiftCardError('');
+    syncGiftCardTrackerPanel();
 }
 
 // ==========================================
@@ -7798,11 +7803,263 @@ function formatAddAmountInput() {
     updateAmountInputPresentation();
     clearAddSavedPreview();
     renderAddCategoryInsight();
+    updateGiftCardPreview();
 }
 
 function setAddFormStatus(message = '') {
     const statusEl = document.getElementById('addTxStatus');
     if (statusEl) statusEl.textContent = message;
+}
+
+function getGiftCardsForAddForm() {
+    return State.getGiftCards ? State.getGiftCards() : [];
+}
+
+function getGiftCardLast4(cardNumber = '') {
+    return String(cardNumber || '').replace(/\s+/g, '').slice(-4);
+}
+
+function formatGiftCardName(card = {}) {
+    const last4 = getGiftCardLast4(card.cardNumber);
+    return `${card.name || 'Gift Card'}${last4 ? ` - ${last4}` : ''}`;
+}
+
+function getGiftCardExpirationLabel(expirationDate = '') {
+    if (!isValidLocalISODate(expirationDate)) return 'No expiration set';
+
+    const today = new Date(getLocalISODate());
+    const expires = new Date(`${expirationDate}T00:00:00`);
+    const days = Math.ceil((expires - today) / 86400000);
+    if (days < 0) return 'Expired';
+    if (days === 0) return 'Expires today';
+    if (days <= 30) return `Expires in ${days} day${days === 1 ? '' : 's'}`;
+    return `Expires ${formatDate(expirationDate)}`;
+}
+
+function setGiftCardError(message = '') {
+    const errorEl = document.getElementById('giftCardTrackerError');
+    if (errorEl) errorEl.textContent = message;
+}
+
+function getSelectedGiftCard() {
+    const selectedId = document.getElementById('txGiftCardSelect')?.value || '';
+    return getGiftCardsForAddForm().find(card => card.id === selectedId) || null;
+}
+
+function setGiftCardAddFormVisible(isVisible) {
+    const form = document.getElementById('giftCardAddForm');
+    const toggle = document.getElementById('giftCardAddToggle');
+    if (!form) return;
+    form.hidden = !isVisible;
+    if (toggle) toggle.setAttribute('aria-expanded', isVisible ? 'true' : 'false');
+}
+
+export function toggleGiftCardAddForm(forceVisible = null) {
+    const form = document.getElementById('giftCardAddForm');
+    const shouldShow = forceVisible === null ? Boolean(form?.hidden) : Boolean(forceVisible);
+    setGiftCardAddFormVisible(shouldShow);
+    if (shouldShow) document.getElementById('giftCardNumber')?.focus();
+}
+
+function renderGiftCardSelect(selectedId = '') {
+    const select = document.getElementById('txGiftCardSelect');
+    if (!select) return null;
+
+    const symbol = State.getSymbol ? State.getSymbol() : '$';
+    const cards = getGiftCardsForAddForm();
+    select.innerHTML = cards.length
+        ? cards.map(card => {
+            const label = `${formatGiftCardName(card)} - ${symbol}${formatMoney(card.currentBalance)} left`;
+            return `<option value="${esc(card.id)}">${esc(label)}</option>`;
+        }).join('')
+        : '<option value="">Add a gift card to track spending</option>';
+
+    const nextSelectedId = cards.some(card => card.id === selectedId)
+        ? selectedId
+        : cards[0]?.id || '';
+    select.value = nextSelectedId;
+    select.disabled = cards.length === 0;
+    return cards.find(card => card.id === nextSelectedId) || null;
+}
+
+function updateGiftCardPreview() {
+    const panel = document.getElementById('giftCardTrackerPanel');
+    if (!panel || panel.hidden) return;
+
+    const summary = document.getElementById('giftCardTrackerSummary');
+    const symbol = State.getSymbol ? State.getSymbol() : '$';
+    const card = getSelectedGiftCard();
+    if (!summary) return;
+
+    if (!card) {
+        summary.innerHTML = '<span>Add a card number, total, current balance, and expiration to start tracking.</span>';
+        return;
+    }
+
+    const amount = getAddAmountPreviewValue();
+    const total = Number(card.totalAmount) || 0;
+    const current = Number(card.currentBalance) || 0;
+    const spent = Math.max(0, total - current);
+    const after = Number.isFinite(amount) && amount > 0 ? current - amount : current;
+    const over = after < -0.005;
+    const usedPct = total > 0 ? Math.min(100, Math.max(0, (spent / total) * 100)) : 0;
+    const expirationLabel = getGiftCardExpirationLabel(card.expirationDate);
+
+    summary.innerHTML = `
+        <div class="gift-card-stat-row">
+            <span>Available</span><strong>${symbol}${formatMoney(current)}</strong>
+        </div>
+        <div class="gift-card-stat-row">
+            <span>Used</span><strong>${symbol}${formatMoney(spent)} / ${symbol}${formatMoney(total)} (${usedPct.toFixed(0)}%)</strong>
+        </div>
+        <div class="gift-card-stat-row ${over ? 'is-danger' : ''}">
+            <span>After this expense</span><strong>${over ? '-' : ''}${symbol}${formatMoney(Math.abs(after))}</strong>
+        </div>
+        <div class="gift-card-stat-row">
+            <span>Expiration</span><strong>${esc(expirationLabel)}</strong>
+        </div>
+    `;
+}
+
+function syncGiftCardTrackerPanel(options = {}) {
+    const panel = document.getElementById('giftCardTrackerPanel');
+    const methodSelect = document.getElementById('txPaymentMethod');
+    if (!panel || !methodSelect) return;
+
+    const isGiftCard = methodSelect.value === GIFT_CARD_PAYMENT_METHOD;
+    panel.hidden = !isGiftCard;
+    if (!isGiftCard) {
+        setGiftCardError('');
+        setGiftCardAddFormVisible(false);
+        return;
+    }
+
+    const selectedCard = renderGiftCardSelect(options.selectedId || document.getElementById('txGiftCardSelect')?.value || '');
+    setGiftCardAddFormVisible(options.showAddForm ?? !selectedCard);
+    updateGiftCardPreview();
+}
+
+function bindGiftCardTrackerEvents() {
+    const methodSelect = document.getElementById('txPaymentMethod');
+    if (methodSelect && !methodSelect.dataset.giftCardBound) {
+        methodSelect.dataset.giftCardBound = 'true';
+        methodSelect.addEventListener('change', () => {
+            setGiftCardError('');
+            syncGiftCardTrackerPanel();
+            clearAddSavedPreview();
+        });
+    }
+
+    const giftCardSelect = document.getElementById('txGiftCardSelect');
+    if (giftCardSelect && !giftCardSelect.dataset.giftCardBound) {
+        giftCardSelect.dataset.giftCardBound = 'true';
+        giftCardSelect.addEventListener('change', () => {
+            setGiftCardError('');
+            setGiftCardAddFormVisible(false);
+            updateGiftCardPreview();
+        });
+    }
+
+    ['giftCardTotalAmount', 'giftCardCurrentBalance'].forEach(id => {
+        const input = document.getElementById(id);
+        if (!input || input.dataset.giftCardBound) return;
+        input.dataset.giftCardBound = 'true';
+        input.addEventListener('input', () => {
+            const sanitized = sanitizeMoneyValue(input.value).slice(0, 13);
+            if (input.value !== sanitized) input.value = sanitized;
+        });
+        input.addEventListener('blur', () => {
+            const amount = parseAddAmountInput(input.value);
+            if (Number.isFinite(amount) && amount >= 0) input.value = formatMoney(amount);
+        });
+    });
+
+    const totalInput = document.getElementById('giftCardTotalAmount');
+    const currentInput = document.getElementById('giftCardCurrentBalance');
+    if (totalInput && currentInput && !totalInput.dataset.giftCardMirrorBound) {
+        totalInput.dataset.giftCardMirrorBound = 'true';
+        currentInput.addEventListener('input', () => {
+            currentInput.dataset.giftCardTouched = 'true';
+        });
+        currentInput.addEventListener('focus', () => {
+            if (!currentInput.dataset.giftCardTouched && currentInput.value && currentInput.value === totalInput.value) {
+                currentInput.select();
+            }
+        });
+        totalInput.addEventListener('blur', () => {
+            if (!currentInput.dataset.giftCardTouched && !currentInput.value.trim()) currentInput.value = totalInput.value;
+        });
+    }
+
+    const nameInput = document.getElementById('giftCardName');
+    if (nameInput) nameInput.maxLength = GIFT_CARD_NAME_MAX_LENGTH;
+    const numberInput = document.getElementById('giftCardNumber');
+    if (numberInput) numberInput.maxLength = GIFT_CARD_NUMBER_MAX_LENGTH;
+}
+
+export function addGiftCardFromAddForm(event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('add gift card')) return;
+
+    const nameInput = document.getElementById('giftCardName');
+    const numberInput = document.getElementById('giftCardNumber');
+    const totalInput = document.getElementById('giftCardTotalAmount');
+    const currentInput = document.getElementById('giftCardCurrentBalance');
+    const expirationInput = document.getElementById('giftCardExpirationDate');
+    const cardNumber = sanitizeAddText(numberInput?.value, GIFT_CARD_NUMBER_MAX_LENGTH);
+    const totalAmount = parseAddAmountInput(totalInput?.value || '0');
+    const currentBalance = currentInput?.value.trim()
+        ? parseAddAmountInput(currentInput.value)
+        : totalAmount;
+    const expirationDate = expirationInput?.value || '';
+
+    setGiftCardError('');
+
+    if (!cardNumber) {
+        setGiftCardError('Card number is required.');
+        numberInput?.focus();
+        return;
+    }
+    if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
+        setGiftCardError('Total amount must be greater than 0.');
+        totalInput?.focus();
+        return;
+    }
+    if (!Number.isFinite(currentBalance) || currentBalance < 0 || currentBalance > totalAmount) {
+        setGiftCardError('Current balance must be between 0 and the total amount.');
+        currentInput?.focus();
+        return;
+    }
+    if (expirationDate && !isValidLocalISODate(expirationDate)) {
+        setGiftCardError('Choose a valid expiration date.');
+        expirationInput?.focus();
+        return;
+    }
+
+    const result = State.addGiftCard?.({
+        name: sanitizeAddText(nameInput?.value, GIFT_CARD_NAME_MAX_LENGTH),
+        cardNumber,
+        totalAmount,
+        currentBalance,
+        expirationDate
+    });
+
+    if (!result?.success) {
+        setGiftCardError(result?.error || 'Could not save gift card.');
+        return;
+    }
+
+    if (nameInput) nameInput.value = '';
+    if (numberInput) numberInput.value = '';
+    if (totalInput) totalInput.value = '';
+    if (currentInput) currentInput.value = '';
+    if (expirationInput) expirationInput.value = '';
+    document.getElementById('txPaymentMethod').value = GIFT_CARD_PAYMENT_METHOD;
+    syncGiftCardTrackerPanel({ selectedId: result.card.id, showAddForm: false });
+    observeLocalSave('Gift card saved partially.');
+    showToast('Gift card saved.');
 }
 
 function getAddFieldElements(field) {
@@ -8176,6 +8433,7 @@ function handleAddAmountInput(event) {
     if (parseAddAmountInput(sanitized) > 0) setAddFieldError('amount', '');
     clearAddSavedPreview();
     renderAddCategoryInsight();
+    updateGiftCardPreview();
 }
 
 function bindAddFormInputEvents() {
@@ -8211,6 +8469,7 @@ function bindAddFormInputEvents() {
 export function initAddTransactionForm() {
     bindAddFormInputEvents();
     bindAddDatePickerEvents();
+    bindGiftCardTrackerEvents();
     ensureAddCategoryInsight();
     const dateInput = document.getElementById('txDateNative');
     if (dateInput) {
@@ -8221,6 +8480,7 @@ export function initAddTransactionForm() {
     syncCurrencyBadges();
     updateAmountInputPresentation();
     renderAddCategoryInsight();
+    syncGiftCardTrackerPanel();
     clearAddFormErrors();
 }
 
@@ -8402,6 +8662,8 @@ export function submitTransaction() {
         const paymentMethodRaw = methodInput?.value || '';
         const paymentMethod = ADD_TX_PAYMENT_METHODS.has(paymentMethodRaw) ? paymentMethodRaw : '';
         const notes = sanitizeAddText(notesInput?.value, ADD_TX_NOTES_MAX_LENGTH);
+        let giftCard = null;
+        setGiftCardError('');
 
         if (!Number.isFinite(amount) || amount <= 0) {
             setAddFieldError('amount', 'Enter an amount greater than 0.');
@@ -8445,6 +8707,34 @@ export function submitTransaction() {
             return;
         }
 
+        if (paymentMethod === GIFT_CARD_PAYMENT_METHOD) {
+            if (currentType !== 'expense') {
+                setGiftCardError('Gift card tracking is for expenses.');
+                setAddFormStatus('Switch to Expense before using a gift card.');
+                showToast('Gift cards can be spent from Expense.');
+                document.getElementById('txGiftCardSelect')?.focus();
+                return;
+            }
+
+            giftCard = getSelectedGiftCard();
+            if (!giftCard) {
+                setGiftCardError('Add or choose a gift card.');
+                setAddFormStatus('Choose a gift card.');
+                showToast('Choose a gift card.');
+                document.getElementById('giftCardNumber')?.focus();
+                return;
+            }
+
+            if (amount > (Number(giftCard.currentBalance) || 0) + 0.005) {
+                const symbol = State.getSymbol ? State.getSymbol() : '$';
+                setGiftCardError(`Gift card only has ${symbol}${formatMoney(giftCard.currentBalance)} available.`);
+                setAddFormStatus('Gift card balance is too low.');
+                showToast('Gift card balance is too low.');
+                document.getElementById('txAmount')?.focus();
+                return;
+            }
+        }
+
         const newTx = {
             id: generateId(),
             type: currentType,
@@ -8453,6 +8743,7 @@ export function submitTransaction() {
             amount,
             date: dateValue,
             paymentMethod,
+            giftCardId: giftCard?.id || '',
             notes,
             tag: currentType,
             createdAt: new Date().toISOString()
@@ -8460,8 +8751,15 @@ export function submitTransaction() {
 
         if (blockDebtLockedSavingsIncreaseIfNeeded(newTx)) return;
 
-        const saved = State.addTransaction(newTx);
-        if (saved === false) return;
+        const saveResult = paymentMethod === GIFT_CARD_PAYMENT_METHOD
+            ? State.addTransactionWithGiftCard?.(newTx, giftCard.id)
+            : { success: State.addTransaction(newTx) !== false };
+        if (!saveResult?.success) {
+            const message = saveResult?.error || 'Could not save transaction.';
+            if (paymentMethod === GIFT_CARD_PAYMENT_METHOD) setGiftCardError(message);
+            showToast(message);
+            return;
+        }
         observeLocalSave('1 transaction saved partially.');
         lastSavedTxId = newTx.id;
         const targetCategory = validCategories.find(c => c.name === category) || {};
@@ -8475,6 +8773,7 @@ export function submitTransaction() {
             category,
             icon: targetCategory.icon || '',
             amount,
+            giftCardId: giftCard?.id || '',
             budgetAmount,
             spent,
             remaining,
@@ -8484,6 +8783,9 @@ export function submitTransaction() {
         showToast(`${currentType === 'income' ? 'Deposit' : 'Expense'} saved.`);
         render();
         renderAddCategoryInsight();
+        if (paymentMethod === GIFT_CARD_PAYMENT_METHOD) {
+            syncGiftCardTrackerPanel({ selectedId: giftCard.id, showAddForm: false });
+        }
 
         triggerSuccessMorph(newTx, remaining, symbol, budgetAmount);
         return;
@@ -8594,11 +8896,13 @@ function triggerSuccessMorph(tx, remaining, symbol, budgetAmount) {
 
 export function undoLastTransaction() {
     if (lastSavedTxId) {
+        const giftCardId = addLastSavedPreview?.giftCardId || '';
         State.deleteTransaction(lastSavedTxId);
         lastSavedTxId = null;
         clearAddSavedPreview();
         clearTimeout(morphTimeout);
         render();
+        syncGiftCardTrackerPanel({ selectedId: giftCardId });
 
         const inputWrapper = document.getElementById('heroInputWrapper');
         const feedbackWrapper = document.getElementById('heroFeedbackWrapper');
@@ -8712,6 +9016,9 @@ export function hardResetForm() {
 
         const methodSelect = document.getElementById('txPaymentMethod');
         if (methodSelect) methodSelect.value = defMethod;
+        setGiftCardError('');
+        setGiftCardAddFormVisible(false);
+        syncGiftCardTrackerPanel();
 
         updateAddTransactionDate(getLocalISODate());
         clearAddFormErrors();
@@ -14249,6 +14556,7 @@ function openTransactionEditModal(txId) {
                         <option value="card" ${paymentMethod === 'card' ? 'selected' : ''}>Credit/Debit Card</option>
                         <option value="cash" ${paymentMethod === 'cash' ? 'selected' : ''}>Cash</option>
                         <option value="bank" ${paymentMethod === 'bank' ? 'selected' : ''}>Bank Transfer</option>
+                        ${paymentMethod === GIFT_CARD_PAYMENT_METHOD ? `<option value="${GIFT_CARD_PAYMENT_METHOD}" selected>Gift Card</option>` : ''}
                     </select>
                 </div>
                 <div class="add-form-group transaction-edit-full">
@@ -14343,15 +14651,23 @@ window.confirmRecentEditTransaction = function(event, txId) {
         return;
     }
 
-    tx.description = description;
-    tx.amount = amount;
-    tx.date = date;
-    tx.category = category;
-    tx.paymentMethod = paymentMethod;
-    tx.notes = notes;
-    tx.updatedAt = new Date().toISOString();
-
-    if (!saveTransactionArray(txs)) return;
+    const updates = { description, amount, date, category, paymentMethod, notes };
+    if (State.updateTransaction) {
+        const result = State.updateTransaction(txId, updates);
+        if (!result?.success) {
+            setEditTransactionError(result?.error || 'Could not update transaction.');
+            return;
+        }
+    } else {
+        tx.description = description;
+        tx.amount = amount;
+        tx.date = date;
+        tx.category = category;
+        tx.paymentMethod = paymentMethod;
+        tx.notes = notes;
+        tx.updatedAt = new Date().toISOString();
+        if (!saveTransactionArray(txs)) return;
+    }
     window.closeRecentEditTransactionModal();
     if (window.showToast) window.showToast('Transaction updated.');
     refreshRecentDependents();
@@ -17509,6 +17825,8 @@ window.handleDateChange = handleDateChange;
 window.setAddTransactionDate = setAddTransactionDate;
 window.openAddDatePicker = openAddDatePicker;
 window.toggleAddCategoryPicker = toggleAddCategoryPicker;
+window.toggleGiftCardAddForm = toggleGiftCardAddForm;
+window.addGiftCardFromAddForm = addGiftCardFromAddForm;
 window.initAddTransactionForm = initAddTransactionForm;
 window.resetAddTransactionForm = resetAddTransactionForm;
 window.hardResetForm = hardResetForm;

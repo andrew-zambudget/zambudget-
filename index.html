@@ -405,7 +405,45 @@
                                                             <option value="card">💳 Credit/Debit Card</option>
                                                             <option value="cash">💵 Cash</option>
                                                             <option value="bank">🏦 Bank Transfer</option>
+                                                            <option value="gift_card">Gift Card</option>
                                                         </select>
+                                                        <div id="giftCardTrackerPanel" class="gift-card-tracker-panel" hidden>
+                                                            <div class="gift-card-tracker-main">
+                                                                <label for="txGiftCardSelect">Gift Card</label>
+                                                                <div class="gift-card-select-row">
+                                                                    <select id="txGiftCardSelect" class="payment-method-select" aria-describedby="giftCardTrackerSummary giftCardTrackerError"></select>
+                                                                    <button type="button" id="giftCardAddToggle" class="gift-card-add-toggle" onclick="window.toggleGiftCardAddForm()" aria-expanded="false" aria-controls="giftCardAddForm">Add</button>
+                                                                </div>
+                                                                <div id="giftCardTrackerSummary" class="gift-card-tracker-summary" aria-live="polite"></div>
+                                                                <div id="giftCardTrackerError" class="add-field-error" role="alert"></div>
+                                                            </div>
+
+                                                            <div id="giftCardAddForm" class="gift-card-add-form" hidden>
+                                                                <div class="gift-card-add-grid">
+                                                                    <div class="add-form-group">
+                                                                        <label for="giftCardName">Name</label>
+                                                                        <input type="text" id="giftCardName" class="form-input" maxlength="32" placeholder="Coffee card" autocomplete="off">
+                                                                    </div>
+                                                                    <div class="add-form-group">
+                                                                        <label for="giftCardNumber">Card Number</label>
+                                                                        <input type="text" id="giftCardNumber" class="form-input" maxlength="80" placeholder="Card number or code" autocomplete="off">
+                                                                    </div>
+                                                                    <div class="add-form-group">
+                                                                        <label for="giftCardTotalAmount">Total Amount</label>
+                                                                        <input type="text" id="giftCardTotalAmount" class="form-input" inputmode="decimal" placeholder="50.00" autocomplete="off">
+                                                                    </div>
+                                                                    <div class="add-form-group">
+                                                                        <label for="giftCardCurrentBalance">Current Balance</label>
+                                                                        <input type="text" id="giftCardCurrentBalance" class="form-input" inputmode="decimal" placeholder="50.00" autocomplete="off">
+                                                                    </div>
+                                                                    <div class="add-form-group gift-card-expiration-group">
+                                                                        <label for="giftCardExpirationDate">Expiration</label>
+                                                                        <input type="date" id="giftCardExpirationDate" class="form-input" min="1900-01-01" max="2100-12-31">
+                                                                    </div>
+                                                                </div>
+                                                                <button type="button" class="gift-card-save-btn" onclick="window.addGiftCardFromAddForm(event)">Save Gift Card</button>
+                                                            </div>
+                                                        </div>
                                                     </div>
 
                                                     <div class="add-form-group">
@@ -628,6 +666,7 @@
                                         <option value="bank">🏦 Bank Transfer</option>
                                         <option value="digital">📱 Digital Wallet</option>
                                         <option value="check">📝 Check</option>
+                                        <option value="gift_card">Gift Card</option>
                                     </select>
                                     <div class="help-text">Optional shortcut for faster data entry.</div>
                                 </div>
