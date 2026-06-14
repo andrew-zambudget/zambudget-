@@ -6107,7 +6107,7 @@ function closeEmergencyFundRecommendationModal() {
     window.setTimeout(() => modal.remove(), 220);
 }
 
-function saveRecommendedEmergencyFundGoal(recommendedAmount, message = 'Emergency fund target reset to Budget Buddy recommendation.') {
+function saveRecommendedEmergencyFundGoal(recommendedAmount, message = 'Emergency fund target reset to BudgetBuddy recommendation.') {
     const symbol = State.getSymbol ? State.getSymbol() : '$';
     setEmergencyFundGoalState(recommendedAmount, false);
     observeLocalSave('Emergency fund recommendation saved partially.');
@@ -6154,9 +6154,9 @@ function openEmergencyFundRecommendationModal(amount, fundStage) {
     modal.innerHTML = `
         <div class="modal-box modal-box-medium emergency-recommendation-box" role="dialog" aria-modal="true" aria-labelledby="emergencyRecommendationTitle" onclick="event.stopPropagation()">
             <button type="button" class="modal-close" onclick="window.cancelEmergencyFundRecommendation()" aria-label="Close emergency fund recommendation">&times;</button>
-            <h3 id="emergencyRecommendationTitle" class="modal-title">Budget Buddy Recommendation</h3>
+            <h3 id="emergencyRecommendationTitle" class="modal-title">BudgetBuddy Recommendation</h3>
             <p class="emergency-recommendation-copy">
-                Based on ${validation.months} months and ${symbol}${formatMoney(validation.monthlyBase)} in monthly expense budgets, Budget Buddy recommends:
+                Based on ${validation.months} months and ${symbol}${formatMoney(validation.monthlyBase)} in monthly expense budgets, BudgetBuddy recommends:
             </p>
             <div class="emergency-recommendation-values">
                 <div>
@@ -6201,7 +6201,7 @@ window.confirmEmergencyFundRecommendation = function() {
 
     closeEmergencyFundRecommendationModal();
     syncOverlayScrollTopState();
-    saveRecommendedEmergencyFundGoal(recommendedAmount, 'Emergency fund target set to Budget Buddy recommendation.');
+    saveRecommendedEmergencyFundGoal(recommendedAmount, 'Emergency fund target set to BudgetBuddy recommendation.');
 };
 
 window.confirmEmergencyFundOverride = function() {
@@ -6259,7 +6259,7 @@ window.openEmergencyFundResetOverrideModal = function(event) {
             <button type="button" class="modal-close" onclick="window.closeEmergencyFundResetOverrideModal()" aria-label="Close reset override">&times;</button>
             <h3 id="emergencyResetOverrideTitle" class="modal-title">Reset Override?</h3>
             <p class="emergency-recommendation-copy">
-                This will replace your custom emergency fund goal with Budget Buddy's current recommendation.
+                This will replace your custom emergency fund goal with BudgetBuddy's current recommendation.
             </p>
             <div class="emergency-recommendation-values">
                 <div>
@@ -6427,7 +6427,7 @@ window.saveEmergencyFundMonths = function(value) {
     }
 
     if (window.showToast && hasEmergencyFundGoalOverride()) {
-        window.showToast(`Override kept. Budget Buddy recommends ${symbol}${formatMoney(recommendedAmount)}.`);
+        window.showToast(`Override kept. BudgetBuddy recommends ${symbol}${formatMoney(recommendedAmount)}.`);
     }
     renderSavingsTab();
 };
