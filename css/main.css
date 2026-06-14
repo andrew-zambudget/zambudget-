@@ -118,7 +118,8 @@ textarea:focus-visible {
   min-width: 0;
 }
 
-.logo span { color: var(--accent); }
+.logo-mark { color: var(--text); }
+.logo-accent { color: var(--accent); }
 .logo:hover { opacity: 0.9; }
 
 .nav-links { display: flex; gap: 1.5rem; }

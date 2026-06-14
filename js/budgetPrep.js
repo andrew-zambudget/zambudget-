@@ -54,13 +54,12 @@ function injectStyles() {
         .budget-prep-card {
             width: min(460px, 100%);
             padding: 28px;
-            color: #0f172a;
+            color: var(--text);
             background:
-                linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.96)),
-                #ffffff;
-            border: 1px solid rgba(15, 23, 42, 0.08);
+                linear-gradient(180deg, color-mix(in srgb, var(--surface) 96%, transparent), var(--surface));
+            border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
             border-radius: 22px;
-            box-shadow: 0 24px 80px rgba(15, 23, 42, 0.34);
+            box-shadow: 0 24px 80px var(--shadow);
             transform: translateY(10px) scale(0.985);
             transition: transform 220ms ease;
         }
@@ -83,31 +82,31 @@ function injectStyles() {
             display: block;
             height: 18px;
             border-radius: 8px 8px 4px 4px;
-            background: #0f766e;
+            background: var(--accent-strong);
             animation: budgetPrepBars 980ms ease-in-out infinite;
         }
 
         .budget-prep-mark span:nth-child(2) {
             height: 34px;
-            background: #f59e0b;
+            background: color-mix(in srgb, var(--accent) 82%, var(--accent-strong));
             animation-delay: 110ms;
         }
 
         .budget-prep-mark span:nth-child(3) {
             height: 48px;
-            background: #2563eb;
+            background: color-mix(in srgb, var(--accent) 70%, var(--text));
             animation-delay: 220ms;
         }
 
         .budget-prep-mark span:nth-child(4) {
             height: 26px;
-            background: #14b8a6;
+            background: var(--accent);
             animation-delay: 330ms;
         }
 
         .budget-prep-kicker {
             margin: 0 0 8px;
-            color: #0f766e;
+            color: var(--accent-strong);
             font-size: 0.78rem;
             font-weight: 900;
             letter-spacing: 0;
@@ -116,7 +115,7 @@ function injectStyles() {
 
         .budget-prep-card h2 {
             margin: 0 0 10px;
-            color: #0f172a;
+            color: var(--text);
             font-size: clamp(1.55rem, 5vw, 2.1rem);
             line-height: 1.08;
             letter-spacing: 0;
@@ -124,7 +123,7 @@ function injectStyles() {
 
         .budget-prep-card p {
             margin: 0;
-            color: #475569;
+            color: var(--text-dim);
             line-height: 1.5;
         }
 
@@ -134,7 +133,7 @@ function injectStyles() {
             margin: 22px 0 14px;
             overflow: hidden;
             border-radius: 999px;
-            background: #e2e8f0;
+            background: var(--border);
         }
 
         .budget-prep-meter span {
@@ -142,7 +141,7 @@ function injectStyles() {
             inset: 0 auto 0 0;
             width: 45%;
             border-radius: inherit;
-            background: linear-gradient(90deg, #0f766e, #14b8a6, #f59e0b);
+            background: linear-gradient(90deg, var(--accent-strong), var(--accent), color-mix(in srgb, var(--accent) 72%, var(--text)));
             animation: budgetPrepMeter 1.35s ease-in-out infinite;
         }
 
@@ -174,15 +173,15 @@ function injectStyles() {
             border: 0;
             border-radius: 999px;
             color: #ffffff;
-            background: #0f766e;
+            background: var(--accent-strong);
             font: inherit;
             font-weight: 800;
             cursor: pointer;
         }
 
         .budget-prep-action-secondary {
-            color: #0f172a;
-            background: #e2e8f0;
+            color: var(--text);
+            background: color-mix(in srgb, var(--accent) 10%, var(--surface));
         }
 
         @keyframes budgetPrepBars {
