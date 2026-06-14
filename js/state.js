@@ -170,17 +170,19 @@ function normalizeGiftCard(card = {}) {
     const name = cleanGiftCardText(card.name, GIFT_CARD_NAME_MAX_LENGTH) || (last4 ? `Gift Card ${last4}` : 'Gift Card');
     const createdAt = card.createdAt || new Date().toISOString();
 
-    return {
-        id: String(card.id || `gift_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`),
-        name,
-        cardNumber,
-        totalAmount,
-        currentBalance,
-        expirationDate: normalizeGiftCardDate(card.expirationDate),
-        createdAt,
-        updatedAt: card.updatedAt || createdAt
-    };
-}
+	    return {
+	        id: String(card.id || `gift_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`),
+	        name,
+	        cardNumber,
+	        totalAmount,
+	        currentBalance,
+	        expirationDate: normalizeGiftCardDate(card.expirationDate),
+	        isArchived: card.isArchived === true,
+	        archivedAt: card.archivedAt || '',
+	        createdAt,
+	        updatedAt: card.updatedAt || createdAt
+	    };
+	}
 
 function normalizeGiftCards(cards = []) {
     if (!Array.isArray(cards)) return [];
@@ -373,7 +375,9 @@ export const addTransaction = (tx) => {
     return save({ action: 'add transaction' });
 };
 
-export const getGiftCards = () => getMutableGiftCards().map(card => ({ ...card }));
+export const getGiftCards = () => getMutableGiftCards()
+    .filter(card => card.isArchived !== true)
+    .map(card => ({ ...card }));
 
 export const addGiftCard = (card = {}) => {
     if (!requireBudgetWriteAccess('add gift card')) {
@@ -397,16 +401,38 @@ export const addGiftCard = (card = {}) => {
     }
 
     getMutableGiftCards().push(normalized);
-    const saved = save({ action: 'add gift card' });
-    return saved ? { success: true, card: { ...normalized } } : { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
+	    const saved = save({ action: 'add gift card' });
+	    return saved ? { success: true, card: { ...normalized } } : { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
+	};
+
+export const deleteGiftCard = (giftCardId) => {
+    if (!requireBudgetWriteAccess('remove gift card')) {
+        return { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
+    }
+
+    const cards = getMutableGiftCards();
+    const card = cards.find(item => String(item.id) === String(giftCardId));
+    if (!card) return { success: false, error: 'Gift card not found.' };
+
+    const hasTransactionHistory = state.transactions.some(tx => String(tx.giftCardId || '') === String(card.id));
+    if (hasTransactionHistory) {
+        card.isArchived = true;
+        card.archivedAt = new Date().toISOString();
+        card.updatedAt = card.archivedAt;
+    } else {
+        state.settings.giftCards = cards.filter(item => String(item.id) !== String(card.id));
+    }
+
+    const saved = save({ action: 'remove gift card' });
+    return saved ? { success: true } : { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
 };
 
 export const addTransactionWithGiftCard = (tx, giftCardId) => {
     if (!requireBudgetWriteAccess('add gift card transaction')) return { success: false, error: SIGNED_OUT_WRITE_MESSAGE };
 
-    const cards = getMutableGiftCards();
-    const card = cards.find(item => item.id === giftCardId);
-    if (!card) return { success: false, error: 'Choose a gift card.' };
+	    const cards = getMutableGiftCards();
+	    const card = cards.find(item => item.id === giftCardId);
+	    if (!card || card.isArchived === true) return { success: false, error: 'Choose an active gift card.' };
 
     const amount = Math.max(0, Number.parseFloat(tx?.amount) || 0);
     if (amount <= 0) return { success: false, error: 'Enter an amount greater than 0.' };

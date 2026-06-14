@@ -333,10 +333,16 @@
                                             <form class="form-panel add-transaction-form" id="addTxForm" aria-label="Add Transaction Form" onsubmit="event.preventDefault(); window.submitTransaction();" novalidate>
                                                 <!-- 1. Minimalist Type Toggle -->
                                                 <div class="add-type-reset-row">
-                                                    <div class="type-toggle-v2" role="group" aria-label="Transaction Type">
-                                                        <button type="button" id="btnExpense" class="type-btn-v2 active-expense-v2" onclick="window.setType('expense')" aria-pressed="true">Expense</button>
-                                                        <button type="button" id="btnIncome" class="type-btn-v2" onclick="window.setType('income')" aria-pressed="false">Deposit</button>
-                                                    </div>
+	                                                    <div class="type-toggle-v2" role="group" aria-label="Transaction Type">
+	                                                        <div class="expense-type-control">
+	                                                            <button type="button" id="btnExpense" class="type-btn-v2 active-expense-v2" onclick="window.setType('expense')" aria-pressed="true">Expense</button>
+	                                                            <select id="expenseModeSelect" class="expense-mode-select" onchange="window.setExpenseModeFromSelect(this.value)" aria-label="Expense mode" hidden>
+	                                                                <option value="expense">Expense</option>
+	                                                                <option value="gift_card">Gift Card</option>
+	                                                            </select>
+	                                                        </div>
+	                                                        <button type="button" id="btnIncome" class="type-btn-v2" onclick="window.setType('income')" aria-pressed="false">Deposit</button>
+	                                                    </div>
                                                     <button type="button" class="add-form-reset-btn" onclick="window.resetAddTransactionForm(event)" aria-label="Reset add transaction form" data-tooltip="Reset form">
                                                         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                                                             <path d="M3 12a9 9 0 1 0 3-6.7"></path>
@@ -408,12 +414,13 @@
                                                             <option value="gift_card">Gift Card</option>
                                                         </select>
                                                         <div id="giftCardTrackerPanel" class="gift-card-tracker-panel" hidden>
-                                                            <div class="gift-card-tracker-main">
-                                                                <label for="txGiftCardSelect">Gift Card</label>
-                                                                <div class="gift-card-select-row">
-                                                                    <select id="txGiftCardSelect" class="payment-method-select" aria-describedby="giftCardTrackerSummary giftCardTrackerError"></select>
-                                                                    <button type="button" id="giftCardAddToggle" class="gift-card-add-toggle" onclick="window.toggleGiftCardAddForm()" aria-expanded="false" aria-controls="giftCardAddForm">Add</button>
-                                                                </div>
+	                                                                <div class="gift-card-tracker-main">
+	                                                                <label for="txGiftCardSelect">Gift Card</label>
+	                                                                <div class="gift-card-select-row">
+	                                                                    <select id="txGiftCardSelect" class="payment-method-select" aria-describedby="giftCardTrackerSummary giftCardTrackerError"></select>
+	                                                                    <button type="button" id="giftCardAddToggle" class="gift-card-add-toggle" onclick="window.toggleGiftCardAddForm()" aria-expanded="false" aria-controls="giftCardAddForm">Add</button>
+	                                                                    <button type="button" id="giftCardRemoveBtn" class="gift-card-remove-btn" onclick="window.removeSelectedGiftCardFromAddForm(event)" hidden>Remove</button>
+	                                                                </div>
                                                                 <div id="giftCardTrackerSummary" class="gift-card-tracker-summary" aria-live="polite"></div>
                                                                 <div id="giftCardTrackerError" class="add-field-error" role="alert"></div>
                                                             </div>

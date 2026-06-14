@@ -7507,21 +7507,23 @@ export function initMobileCommandNav() {
 
 
 export function setType(type, options = {}) {
-    if (!options.preserveSavedPreview) clearAddSavedPreview();
-    State.setCurrentType(type);
-    const btnIncome = document.getElementById('btnIncome');
-    const btnExpense = document.getElementById('btnExpense');
+	    if (!options.preserveSavedPreview) clearAddSavedPreview();
+	    State.setCurrentType(type);
+	    const btnIncome = document.getElementById('btnIncome');
+	    const btnExpense = document.getElementById('btnExpense');
+	    const methodSelect = document.getElementById('txPaymentMethod');
 
     if(btnIncome) btnIncome.classList.remove('active-income', 'active-income-v2');
     if(btnExpense) btnExpense.classList.remove('active-expense', 'active-expense-v2');
     if(btnIncome) btnIncome.setAttribute('aria-pressed', 'false');
     if(btnExpense) btnExpense.setAttribute('aria-pressed', 'false');
 
-    if (type === 'income') {
-        if(btnIncome) {
-            btnIncome.classList.add('active-income-v2', 'active-income');
-            btnIncome.setAttribute('aria-pressed', 'true');
-        }
+	    if (type === 'income') {
+	        if (methodSelect?.value === GIFT_CARD_PAYMENT_METHOD) methodSelect.value = getNormalExpensePaymentMethod();
+	        if(btnIncome) {
+	            btnIncome.classList.add('active-income-v2', 'active-income');
+	            btnIncome.setAttribute('aria-pressed', 'true');
+	        }
     } else {
         if(btnExpense) {
             btnExpense.classList.add('active-expense-v2', 'active-expense');
@@ -7536,10 +7538,11 @@ export function setType(type, options = {}) {
             suggestionsRow.innerHTML = '';
         }
     setAddFieldError('category', '');
-    renderAddCategoryInsight();
-    setGiftCardError('');
-    syncGiftCardTrackerPanel();
-}
+	    renderAddCategoryInsight();
+	    setGiftCardError('');
+	    syncExpenseModeControl();
+	    syncGiftCardTrackerPanel();
+	}
 
 // ==========================================
 // 7. ADD FORM (V2) INTERACTIONS
@@ -7821,6 +7824,46 @@ function getGiftCardsForAddForm() {
     return State.getGiftCards ? State.getGiftCards() : [];
 }
 
+function getNormalExpensePaymentMethod() {
+    const defaultPayment = State.getDefaultPayment ? State.getDefaultPayment() : '';
+    return defaultPayment && ADD_TX_PAYMENT_METHODS.has(defaultPayment) && defaultPayment !== GIFT_CARD_PAYMENT_METHOD
+        ? defaultPayment
+        : 'card';
+}
+
+function setTxDetailsOpen(isOpen) {
+    const drawer = document.getElementById('txHiddenDetails');
+    const detailsBtn = document.getElementById('toggleDetailsBtn');
+    const icon = document.getElementById('detailsToggleIcon');
+    if (!drawer) return;
+
+    drawer.classList.toggle('open', Boolean(isOpen));
+    if (detailsBtn) detailsBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    if (icon) icon.textContent = isOpen ? '▲' : '▼';
+}
+
+function syncExpenseModeControl() {
+    const cards = getGiftCardsForAddForm();
+    const hasGiftCards = cards.length > 0;
+    const wrapper = document.querySelector('.type-toggle-v2');
+    const expenseButton = document.getElementById('btnExpense');
+    const expenseModeSelect = document.getElementById('expenseModeSelect');
+    const methodSelect = document.getElementById('txPaymentMethod');
+    const currentType = State.getCurrentType ? State.getCurrentType() : 'expense';
+
+    wrapper?.classList.toggle('has-gift-card-expense-options', hasGiftCards);
+    if (expenseButton) expenseButton.hidden = hasGiftCards;
+    if (expenseModeSelect) {
+        expenseModeSelect.hidden = !hasGiftCards;
+        expenseModeSelect.value = methodSelect?.value === GIFT_CARD_PAYMENT_METHOD ? GIFT_CARD_PAYMENT_METHOD : 'expense';
+        expenseModeSelect.classList.toggle('is-active', currentType === 'expense');
+    }
+
+    if (!hasGiftCards && methodSelect?.value === GIFT_CARD_PAYMENT_METHOD) {
+        methodSelect.value = getNormalExpensePaymentMethod();
+    }
+}
+
 function getGiftCardLast4(cardNumber = '') {
     return String(cardNumber || '').replace(/\s+/g, '').slice(-4);
 }
@@ -8084,6 +8127,30 @@ function requestGiftCardMerchantCacheForInput(event = null) {
     });
 }
 
+export function setExpenseModeFromSelect(value = 'expense') {
+    clearAddSavedPreview();
+    const methodSelect = document.getElementById('txPaymentMethod');
+    const nextMode = value === GIFT_CARD_PAYMENT_METHOD && getGiftCardsForAddForm().length
+        ? GIFT_CARD_PAYMENT_METHOD
+        : 'expense';
+
+    setType('expense', { preserveSavedPreview: true });
+    if (methodSelect) {
+        methodSelect.value = nextMode === GIFT_CARD_PAYMENT_METHOD
+            ? GIFT_CARD_PAYMENT_METHOD
+            : getNormalExpensePaymentMethod();
+    }
+
+    setGiftCardError('');
+    syncExpenseModeControl();
+    syncGiftCardTrackerPanel({ showAddForm: false });
+
+    if (nextMode === GIFT_CARD_PAYMENT_METHOD) {
+        setTxDetailsOpen(true);
+        document.getElementById('txGiftCardSelect')?.focus({ preventScroll: true });
+    }
+}
+
 export async function downloadGiftCardMerchantCacheFromSettings(event) {
     event?.preventDefault?.();
     try {
@@ -8114,7 +8181,14 @@ function getGiftCardExpirationLabel(expirationDate = '') {
 
 function setGiftCardError(message = '') {
     const errorEl = document.getElementById('giftCardTrackerError');
-    if (errorEl) errorEl.textContent = message;
+	    if (errorEl) errorEl.textContent = message;
+	}
+
+function resetGiftCardRemoveConfirmation() {
+    const removeBtn = document.getElementById('giftCardRemoveBtn');
+    if (!removeBtn) return;
+    removeBtn.dataset.confirming = 'false';
+    removeBtn.textContent = 'Remove';
 }
 
 function getSelectedGiftCard() {
@@ -8138,8 +8212,9 @@ export function toggleGiftCardAddForm(forceVisible = null) {
 }
 
 function renderGiftCardSelect(selectedId = '') {
-    const select = document.getElementById('txGiftCardSelect');
-    if (!select) return null;
+	    const select = document.getElementById('txGiftCardSelect');
+	    const removeBtn = document.getElementById('giftCardRemoveBtn');
+	    if (!select) return null;
 
     const symbol = State.getSymbol ? State.getSymbol() : '$';
     const cards = getGiftCardsForAddForm();
@@ -8153,10 +8228,15 @@ function renderGiftCardSelect(selectedId = '') {
     const nextSelectedId = cards.some(card => card.id === selectedId)
         ? selectedId
         : cards[0]?.id || '';
-    select.value = nextSelectedId;
-    select.disabled = cards.length === 0;
-    return cards.find(card => card.id === nextSelectedId) || null;
-}
+	    select.value = nextSelectedId;
+	    select.disabled = cards.length === 0;
+	    if (removeBtn) {
+	        removeBtn.hidden = cards.length === 0;
+	        removeBtn.disabled = cards.length === 0;
+	        resetGiftCardRemoveConfirmation();
+	    }
+	    return cards.find(card => card.id === nextSelectedId) || null;
+	}
 
 function updateGiftCardPreview() {
     const panel = document.getElementById('giftCardTrackerPanel');
@@ -8204,11 +8284,12 @@ function syncGiftCardTrackerPanel(options = {}) {
 
     const isGiftCard = methodSelect.value === GIFT_CARD_PAYMENT_METHOD;
     panel.hidden = !isGiftCard;
-    if (!isGiftCard) {
-        setGiftCardError('');
-        setGiftCardAddFormVisible(false);
-        return;
-    }
+	    if (!isGiftCard) {
+	        setGiftCardError('');
+	        setGiftCardAddFormVisible(false);
+	        resetGiftCardRemoveConfirmation();
+	        return;
+	    }
 
     const selectedCard = renderGiftCardSelect(options.selectedId || document.getElementById('txGiftCardSelect')?.value || '');
     setGiftCardAddFormVisible(options.showAddForm ?? !selectedCard);
@@ -8231,11 +8312,12 @@ function bindGiftCardTrackerEvents() {
     const giftCardSelect = document.getElementById('txGiftCardSelect');
     if (giftCardSelect && !giftCardSelect.dataset.giftCardBound) {
         giftCardSelect.dataset.giftCardBound = 'true';
-        giftCardSelect.addEventListener('change', () => {
-            setGiftCardError('');
-            setGiftCardAddFormVisible(false);
-            updateGiftCardPreview();
-        });
+	        giftCardSelect.addEventListener('change', () => {
+	            setGiftCardError('');
+	            resetGiftCardRemoveConfirmation();
+	            setGiftCardAddFormVisible(false);
+	            updateGiftCardPreview();
+	        });
     }
 
     ['giftCardTotalAmount', 'giftCardCurrentBalance'].forEach(id => {
@@ -8347,10 +8429,54 @@ export function addGiftCardFromAddForm(event) {
     if (totalInput) totalInput.value = '';
     if (currentInput) currentInput.value = '';
     if (expirationInput) expirationInput.value = '';
-    document.getElementById('txPaymentMethod').value = GIFT_CARD_PAYMENT_METHOD;
-    syncGiftCardTrackerPanel({ selectedId: result.card.id, showAddForm: false });
-    observeLocalSave('Gift card saved partially.');
-    showToast('Gift card saved.');
+	    document.getElementById('txPaymentMethod').value = GIFT_CARD_PAYMENT_METHOD;
+	    syncExpenseModeControl();
+	    syncGiftCardTrackerPanel({ selectedId: result.card.id, showAddForm: false });
+	    observeLocalSave('Gift card saved partially.');
+	    showToast('Gift card saved.');
+	}
+
+export function removeSelectedGiftCardFromAddForm(event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('remove gift card')) return;
+
+    const removeBtn = document.getElementById('giftCardRemoveBtn');
+    const selectedCard = getSelectedGiftCard();
+    if (!selectedCard) {
+        setGiftCardError('Choose a gift card to remove.');
+        return;
+    }
+
+    if (removeBtn?.dataset.confirming !== 'true') {
+        if (removeBtn) {
+            removeBtn.dataset.confirming = 'true';
+            removeBtn.textContent = 'Confirm';
+        }
+        setGiftCardError(`Remove ${formatGiftCardName(selectedCard)}? Existing transactions stay saved.`);
+        window.setTimeout(() => {
+            if (removeBtn?.dataset.confirming === 'true') resetGiftCardRemoveConfirmation();
+        }, 4500);
+        return;
+    }
+
+    const result = State.deleteGiftCard?.(selectedCard.id);
+    if (!result?.success) {
+        setGiftCardError(result?.error || 'Could not remove gift card.');
+        resetGiftCardRemoveConfirmation();
+        return;
+    }
+
+    const remainingCards = getGiftCardsForAddForm();
+    const methodSelect = document.getElementById('txPaymentMethod');
+    if (!remainingCards.length && methodSelect) methodSelect.value = getNormalExpensePaymentMethod();
+
+    setGiftCardError('');
+    syncExpenseModeControl();
+    syncGiftCardTrackerPanel({ showAddForm: false });
+    observeLocalSave('Gift card removed partially.');
+    showToast('Gift card removed.');
 }
 
 function getAddFieldElements(field) {
@@ -8769,11 +8895,12 @@ export function initAddTransactionForm() {
     }
     updateAddTransactionDate(document.getElementById('txDateHidden')?.value || getLocalISODate());
     syncCurrencyBadges();
-    updateAmountInputPresentation();
-    renderAddCategoryInsight();
-    syncGiftCardTrackerPanel();
-    clearAddFormErrors();
-}
+	    updateAmountInputPresentation();
+	    renderAddCategoryInsight();
+	    syncExpenseModeControl();
+	    syncGiftCardTrackerPanel();
+	    clearAddFormErrors();
+	}
 
 // ==========================================
 // 8. FORM SUBMISSION & FEEDBACK
@@ -9305,11 +9432,12 @@ export function hardResetForm() {
         if (detailsBtn) detailsBtn.setAttribute('aria-expanded', 'false');
         if (icon) icon.textContent = '▼';
 
-        const methodSelect = document.getElementById('txPaymentMethod');
-        if (methodSelect) methodSelect.value = defMethod;
-        setGiftCardError('');
-        setGiftCardAddFormVisible(false);
-        syncGiftCardTrackerPanel();
+	        const methodSelect = document.getElementById('txPaymentMethod');
+	        if (methodSelect) methodSelect.value = defMethod;
+	        setGiftCardError('');
+	        setGiftCardAddFormVisible(false);
+	        syncExpenseModeControl();
+	        syncGiftCardTrackerPanel();
 
         updateAddTransactionDate(getLocalISODate());
         clearAddFormErrors();
@@ -18110,6 +18238,7 @@ window.openModal = openModal;
 window.switchTab = switchTab;
 window.closeMobileAddOverlay = closeMobileAddOverlay;
 window.setType = setType;
+window.setExpenseModeFromSelect = setExpenseModeFromSelect;
 window.showToast = showToast;
 window.toggleZBBSummary = toggleZBBSummary;
 window.submitTransaction = submitTransaction;
@@ -18119,6 +18248,7 @@ window.openAddDatePicker = openAddDatePicker;
 window.toggleAddCategoryPicker = toggleAddCategoryPicker;
 window.toggleGiftCardAddForm = toggleGiftCardAddForm;
 window.addGiftCardFromAddForm = addGiftCardFromAddForm;
+window.removeSelectedGiftCardFromAddForm = removeSelectedGiftCardFromAddForm;
 window.downloadGiftCardMerchantCacheFromSettings = downloadGiftCardMerchantCacheFromSettings;
 window.clearGiftCardMerchantCacheFromSettings = clearGiftCardMerchantCacheFromSettings;
 window.initAddTransactionForm = initAddTransactionForm;
