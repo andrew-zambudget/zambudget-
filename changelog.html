@@ -305,7 +305,15 @@
                                 <span class="tag-icon" aria-hidden="true">UI</span>
                                 <div>
                                     <div class="tag-text">Public contact and social routing expanded</div>
-                                    <span class="tag-detail">Public app/support pages now mirror the website's dedicated support, billing, legal, accessibility, social, dev-test mailboxes, and BudgetBuddy mail-only office address with ZIP+4 formatting. TikTok is greyed out while the account is prepared, LinkedIn points to Andrew Struck, and GitLab is labeled as the repository link. Sign-in and magic-link questions route through Support because the auth email is a no-reply/system address.</span>
+                                    <span class="tag-detail">Public app/support pages now mirror the website's dedicated support, billing, legal, accessibility, social, dev-test mailboxes, and BudgetBuddy mail-only office address with ZIP+4 formatting. TikTok is greyed out while the account is prepared, LinkedIn points to Andrew Struck, and private app repository links are not advertised as public channels. Sign-in and magic-link questions route through Support because the auth email is a no-reply/system address.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">DOC</span>
+                                <div>
+                                    <div class="tag-text">Source-code posture narrowed</div>
+                                    <span class="tag-detail">Public app pages now say the product code remains private during beta. Marketing, privacy, security, changelog, roadmap, and support materials can stay public-facing while app, backend, sync, and infrastructure code stay private.</span>
                                 </div>
                             </div>
 
@@ -854,16 +862,16 @@
             </div>
         </div>
 
-        <!-- MIT License Modal -->
+        <!-- Source Code Posture Modal -->
         <div class="modal-overlay" id="licenseModal" role="dialog" aria-modal="true" aria-labelledby="licenseModalTitle" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:2000;display:none;justify-content:center;align-items:center" onclick="if(event.target===this)closeLicenseModal()">
             <div class="modal-content-area" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;width:90%;max-width:600px;box-shadow:0 20px 40px rgba(0,0,0,0.4);position:relative;max-height:80vh;overflow-y:auto">
                 <button type="button" id="licenseCloseBtn" aria-label="Close license dialog" onclick="closeLicenseModal()" style="position:absolute;top:1rem;right:1rem;background:transparent;border:none;color:var(--text-dim);font-size:1.5rem;cursor:pointer;line-height:1; touch-action: manipulation;" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text-dim)'">×</button>
-                <h3 id="licenseModalTitle" style="font-size:1.25rem;font-weight:700;margin-bottom:1.5rem;color:var(--text)">MIT License</h3>
+                <h3 id="licenseModalTitle" style="font-size:1.25rem;font-weight:700;margin-bottom:1.5rem;color:var(--text)">Source Code Posture</h3>
                 <div style="color:var(--text-dim);font-size:0.85rem;line-height:1.7">
-                    <p style="margin-bottom:1rem"><strong style="color:var(--text)">Copyright &copy; 2026 BudgetBuddy</strong></p>
-                    <p style="margin-bottom:1rem">Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</p>
-                    <p style="margin-bottom:1rem">The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p>
-                    <p>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
+                    <p style="margin-bottom:1rem"><strong style="color:var(--text)">Product code remains private during beta</strong></p>
+                    <p style="margin-bottom:1rem">The app source code, backend code, sync architecture, infrastructure configuration, and secrets-related configuration are private during beta. Public website and support documentation may be published separately for transparency.</p>
+                    <p style="margin-bottom:1rem">Unless a specific file or repository explicitly includes an open-source license, no license is granted to copy, modify, redistribute, or reuse private app, backend, infrastructure, branding, or private documentation.</p>
+                    <p>This source-code posture does not change user privacy, export, billing, or support rights described elsewhere in these terms.</p>
                 </div>
                 <div style="margin-top:1.5rem;text-align:right">
                     <button type="button" onclick="closeLicenseModal()" style="padding:0.75rem 2rem;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer; touch-action: manipulation;">Close</button>
@@ -945,7 +953,7 @@
             <a href="https://budget-buddy.io/terms" class="footer-link" target="_blank" rel="noopener noreferrer">Terms of Service</a>
         </div>
         <div class="copyright-text">
-            &copy; 2026 BudgetBuddy. Open source under the <a href="#" onclick="event.preventDefault(); window.openLicenseModal()" class="footer-link">MIT License</a>.
+            &copy; 2026 BudgetBuddy. Product code is private during beta.
         </div>
     </footer>
 
