@@ -596,7 +596,7 @@ test.describe('account deletion safeguards', () => {
 
         await page.goto('/login.html?accountDeleted=true');
         await expect(page.locator('#authMessage')).toBeVisible();
-        await expect(page.locator('#authMessage')).toContainText('Your BudgetBuddy account has been deleted');
+        await expect(page.locator('#authMessage')).toContainText('Your Zam! account has been deleted');
         await expect(page).toHaveURL(/login\.html\?accountDeleted=true/);
     });
 });

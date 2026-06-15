@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,follow">
-    <title>Sign In - BudgetBuddy</title>
+    <title>Sign In - Zam!</title>
 
     <!-- Shared CSS Framework -->
     <link rel="stylesheet" href="css/variables.css">
@@ -274,7 +274,7 @@
 </head>
 <body>
     <header class="app-header">
-        <a href="index.html" class="logo">BudgetBuddy</a>
+        <a href="index.html" class="logo">Zam!</a>
 
         <div class="header-controls">
             <div class="theme-toggle-group" role="group" aria-label="Theme selection">
@@ -293,7 +293,7 @@
         
         <div class="auth-container" id="loginView">
             <h1 class="auth-title" id="authTitle">Welcome Back</h1>
-            <p class="auth-subtitle" id="authSubtitle">Sign in to an existing BudgetBuddy account securely</p>
+            <p class="auth-subtitle" id="authSubtitle">Sign in to an existing Zam! account securely</p>
 
             <div id="authMessage" class="message"></div>
 
@@ -347,7 +347,7 @@
             <a href="https://budget-buddy.io/terms" class="footer-link" target="_blank" rel="noopener noreferrer">Terms of Service</a>
         </div>
         <div class="copyright-text">
-            &copy; 2026 BudgetBuddy. Open source under the MIT License.
+            &copy; 2026 Zam! &middot; Open source under the MIT License.
         </div>
     </footer>
 
@@ -454,8 +454,8 @@
 
         if (authMode === 'signup') {
             if (title) title.textContent = 'Create Beta Account';
-            if (subtitle) subtitle.textContent = 'Start BudgetBuddy with a secure email link';
-            if (note) note.textContent = 'Use an email you control. The link creates or signs in to your BudgetBuddy account.';
+            if (subtitle) subtitle.textContent = 'Start Zam! with a secure email link';
+            if (note) note.textContent = 'Use an email you control. The link creates or signs in to your Zam! account.';
             if (prompt) prompt.textContent = 'Already have an account?';
             if (link) {
                 link.textContent = 'Sign in';
@@ -464,7 +464,7 @@
             setMagicLinkButtonState(false, 'Create beta account by email');
         } else {
             if (title) title.textContent = 'Welcome Back';
-            if (subtitle) subtitle.textContent = 'Sign in to an existing BudgetBuddy account securely';
+            if (subtitle) subtitle.textContent = 'Sign in to an existing Zam! account securely';
             if (note) note.textContent = 'No password needed. New beta users should choose Create one first.';
             if (prompt) prompt.textContent = "Don't have an account?";
             if (link) {
@@ -500,7 +500,7 @@
         if (!msg) return '';
 
         if (params.get('accountDeleted') === 'true') {
-            msg.textContent = 'Your BudgetBuddy account has been deleted. Encrypted Cloud Sync data and the account identity cannot be recovered.';
+            msg.textContent = 'Your Zam! account has been deleted. Encrypted Cloud Sync data and the account identity cannot be recovered.';
             msg.className = 'message success';
             msg.style.display = 'block';
             return 'accountDeleted';
@@ -624,7 +624,7 @@
                     showAuthMessage('Email sign-in is cooling down. Wait about a minute before requesting another link, or continue with Google if this email was recently used.', 'error');
                     startMagicLinkCooldown(MAGIC_LINK_RATE_LIMIT_SECONDS);
                 } else if (authMode === 'signin' && isMissingAccountSignInError(error)) {
-                    showAuthMessage('If this email belongs to a BudgetBuddy account, check your inbox for a secure sign-in link. If you are new, choose Create one.', 'success');
+                    showAuthMessage('If this email belongs to a Zam! account, check your inbox for a secure sign-in link. If you are new, choose Create one.', 'success');
                     startMagicLinkCooldown(MAGIC_LINK_RATE_LIMIT_SECONDS);
                 } else {
                     showAuthMessage(error.message || 'Could not send sign-in link. Please try again.', 'error');
@@ -632,9 +632,9 @@
                 }
             } else {
                 if (authMode === 'signup') {
-                    showAuthMessage('Check your inbox to finish creating or signing in to BudgetBuddy. If you need another link, wait about a minute before requesting it again.', 'success');
+                    showAuthMessage('Check your inbox to finish creating or signing in to Zam! If you need another link, wait about a minute before requesting it again.', 'success');
                 } else {
-                    showAuthMessage('If this email belongs to a BudgetBuddy account, check your inbox for a secure sign-in link.', 'success');
+                    showAuthMessage('If this email belongs to a Zam! account, check your inbox for a secure sign-in link.', 'success');
                 }
                 startMagicLinkCooldown(MAGIC_LINK_RATE_LIMIT_SECONDS);
             }
@@ -650,7 +650,7 @@
         var email = document.getElementById('magicEmail');
         var msg = document.getElementById('authMessage');
 
-        msg.textContent = 'Beta signups are open. Continue with Google or enter your email to create a BudgetBuddy account.';
+        msg.textContent = 'Beta signups are open. Continue with Google or enter your email to create a Zam! account.';
         msg.className = 'message success';
         msg.style.display = 'block';
 

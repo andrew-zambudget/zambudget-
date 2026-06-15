@@ -76,7 +76,7 @@ test.describe('login page safeguards', () => {
         await page.locator('#magicEmail').fill('existing@example.com');
         await page.locator('#magicLinkBtn').click();
 
-        await expect(page.locator('#authMessage')).toContainText('If this email belongs to a BudgetBuddy account');
+        await expect(page.locator('#authMessage')).toContainText('If this email belongs to a Zam! account');
         await expect(page.locator('#authMessage')).not.toContainText('account exists');
         await expect.poll(() => page.evaluate(() => window.__otpCalls)).toEqual([
             expect.objectContaining({
@@ -120,7 +120,7 @@ test.describe('login page safeguards', () => {
             form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
         });
 
-        await expect(page.locator('#authMessage')).toContainText('If this email belongs to a BudgetBuddy account');
+        await expect(page.locator('#authMessage')).toContainText('If this email belongs to a Zam! account');
         await expect.poll(() => page.evaluate(() => window.__otpCalls)).toEqual([
             expect.objectContaining({
                 email: 'single-flight@example.com',
@@ -163,7 +163,7 @@ test.describe('login page safeguards', () => {
 
         const message = page.locator('#authMessage');
         await expect(message).toBeVisible();
-        await expect(message).toContainText('If this email belongs to a BudgetBuddy account');
+        await expect(message).toContainText('If this email belongs to a Zam! account');
         await expect(message).toContainText('If you are new, choose Create one.');
         await expect(message).not.toContainText('Signups not allowed');
         await expect(page.locator('#magicLinkBtn')).toBeDisabled();
