@@ -97,7 +97,7 @@
 
     <main id="main">
         <h1 class="page-title">Terms of Service</h1>
-        <p class="page-subtitle">Last updated: June 14, 2026</p>
+        <p class="page-subtitle">Last updated: June 15, 2026</p>
 
         <div class="section">
             <h2 class="section-title">Welcome to BudgetBuddy</h2>
@@ -118,7 +118,7 @@
                     <li>The information is accurate to the best of your knowledge</li>
                     <li>You don't use this app for illegal activities or fraud</li>
                 </ul>
-                <p>If you use BudgetBuddy without signing in, your budget is stored only in this browser. Clearing browser data, clearing site data, using privacy-cleanup tools, or losing access to this device can permanently remove browser-only data. BudgetBuddy cannot provide recovery support for browser-only budgets after local browser/device storage is lost. Signing in uses Buddy Cloud as the default encrypted backup path.</p>
+                <p>If you use BudgetBuddy without signing in, your budget is stored only in this browser. Clearing browser data, clearing site data, using privacy-cleanup tools, or losing access to this device can permanently remove browser-only data. BudgetBuddy cannot provide recovery support for browser-only budgets after local browser/device storage is lost. Signing in uses Cloud Sync as the default encrypted backup path.</p>
                 <p>We're not liable for any financial decisions you make based on the data in this app.</p>
             </div>
         </div>
@@ -152,7 +152,7 @@
         <div class="section">
             <h2 class="section-title">Beta and Paid Support</h2>
             <div class="section-body">
-                <p>BudgetBuddy Premium is intended to help fund continued development, infrastructure, billing, and Buddy Cloud reliability. The current Premium plan is $3.99 per month. Paying for Premium does not make BudgetBuddy a financial advisor and does not guarantee that every planned feature will be built.</p>
+                <p>BudgetBuddy Premium is intended to help fund continued development, infrastructure, billing, and Cloud Sync reliability. The current Premium plan is $3.99 per month. Paying for Premium does not make BudgetBuddy a financial advisor and does not guarantee that every planned feature will be built.</p>
                 <ul>
                     <li>Premium features may change during beta as reliability and user demand become clearer</li>
                     <li>Billing is processed through Stripe; BudgetBuddy does not store full card numbers</li>
@@ -165,18 +165,18 @@
         <div class="section">
             <h2 class="section-title">Data Ownership</h2>
             <div class="section-body">
-                <p>You own all the data you enter. If you sign in, Buddy Cloud protects your budget by default with an encrypted cloud vault that BudgetBuddy cannot decrypt without your recovery key. If you use BudgetBuddy without signing in, your budget remains browser-only.</p>
+                <p>You own all the data you enter. If you sign in, Cloud Sync protects your budget by default with an encrypted cloud vault that BudgetBuddy cannot decrypt without your recovery key. If you use BudgetBuddy without signing in, your budget remains browser-only.</p>
                 <ul>
                     <li>Browser-only data can be removed by clearing browser or site data, and BudgetBuddy cannot recover it after local storage is lost</li>
-                    <li>Buddy Cloud data is encrypted on your device before upload and remains unreadable to BudgetBuddy</li>
-                    <li>A trusted browser may store a non-extractable WebCrypto key in IndexedDB so Buddy Cloud can keep syncing after refresh. This local browser key is not uploaded to BudgetBuddy, is not part of Account &gt; Devices records, cannot be displayed as the recovery-key text, and is not a substitute for saving your recovery key</li>
-                    <li>Free Tier Buddy Cloud sync capacity is managed with privacy-minimal active browser leases. Account &gt; Devices may link a known browser access record to an existing opaque sync slot hash so you can see and release unmatched slots. If a browser does not check in for 60 minutes, the slot can be released automatically. This link is not a new device identifier and does not include device names, user agents, IP-derived locations, readable budget data, or recovery keys</li>
+                    <li>Cloud Sync data is encrypted on your device before upload and remains unreadable to BudgetBuddy</li>
+                    <li>A trusted browser may store a non-extractable WebCrypto key in IndexedDB so Cloud Sync can keep syncing after refresh. This local browser key is not uploaded to BudgetBuddy, is not part of Account &gt; Devices records, cannot be displayed as the recovery-key text, and is not a substitute for saving your recovery key</li>
+                    <li>Free Tier Cloud Sync capacity is managed with privacy-minimal active browser leases. Account &gt; Devices may link a known browser access record to an existing opaque sync slot hash so you can see and release unmatched slots. If a browser does not check in for 60 minutes, the slot can be released automatically. This link is not a new device identifier and does not include device names, user agents, IP-derived locations, readable budget data, or recovery keys</li>
                     <li>You're responsible for saving your recovery key and exporting backups if you want additional recoverability</li>
                 </ul>
-                <p>If you use the gift-card tracker, you are responsible for the card numbers, codes, balances, and expiration dates you enter, and for keeping your device and Buddy Cloud recovery key secure. BudgetBuddy tracks gift-card balances for your budget records only. It does not verify card value, redeem gift cards, process gift-card payments, prevent issuer fees or expiration, or replace the terms set by the gift-card issuer.</p>
+                <p>If you use the gift-card tracker, you are responsible for the card numbers, codes, balances, and expiration dates you enter, and for keeping your device and Cloud Sync recovery key secure. BudgetBuddy tracks gift-card balances for your budget records only. It does not verify card value, redeem gift cards, process gift-card payments, prevent issuer fees or expiration, or replace the terms set by the gift-card issuer.</p>
                 <p>Gift-card merchant autofill hints use a local metadata cache when available. Merchant metadata may be incomplete or outdated and is not a guarantee of card validity, balance, redemption terms, or legal treatment. BudgetBuddy does not provide a merchant lookup service that verifies individual gift cards.</p>
-                <p>You may delete your BudgetBuddy account from Account &gt; Settings. Account deletion removes the account's Supabase auth identity, encrypted Buddy Cloud vault, encrypted version-history snapshots, browser access records, and inactive billing profile records. BudgetBuddy does not currently store household or family memberships.</p>
-                <p>Account deletion requires a fresh login verification and is blocked while a Stripe subscription is active or past due. Cancel Premium through Stripe Billing Portal first, then return to delete the BudgetBuddy account after billing status updates. Deleted Buddy Cloud vaults, deleted snapshots, deleted account identities, and lost recovery keys cannot be recovered by BudgetBuddy. Provider logs and records may remain according to provider retention, legal, security, tax, dispute, fraud-prevention, or abuse-prevention requirements. This may include, without limitation, security or audit records, request metadata, IP addresses or proxy IP headers, approximate country or region metadata, user agent or browser/device hints, OAuth provider metadata, Proton or Supabase SMTP delivery metadata, and Stripe billing or payment records. Browser-only copies on other devices may remain only in those browsers until local site data is cleared.</p>
+                <p>You may delete your BudgetBuddy account from Account &gt; Settings. Account deletion removes the account's Supabase auth identity, encrypted Cloud Sync vault, encrypted version-history snapshots, browser access records, and inactive billing profile records. BudgetBuddy does not currently store household or family memberships.</p>
+                <p>Account deletion requires a fresh login verification and is blocked while a Stripe subscription is active or past due. Cancel Premium through Stripe Billing Portal first, then return to delete the BudgetBuddy account after billing status updates. Deleted Cloud Sync vaults, deleted snapshots, deleted account identities, and lost recovery keys cannot be recovered by BudgetBuddy. Provider logs and records may remain according to provider retention, legal, security, tax, dispute, fraud-prevention, or abuse-prevention requirements. This may include, without limitation, security or audit records, request metadata, IP addresses or proxy IP headers, approximate country or region metadata, user agent or browser/device hints, OAuth provider metadata, Proton or Supabase SMTP delivery metadata, and Stripe billing or payment records. Browser-only copies on other devices may remain only in those browsers until local site data is cleared.</p>
             </div>
         </div>
 

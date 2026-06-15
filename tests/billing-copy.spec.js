@@ -15,7 +15,7 @@ test.describe('Premium billing copy', () => {
         await page.goto('/index.html');
         await waitForAppReady(page);
 
-        await page.evaluate(() => window.openUpgradeModal?.('Buddy Cloud Plus'));
+        await page.evaluate(() => window.openUpgradeModal?.('Multi-Device Sync Plus'));
 
         const modal = page.locator('#upgradeModal');
         await expect(modal).toBeVisible();

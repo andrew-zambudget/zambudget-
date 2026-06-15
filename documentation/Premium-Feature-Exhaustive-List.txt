@@ -1,14 +1,14 @@
 # 💎 BUDGETBUDDY PREMIUM FEATURES
 # STATUS: MIXED - BUDDY CLOUD SYNC IS FREE V1; OTHER ITEMS ARE PLANNED
 # LOCATION: /js/premium/
-# NOTE: Buddy Cloud Sync is part of the Free Tier baseline.
+# NOTE: Cloud Sync is part of the Free Tier baseline.
 #       Future premium items require a paid subscription and server infrastructure.
 #       Do not build these until Core features are stable and launched.
 
 ============================================================================
 1. CLOUD & SECURITY (The Sync Engine)
 ============================================================================
-- [FREE V1] Buddy Cloud Sync
+- [FREE V1] Cloud Sync
     Opt-in encrypted vault sync across devices
     Requires a user-held recovery key on each new device
     Not gated by Stripe Premium
@@ -122,4 +122,4 @@ GUARDRAIL REMINDER
 ============================================================================
 PRICING REFERENCE
 ============================================================================
-Premium: $3.99/mo -> Buddy Cloud Plus + supporting development
+Premium: $3.99/mo -> Multi-Device Sync Plus + supporting development

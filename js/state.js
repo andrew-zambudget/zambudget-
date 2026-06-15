@@ -273,7 +273,7 @@ export function save(options = {}) {
         const localUpdatedAt = setLocalUpdatedAt();
 
         if (!suppressCloudQueue && window.BuddyCloud?.queuePush) {
-            window.BuddyCloud.queuePush('Budget synced to Buddy Cloud.', { localUpdatedAt });
+            window.BuddyCloud.queuePush('Budget synced to Cloud Sync.', { localUpdatedAt });
         }
         return true;
     } catch (e) {

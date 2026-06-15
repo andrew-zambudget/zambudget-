@@ -39,7 +39,7 @@ const TUTORIAL_STEPS = [
         selector: '.app-header',
         label: 'Nav Bar',
         title: 'Start with the nav bar',
-        body: 'Switch themes, open settings, check Buddy Cloud status, and sign in when you are ready to protect a real budget.'
+        body: 'Switch themes, open settings, check Cloud Sync status, and sign in when you are ready to protect a real budget.'
     },
     {
         selector: '#zbbSummaryCard',
@@ -96,9 +96,9 @@ const TUTORIAL_STEPS = [
     },
     {
         selector: '#syncStatusBtn',
-        label: 'Buddy Cloud',
+        label: 'Cloud Sync',
         title: 'Do not lose the Recovery Key',
-        body: 'If you turn on encrypted Buddy Cloud, save and download the Recovery Key immediately. Store it somewhere private and durable. If you lose it, BudgetBuddy cannot decrypt or recover your cloud budget.'
+        body: 'If you turn on encrypted Cloud Sync, save and download the Recovery Key immediately. Store it somewhere private and durable. If you lose it, BudgetBuddy cannot decrypt or recover your cloud budget.'
     },
     {
         selector: '.btn-avatar, .auth-buttons',
@@ -110,7 +110,7 @@ const TUTORIAL_STEPS = [
         selector: `#${BANNER_ID}`,
         label: 'Demo Timer',
         title: 'This is temporary sample data',
-        body: 'The demo resets after 5 minutes. Sign in when you want encrypted Buddy Cloud protection for a real budget.'
+        body: 'The demo resets after 5 minutes. Sign in when you want encrypted Cloud Sync protection for a real budget.'
     }
 ];
 
@@ -1100,8 +1100,8 @@ function showEndedModal(reason = 'ended') {
     const body = startupFailed
         ? 'BudgetBuddy could not safely prepare a temporary demo session for this browser budget, so demo mode did not start.'
         : reason === 'expired'
-            ? 'The sample session ended. Your real budget is protected when you sign in with Buddy Cloud.'
-            : 'The sample demo data has been cleared. Sign in or create an account to start a real budget with encrypted Buddy Cloud protection.';
+            ? 'The sample session ended. Your real budget is protected when you sign in with Cloud Sync.'
+            : 'The sample demo data has been cleared. Sign in or create an account to start a real budget with encrypted Cloud Sync protection.';
 
     const overlay = document.createElement('div');
     overlay.id = MODAL_ID;
@@ -1166,7 +1166,7 @@ async function backupSignedInBudgetBeforeDemo() {
     const status = window.BuddyCloud?.getStatus?.() || {};
     const canPush = Boolean(status.enabled && status.hasKey && window.BuddyCloud?.forcePush);
     if (!canPush) {
-        throw new Error('BudgetBuddy could not confirm encrypted Buddy Cloud protection yet.');
+        throw new Error('BudgetBuddy could not confirm encrypted Cloud Sync protection yet.');
     }
     await window.BuddyCloud.forcePush();
 }
@@ -1175,7 +1175,7 @@ async function signOutAndStartDemo(overlay) {
     setSignedInPromptBusy(overlay, true);
     setSignedInPromptContent({
         title: 'Preparing demo safely...',
-        body: 'BudgetBuddy is checking Buddy Cloud before it clears this browser budget screen.',
+        body: 'BudgetBuddy is checking Cloud Sync before it clears this browser budget screen.',
         note: 'No sample data gets loaded until this sign-out step finishes.'
     });
 
@@ -1191,7 +1191,7 @@ async function signOutAndStartDemo(overlay) {
         setSignedInPromptBusy(overlay, false);
         setSignedInPromptContent({
             title: 'Demo start paused',
-            body: 'BudgetBuddy could not confirm the encrypted Buddy Cloud backup, so it did not sign you out or clear this browser.',
+            body: 'BudgetBuddy could not confirm the encrypted Cloud Sync backup, so it did not sign you out or clear this browser.',
             note: 'Try again in a moment, or stay in your real budget.'
         });
     }
@@ -1278,8 +1278,8 @@ function renderAccountPromptBanner() {
 
     const hasLocalBudget = hasMeaningfulLocalBudget();
     const copy = hasLocalBudget
-        ? 'This browser has a local budget. Sign in for Buddy Cloud protection, or keep using this browser.'
-        : 'Sign in for Buddy Cloud protection, or try the demo first.';
+        ? 'This browser has a local budget. Sign in for Cloud Sync protection, or keep using this browser.'
+        : 'Sign in for Cloud Sync protection, or try the demo first.';
     const continueButton = hasLocalBudget
         ? '<button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-prompt-action="continue">Keep Using Browser</button>'
         : '';
@@ -1326,8 +1326,8 @@ function renderAccountPrompt() {
     const hasLocalBudget = hasMeaningfulLocalBudget();
     const title = hasLocalBudget ? 'Protect this browser budget' : 'Ready to start BudgetBuddy?';
     const body = hasLocalBudget
-        ? 'This browser already has a local budget. Log in or create an account for encrypted Buddy Cloud protection, or keep using this browser without recovery support.'
-        : 'Log in or create a free account for encrypted Buddy Cloud and two active sync slots. You can also keep exploring or try the demo first.';
+        ? 'This browser already has a local budget. Log in or create an account for encrypted Cloud Sync protection, or keep using this browser without recovery support.'
+        : 'Log in or create a free account for encrypted Cloud Sync and two active sync slots. You can also keep exploring or try the demo first.';
     const continueLabel = hasLocalBudget ? 'Keep Using Browser' : 'Keep Exploring';
 
     const overlay = document.createElement('div');

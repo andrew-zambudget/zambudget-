@@ -51,7 +51,7 @@
 - [ ] Verify Content: Privacy Policy & Terms of Service pages MUST exist and have text
 - [ ] Key Statement to Include (Copy/Paste this):
   "BudgetBuddy stores budget data locally by default. If you enable free
-   Buddy Cloud, your budget is encrypted on your device before upload,
+   Cloud Sync, your budget is encrypted on your device before upload,
    and we cannot read transactions, balances, budgets, categories,
    descriptions, notes, or amounts."
 - [ ] Placement: Put this statement in the Hero section, Footer, and Privacy Page.

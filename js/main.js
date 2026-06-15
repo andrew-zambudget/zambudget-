@@ -140,10 +140,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const browserAccessOk = await UI.refreshBrowserAccessRegistry?.({ silent: true });
                         if (browserAccessOk === false) return;
 
-                        BudgetPrep.updatePreparingBudget?.({ detail: 'Opening Buddy Cloud without reading your budget.' });
+                        BudgetPrep.updatePreparingBudget?.({ detail: 'Opening Cloud Sync without reading your budget.' });
                         await BuddyCloud.refreshUser(window.currentUser);
                         if (window.currentUser) {
-                            BudgetPrep.updatePreparingBudget?.({ detail: 'Confirming encrypted Buddy Cloud protection.' });
+                            BudgetPrep.updatePreparingBudget?.({ detail: 'Confirming encrypted Cloud Sync protection.' });
                             await UI.ensureBuddyCloudDefaultProtection?.();
                         }
                     } catch (authRefreshError) {
@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        BudgetPrep.updatePreparingBudget?.({ detail: 'Opening Buddy Cloud without reading your budget.' });
+        BudgetPrep.updatePreparingBudget?.({ detail: 'Opening Cloud Sync without reading your budget.' });
         await BuddyCloud.init({
             supabaseClient: window.sb,
             user: window.currentUser,
@@ -259,7 +259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         UI.applyAccentTheme?.(localStorage.getItem('bb_accent_color') || 'teal');
 
         if (!DemoMode.isDemoModeActive?.()) {
-            BudgetPrep.updatePreparingBudget?.({ detail: 'Confirming encrypted Buddy Cloud protection.' });
+            BudgetPrep.updatePreparingBudget?.({ detail: 'Confirming encrypted Cloud Sync protection.' });
             await UI.ensureBuddyCloudDefaultProtection?.();
         }
 

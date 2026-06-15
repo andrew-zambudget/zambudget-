@@ -273,8 +273,8 @@ function getSyncStatusDisplayLabel(status = currentSyncStatus) {
 function getSyncStatusMessage(status) {
     if (status === 'local') return 'Saved partially';
     if (status === 'syncing') return 'Saved partially';
-    if (status === 'paused') return 'Buddy Cloud paused';
-    if (status === 'error') return navigator.onLine === false ? 'Offline - changes saved partially' : 'Buddy Cloud paused';
+    if (status === 'paused') return 'Cloud Sync paused';
+    if (status === 'error') return navigator.onLine === false ? 'Offline - changes saved partially' : 'Cloud Sync paused';
     return 'Saved';
 }
 
@@ -290,7 +290,7 @@ function applySyncStatusDisplay() {
         : currentSyncStatusMessage || getSyncStatusMessage(currentSyncStatus);
 
     if (button) {
-        button.setAttribute('aria-label', `Buddy Cloud sync status: ${statusMessage}. Open sync history.`);
+        button.setAttribute('aria-label', `Cloud Sync status: ${statusMessage}. Open sync history.`);
         button.dataset.syncTooltip = statusMessage;
         if (!isSyncHistoryPanelOpen()) button.dataset.tooltip = statusMessage;
     }
@@ -522,7 +522,7 @@ function renderManualSyncButtonSyncing(button) {
     if (!button) return;
     button.classList.add('is-syncing');
     button.innerHTML = getManualSyncCloudIconHtml();
-    button.setAttribute('aria-label', 'Buddy Cloud is syncing.');
+    button.setAttribute('aria-label', 'Cloud Sync is syncing.');
 }
 
 function syncCloudActionButtons() {
@@ -622,7 +622,7 @@ function syncCloudActionButtons() {
                 <div class="sync-cloud-nudge-title">${showKeyReminder && grace.expired ? 'Recovery key not saved' : esc(humanStatus.title)}</div>
                 <p>${showKeyReminder
                     ? grace.expired
-                        ? 'Save your recovery key before relying on Buddy Cloud as your backup. If this browser is lost or cleared, we cannot recover your encrypted cloud budget.'
+                        ? 'Save your recovery key before relying on Cloud Sync as your backup. If this browser is lost or cleared, we cannot recover your encrypted cloud budget.'
                         : `Save your recovery key within ${formatGraceHours(grace.remainingMs)}. Clearing this browser or losing this device can remove trusted key access.`
                     : esc(humanStatus.detail)}</p>
             `;
@@ -646,8 +646,8 @@ function syncCloudActionButtons() {
 
 function getBuddyCloudTierTooltip(isPremium = Boolean(State.getIsPro?.()), freeLimit = 2) {
     return isPremium
-        ? 'Premium Tier includes unlimited Buddy Cloud device syncs, encrypted backup, recovery tools, and version history.'
-        : `Free Tier includes ${freeLimit} active Buddy Cloud synced browsers. Premium unlocks unlimited Buddy Cloud device syncs.`;
+        ? 'Premium Tier includes unlimited Cloud Sync slots, encrypted backup, recovery tools, and version history.'
+        : `Free Tier includes ${freeLimit} active Cloud Sync browsers. Premium unlocks unlimited Cloud Sync slots.`;
 }
 
 function formatSyncEta(value = '') {
@@ -705,12 +705,12 @@ function getManualSyncButtonTooltip(status = {}, { hasConflict = false } = {}) {
     const lastVerifiedText = lastVerified === 'Not available' ? '' : `\nLast verified sync: ${lastVerified}.`;
     const nextApiCallLine = getNextBuddyCloudApiCallLine(status);
 
-    if (!signedIn) return 'Sign in before Buddy Cloud can sync this budget.';
-    if (!enabled) return 'Set up Buddy Cloud before automatic sync can run.';
-    if (!hasKey) return 'Import your recovery key before Buddy Cloud can sync this browser.';
-    if (!status.canUseCloud) return 'Buddy Cloud cannot connect yet. Refresh and check configuration.';
+    if (!signedIn) return 'Sign in before Cloud Sync can sync this budget.';
+    if (!enabled) return 'Set up Cloud Sync before automatic sync can run.';
+    if (!hasKey) return 'Import your recovery key before Cloud Sync can sync this browser.';
+    if (!status.canUseCloud) return 'Cloud Sync cannot connect yet. Refresh and check configuration.';
     if (isBuddyCloudMultiDeviceLimit(status)) return 'Free sync slot limit reached. Open Devices to release a stale slot, use this browser, or upgrade before the next sync.';
-    if (hasConflict) return `Review saved versions before the next Buddy Cloud sync can continue.\nNext estimated API call: blocked until review.`;
+    if (hasConflict) return `Review saved versions before the next Cloud Sync can continue.\nNext estimated API call: blocked until review.`;
     if (status.syncing || nextSyncAt) return `${nextApiCallLine}${lastVerifiedText}`;
 
     const cooldownMs = getBuddyCloudManualSyncCooldownMs();
@@ -736,7 +736,7 @@ async function refreshSyncSlotStatusForOpenPanel() {
 
     syncSlotStatusPanelRefreshPromise = window.BuddyCloud.refreshSyncSlotStatus()
         .catch(error => {
-            console.warn('[Buddy Cloud UI] Sync slot counter refresh failed:', error);
+            console.warn('[Cloud Sync UI] Sync slot counter refresh failed:', error);
             return false;
         })
         .finally(() => {
@@ -803,7 +803,7 @@ function setSyncStatus(status = 'local', message = '') {
     if (button) {
         button.classList.remove('sync-status-synced', 'sync-status-local', 'sync-status-syncing', 'sync-status-error', 'sync-status-paused');
         button.classList.add(`sync-status-${safeStatus}`);
-        button.setAttribute('aria-label', `Buddy Cloud sync status: ${statusMessage}. Open sync history.`);
+        button.setAttribute('aria-label', `Cloud Sync status: ${statusMessage}. Open sync history.`);
         button.dataset.syncTooltip = statusMessage;
         if (isSyncHistoryPanelOpen()) {
             button.removeAttribute('data-tooltip');
@@ -842,42 +842,42 @@ function getLocalSaveSyncNotice(message = 'Saved locally.') {
     if (navigator.onLine === false) {
         return {
             status: 'error',
-            message: 'Offline - saved locally. Not backed up to Buddy Cloud.'
+            message: 'Offline - saved locally. Not backed up to Cloud Sync.'
         };
     }
 
     if (!status.signedIn) {
         return {
             status: 'local',
-            message: 'Saved locally. Buddy Cloud not active.'
+            message: 'Saved locally. Cloud Sync not active.'
         };
     }
 
     if (!status.enabled) {
         return {
             status: 'local',
-            message: 'Saved locally. Buddy Cloud setup needed.'
+            message: 'Saved locally. Cloud Sync setup needed.'
         };
     }
 
     if (hasBuddyCloudConflict(status)) {
         return {
             status: 'paused',
-            message: 'Saved locally. Review Buddy Cloud versions before syncing.'
+            message: 'Saved locally. Review Cloud Sync versions before syncing.'
         };
     }
 
     if (!status.canUseCloud) {
         return {
             status: 'error',
-            message: 'Saved locally. Buddy Cloud unavailable.'
+            message: 'Saved locally. Cloud Sync unavailable.'
         };
     }
 
     if (!status.hasKey) {
         return {
             status: 'paused',
-            message: 'Saved locally. Recovery key needed for Buddy Cloud backup.'
+            message: 'Saved locally. Recovery key needed for Cloud Sync backup.'
         };
     }
 
@@ -897,7 +897,7 @@ function getLocalSaveSyncNotice(message = 'Saved locally.') {
     ) {
         return {
             status: 'paused',
-            message: 'Saved locally. Buddy Cloud sync slot inactive.'
+            message: 'Saved locally. Cloud Sync slot inactive.'
         };
     }
 
@@ -911,7 +911,7 @@ function getLocalSaveSyncNotice(message = 'Saved locally.') {
     return {
         status: 'local',
         message: status.syncing || status.nextSyncAt
-            ? 'Saved locally. Buddy Cloud backup pending.'
+            ? 'Saved locally. Cloud Sync backup pending.'
             : message.replace(/saved partially/gi, 'saved locally')
     };
 }
@@ -937,10 +937,10 @@ function initSyncObserver() {
     }
 
     window.addEventListener('offline', () => {
-        recordSyncEvent('Offline. Changes remain partially saved until Buddy Cloud verifies backup.', 'error');
+        recordSyncEvent('Offline. Changes remain partially saved until Cloud Sync verifies backup.', 'error');
     });
     window.addEventListener('online', () => {
-        recordSyncEvent('Back online. Buddy Cloud backup pending.', 'local');
+        recordSyncEvent('Back online. Cloud Sync backup pending.', 'local');
     });
 }
 
@@ -1306,7 +1306,7 @@ async function authorizeRecoveryKeyDisplayWithSupabase() {
         const { error } = await window.sb.auth.reauthenticate();
         if (error) throw error;
     } catch (error) {
-        console.warn('[Buddy Cloud] Recovery key re-auth request failed:', error);
+        console.warn('[Cloud Sync] Recovery key re-auth request failed:', error);
         return false;
     }
 
@@ -1342,7 +1342,7 @@ async function authorizeRecoveryKeyDisplayWithSupabase() {
         unlockRecoveryKeyDisplay();
         return true;
     } catch (error) {
-        console.warn('[Buddy Cloud] Recovery key re-auth verify failed:', error);
+        console.warn('[Cloud Sync] Recovery key re-auth verify failed:', error);
         if (window.showToast) window.showToast('Could not verify login code. Use local unlock for now.');
         return false;
     }
@@ -1447,7 +1447,7 @@ async function copyRecoveryKeyToClipboard(recoveryKey) {
 async function downloadRecoveryKeyFile(recoveryKey) {
     const filename = `BudgetBuddy_Recovery_Key_${new Date().toISOString().slice(0, 10)}.txt`;
     const body = [
-        'BudgetBuddy Buddy Cloud Recovery Key',
+        'BudgetBuddy Recovery Key',
         '',
         'Keep this key private. It decrypts your synced BudgetBuddy cloud vault on another device.',
         'If you lose this key, BudgetBuddy cannot recover your synced budget.',
@@ -1492,7 +1492,7 @@ function closeBuddyCloudModal(result = { action: 'cancel', value: '' }) {
 
 function showBuddyCloudModal({
     title,
-    eyebrow = 'Buddy Cloud Sync',
+    eyebrow = 'Cloud Sync',
     body = '',
     assurance = '',
     warning = '',
@@ -1585,7 +1585,7 @@ function showBuddyCloudModal({
 
         modal.innerHTML = `
             <div class="modal-box modal-box-medium buddy-cloud-modal${compact ? ' buddy-cloud-modal-compact' : ''}${modalClass ? ` ${esc(modalClass)}` : ''}" role="dialog" aria-modal="true" aria-labelledby="buddyCloudModalTitle" onclick="event.stopPropagation()">
-                ${dismissible ? '<button type="button" class="modal-close buddy-cloud-close" aria-label="Close Buddy Cloud dialog">&times;</button>' : ''}
+                ${dismissible ? '<button type="button" class="modal-close buddy-cloud-close" aria-label="Close Cloud Sync dialog">&times;</button>' : ''}
                 <div class="buddy-cloud-modal-header">
                     <div class="buddy-cloud-modal-icon" aria-hidden="true">BC</div>
                     <div>
@@ -1689,16 +1689,16 @@ async function askForRecoveryKey() {
     const result = await showBuddyCloudModal({
         title: 'Enter Recovery Key',
         modalClass: 'buddy-cloud-recovery-key-modal',
-        body: 'Enter your Buddy Cloud recovery key to unlock this browser.',
+        body: 'Enter your Cloud Sync recovery key to unlock this browser.',
         assurance: 'The key stays local. BudgetBuddy cannot read your synced budget.',
         warning: 'Use only on a trusted device.',
         inputLabel: 'Recovery key',
-        inputPlaceholder: 'Paste your Buddy Cloud recovery key',
+        inputPlaceholder: 'Paste your Cloud Sync recovery key',
         customHtml: '<div class="buddy-cloud-key-confirm-error" data-recovery-key-error hidden></div>',
         actions: [
             { id: 'cancel', label: 'Cancel', className: 'btn-cancel' },
             { id: 'recovery-help', label: 'Recovery Help', className: 'btn-cancel' },
-            { id: 'reset-cloud', label: 'Reset Buddy Cloud', className: 'btn-danger' },
+            { id: 'reset-cloud', label: 'Reset Cloud Sync', className: 'btn-danger' },
             { id: 'import', label: 'Import Key', className: 'btn-create', persistent: true }
         ],
         onAction: ({ action, value, modal, input }) => {
@@ -1768,24 +1768,24 @@ function getBuddyCloudHumanStatus(status = window.BuddyCloud?.getStatus?.() || {
         return {
             severity: 'local',
             title: 'Sign in to protect this budget',
-            detail: 'This budget is saved only in this browser. Sign in to enable encrypted Buddy Cloud backup.',
-            recommendedNextStep: 'Sign in to protect this budget with Buddy Cloud.'
+            detail: 'This budget is saved only in this browser. Sign in to enable encrypted Cloud Sync backup.',
+            recommendedNextStep: 'Sign in to protect this budget with Cloud Sync.'
         };
     }
 
     if (!enabled) {
         return {
             severity: 'local',
-            title: 'Buddy Cloud setup needed',
-            detail: 'This budget is saved only in this browser. Sign in to protect it with encrypted Buddy Cloud backup.',
-            recommendedNextStep: 'Sign in to protect this budget with Buddy Cloud.'
+            title: 'Cloud Sync setup needed',
+            detail: 'This budget is saved only in this browser. Sign in to protect it with encrypted Cloud Sync backup.',
+            recommendedNextStep: 'Sign in to protect this budget with Cloud Sync.'
         };
     }
 
     if (!status.canUseCloud && !hasUnbackedLocalChangesStatus(status)) {
         return {
             severity: 'error',
-            title: 'Buddy Cloud cannot connect',
+            title: 'Cloud Sync cannot connect',
             detail: 'The browser is signed in, but the cloud client is unavailable. Refresh and check the Supabase configuration.',
             recommendedNextStep: 'Refresh the app, then export diagnostics if this continues.'
         };
@@ -1793,18 +1793,18 @@ function getBuddyCloudHumanStatus(status = window.BuddyCloud?.getStatus?.() || {
 
     if (hasUnbackedLocalChangesStatus(status)) {
         const detail = !status.canUseCloud
-            ? 'Changes on this browser are saved locally but have not been backed up to Buddy Cloud.\nRefresh the app before clearing data or signing out.'
+            ? 'Changes on this browser are saved locally but have not been backed up to Cloud Sync.\nRefresh the app before clearing data or signing out.'
             : !hasKey
-            ? 'Changes on this browser are saved locally but have not been backed up to Buddy Cloud.\nImport your recovery key or sync before clearing data or signing out.'
+            ? 'Changes on this browser are saved locally but have not been backed up to Cloud Sync.\nImport your recovery key or sync before clearing data or signing out.'
             : isBuddyCloudMultiDeviceLimit(status)
-            ? 'Changes on this browser are saved locally but have not been backed up to Buddy Cloud.\nUse this browser for sync, release a stale slot, or upgrade before clearing data or signing out.'
-            : 'Changes on this browser are saved locally but have not been backed up to Buddy Cloud.\nSync this browser before clearing data or signing out.';
+            ? 'Changes on this browser are saved locally but have not been backed up to Cloud Sync.\nUse this browser for sync, release a stale slot, or upgrade before clearing data or signing out.'
+            : 'Changes on this browser are saved locally but have not been backed up to Cloud Sync.\nSync this browser before clearing data or signing out.';
         return {
             severity: 'warning',
             title: 'Local changes not backed up',
             detail,
             recommendedNextStep: !status.canUseCloud
-                ? 'Refresh the app, then export diagnostics if Buddy Cloud still cannot connect.'
+                ? 'Refresh the app, then export diagnostics if Cloud Sync still cannot connect.'
                 : !hasKey
                 ? 'Import your recovery key so this browser can back up the local changes.'
                 : isBuddyCloudMultiDeviceLimit(status)
@@ -1817,8 +1817,8 @@ function getBuddyCloudHumanStatus(status = window.BuddyCloud?.getStatus?.() || {
         return {
             severity: 'error',
             title: 'Recovery key required',
-            detail: 'Import your recovery key to reconnect this browser to Buddy Cloud.',
-            recommendedNextStep: 'Import your saved recovery key, or reset Buddy Cloud if the key is permanently lost.'
+            detail: 'Import your recovery key to reconnect this browser to Cloud Sync.',
+            recommendedNextStep: 'Import your saved recovery key, or reset Cloud Sync if the key is permanently lost.'
         };
     }
 
@@ -1828,7 +1828,7 @@ function getBuddyCloudHumanStatus(status = window.BuddyCloud?.getStatus?.() || {
         return {
             severity: 'warning',
             title: 'Free sync slot limit reached',
-            detail: `Free Tier includes ${freeLimit} active Buddy Cloud sync slots. Browsers inactive for ${leaseWindow} are released automatically.`,
+            detail: `Free Tier includes ${freeLimit} active Cloud Sync slots. Browsers inactive for ${leaseWindow} are released automatically.`,
             recommendedNextStep: 'Open Devices to release an unmatched slot, use this browser now, or wait for an inactive browser slot to release.'
         };
     }
@@ -1837,7 +1837,7 @@ function getBuddyCloudHumanStatus(status = window.BuddyCloud?.getStatus?.() || {
         return {
             severity: 'warning',
             title: 'Review saved versions',
-            detail: 'Possible data loss prevented. Choose which encrypted version to keep before Buddy Cloud overwrites either copy.',
+            detail: 'Possible data loss prevented. Choose which encrypted version to keep before Cloud Sync overwrites either copy.',
             recommendedNextStep: 'Open Devices and compare the saved version counts.'
         };
     }
@@ -1846,7 +1846,7 @@ function getBuddyCloudHumanStatus(status = window.BuddyCloud?.getStatus?.() || {
         return {
             severity: 'warning',
             title: 'Verifying encrypted backup',
-            detail: 'Buddy Cloud is checking or updating the encrypted vault for this browser.',
+            detail: 'Cloud Sync is checking or updating the encrypted vault for this browser.',
             recommendedNextStep: 'Keep the app open until the status returns to Saved.'
         };
     }
@@ -1854,7 +1854,7 @@ function getBuddyCloudHumanStatus(status = window.BuddyCloud?.getStatus?.() || {
     if (lastError) {
         return {
             severity: 'error',
-            title: 'Buddy Cloud needs attention',
+            title: 'Cloud Sync needs attention',
             detail: lastError,
             recommendedNextStep: 'Open Recovery Help or export diagnostics if the same error repeats.'
         };
@@ -1871,7 +1871,7 @@ function getBuddyCloudHumanStatus(status = window.BuddyCloud?.getStatus?.() || {
 
     return {
         severity: 'synced',
-        title: status.isPremium ? 'Buddy Cloud active - unlimited syncs' : 'Buddy Cloud active - Free Tier',
+        title: status.isPremium ? 'Cloud Sync active - unlimited syncs' : 'Cloud Sync active - Free Tier',
         detail: lastVerifiedAt
             ? `Encrypted backup verified.\nLast verified sync: ${lastVerifiedText}.`
             : 'Encrypted backup is active. Keep your recovery key somewhere safe for another trusted device.',
@@ -1981,7 +1981,7 @@ function getBuddyCloudReviewRows(details = {}) {
     const review = getBuddyCloudReviewDetails(details);
 
     return [
-        { label: 'Buddy Cloud changed', value: review.remoteTime },
+        { label: 'Cloud Sync changed', value: review.remoteTime },
         { label: 'Local copy changed', value: review.localTime },
         { label: 'Last verified sync', value: review.lastSyncedTime }
     ];
@@ -1996,12 +1996,12 @@ function buildBuddyCloudConflictComparisonHtml(details = {}) {
         <section class="buddy-cloud-conflict-compare" aria-label="Saved version comparison">
             <div class="buddy-cloud-conflict-head">
                 <strong>Compare changes</strong>
-                <span>Pick the copy to keep so Buddy Cloud does not overwrite the wrong version.</span>
+                <span>Pick the copy to keep so Cloud Sync does not overwrite the wrong version.</span>
             </div>
             <div class="buddy-cloud-conflict-options">
                 <div class="buddy-cloud-conflict-card${remoteIsRecommended ? ' is-recommended' : ''}">
                     <div class="buddy-cloud-conflict-card-title">
-                        <span>Buddy Cloud Version</span>
+                        <span>Cloud Sync Version</span>
                         ${remoteIsRecommended ? '<em>Newest</em>' : ''}
                     </div>
                     <small>Changed</small>
@@ -2031,13 +2031,13 @@ async function chooseBuddyCloudSource(details = {}) {
     const localIsRecommended = review.recommendedSource === 'local';
     const result = await showBuddyCloudModal({
         title: 'Review Saved Versions',
-        body: 'Possible data loss prevented. Choose which encrypted version to keep before Buddy Cloud overwrites either copy.',
+        body: 'Possible data loss prevented. Choose which encrypted version to keep before Cloud Sync overwrites either copy.',
         assurance: 'No readable budget data is sent to BudgetBuddy during this choice. The selected copy is decrypted or encrypted locally in your browser.',
         customHtml: buildBuddyCloudConflictComparisonHtml(details),
         actions: [
             { id: 'cancel', label: 'Cancel', className: 'btn-cancel' },
             { id: 'local', label: 'Local Copy', className: localIsRecommended ? 'btn-create buddy-cloud-choice-primary' : 'btn-cancel buddy-cloud-choice-secondary' },
-            { id: 'remote', label: 'Buddy Cloud Version', className: localIsRecommended ? 'btn-cancel buddy-cloud-choice-secondary' : 'btn-create buddy-cloud-choice-primary' }
+            { id: 'remote', label: 'Cloud Sync Version', className: localIsRecommended ? 'btn-cancel buddy-cloud-choice-secondary' : 'btn-create buddy-cloud-choice-primary' }
         ]
     });
 
@@ -2135,8 +2135,8 @@ async function showRecoveryKeyNotice(recoveryKey, { copied = false, initial = fa
         title: initial ? 'Save Your Recovery Key' : 'Recovery Key',
         modalClass: !initial && !requireDownload ? 'buddy-cloud-recovery-key-display-modal' : '',
         body: initial
-            ? 'Buddy Cloud is enabled. This recovery key is required to decrypt your cloud budget on another device.'
-            : 'This recovery key decrypts your Buddy Cloud budget on another device; your budget is encrypted before upload.',
+            ? 'Cloud Sync is enabled. This recovery key is required to decrypt your cloud budget on another device.'
+            : 'This recovery key decrypts your Cloud Sync budget on another device; your budget is encrypted before upload.',
         assurance: initial ? 'Detailed privacy protections are covered in the Privacy Policy.' : '',
         warning: requireDownload
             ? 'Download this recovery key before continuing. If you lose this key, we cannot recover your synced budget.'
@@ -2146,7 +2146,7 @@ async function showRecoveryKeyNotice(recoveryKey, { copied = false, initial = fa
         customHtml: requiresInitialAcknowledgement && !initialAcknowledged ? `
             <div class="buddy-cloud-key-ack" role="status" aria-live="polite">
                 <strong>Take 10 seconds to read this.</strong>
-                <span>Buddy Cloud stays active, but save this Recovery Key within 72 hours. If this browser is lost or cleared and you do not have the key, BudgetBuddy cannot recover the encrypted cloud budget.</span>
+                <span>Cloud Sync stays active, but save this Recovery Key within 72 hours. If this browser is lost or cleared and you do not have the key, BudgetBuddy cannot recover the encrypted cloud budget.</span>
                 <span>Continue options unlock in <strong data-recovery-key-ack-countdown>${RECOVERY_KEY_ACK_SECONDS}</strong>s.</span>
             </div>
         ` : !initial && !requireDownload ? `
@@ -2255,14 +2255,14 @@ async function showRecoveryKeyNotice(recoveryKey, { copied = false, initial = fa
 
 async function confirmBuddyCloudDownload() {
     const result = await showBuddyCloudModal({
-        title: 'Buddy Cloud Version?',
+        title: 'Cloud Sync Version?',
         body: 'BudgetBuddy will save this local copy as an encrypted safety snapshot, then decrypt and use the cloud version locally.',
         assurance: 'The cloud vault remains encrypted with our cloud provider. Decryption happens only on this device with your recovery key.',
         detailRows: getBuddyCloudReviewRows(),
         warning: 'Use this unless you know the local copy has newer changes.',
         actions: [
             { id: 'cancel', label: 'Back', className: 'btn-cancel' },
-            { id: 'download', label: 'Buddy Cloud Version', className: 'btn-create buddy-cloud-choice-primary' }
+            { id: 'download', label: 'Cloud Sync Version', className: 'btn-create buddy-cloud-choice-primary' }
         ]
     });
 
@@ -2333,9 +2333,9 @@ async function confirmBuddyCloudSyncSlotTransfer(details = {}) {
     const freeLimit = Number(details.slotLimit || details.freeDeviceLimit || window.BuddyCloud?.getStatus?.()?.freeDeviceLimit || 2);
     const leaseWindow = getFreeSyncSlotLeaseLabel(details);
     const result = await showBuddyCloudModal({
-        eyebrow: 'Buddy Cloud Sync Plus',
+        eyebrow: 'Multi-Device Sync Plus',
         title: 'Multi-Device Sync Plus',
-        body: `Free Tier includes ${freeLimit} active Buddy Cloud sync slots. Browsers inactive for ${leaseWindow} are released automatically.`,
+        body: `Free Tier includes ${freeLimit} active Cloud Sync slots. Browsers inactive for ${leaseWindow} are released automatically.`,
         assurance: 'Budget contents remain encrypted. BudgetBuddy does not store device names, user agents, IP-derived locations, or readable budget data for this limit.',
         detailRows: getBuddyCloudSyncSlotRows(details),
         warning: 'Use This Browser Instead replaces the oldest active Free sync slot immediately. Inactive browser slots can be reused automatically without removing that browser recovery key.',
@@ -2403,7 +2403,7 @@ async function getCurrentBrowserSyncSlotHashForAccess() {
     try {
         return await window.BuddyCloud?.getCurrentSyncSlotHash?.() || '';
     } catch (error) {
-        console.warn('[Device Management] Could not read current Buddy Cloud sync slot hash:', error);
+        console.warn('[Device Management] Could not read current Cloud Sync slot hash:', error);
         return '';
     }
 }
@@ -2568,7 +2568,7 @@ async function releaseOldUnmatchedSyncSlots(activeBrowserRows = []) {
             const released = await window.BuddyCloud.releaseSyncSlotByHash(slot.hash);
             if (released) releasedCount += 1;
         } catch (error) {
-            console.warn('[Device Management] Could not auto-release unmatched Buddy Cloud sync slot:', error);
+            console.warn('[Device Management] Could not auto-release unmatched Cloud Sync slot:', error);
         }
     }
 
@@ -2576,7 +2576,7 @@ async function releaseOldUnmatchedSyncSlots(activeBrowserRows = []) {
         try {
             await window.BuddyCloud?.refreshSyncSlotStatus?.();
         } catch (error) {
-            console.warn('[Device Management] Could not refresh Buddy Cloud sync slots after auto-release:', error);
+            console.warn('[Device Management] Could not refresh Cloud Sync slots after auto-release:', error);
         }
     }
 
@@ -2632,7 +2632,7 @@ async function handleCurrentBrowserAccessRevoked() {
     try {
         await window.BuddyCloud?.releaseCurrentSyncSlot?.({ clearLocalSlot: true });
     } catch (error) {
-        console.warn('[Device Management] Could not release Buddy Cloud sync slot before clearing revoked browser:', error);
+        console.warn('[Device Management] Could not release Cloud Sync slot before clearing revoked browser:', error);
     }
     const keyName = getBrowserAccessKeyName();
     if (keyName) localStorage.removeItem(keyName);
@@ -2654,7 +2654,7 @@ export async function refreshBrowserAccessRegistry(options = {}) {
         try {
             await window.BuddyCloud?.refreshSyncSlotStatus?.();
         } catch (error) {
-            console.warn('[Device Management] Could not refresh Buddy Cloud sync slots before registry cleanup:', error);
+            console.warn('[Device Management] Could not refresh Cloud Sync slots before registry cleanup:', error);
         }
         const context = await getCurrentBrowserAccessContext();
         if (!context.revoked && context.available) {
@@ -2829,7 +2829,7 @@ function buildBrowserAccessDeviceListHtml(context = {}, { includeGlobalSignOut =
 
     if (!context.available) {
         return `
-            <div class="buddy-cloud-device-list" role="list" aria-label="Known Buddy Cloud browsers">
+            <div class="buddy-cloud-device-list" role="list" aria-label="Known Cloud Sync browsers">
                 <div class="buddy-cloud-device-empty">${esc(context.error || 'Apply the Device Management Supabase migration.')}</div>
             </div>
         `;
@@ -2901,7 +2901,7 @@ function buildBrowserAccessDeviceListHtml(context = {}, { includeGlobalSignOut =
         : '';
 
     return `
-        <div class="buddy-cloud-device-list" role="list" aria-label="Known Buddy Cloud browsers">
+        <div class="buddy-cloud-device-list" role="list" aria-label="Known Cloud Sync browsers">
             ${deviceRows}
             ${unmatchedRows}
             ${availableRows}
@@ -2953,7 +2953,7 @@ async function refreshOpenBrowserAccessDeviceList() {
             try {
                 await window.BuddyCloud?.refreshSyncSlotStatus?.();
             } catch (error) {
-                console.warn('[Device Management] Could not refresh Buddy Cloud sync slots:', error);
+                console.warn('[Device Management] Could not refresh Cloud Sync slots:', error);
             }
             const context = await getCurrentBrowserAccessContext();
             if (context.revoked) return false;
@@ -3012,7 +3012,7 @@ async function revokeBrowserAccess(browserHash) {
         try {
             await window.BuddyCloud?.releaseSyncSlotByHash?.(targetRow.sync_slot_hash);
         } catch (releaseError) {
-            console.warn('[Device Management] Could not release mapped Buddy Cloud sync slot:', releaseError);
+            console.warn('[Device Management] Could not release mapped Cloud Sync slot:', releaseError);
         }
     }
     return true;
@@ -3060,7 +3060,7 @@ function buildBuddyCloudDiagnosticReport() {
     const lastError = localStorage.getItem('bb_cloud_last_error') || '';
 
     return {
-        reportType: 'BudgetBuddy Buddy Cloud diagnostic',
+        reportType: 'Cloud Sync diagnostic',
         reportVersion: 1,
         generatedAt: new Date().toISOString(),
         privacy: {
@@ -3072,7 +3072,7 @@ function buildBuddyCloudDiagnosticReport() {
             reviewBeforeSharing: true,
             sharingNotice: 'This diagnostic report is generated locally. Review it before sending. Sharing it is a one-time user-initiated support action and does not opt you into tracking, monitoring, analytics, support access, or future diagnostics.',
             mayInclude: [
-                'Buddy Cloud status',
+                'Cloud Sync status',
                 'recent sync messages',
                 'sync timestamps',
                 'app page',
@@ -3131,7 +3131,7 @@ function buildBuddyCloudDiagnosticReport() {
             conflictDetected: hasBuddyCloudConflict(status),
             freeDeviceLimitBlocked: isBuddyCloudMultiDeviceLimit(status),
             canRecoverLostKey: false,
-            lostKeyGuidance: 'BudgetBuddy cannot recover a lost Buddy Cloud recovery key. If the key is permanently lost, reset Buddy Cloud to create a new encrypted vault.'
+            lostKeyGuidance: 'BudgetBuddy cannot recover a lost Cloud Sync recovery key. If the key is permanently lost, reset Cloud Sync to create a new encrypted vault.'
         },
         browserAccess: {
             hasLocalBrowserAccessToken: Boolean(getBrowserAccessKeyName() && localStorage.getItem(getBrowserAccessKeyName())),
@@ -3202,7 +3202,7 @@ function getBuddyCloudVersionRows(snapshot = {}) {
     const rows = [
         { label: 'Snapshot saved', value: formatBuddyCloudReviewTime(snapshot.created_at || '') },
         { label: 'Budget changed', value: formatBuddyCloudReviewTime(snapshot.client_updated_at || '') },
-        { label: 'Recovery key', value: 'Same Buddy Cloud key' }
+        { label: 'Recovery key', value: 'Same Cloud Sync key' }
     ];
     const tag = getBuddyCloudSnapshotTag(snapshot);
     if (tag) rows.splice(2, 0, { label: 'Snapshot tag', value: tag });
@@ -3257,7 +3257,7 @@ function showBuddyCloudRestoreScreen(title = 'Restoring Budget...', detail = 'Cr
     return Date.now();
 }
 
-async function completeBuddyCloudRestoreScreen(startedAt, { title = 'Budget Restored', detail = 'Your selected Buddy Cloud version is ready.', error = false } = {}) {
+async function completeBuddyCloudRestoreScreen(startedAt, { title = 'Budget Restored', detail = 'Your selected Cloud Sync version is ready.', error = false } = {}) {
     const overlay = document.getElementById('buddyCloudRestoreOverlay');
     if (!overlay) return;
 
@@ -3347,10 +3347,10 @@ async function showBuddyCloudVersionHistoryModal() {
     const versionHistoryLimit = Math.max(1, Number(status.versionHistoryLimit) || 1);
     if (!status.signedIn || !status.enabled) {
         await showBuddyCloudModal({
-            eyebrow: 'Buddy Cloud',
+            eyebrow: 'Cloud Sync',
             title: 'Cloud Version History',
-            body: 'Set up Buddy Cloud before using encrypted version history.',
-            assurance: 'Version history stores encrypted vault snapshots only after Buddy Cloud uploads have verified.',
+            body: 'Set up Cloud Sync before using encrypted version history.',
+            assurance: 'Version history stores encrypted vault snapshots only after Cloud Sync uploads have verified.',
             actions: [{ id: 'close', label: 'Back', className: 'btn-cancel' }]
         });
         return { action: 'close', snapshots: [] };
@@ -3358,10 +3358,10 @@ async function showBuddyCloudVersionHistoryModal() {
 
     if (!status.hasKey) {
         const result = await showBuddyCloudModal({
-            eyebrow: 'Buddy Cloud',
+            eyebrow: 'Cloud Sync',
             title: 'Recovery Key Required',
             compact: true,
-            customHtml: '<p class="buddy-cloud-modal-copy">Import your Buddy Cloud recovery key to view or restore encrypted snapshots. Snapshots decrypt locally in this browser. BudgetBuddy cannot read them or recover a lost key.</p>',
+            customHtml: '<p class="buddy-cloud-modal-copy">Import your Cloud Sync recovery key to view or restore encrypted snapshots. Snapshots decrypt locally in this browser. BudgetBuddy cannot read them or recover a lost key.</p>',
             actions: [
                 { id: 'close', label: 'Back', className: 'btn-cancel' },
                 { id: 'recovery-help', label: 'Recovery Help', className: 'btn-create' }
@@ -3375,10 +3375,10 @@ async function showBuddyCloudVersionHistoryModal() {
         snapshots = await window.BuddyCloud.listVersionHistory(versionHistoryLimit);
     } catch (error) {
         await showBuddyCloudModal({
-            eyebrow: 'Buddy Cloud',
+            eyebrow: 'Cloud Sync',
             title: 'Version History Unavailable',
             body: getBuddyCloudErrorMessage(error),
-            assurance: 'Current Buddy Cloud sync can still work even if version history has not been deployed yet.',
+            assurance: 'Current Cloud Sync can still work even if version history has not been deployed yet.',
             actions: [{ id: 'close', label: 'Back', className: 'btn-cancel' }]
         });
         return { action: 'close', snapshots: [] };
@@ -3386,19 +3386,19 @@ async function showBuddyCloudVersionHistoryModal() {
 
     if (!snapshots.length) {
         await showBuddyCloudModal({
-            eyebrow: 'Buddy Cloud',
+            eyebrow: 'Cloud Sync',
             title: 'Cloud Version History',
             body: 'No encrypted snapshots are available yet.',
-            assurance: `BudgetBuddy creates encrypted snapshots after verified Buddy Cloud uploads, then keeps the ${formatBuddyCloudSnapshotRetention(versionHistoryLimit).toLowerCase()}.`,
+            assurance: `BudgetBuddy creates encrypted snapshots after verified Cloud Sync uploads, then keeps the ${formatBuddyCloudSnapshotRetention(versionHistoryLimit).toLowerCase()}.`,
             actions: [{ id: 'close', label: 'Back', className: 'btn-cancel' }]
         });
         return { action: 'close', snapshots: [] };
     }
 
     const result = await showBuddyCloudModal({
-        eyebrow: 'Buddy Cloud',
+        eyebrow: 'Cloud Sync',
         title: 'Cloud Version History',
-        body: 'Restore an earlier saved Buddy Cloud version.',
+        body: 'Restore an earlier saved Cloud Sync version.',
         assurance: 'BudgetBuddy saves a private backup of your current version first, and cannot read the contents of either version.',
         detailRows: [
             { label: 'Snapshots shown', value: String(snapshots.length) },
@@ -3426,10 +3426,10 @@ async function showBuddyCloudVersionHistoryModal() {
 
 async function confirmBuddyCloudVersionRestore(snapshot = {}) {
     const result = await showBuddyCloudModal({
-        eyebrow: 'Buddy Cloud',
+        eyebrow: 'Cloud Sync',
         title: 'Restore This Version?',
         body: 'BudgetBuddy will decrypt this encrypted snapshot locally, replace this browser budget, and upload the restored encrypted vault as current.',
-        assurance: 'The Buddy Cloud recovery key does not change, and the key is not sent to BudgetBuddy.',
+        assurance: 'The Cloud Sync recovery key does not change, and the key is not sent to BudgetBuddy.',
         detailRows: getBuddyCloudVersionRows(snapshot),
         warning: 'Any unsynced changes in this browser will be replaced.',
         actions: [
@@ -3458,9 +3458,9 @@ async function runBuddyCloudVersionHistoryFlow() {
         markBuddyCloudSnapshotRecentlyUsed(snapshotId);
         await completeBuddyCloudRestoreScreen(restoreScreenStartedAt, {
             title: 'Budget Restored',
-            detail: 'Safety snapshot saved. Your selected Buddy Cloud version is ready.'
+            detail: 'Safety snapshot saved. Your selected Cloud Sync version is ready.'
         });
-        if (window.showToast) window.showToast('Buddy Cloud version restored.');
+        if (window.showToast) window.showToast('Cloud Sync version restored.');
         return 'restored';
     } catch (error) {
         const message = getBuddyCloudErrorMessage(error);
@@ -3528,12 +3528,12 @@ async function showLostRecoveryKeyModal() {
         title: 'Lost Recovery Key',
         compact: true,
         modalClass: 'buddy-cloud-recovery-modal',
-        body: 'If the recovery key is permanently lost, BudgetBuddy cannot decrypt the existing Buddy Cloud vault.',
-        assurance: 'Use a saved key from another trusted place, or reset Buddy Cloud and start a new encrypted vault.',
+        body: 'If the recovery key is permanently lost, BudgetBuddy cannot decrypt the existing Cloud Sync vault.',
+        assurance: 'Use a saved key from another trusted place, or reset Cloud Sync and start a new encrypted vault.',
         actions: [
             { id: 'back', label: 'Back', className: 'btn-cancel' },
             { id: 'import-key', label: 'Import Key', className: 'btn-create' },
-            { id: 'reset-cloud', label: 'Reset Buddy Cloud', className: 'btn-danger' }
+            { id: 'reset-cloud', label: 'Reset Cloud Sync', className: 'btn-danger' }
         ]
     });
 
@@ -3635,7 +3635,7 @@ async function showAdvancedAccountSettingsModal() {
         warning: 'Use these only when you understand what will change. Some actions can replace the current budget, remove encrypted cloud data, clear this browser, or delete your BudgetBuddy account.',
         actions: [
             { id: 'version-history', label: 'Version History', className: 'btn-cancel' },
-            { id: 'reset-cloud', label: 'Reset Buddy Cloud', className: 'btn-danger' },
+            { id: 'reset-cloud', label: 'Reset Cloud Sync', className: 'btn-danger' },
             { id: 'delete-account', label: 'Delete Account', className: 'btn-danger' },
             { id: 'back', label: 'Back to Settings', className: 'btn-cancel' },
             { id: 'close', label: 'Close', className: 'btn-cancel' }
@@ -3720,7 +3720,7 @@ async function confirmSignOutAllDevices() {
     const result = await showBuddyCloudModal({
         title: 'Sign Out All Devices?',
         body: 'This revokes account sessions and known BudgetBuddy browser access records without collecting browser brand, OS, user agent, or IP-derived location.',
-        assurance: 'Supabase will revoke account sessions, and BudgetBuddy will mark known browser access records as revoked. Your encrypted Buddy Cloud vault is not deleted, and BudgetBuddy still cannot read it.',
+        assurance: 'Supabase will revoke account sessions, and BudgetBuddy will mark known browser access records as revoked. Your encrypted Cloud Sync vault is not deleted, and BudgetBuddy still cannot read it.',
         warning: needsRecoveryKeyBackup
             ? 'This clears this browser. BudgetBuddy will require a recovery key download before continuing so this account is not locked out of the encrypted cloud budget.'
             : 'This clears this browser after sync verification. Other browsers may still have local data until their storage is cleared, but they will be forced out when BudgetBuddy checks their access record.',
@@ -3757,7 +3757,7 @@ async function confirmSignOutOtherDevices() {
     const result = await showBuddyCloudModal({
         title: 'Sign Out Other Devices?',
         body: 'This signs out every other Supabase session for this account and marks known BudgetBuddy browser access records as revoked.',
-        assurance: 'This browser stays signed in. Your encrypted Buddy Cloud vault is not deleted, and BudgetBuddy still cannot read it.',
+        assurance: 'This browser stays signed in. Your encrypted Cloud Sync vault is not deleted, and BudgetBuddy still cannot read it.',
         warning: 'Other browsers may keep local data until their browser storage is cleared, but BudgetBuddy will force them out when they check in.',
         actions: [
             { id: 'cancel', label: 'Back', className: 'btn-cancel' },
@@ -3786,8 +3786,8 @@ async function confirmRevokeBrowserAccess(label = 'that browser') {
 async function confirmReleaseSyncSlot() {
     const result = await showBuddyCloudModal({
         title: 'Release Unlinked Sync Slot?',
-        body: 'This sync slot is consuming Free Tier Buddy Cloud capacity but is not tied to a visible BudgetBuddy browser record.',
-        assurance: 'BudgetBuddy releases only the selected Buddy Cloud sync slot record. It does not revoke your recovery key, delete your encrypted vault, or store a new device identifier.',
+        body: 'This sync slot is consuming Free Tier Cloud Sync capacity but is not tied to a visible BudgetBuddy browser record.',
+        assurance: 'BudgetBuddy releases only the selected Cloud Sync slot record. It does not revoke your recovery key, delete your encrypted vault, or store a new device identifier.',
         warning: 'Release this only when no visible browser should still own the slot. A browser can claim a slot again only after the recovery key is imported for that session.',
         actions: [
             { id: 'cancel', label: 'Back', className: 'btn-cancel' },
@@ -3805,7 +3805,7 @@ async function showDeviceManagementPrivacyDetails() {
         compact: true,
         modalClass: 'buddy-cloud-privacy-modal',
         body: BROWSER_ACCESS_PRIVACY_COPY,
-        assurance: 'These records only help BudgetBuddy recognize known browser access, match it to existing Buddy Cloud sync slots, and process sign-out or slot-release requests.',
+        assurance: 'These records only help BudgetBuddy recognize known browser access, match it to existing Cloud Sync slots, and process sign-out or slot-release requests.',
         detailRows: [
             { label: 'Stored', value: 'Private browser record, sync slot link, timestamps' },
             { label: 'Not stored', value: 'Device names, user agents, IP location' },
@@ -3837,17 +3837,17 @@ function getBuddyCloudDeviceStatusCopy() {
     const status = window.BuddyCloud?.getStatus?.() || {};
     const freeLimit = Number(status.freeDeviceLimit || status.syncSlotLimit || 2);
     const leaseWindow = getFreeSyncSlotLeaseLabel(status);
-    if (!status.signedIn) return 'Sign in to manage Buddy Cloud on this browser.';
+    if (!status.signedIn) return 'Sign in to manage Cloud Sync on this browser.';
     if (!status.enabled || !status.hasKey) return 'Manage known BudgetBuddy browsers for this account.';
-    if (isBuddyCloudMultiDeviceLimit(status)) return `Free Tier includes ${freeLimit} active Buddy Cloud sync slots. Browsers inactive for ${leaseWindow} are released automatically, or you can use this browser now.`;
-    if (hasBuddyCloudConflict(status)) return 'Possible data loss prevented. Compare the saved versions before Buddy Cloud overwrites either copy.';
-    if (hasUnbackedLocalChangesStatus(status)) return 'Changes on this browser are saved locally but have not been backed up to Buddy Cloud.';
+    if (isBuddyCloudMultiDeviceLimit(status)) return `Free Tier includes ${freeLimit} active Cloud Sync slots. Browsers inactive for ${leaseWindow} are released automatically, or you can use this browser now.`;
+    if (hasBuddyCloudConflict(status)) return 'Possible data loss prevented. Compare the saved versions before Cloud Sync overwrites either copy.';
+    if (hasUnbackedLocalChangesStatus(status)) return 'Changes on this browser are saved locally but have not been backed up to Cloud Sync.';
     if (status.lastError) return status.lastError;
-    if (status.syncing) return 'Buddy Cloud is syncing on this browser.';
-    if (canUseAvailableFreeSyncSlot(status)) return 'This browser is signed in but is not using a Free sync slot yet. Use this browser to claim an available slot and resume Buddy Cloud.';
+    if (status.syncing) return 'Cloud Sync is syncing on this browser.';
+    if (canUseAvailableFreeSyncSlot(status)) return 'This browser is signed in but is not using a Free sync slot yet. Use this browser to claim an available slot and resume Cloud Sync.';
     return status.isPremium
-        ? 'Buddy Cloud is active with Multi-Device Sync Plus.'
-        : 'Buddy Cloud is active on this browser.';
+        ? 'Cloud Sync is active with Multi-Device Sync Plus.'
+        : 'Cloud Sync is active on this browser.';
 }
 
 function hasBuddyCloudConflict(status = window.BuddyCloud?.getStatus?.() || {}) {
@@ -3890,7 +3890,7 @@ async function showBuddyCloudDeviceManagementModal() {
     try {
         await window.BuddyCloud?.refreshSyncSlotStatus?.();
     } catch (error) {
-        console.warn('[Device Management] Could not refresh Buddy Cloud sync slots before opening devices:', error);
+        console.warn('[Device Management] Could not refresh Cloud Sync slots before opening devices:', error);
     }
     let status = window.BuddyCloud?.getStatus?.() || {};
     let signedIn = Boolean(status.signedIn);
@@ -3936,7 +3936,7 @@ async function showBuddyCloudDeviceManagementModal() {
 
     if (canResolveConflict) {
         actions.push(
-            { id: 'download', label: 'Buddy Cloud Version', className: 'btn-create buddy-cloud-choice-primary' },
+            { id: 'download', label: 'Cloud Sync Version', className: 'btn-create buddy-cloud-choice-primary' },
             { id: 'upload', label: 'Local Copy', className: 'btn-cancel buddy-cloud-choice-secondary' }
         );
     }
@@ -3954,7 +3954,7 @@ async function showBuddyCloudDeviceManagementModal() {
         : '';
 
     const result = await showBuddyCloudModal({
-        title: 'Buddy Cloud Devices',
+        title: 'Cloud Sync Devices',
         modalClass: 'buddy-cloud-devices-modal',
         body: getBuddyCloudDeviceStatusCopy(),
         detailRows: syncRows,
@@ -3989,7 +3989,7 @@ function getBuddyCloudErrorMessage(error) {
 
     if (code === BUDDY_CLOUD_MULTI_DEVICE_LIMIT_CODE) {
         const leaseWindow = getFreeSyncSlotLeaseLabel(error);
-        return `Free Tier includes 2 active Buddy Cloud sync slots. Browsers inactive for ${leaseWindow} are released automatically, or use this browser instead.`;
+        return `Free Tier includes 2 active Cloud Sync slots. Browsers inactive for ${leaseWindow} are released automatically, or use this browser instead.`;
     }
 
     if (
@@ -3999,7 +3999,7 @@ function getBuddyCloudErrorMessage(error) {
         || message.includes('sync_owner_claimed_at')
         || message.includes('sync_owner_last_seen_at')
     ) {
-        return 'Buddy Cloud two-device Free sync is not ready yet. Apply supabase/migrations/202606100007_buddy_cloud_two_free_sync_slots.sql in Supabase, then retry sync.';
+        return 'Cloud Sync two-device Free sync is not ready yet. Apply supabase/migrations/202606100007_buddy_cloud_two_free_sync_slots.sql in Supabase, then retry sync.';
     }
 
     if (
@@ -4007,7 +4007,7 @@ function getBuddyCloudErrorMessage(error) {
         || (message.includes('buddy_cloud_vaults') && message.toLowerCase().includes('schema cache'))
         || (message.includes("Could not find the table") && message.includes('buddy_cloud_vaults'))
     ) {
-        return 'Buddy Cloud database is not ready yet. Apply the Buddy Cloud Supabase migration, then retry sync.';
+        return 'Cloud Sync database is not ready yet. Apply the Cloud Sync Supabase migration, then retry sync.';
     }
 
     if (
@@ -4015,10 +4015,10 @@ function getBuddyCloudErrorMessage(error) {
         || message.includes('buddy_cloud_vault_snapshots')
         || message.includes('202606100006_buddy_cloud_vault_snapshots')
     ) {
-        return 'Buddy Cloud Version History is not ready yet. Apply supabase/migrations/202606100006_buddy_cloud_vault_snapshots.sql in Supabase, then retry.';
+        return 'Cloud Sync Version History is not ready yet. Apply supabase/migrations/202606100006_buddy_cloud_vault_snapshots.sql in Supabase, then retry.';
     }
 
-    return message || 'Buddy Cloud action failed.';
+    return message || 'Cloud Sync action failed.';
 }
 
 async function runCloudAction(event, action) {
@@ -4033,7 +4033,7 @@ async function runCloudAction(event, action) {
     try {
         await action();
     } catch (error) {
-        console.error('[Buddy Cloud UI]', error);
+        console.error('[Cloud Sync UI]', error);
         const message = getBuddyCloudErrorMessage(error);
         recordSyncEvent(message, 'error');
         if (window.showToast) window.showToast(message);
@@ -4059,7 +4059,7 @@ async function enableBuddyCloudStep(options = {}) {
         }
 
         if (action !== 'replace-slot') {
-            recordSyncEvent('Buddy Cloud sync stayed on the existing active browser.', 'local');
+            recordSyncEvent('Cloud Sync stayed on the existing active browser.', 'local');
             return null;
         }
 
@@ -4077,7 +4077,7 @@ async function completeBuddyCloudEnableFlow(initialOptions = {}) {
     if (result.needsKey) {
         const recoveryKey = await askForRecoveryKey();
         if (!recoveryKey) {
-            recordSyncEvent('Buddy Cloud needs the recovery key before syncing this device.', 'error');
+            recordSyncEvent('Cloud Sync needs the recovery key before syncing this device.', 'error');
             return null;
         }
         result = await enableBuddyCloudStep({
@@ -4108,8 +4108,8 @@ async function completeBuddyCloudEnableFlow(initialOptions = {}) {
         const copied = await copyRecoveryKeyToClipboard(result.recoveryKey);
         const saved = await showRecoveryKeyNotice(result.recoveryKey, { copied, initial: true, requireDownload: false });
         if (!saved) {
-            recordSyncEvent('Buddy Cloud recovery key reminder started.', 'local');
-            if (window.showToast) window.showToast('Buddy Cloud is active. Save your recovery key within 72 hours.');
+            recordSyncEvent('Cloud Sync recovery key reminder started.', 'local');
+            if (window.showToast) window.showToast('Cloud Sync is active. Save your recovery key within 72 hours.');
         }
     }
 
@@ -4135,7 +4135,7 @@ window.manualBuddyCloudSync = function(event) {
             return;
         }
 
-        if (!window.BuddyCloud?.getStatus) throw new Error('Buddy Cloud is not available yet.');
+        if (!window.BuddyCloud?.getStatus) throw new Error('Cloud Sync is not available yet.');
 
         const status = window.BuddyCloud.getStatus();
         if (!status.enabled) {
@@ -4170,7 +4170,7 @@ window.manualBuddyCloudSync = function(event) {
             return;
         }
 
-        if (window.showToast) window.showToast('Buddy Cloud sync checked.');
+        if (window.showToast) window.showToast('Cloud Sync checked.');
     });
 };
 
@@ -4183,7 +4183,7 @@ export async function ensureBuddyCloudDefaultProtection() {
 
     markBuddyCloudDefaultSetupAttempted();
     return runCloudAction(null, async () => {
-        recordSyncEvent('Setting up Buddy Cloud protection...', 'syncing');
+        recordSyncEvent('Setting up Cloud Sync protection...', 'syncing');
         await completeBuddyCloudEnableFlow({ defaultProtection: true });
     });
 }
@@ -4232,7 +4232,7 @@ async function handleBuddyCloudDeviceAction(action) {
         const ok = await confirmRevokeBrowserAccess(label);
         if (!ok) return 'back-to-devices';
         await revokeBrowserAccess(browserHash);
-        if (window.showToast) window.showToast(`${label} will sign out. Its Buddy Cloud sync slot was released when matched.`);
+        if (window.showToast) window.showToast(`${label} will sign out. Its Cloud Sync slot was released when matched.`);
         return 'back-to-devices';
     }
 
@@ -4243,7 +4243,7 @@ async function handleBuddyCloudDeviceAction(action) {
         const released = await window.BuddyCloud?.releaseSyncSlotByHash?.(syncSlotHash);
         await window.BuddyCloud?.refreshSyncSlotStatus?.();
         if (window.showToast) {
-            window.showToast(released ? 'Buddy Cloud sync slot released.' : 'That sync slot was already clear.');
+            window.showToast(released ? 'Cloud Sync slot released.' : 'That sync slot was already clear.');
         }
         return 'back-to-devices';
     }
@@ -4261,15 +4261,15 @@ async function handleBuddyCloudDeviceAction(action) {
         }
         if (transferAction !== 'replace-slot') return;
         const result = await completeBuddyCloudEnableFlow({ replaceSyncSlot: true });
-        if (result && window.showToast) window.showToast('This browser is now the active Buddy Cloud browser.');
+        if (result && window.showToast) window.showToast('This browser is now the active Cloud Sync browser.');
         return;
     }
 
     if (action === 'activate-sync-slot') {
-        recordSyncEvent('Activating this browser for Buddy Cloud...', 'syncing');
+        recordSyncEvent('Activating this browser for Cloud Sync...', 'syncing');
         await window.BuddyCloud?.syncNow?.();
         await refreshBrowserAccessRegistry({ silent: true });
-        if (window.showToast) window.showToast('This browser is now using an available Buddy Cloud sync slot.');
+        if (window.showToast) window.showToast('This browser is now using an available Cloud Sync slot.');
         return 'back-to-devices';
     }
 
@@ -4285,7 +4285,7 @@ async function handleBuddyCloudDeviceAction(action) {
         const ok = await confirmBuddyCloudUpload();
         if (!ok) return 'back-to-devices';
         await window.BuddyCloud.forcePush();
-        if (window.showToast) window.showToast('This browser version is now synced to Buddy Cloud.');
+        if (window.showToast) window.showToast('This browser version is now synced to Cloud Sync.');
         return;
     }
 
@@ -4300,7 +4300,7 @@ async function handleBuddyCloudDeviceAction(action) {
         try {
             await window.BuddyCloud?.releaseOtherSyncSlots?.();
         } catch (error) {
-            console.warn('[Device Management] Could not release other Buddy Cloud sync slots:', error);
+            console.warn('[Device Management] Could not release other Cloud Sync slots:', error);
         }
         if (!window.sb?.auth?.signOut) throw new Error('Sign out is not available.');
         await window.sb.auth.signOut({ scope: 'others' });
@@ -4325,7 +4325,7 @@ async function handleBuddyCloudDeviceAction(action) {
             try {
                 await window.BuddyCloud?.clearSyncSlots?.();
             } catch (error) {
-                console.warn('[Device Management] Could not clear Buddy Cloud sync slots:', error);
+                console.warn('[Device Management] Could not clear Cloud Sync slots:', error);
             }
             try {
                 await revokeAllBrowserAccess();
@@ -7149,7 +7149,7 @@ function legacyRenderRecentTransactionsV3() {
     let txs = State.getTransactions() || [];
     const symbol = State.getSymbol ? State.getSymbol() : '$';
 
-    // 1. Exclude soft-deleted items (Buddy Cloud)
+    // 1. Exclude soft-deleted items (Cloud Sync)
     txs = txs.filter(tx => !tx.isDeleted);
 
     // 2. Apply Text Search Filter (Search Bar)
@@ -13230,7 +13230,7 @@ function syncAccountRecoveryUi() {
         el.innerHTML = `
             <div class="account-recovery-copy">
                 <div class="account-recovery-title">Recovery key required</div>
-                <div class="account-recovery-message">Import your recovery key to reconnect this browser to Buddy Cloud.</div>
+                <div class="account-recovery-message">Import your recovery key to reconnect this browser to Cloud Sync.</div>
             </div>
             <button type="button" class="account-recovery-action" onclick="event.stopPropagation(); window.closeAccountModal(); window.showBuddyCloudRecoveryKey(event)">Import Key</button>
         `;
@@ -13240,8 +13240,8 @@ function syncAccountRecoveryUi() {
     const grace = getRecoveryKeyGraceState();
     const title = grace.expired ? 'Recovery key not saved' : 'Recovery key reminder';
     const message = grace.expired
-        ? 'Save it before relying on Buddy Cloud as your backup.'
-        : `Save it within ${formatGraceHours(grace.remainingMs)}. Buddy Cloud stays active during this grace period.`;
+        ? 'Save it before relying on Cloud Sync as your backup.'
+        : `Save it within ${formatGraceHours(grace.remainingMs)}. Cloud Sync stays active during this grace period.`;
 
     el.hidden = false;
     el.classList.remove('is-required');
@@ -13625,13 +13625,13 @@ export async function handleStripeCheckoutReturn() {
     return false;
 }
 
-// Check if free Buddy Cloud sync is active on this signed-in device
+// Check if free Cloud Sync is active on this signed-in device
 window.hasBuddyCloud = function() {
     const status = window.BuddyCloud?.getStatus?.() || {};
     return Boolean(status.signedIn && status.enabled);
 };
 
-// The standardized Buddy Cloud gatekeeper
+// The standardized Cloud Sync gatekeeper
 window.checkBuddyCloudAccess = function(featureName, actionCallback) {
     if (window.hasBuddyCloud()) {
         actionCallback();
@@ -13640,7 +13640,7 @@ window.checkBuddyCloudAccess = function(featureName, actionCallback) {
             window.location.href = 'login.html';
             return;
         }
-        recordSyncEvent(`${featureName || 'Buddy Cloud'} needs free cloud sync enabled first.`, 'error');
+        recordSyncEvent(`${featureName || 'Cloud Sync'} needs free cloud sync enabled first.`, 'error');
         window.openSyncHistoryPanel?.();
     }
 };
@@ -13663,7 +13663,7 @@ window.openUpgradeModal = function(featureName = 'this premium feature') {
     modal.innerHTML = `
         <div class="modal-content" style="width: 100%; max-width: 380px; background: var(--surface); border-radius: 24px; padding: 2rem; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.3); animation: popIn 0.3s ease-out;">
             <div style="font-size: 3.5rem; margin-bottom: 0.5rem;">☁️</div>
-            <h2 style="margin: 0 0 0.5rem 0; color: var(--text); font-size: 1.5rem;">Unlock Buddy Cloud</h2>
+            <h2 style="margin: 0 0 0.5rem 0; color: var(--text); font-size: 1.5rem;">Unlock Cloud Sync</h2>
 
             <p style="color: var(--text-dim); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.5rem;">
                 Keep your deleted transactions safe for 30 days, unlock <strong>${featureName}</strong>, and never lose your data again.
@@ -13756,7 +13756,7 @@ window.activateBuddyCloudDev = function() {
 
 // ==========================================
 // 🗑️ DELETION LOGIC (Spec 2.3 & 8.1)
-// Hard Delete (Free) vs Soft Delete (Buddy Cloud)
+// Hard Delete (Free) vs Soft Delete (Cloud Sync)
 // ==========================================
 
 window.deleteTransaction = function(txId) {
@@ -13773,7 +13773,7 @@ window.deleteTransaction = function(txId) {
     const txIndex = transactions.findIndex(t => t.id === txId);
     if (txIndex === -1) return; // Failsafe: Transaction not found
 
-    // 2. PREMIUM FLOW: Soft Delete (Buddy Cloud)
+    // 2. PREMIUM FLOW: Soft Delete (Cloud Sync)
     if (window.hasBuddyCloud()) {
         // Flag it as deleted, do not remove it from the array
         transactions[txIndex].isDeleted = true;
@@ -13912,7 +13912,7 @@ function legacyRenderRecentTransactionsV2() {
         allTx = readLegacyStorageArray(LEGACY_STORAGE_KEYS.transactions, 'legacyRenderRecentTransactionsV2 fallback');
     }
 
-    // Filter out Buddy Cloud soft-deleted items
+    // Filter out Cloud Sync soft-deleted items
     let visibleTx = allTx.filter(tx => !tx.isDeleted);
 
     // 2. The Bulletproof Search Filter
@@ -14193,7 +14193,7 @@ export function renderBulkActionBar() {
     `;
 }
 
-// Mass-Delete Engine (Respects Buddy Cloud tiers)
+// Mass-Delete Engine (Respects Cloud Sync tiers)
 export function bulkDeleteTransactions() {
     if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('delete transactions')) return;
 
@@ -16881,7 +16881,7 @@ function getAccountDeletionScopeHtml(email, authContextCopy) {
         <div class="buddy-cloud-assurance buddy-cloud-account-delete-scope">
             <p>BudgetBuddy will delete:</p>
             <ul>
-                <li>Encrypted Buddy Cloud vault</li>
+                <li>Encrypted Cloud Sync vault</li>
                 <li>Encrypted version-history snapshots</li>
                 <li>Device/browser access records</li>
                 <li>Inactive billing profile</li>
@@ -16896,7 +16896,7 @@ function getAccountDeletionWarningHtml() {
     return `
         <div class="warning-box buddy-cloud-warning buddy-cloud-account-delete-warning">
             <p>Account deletion is permanent and cannot be undone.</p>
-            <p>BudgetBuddy cannot decrypt, restore, or recover a deleted Buddy Cloud vault, deleted snapshots, or a deleted account.</p>
+            <p>BudgetBuddy cannot decrypt, restore, or recover a deleted Cloud Sync vault, deleted snapshots, or a deleted account.</p>
             <p>If you have an active Stripe subscription, you must cancel it in Stripe before account deletion can be completed. Stripe may retain billing records required for payments, taxes, legal compliance, or dispute handling.</p>
             <p>Browser-only copies on other devices may remain until that device's local site data is cleared.</p>
         </div>
@@ -17028,7 +17028,7 @@ async function clearBudgetBuddyBrowserSessionState(options = {}) {
         try {
             await window.BuddyCloud?.clearTrustedKeys?.({ all: true });
         } catch (error) {
-            console.warn('[Buddy Cloud] Could not clear trusted browser key storage:', error);
+            console.warn('[Cloud Sync] Could not clear trusted browser key storage:', error);
         }
     }
 
@@ -17595,7 +17595,7 @@ async function invokeAccountDeleteFunction(options = {}) {
     if (!window.sb?.functions?.invoke || !window.currentUser) {
         throw new Error(deleteAuthUser
             ? 'Please sign in before deleting your BudgetBuddy account.'
-            : 'Please sign in before resetting Buddy Cloud.');
+            : 'Please sign in before resetting Cloud Sync.');
     }
 
     const { data, error } = await window.sb.functions.invoke(ACCOUNT_DELETE_FUNCTION, {
@@ -17604,7 +17604,7 @@ async function invokeAccountDeleteFunction(options = {}) {
     if (error) {
         const details = await readSupabaseFunctionErrorDetails(error, deleteAuthUser
             ? 'Account deletion is temporarily unavailable. Please try again.'
-            : 'Buddy Cloud reset is temporarily unavailable. Please try again.');
+            : 'Cloud Sync reset is temporarily unavailable. Please try again.');
         throw createFunctionError(details);
     }
 
@@ -17685,23 +17685,23 @@ async function runAccountDeletionBillingPreflight() {
 async function askResetBuddyCloudConfirmation() {
     const result = await showBuddyCloudModal({
         eyebrow: 'Account Security',
-        title: 'Reset Buddy Cloud?',
-        body: 'Use this only when the recovery key is lost and you need to start Buddy Cloud over for this sign-in.',
-        assurance: 'This removes the encrypted Buddy Cloud vault and encrypted version-history snapshots from Supabase. Your Supabase login stays active, and BudgetBuddy cannot decrypt or recover the old cloud budget.',
-        warning: 'This is permanent. BudgetBuddy will clear this browser back to a blank state. Your next Buddy Cloud setup will create a new encrypted vault and a new recovery key.',
+        title: 'Reset Cloud Sync?',
+        body: 'Use this only when the recovery key is lost and you need to start Cloud Sync over for this sign-in.',
+        assurance: 'This removes the encrypted Cloud Sync vault and encrypted version-history snapshots from Supabase. Your Supabase login stays active, and BudgetBuddy cannot decrypt or recover the old cloud budget.',
+        warning: 'This is permanent. BudgetBuddy will clear this browser back to a blank state. Your next Cloud Sync setup will create a new encrypted vault and a new recovery key.',
         inputLabel: 'Type DELETE to confirm',
         inputPlaceholder: 'DELETE',
         inputSingleLine: true,
         inputAutoUppercase: true,
         actions: [
             { id: 'cancel', label: 'Back', className: 'btn-cancel' },
-            { id: 'delete', label: 'Reset Buddy Cloud', className: 'btn-danger' }
+            { id: 'delete', label: 'Reset Cloud Sync', className: 'btn-danger' }
         ]
     });
 
     if (result.action !== 'delete') return false;
     if (result.value.toUpperCase() !== 'DELETE') {
-        if (window.showToast) window.showToast('Type DELETE to confirm Buddy Cloud reset.');
+        if (window.showToast) window.showToast('Type DELETE to confirm Cloud Sync reset.');
         return false;
     }
 
@@ -17967,7 +17967,7 @@ export async function handleDeleteAccount(e) {
     const confirmed = await askResetBuddyCloudConfirmation();
     if (!confirmed) return false;
 
-    showSessionClearingScreen('Clearing Session...', 'Resetting Buddy Cloud and clearing this browser.');
+    showSessionClearingScreen('Clearing Session...', 'Resetting Cloud Sync and clearing this browser.');
     try {
         await invokeAccountDeleteFunction();
         try {
@@ -17980,7 +17980,7 @@ export async function handleDeleteAccount(e) {
         return true;
     } catch (err) {
         hideSessionClearingScreen();
-        if (window.showToast) window.showToast(err?.message || 'Could not reset Buddy Cloud.');
+        if (window.showToast) window.showToast(err?.message || 'Could not reset Cloud Sync.');
         return false;
     }
 }
@@ -18006,10 +18006,10 @@ export function handleLogout(e) {
     const isOutsideFreeDeviceLimit = isBuddyCloudMultiDeviceLimit(cloudStatus);
     const noteParts = [];
     if (needsRecoveryKeyBackup) {
-        noteParts.push('This browser uses a local trusted Buddy Cloud key when available, but you still need a saved recovery key before clearing this browser.');
+        noteParts.push('This browser uses a local trusted Cloud Sync key when available, but you still need a saved recovery key before clearing this browser.');
     }
     if (isOutsideFreeDeviceLimit) {
-        noteParts.push('Final Buddy Cloud backup will be skipped because this browser is not an active Free sync device. Sign-out still works; unsynced edits on this browser will not be uploaded.');
+        noteParts.push('Final Cloud Sync backup will be skipped because this browser is not an active Free sync device. Sign-out still works; unsynced edits on this browser will not be uploaded.');
     }
     closeAccountModal();
     showAccountConfirmModal({
@@ -18119,42 +18119,42 @@ async function verifyBuddyCloudBeforeLogout(options = {}) {
     if (!status.signedIn || !status.enabled) return getSkippedBackupResult('not_enabled');
     if (!status.hasKey || !status.canUseCloud) {
         if (allowBackupSkip || !hasLocalBudgetChangesAfterVerifiedBuddyCloud()) {
-            recordSyncEvent('Final Buddy Cloud backup skipped because this browser cannot access Buddy Cloud, but no newer local budget changes were detected.', 'local');
+            recordSyncEvent('Final Cloud Sync backup skipped because this browser cannot access Cloud Sync, but no newer local budget changes were detected.', 'local');
             return getSkippedBackupResult(status.hasKey ? 'cloud_unavailable_no_local_changes' : 'cloud_key_unavailable_no_local_changes');
         }
         throw createLogoutBackupBlockedError(
             status.hasKey
-                ? 'Local changes on this browser have not been backed up to Buddy Cloud. Refresh or sync before signing out.'
-                : 'Local changes on this browser have not been backed up to Buddy Cloud. Import your recovery key or sync before signing out.',
+                ? 'Local changes on this browser have not been backed up to Cloud Sync. Refresh or sync before signing out.'
+                : 'Local changes on this browser have not been backed up to Cloud Sync. Import your recovery key or sync before signing out.',
             status.hasKey ? 'cloud_unavailable_local_changes' : 'cloud_key_unavailable_local_changes'
         );
     }
     if (hasBuddyCloudConflict(status)) {
         if (allowBackupSkip) {
-            recordSyncEvent('Final Buddy Cloud backup skipped because saved versions need review. Sign-out is allowed.', 'local');
+            recordSyncEvent('Final Cloud Sync backup skipped because saved versions need review. Sign-out is allowed.', 'local');
             return getSkippedBackupResult('cloud_conflict');
         }
-        throw new Error('Review saved versions before signing out. Sign-out was stopped so Buddy Cloud does not overwrite the wrong budget.');
+        throw new Error('Review saved versions before signing out. Sign-out was stopped so Cloud Sync does not overwrite the wrong budget.');
     }
     if (isBuddyCloudMultiDeviceLimit(status)) {
-        recordSyncEvent('Final Buddy Cloud backup skipped because this browser is not an active Free sync device. Sign-out is allowed.', 'local');
+        recordSyncEvent('Final Cloud Sync backup skipped because this browser is not an active Free sync device. Sign-out is allowed.', 'local');
         return getSkippedBackupResult('free_sync_slot_limit');
     }
 
-    recordSyncEvent('Backing up Buddy Cloud before sign-out...', 'syncing');
+    recordSyncEvent('Backing up Cloud Sync before sign-out...', 'syncing');
     try {
         await window.BuddyCloud.forcePush();
     } catch (error) {
         if (isBuddyCloudMultiDeviceLimit(error)) {
-            recordSyncEvent('Final Buddy Cloud backup skipped because this browser is not an active Free sync device. Sign-out is allowed.', 'local');
+            recordSyncEvent('Final Cloud Sync backup skipped because this browser is not an active Free sync device. Sign-out is allowed.', 'local');
             return getSkippedBackupResult('free_sync_slot_limit');
         }
         if (allowBackupSkip) {
-            recordSyncEvent('Final Buddy Cloud backup skipped because backup verification failed. Sign-out is allowed.', 'local');
+            recordSyncEvent('Final Cloud Sync backup skipped because backup verification failed. Sign-out is allowed.', 'local');
             return getSkippedBackupResult('backup_failed');
         }
         throw createLogoutBackupBlockedError(
-            error?.message || 'Buddy Cloud backup failed before sign-out.',
+            error?.message || 'Cloud Sync backup failed before sign-out.',
             'backup_failed'
         );
     }
@@ -18163,15 +18163,15 @@ async function verifyBuddyCloudBeforeLogout(options = {}) {
     const lastPushedAt = localStorage.getItem('bb_cloud_last_pushed_at') || '';
     if (localUpdatedAt && lastPushedAt && localUpdatedAt !== lastPushedAt) {
         if (allowBackupSkip) {
-            recordSyncEvent('Final Buddy Cloud backup skipped because backup verification did not complete. Sign-out is allowed.', 'local');
+            recordSyncEvent('Final Cloud Sync backup skipped because backup verification did not complete. Sign-out is allowed.', 'local');
             return getSkippedBackupResult('backup_not_verified');
         }
         throw createLogoutBackupBlockedError(
-            'Buddy Cloud backup did not verify. Sign-out was stopped so local budget data is not cleared before cloud backup catches up.',
+            'Cloud Sync backup did not verify. Sign-out was stopped so local budget data is not cleared before cloud backup catches up.',
             'backup_not_verified'
         );
     }
-    recordSyncEvent('Buddy Cloud backup completed before sign-out.', 'synced');
+    recordSyncEvent('Cloud Sync backup completed before sign-out.', 'synced');
     return { backedUp: true, skipped: false, reason: '' };
 }
 
@@ -18198,14 +18198,14 @@ async function showLogoutBackupBlockedModal(error) {
     const reason = String(error?.reason || '');
     const hasUnbackedLocalChanges = reason.includes('local_changes');
     const result = await showBuddyCloudModal({
-        eyebrow: 'Buddy Cloud Backup',
+        eyebrow: 'Cloud Sync Backup',
         title: hasUnbackedLocalChanges ? 'Local Changes Not Backed Up' : 'Backup Not Verified',
         compact: true,
-        body: error?.message || 'Buddy Cloud could not verify this browser before sign-out.',
+        body: error?.message || 'Cloud Sync could not verify this browser before sign-out.',
         assurance: hasUnbackedLocalChanges
-            ? 'Best path: get Buddy Cloud active on this browser, then sign out after the encrypted backup is verified.'
-            : 'Best path: import your recovery key or sync Buddy Cloud, then sign out after the encrypted backup is verified.',
-        warning: 'If you continue without backup, this browser will be cleared and any local changes not already in Buddy Cloud may be lost.',
+            ? 'Best path: get Cloud Sync active on this browser, then sign out after the encrypted backup is verified.'
+            : 'Best path: import your recovery key or sync Cloud Sync, then sign out after the encrypted backup is verified.',
+        warning: 'If you continue without backup, this browser will be cleared and any local changes not already in Cloud Sync may be lost.',
         actions: [
             { id: 'back', label: 'Back', className: 'btn-cancel' },
             { id: 'recovery-help', label: 'Recovery Help', className: 'btn-cancel' },

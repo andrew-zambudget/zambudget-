@@ -30,7 +30,7 @@ async function createExpenseFromAddTab(page, description = 'Local status smoke')
     }, categoryName);
 }
 
-test.describe('Buddy Cloud local save status', () => {
+test.describe('Cloud Sync local save status', () => {
     test.beforeEach(async ({ page }) => {
         await installSignedOutSupabaseStub(page);
         await resetBrowserStorage(page);
@@ -44,7 +44,7 @@ test.describe('Buddy Cloud local save status', () => {
 
         await expect(page.locator('#syncStatusBtn')).toHaveAttribute(
             'aria-label',
-            /Saved locally\. Buddy Cloud not active/
+            /Saved locally\. Cloud Sync not active/
         );
     });
 
@@ -57,7 +57,7 @@ test.describe('Buddy Cloud local save status', () => {
 
         await expect(page.locator('#syncStatusBtn')).toHaveAttribute(
             'aria-label',
-            /Offline - saved locally\. Not backed up to Buddy Cloud/
+            /Offline - saved locally\. Not backed up to Cloud Sync/
         );
 
         await context.setOffline(false);

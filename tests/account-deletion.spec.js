@@ -39,7 +39,7 @@ test.describe('account deletion safeguards', () => {
         await expect(modal).toContainText('Google connected-app settings');
         await expect(modal.locator('.buddy-cloud-account-delete-scope')).toContainText('BudgetBuddy will delete:');
         await expect(modal.locator('.buddy-cloud-account-delete-scope li')).toHaveText([
-            'Encrypted Buddy Cloud vault',
+            'Encrypted Cloud Sync vault',
             'Encrypted version-history snapshots',
             'Device/browser access records',
             'Inactive billing profile',
@@ -47,7 +47,7 @@ test.describe('account deletion safeguards', () => {
         ]);
         await expect(modal).toContainText('Household or family memberships are not currently stored');
         await expect(modal.locator('.buddy-cloud-account-delete-warning')).toContainText('Account deletion is permanent and cannot be undone.');
-        await expect(modal.locator('.buddy-cloud-account-delete-warning')).toContainText('BudgetBuddy cannot decrypt, restore, or recover a deleted Buddy Cloud vault, deleted snapshots, or a deleted account.');
+        await expect(modal.locator('.buddy-cloud-account-delete-warning')).toContainText('BudgetBuddy cannot decrypt, restore, or recover a deleted Cloud Sync vault, deleted snapshots, or a deleted account.');
         await expect(modal.locator('.buddy-cloud-account-delete-warning')).toContainText('If you have an active Stripe subscription, you must cancel it in Stripe before account deletion can be completed.');
         await expect(modal.locator('.buddy-cloud-account-delete-warning')).toContainText("Browser-only copies on other devices may remain until that device's local site data is cleared.");
         await expect(page.locator('#buddyCloudModalInput')).toHaveAttribute('placeholder', 'DELETE ACCOUNT');
@@ -166,7 +166,7 @@ test.describe('account deletion safeguards', () => {
         await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Settings');
         await expect(modal.getByRole('button', { name: 'Advanced Features' })).toBeVisible();
         await expect(modal.getByRole('button', { name: 'Version History' })).toHaveCount(0);
-        await expect(modal.getByRole('button', { name: 'Reset Buddy Cloud' })).toHaveCount(0);
+        await expect(modal.getByRole('button', { name: 'Reset Cloud Sync' })).toHaveCount(0);
         await expect(modal.getByRole('button', { name: 'Delete Account' })).toHaveCount(0);
 
         await modal.getByRole('button', { name: 'Advanced Features' }).click();
@@ -174,7 +174,7 @@ test.describe('account deletion safeguards', () => {
         await expect(modal).toContainText('These tools can restore, replace, reset, or permanently delete account data.');
         await expect(modal).toContainText('Some actions can replace the current budget');
         await expect(modal.getByRole('button', { name: 'Version History' })).toBeVisible();
-        await expect(modal.getByRole('button', { name: 'Reset Buddy Cloud' })).toBeVisible();
+        await expect(modal.getByRole('button', { name: 'Reset Cloud Sync' })).toBeVisible();
         await expect(modal.getByRole('button', { name: 'Delete Account' })).toBeVisible();
 
         await modal.getByRole('button', { name: 'Back to Settings' }).click();

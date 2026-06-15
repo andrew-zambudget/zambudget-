@@ -176,7 +176,7 @@ async function runTrustedSignInScenario(page, { localAmount = 42 } = {}) {
     });
 }
 
-test.describe('Buddy Cloud conflict sensitivity', () => {
+test.describe('Cloud Sync conflict sensitivity', () => {
     test.beforeEach(async ({ page }) => {
         await resetStorage(page);
     });
@@ -295,7 +295,7 @@ test.describe('Buddy Cloud conflict sensitivity', () => {
         expect(result.vaultCreated).toBe(true);
     });
 
-    test('status reports local changes newer than verified Buddy Cloud', async ({ page }) => {
+    test('status reports local changes newer than verified Cloud Sync', async ({ page }) => {
         const result = await page.evaluate(async ({ stateModulePath, cloudModulePath }) => {
             const State = await import(stateModulePath);
             const Cloud = await import(cloudModulePath);
@@ -392,7 +392,7 @@ test.describe('Buddy Cloud conflict sensitivity', () => {
         expect(result.hasUnverifiedLocalChanges).toBe(true);
         expect(result.lastVerifiedCloudAt).toBe('2026-06-13T18:00:00.000Z');
         expect(Date.parse(result.localUpdatedAt)).toBeGreaterThan(Date.parse(result.lastVerifiedCloudAt));
-        expect(result.lastError).toContain('Import your Buddy Cloud recovery key');
+        expect(result.lastError).toContain('Import your Cloud Sync recovery key');
     });
 
     test('trusted sign-in pulls cloud when local copy only has volatile timestamp noise', async ({ page }) => {

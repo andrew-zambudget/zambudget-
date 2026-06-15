@@ -38,7 +38,7 @@
             </div>
 
             <div class="sync-status-wrap">
-                <button type="button" id="syncStatusBtn" class="sync-status-indicator sync-status-local" onclick="window.openSyncHistoryPanel(event)" aria-label="Buddy Cloud sync status: Saved partially. Open sync history." aria-haspopup="dialog" aria-expanded="false" aria-controls="syncHistoryPanel" data-tooltip="Saved partially">
+                <button type="button" id="syncStatusBtn" class="sync-status-indicator sync-status-local" onclick="window.openSyncHistoryPanel(event)" aria-label="Cloud Sync status: Saved partially. Open sync history." aria-haspopup="dialog" aria-expanded="false" aria-controls="syncHistoryPanel" data-tooltip="Saved partially">
                     <span class="sync-status-mark" aria-hidden="true">
                         <svg viewBox="0 0 24 24" focusable="false">
                             <path d="M17.5 19H8a5 5 0 0 1-.86-9.93A6.5 6.5 0 0 1 19.42 11.5H20a3.75 3.75 0 0 1 0 7.5h-2.5"></path>
@@ -49,7 +49,7 @@
                 <div class="sync-history-panel sync-history-popover" id="syncHistoryPanel" role="dialog" aria-modal="false" aria-labelledby="syncHistoryTitle" aria-hidden="true" hidden>
                     <div class="sync-history-header">
                         <div>
-                            <div class="sync-history-kicker">Buddy Cloud</div>
+                            <div class="sync-history-kicker">Cloud Sync</div>
                             <h2 id="syncHistoryTitle" class="sync-history-title">Sync History</h2>
                             <div class="help-text">Last 5 save and sync events.</div>
                         </div>
@@ -60,9 +60,9 @@
                     </div>
                     <div class="sync-cloud-nudge" id="syncCloudNudge" role="note">
                         <div class="sync-cloud-nudge-title">Saved partially</div>
-                        <p>Clearing browser or site data can remove a browser-only budget. Sign in to protect it with Buddy Cloud.</p>
+                        <p>Clearing browser or site data can remove a browser-only budget. Sign in to protect it with Cloud Sync.</p>
                     </div>
-                    <div class="sync-cloud-actions" id="syncCloudActions" aria-label="Buddy Cloud controls">
+                    <div class="sync-cloud-actions" id="syncCloudActions" aria-label="Cloud Sync controls">
                         <button type="button" class="sync-cloud-btn sync-cloud-primary" id="syncEnableBtn" onclick="window.enableBuddyCloudSync(event)">Set Up</button>
                         <button type="button" class="sync-cloud-btn" id="syncKeyBtn" onclick="window.showBuddyCloudRecoveryKey(event)">Recovery Key</button>
                         <div class="sync-cloud-footer">
@@ -87,7 +87,7 @@
     <section class="beta-support-strip" aria-label="BudgetBuddy beta signups">
         <div class="beta-support-copy">
             <strong>Beta signups are open.</strong>
-            <span>Help test BudgetBuddy and fund continued work on reliability, billing, and Buddy Cloud.</span>
+            <span>Help test BudgetBuddy and fund continued work on reliability, billing, and Cloud Sync.</span>
         </div>
         <div class="beta-support-actions">
             <a href="https://app.budget-buddy.io/login" class="beta-support-primary" id="betaSupportPrimaryAction">Join Beta</a>

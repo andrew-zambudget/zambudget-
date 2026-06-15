@@ -72,14 +72,14 @@
 
     <main id="main">
         <h1 class="page-title">Privacy Policy</h1>
-        <p class="page-subtitle">Last updated: June 14, 2026</p>
+        <p class="page-subtitle">Last updated: June 15, 2026</p>
 
         <div class="section">
             <h2 class="section-title">Our Promise to You</h2>
             <div class="section-body">
                 <p>BudgetBuddy is built with privacy as a core principle, not an afterthought. Your financial data is some of the most sensitive information in your life, and we treat it that way.</p>
                 <div class="highlight-box green">
-                    <strong>Simple truth:</strong> Your data belongs to you. We don't sell it, and we can't read your budget. When you sign in, Buddy Cloud is the default protection path and stores only an encrypted vault that requires your recovery key.
+                    <strong>Simple truth:</strong> Your data belongs to you. We don't sell it, and we can't read your budget. When you sign in, Cloud Sync is the default protection path and stores only an encrypted vault that requires your recovery key.
                 </div>
             </div>
         </div>
@@ -101,33 +101,33 @@
         <div class="section">
             <h2 class="section-title">What We Store and Where</h2>
             <div class="section-body">
-                <p>BudgetBuddy has two storage modes: signed-in Buddy Cloud protection and browser-only storage.</p>
+                <p>BudgetBuddy has two storage modes: signed-in Cloud Sync protection and browser-only storage.</p>
                 <ul>
-                    <li><strong>Signed in:</strong> Buddy Cloud is the default protection path. Your budget is encrypted on your device before upload, then stored as an encrypted vault.</li>
+                    <li><strong>Signed in:</strong> Cloud Sync is the default protection path. Your budget is encrypted on your device before upload, then stored as an encrypted vault.</li>
                     <li><strong>Browser-only:</strong> If you use BudgetBuddy without signing in, budget data stays only in that browser's localStorage.</li>
-                    <li><strong>Trusted browser key:</strong> After Buddy Cloud setup or recovery-key import, this browser may store a non-extractable WebCrypto key in IndexedDB so refreshes can keep syncing without asking for the recovery key again. The raw recovery key is not stored in localStorage and cannot be displayed from this trusted key. BudgetBuddy does not upload this trusted key or include it in device-management records, but app code running in this browser can use it locally to encrypt and decrypt your Buddy Cloud vault while you are signed in.</li>
+                    <li><strong>Trusted browser key:</strong> After Cloud Sync setup or recovery-key import, this browser may store a non-extractable WebCrypto key in IndexedDB so refreshes can keep syncing without asking for the recovery key again. The raw recovery key is not stored in localStorage and cannot be displayed from this trusted key. BudgetBuddy does not upload this trusted key or include it in device-management records, but app code running in this browser can use it locally to encrypt and decrypt your Cloud Sync vault while you are signed in.</li>
                     <li><strong>Gift card merchant metadata cache:</strong> If you use gift-card merchant hints, BudgetBuddy downloads one full merchant metadata bundle to this browser. Merchant searches, suggestion filtering, and selections happen locally; BudgetBuddy does not send individual merchant search terms or suggestion choices to a server. You can clear this cache in Global Settings.</li>
                     <li>No servers store readable financial information, transactions, balances, budgets, categories, descriptions, notes, gift-card card numbers, gift-card balances, gift-card expiration dates, or amounts.</li>
                 </ul>
-                <p><strong>Note on browser-only budgets:</strong> Clearing browser data, site data, storage, or using privacy-cleanup tools can remove a browser-only budget. BudgetBuddy cannot recover browser-only budgets after browser/device storage is lost. Signing in uses Buddy Cloud as the default encrypted backup path.</p>
+                <p><strong>Note on browser-only budgets:</strong> Clearing browser data, site data, storage, or using privacy-cleanup tools can remove a browser-only budget. BudgetBuddy cannot recover browser-only budgets after browser/device storage is lost. Signing in uses Cloud Sync as the default encrypted backup path.</p>
             </div>
         </div>
 
         <div class="section">
-            <h2 class="section-title">Buddy Cloud Sync</h2>
+            <h2 class="section-title">Cloud Sync</h2>
             <div class="section-body">
-                <p>Buddy Cloud is the default protection path for signed-in BudgetBuddy accounts. Free Tier includes two active Buddy Cloud sync slots for browser sync. Premium adds Multi-Device Sync Plus for unlimited active browser sync.</p>
+                <p>Cloud Sync is the default protection path for signed-in BudgetBuddy accounts. Free Tier includes two active Cloud Sync slots for browser sync. Premium adds Multi-Device Sync Plus for unlimited active browser sync.</p>
                 <ul>
-                    <li><strong>Enabled by signing in:</strong> Signing in means BudgetBuddy will use Buddy Cloud to protect your budget by default. You can still use BudgetBuddy without signing in, but browser-only budgets have no recovery support if local storage is lost.</li>
+                    <li><strong>Enabled by signing in:</strong> Signing in means BudgetBuddy will use Cloud Sync to protect your budget by default. You can still use BudgetBuddy without signing in, but browser-only budgets have no recovery support if local storage is lost.</li>
                     <li><strong>Encrypted before upload:</strong> Your budget is encrypted on your device before it leaves. The server stores encrypted blobs, not readable transactions, balances, budgets, categories, descriptions, notes, gift-card card numbers, gift-card balances, gift-card expiration dates, or amounts.</li>
                     <li><strong>Encrypted version history:</strong> If you use Cloud Version History, BudgetBuddy stores encrypted vault snapshots so you can restore a previous budget version. Free accounts keep the newest encrypted safety snapshot. Premium accounts keep the newest 10 encrypted snapshots. Snapshot contents are encrypted client-side before storage. Associated metadata may include snapshot timestamps, schema/encryption version, checksum, and restore/sync status text.</li>
-                    <li><strong>Recovery key required:</strong> Your Buddy Cloud recovery key decrypts your cloud budget on another device. A trusted browser key can help this browser keep syncing after refresh, but it is not a recovery-key backup and cannot be displayed as the recovery-key text. Store the recovery key somewhere safe. If you lose it and no signed-in trusted browser still has access, we cannot recover or decrypt your synced budget for you.</li>
+                    <li><strong>Recovery key required:</strong> Your Cloud Sync recovery key decrypts your cloud budget on another device. A trusted browser key can help this browser keep syncing after refresh, but it is not a recovery-key backup and cannot be displayed as the recovery-key text. Store the recovery key somewhere safe. If you lose it and no signed-in trusted browser still has access, we cannot recover or decrypt your synced budget for you.</li>
                     <li><strong>Minimal sync metadata:</strong> To enforce the Free Tier sync slot limit, we store opaque hashes of locally generated sync slot tokens and sync slot timestamps. We do not store device names, user agents, IP-derived locations, or readable budget data for this feature.</li>
-                    <li><strong>Device management metadata:</strong> If you use Account &gt; Devices, BudgetBuddy keeps privacy-minimal browser access records so you can revoke known browsers and release unmatched Free Tier sync slots. Free sync slots work like active browser leases: if a browser does not check in for 60 minutes, the slot can be released automatically. These records contain opaque browser hashes, timestamps, and an optional link to an existing opaque Buddy Cloud sync slot hash. The sync slot link duplicates the same privacy-minimal sync slot hash already used for Free Tier slot accounting; it is not a new device identifier. These records do not contain device names, browser user agents, IP-derived locations, transaction data, balances, budgets, categories, descriptions, notes, gift-card card numbers, gift-card balances, gift-card expiration dates, amounts, or recovery keys.</li>
-                    <li><strong>You control it:</strong> You can use browser-only mode by not signing in, export your data, sign out and clear this browser, or reset Buddy Cloud for your account.</li>
+                    <li><strong>Device management metadata:</strong> If you use Account &gt; Devices, BudgetBuddy keeps privacy-minimal browser access records so you can revoke known browsers and release unmatched Free Tier sync slots. Free sync slots work like active browser leases: if a browser does not check in for 60 minutes, the slot can be released automatically. These records contain opaque browser hashes, timestamps, and an optional link to an existing opaque Cloud Sync slot hash. The sync slot link duplicates the same privacy-minimal sync slot hash already used for Free Tier slot accounting; it is not a new device identifier. These records do not contain device names, browser user agents, IP-derived locations, transaction data, balances, budgets, categories, descriptions, notes, gift-card card numbers, gift-card balances, gift-card expiration dates, amounts, or recovery keys.</li>
+                    <li><strong>You control it:</strong> You can use browser-only mode by not signing in, export your data, sign out and clear this browser, or reset Cloud Sync for your account.</li>
                 </ul>
                 <div class="highlight-box blue">
-                    <strong>Important:</strong> Signing in is your consent for BudgetBuddy to protect your budget with Buddy Cloud by default. The cloud provider receives encrypted vault data only; BudgetBuddy does not hold your recovery key and cannot read your budget.
+                    <strong>Important:</strong> Signing in is your consent for BudgetBuddy to protect your budget with Cloud Sync by default. The cloud provider receives encrypted vault data only; BudgetBuddy does not hold your recovery key and cannot read your budget.
                 </div>
             </div>
         </div>
@@ -138,12 +138,12 @@
                 <p>BudgetBuddy uses minimal third-party services. Here is the complete list:</p>
                 <ul>
                     <li><strong>Authentication and account email services</strong> (Supabase Auth, Google OAuth, Proton SMTP, and email magic links) - These services verify your identity, send sign-in and account-security email, and support signed-in sessions. Apple sign-in is visible as paused until demand justifies enabling it.</li>
-                    <li><strong>Hosting and cloud infrastructure</strong> (Cloudflare and Supabase) - These providers host the app and store encrypted Buddy Cloud data on our behalf. They cannot read your budget because it is encrypted before it reaches their servers.</li>
+                    <li><strong>Hosting and cloud infrastructure</strong> (Cloudflare and Supabase) - These providers host the app and store encrypted Cloud Sync data on our behalf. They cannot read your budget because it is encrypted before it reaches their servers.</li>
                     <li><strong>Payments</strong> (Stripe) - Payments are processed by Stripe. BudgetBuddy does not receive or store full card numbers. Stripe receives payment, device, fraud-prevention, and checkout data under Stripe's privacy and legal terms.</li>
                 </ul>
                 <p>Operational providers may process or retain service metadata needed for security, abuse prevention, rate limiting, debugging, compliance, legal response, fraud prevention, payment processing, email delivery, and service reliability. This may include, without limitation, Supabase Auth audit events, Supabase platform or log explorer entries, Cloudflare audit and security metadata depending on enabled features, Proton or Supabase SMTP delivery metadata, Stripe billing or payment records, IP addresses, proxy headers such as x-real-ip or cf-connecting-ip, approximate country or region derived from network metadata, user agent and browser/device hints, request routes, request methods, response status codes, referrers, timestamps, session or account identifiers, OAuth provider metadata, and error or diagnostic events.</p>
-                <p>BudgetBuddy does not use these provider records to read budget contents, build advertising profiles, sell financial behavior, perform behavioral analytics, or create IP-based device identities. BudgetBuddy-owned Buddy Cloud device and sync records remain privacy-minimal and do not intentionally store device names, browser user agents, IP-derived locations, readable budget data, or recovery keys. Provider records are controlled by the relevant provider's retention, security, legal, abuse-prevention, and compliance practices, and some provider logs may not be manually deletable by BudgetBuddy.</p>
-                <p>Our infrastructure, authentication, email, and payment providers may be subject to U.S. federal, state, local, or other lawful requests, including legal process such as subpoenas or court orders. If legally required and available, information that may be provided can include, without limitation, account records, billing records, authentication records, operational metadata, request or security logs, IP-related metadata, provider delivery metadata, encrypted vault data, and encrypted version-history snapshots if present. BudgetBuddy does not hold your Buddy Cloud recovery key and cannot decrypt your synced budget contents.</p>
+                <p>BudgetBuddy does not use these provider records to read budget contents, build advertising profiles, sell financial behavior, perform behavioral analytics, or create IP-based device identities. BudgetBuddy-owned Cloud Sync device and sync records remain privacy-minimal and do not intentionally store device names, browser user agents, IP-derived locations, readable budget data, or recovery keys. Provider records are controlled by the relevant provider's retention, security, legal, abuse-prevention, and compliance practices, and some provider logs may not be manually deletable by BudgetBuddy.</p>
+                <p>Our infrastructure, authentication, email, and payment providers may be subject to U.S. federal, state, local, or other lawful requests, including legal process such as subpoenas or court orders. If legally required and available, information that may be provided can include, without limitation, account records, billing records, authentication records, operational metadata, request or security logs, IP-related metadata, provider delivery metadata, encrypted vault data, and encrypted version-history snapshots if present. BudgetBuddy does not hold your Cloud Sync recovery key and cannot decrypt your synced budget contents.</p>
                 <p>We will <strong>never</strong>:</p>
                 <ul>
                     <li>Sell your data to anyone, for any reason</li>
@@ -161,12 +161,12 @@
                 <ul>
                     <li><strong>Access</strong> - View all data stored in the app at any time (it's your data)</li>
                     <li><strong>Export</strong> - Download transaction data with CSV export</li>
-                    <li><strong>Delete</strong> - Clear your data locally, reset your encrypted Buddy Cloud vault, or delete your BudgetBuddy account</li>
+                    <li><strong>Delete</strong> - Clear your data locally, reset your encrypted Cloud Sync vault, or delete your BudgetBuddy account</li>
                     <li><strong>Use browser-only mode</strong> - Use BudgetBuddy without signing in, with no recovery support if local browser storage is lost</li>
-                    <li><strong>Leave</strong> - Stop using BudgetBuddy, clear this browser, reset Buddy Cloud, delete your account, or contact support for account/data questions</li>
+                    <li><strong>Leave</strong> - Stop using BudgetBuddy, clear this browser, reset Cloud Sync, delete your account, or contact support for account/data questions</li>
                 </ul>
-                <p>Deleting your BudgetBuddy account deletes the Supabase auth identity for that account, encrypted Buddy Cloud vault data, encrypted version-history snapshots, browser access records, and inactive billing profile records. BudgetBuddy does not currently store household or family memberships.</p>
-                <p>Account deletion requires a fresh login verification before the permanent deletion request runs. Active Stripe subscriptions must be cancelled through Stripe before account deletion can finish. Deleted Buddy Cloud vaults, deleted snapshots, deleted account identities, and lost recovery keys cannot be recovered by BudgetBuddy. Provider logs, security or audit records, request metadata, IP-related metadata, country or region metadata, user agent or browser/device hints, OAuth provider metadata, email delivery metadata, and billing or payment records may remain according to provider retention, legal, security, tax, dispute, fraud-prevention, or abuse-prevention requirements. Browser-only copies on other devices may remain only in those browsers until their local site data is cleared.</p>
+                <p>Deleting your BudgetBuddy account deletes the Supabase auth identity for that account, encrypted Cloud Sync vault data, encrypted version-history snapshots, browser access records, and inactive billing profile records. BudgetBuddy does not currently store household or family memberships.</p>
+                <p>Account deletion requires a fresh login verification before the permanent deletion request runs. Active Stripe subscriptions must be cancelled through Stripe before account deletion can finish. Deleted Cloud Sync vaults, deleted snapshots, deleted account identities, and lost recovery keys cannot be recovered by BudgetBuddy. Provider logs, security or audit records, request metadata, IP-related metadata, country or region metadata, user agent or browser/device hints, OAuth provider metadata, email delivery metadata, and billing or payment records may remain according to provider retention, legal, security, tax, dispute, fraud-prevention, or abuse-prevention requirements. Browser-only copies on other devices may remain only in those browsers until their local site data is cleared.</p>
                 <p>We don't make any of this difficult. Your data, your decision.</p>
             </div>
         </div>
@@ -208,7 +208,7 @@
         <div class="section">
             <h2 class="section-title">Changes to This Policy</h2>
             <div class="section-body">
-                <p>We may update this policy as the app evolves, especially while Buddy Cloud, billing, and beta support paths are being tested. When we do:</p>
+                <p>We may update this policy as the app evolves, especially while Cloud Sync, billing, and beta support paths are being tested. When we do:</p>
                 <ul>
                     <li>We will notify you clearly within the app</li>
                     <li>We will update the "Last updated" date at the top of this page</li>

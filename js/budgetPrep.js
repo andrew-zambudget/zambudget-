@@ -9,7 +9,7 @@ const LINE_ID = 'budgetPrepLine';
 const ROTATING_LINES = [
     'Giving every dollar a job.',
     'Lining up the decimal points.',
-    'Checking Buddy Cloud without peeking.',
+    'Checking Cloud Sync without peeking.',
     'Convincing categories to behave.',
     'Warming up the calculator.',
     'Making the math look calm.'

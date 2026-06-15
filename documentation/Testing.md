@@ -19,7 +19,7 @@ GitLab separates the always-on storage lifecycle suite from the optional authent
 
 Use a disposable Supabase user created only for automated testing. Do not use a personal account or a real customer account.
 
-The test signs in with the real Supabase browser client, loads `index.html`, verifies the signed-in app shell, checks that Buddy Cloud status is readable, then signs out and clears the isolated Playwright browser context. Loading the app can create or update normal account records for that test user, including private browser access and Buddy Cloud setup state. It does not add, edit, or delete budget transactions.
+The test signs in with the real Supabase browser client, loads `index.html`, verifies the signed-in app shell, checks that Cloud Sync status is readable, then signs out and clears the isolated Playwright browser context. Loading the app can create or update normal account records for that test user, including private browser access and Cloud Sync setup state. It does not add, edit, or delete budget transactions.
 
 Required environment variables:
 

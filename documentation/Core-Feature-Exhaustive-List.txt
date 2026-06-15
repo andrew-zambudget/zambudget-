@@ -4,10 +4,10 @@
 #          unless explicitly instructed by the user with "BREAK_GUARDRAIL" flag.
 
 ## MISSION_STATEMENT
-BudgetBuddy exists to provide a budgeting tool that can be used by anyone, with all core budgeting features available and a seamless experience. Privacy-first infrastructure and Buddy Cloud should reduce risk without creating paywalls around essential budgeting workflows.
+BudgetBuddy exists to provide a budgeting tool that can be used by anyone, with all core budgeting features available and a seamless experience. Privacy-first infrastructure and Cloud Sync should reduce risk without creating paywalls around essential budgeting workflows.
 
 ## LOCAL_ONLY_SUPPORT_POLICY
-Local-only budgets are allowed for privacy and offline use, but BudgetBuddy provides no recovery support for budgets saved only in browser/device storage. If a user clears browser data, clears site data, uses privacy-cleanup tools, loses access to the device/browser profile, or otherwise deletes local storage, BudgetBuddy cannot restore that local-only budget. Buddy Cloud and exports are the supported recovery paths.
+Local-only budgets are allowed for privacy and offline use, but BudgetBuddy provides no recovery support for budgets saved only in browser/device storage. If a user clears browser data, clears site data, uses privacy-cleanup tools, loses access to the device/browser profile, or otherwise deletes local storage, BudgetBuddy cannot restore that local-only budget. Cloud Sync and exports are the supported recovery paths.
 
 ## 1. TRANSACTION_MANAGEMENT_ENGINE
 - [MUST_IMPLEMENT] Add New Transaction (Dedicated Form)

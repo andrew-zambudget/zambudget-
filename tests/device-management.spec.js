@@ -9,7 +9,7 @@ function modulePath(path) {
     return `${path}?test=${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-test.describe('Buddy Cloud device management', () => {
+test.describe('Cloud Sync device management', () => {
     test.beforeEach(async ({ page }) => {
         await installSignedOutSupabaseStub(page);
         await resetBrowserStorage(page);
@@ -95,7 +95,7 @@ test.describe('Buddy Cloud device management', () => {
 
         const modal = page.locator('#buddyCloudModal');
         await expect(modal).toBeVisible();
-        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Buddy Cloud Devices');
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Cloud Sync Devices');
         await expect(modal).toContainText('This browser is signed in but is not using a Free sync slot yet.');
         await expect(modal).toContainText('Unlinked sync slot');
         await expect(modal).toContainText('Not tied to a visible browser');
@@ -108,7 +108,7 @@ test.describe('Buddy Cloud device management', () => {
         await expect(modal).not.toContainText('Current browser · Sync paused');
     });
 
-    test('surfaces local changes that are not backed up in the Buddy Cloud status panel', async ({ page }) => {
+    test('surfaces local changes that are not backed up in the Cloud Sync status panel', async ({ page }) => {
         await page.goto('/index.html');
         await waitForAppReady(page);
 
@@ -160,7 +160,7 @@ test.describe('Buddy Cloud device management', () => {
         await expect(panel).toBeVisible();
         await expect(page.locator('#syncHistoryStatusBadge')).toHaveText('Paused');
         await expect(page.locator('#syncCloudNudge')).toContainText('Local changes not backed up');
-        await expect(page.locator('#syncCloudNudge')).toContainText('Changes on this browser are saved locally but have not been backed up to Buddy Cloud.');
+        await expect(page.locator('#syncCloudNudge')).toContainText('Changes on this browser are saved locally but have not been backed up to Cloud Sync.');
         await expect(page.locator('#syncCloudNudge')).toContainText('Sync this browser before clearing data or signing out.');
     });
 

@@ -50,9 +50,9 @@ test.describe('logout safety', () => {
         const modal = page.locator('#buddyCloudModal');
         await expect(modal).toBeVisible();
         await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Local Changes Not Backed Up');
-        await expect(modal).toContainText('Local changes on this browser have not been backed up to Buddy Cloud');
+        await expect(modal).toContainText('Local changes on this browser have not been backed up to Cloud Sync');
         await expect(modal).toContainText('Import your recovery key or sync before signing out');
-        await expect(modal).toContainText('any local changes not already in Buddy Cloud may be lost');
+        await expect(modal).toContainText('any local changes not already in Cloud Sync may be lost');
         await expect(modal.getByRole('button', { name: 'Recovery Help' })).toBeVisible();
         await expect(modal.getByRole('button', { name: 'Sign Out Without Backup' })).toBeVisible();
     });

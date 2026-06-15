@@ -500,14 +500,14 @@
         if (!msg) return '';
 
         if (params.get('accountDeleted') === 'true') {
-            msg.textContent = 'Your BudgetBuddy account has been deleted. Encrypted Buddy Cloud data and the account identity cannot be recovered.';
+            msg.textContent = 'Your BudgetBuddy account has been deleted. Encrypted Cloud Sync data and the account identity cannot be recovered.';
             msg.className = 'message success';
             msg.style.display = 'block';
             return 'accountDeleted';
         }
 
         if (params.get('buddyCloud') === 'reset') {
-            msg.textContent = 'Buddy Cloud was reset for that account. Sign in again when you are ready to create a new encrypted vault.';
+            msg.textContent = 'Cloud Sync was reset for that account. Sign in again when you are ready to create a new encrypted vault.';
             msg.className = 'message success';
             msg.style.display = 'block';
             return 'buddyCloudReset';

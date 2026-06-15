@@ -228,7 +228,7 @@
                 <div class="version-meta">
                     <div class="version-dot live" aria-hidden="true"></div>
                     <div>
-                        <div class="version-title">v1.0 RC - "The Foundation + Buddy Cloud"</div>
+                        <div class="version-title">v1.0 RC - "The Foundation + Cloud Sync"</div>
                         <div class="version-date">May 31, 2026 launch; June 10-13, 2026 RC hardening</div>
                     </div>
                 </div>
@@ -247,7 +247,7 @@
                             <div class="release-summary-row summary-feature">
                                 <span class="release-summary-dot" aria-hidden="true"></span>
                                 <span class="release-summary-label">Features</span>
-                                <span class="release-summary-copy">Buddy Cloud, version history, Premium support, CSV import/export, calendar workflow, gift-card tracking, local merchant metadata hints, and richer budget sections moved into the release-candidate track.</span>
+                                <span class="release-summary-copy">Cloud Sync, version history, Premium support, CSV import/export, calendar workflow, gift-card tracking, local merchant metadata hints, and richer budget sections moved into the release-candidate track.</span>
                             </div>
                             <div class="release-summary-row summary-security">
                                 <span class="release-summary-dot" aria-hidden="true"></span>
@@ -282,6 +282,14 @@
                                 <div>
                                     <div class="tag-text">Settings modal redesigned as a dashboard</div>
                                     <span class="tag-detail">App Settings now groups defaults, budget rules, appearance, data/privacy tools, and local erase actions into clearer cards with segmented controls, a local-only danger zone, and a sticky Save/Cancel footer that only shows an unsaved-changes notice after edits.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-ui">
+                                <span class="tag-icon" aria-hidden="true">UI</span>
+                                <div>
+                                    <div class="tag-text">Cloud Sync naming restored</div>
+                                    <span class="tag-detail">User-facing sync copy now uses the plain Cloud Sync label instead of the previous app-branded sync name. Internal storage names, migration names, and code identifiers remain unchanged for compatibility.</span>
                                 </div>
                             </div>
 
@@ -327,30 +335,30 @@
                                 <span class="tag-icon" aria-hidden="true">BETA</span>
                                 <div>
                                     <div class="tag-text">Beta testing is open and intentionally honest</div>
-                                    <span class="tag-detail">BudgetBuddy is being tested with real budgets, real sign-ins, real Buddy Cloud recovery, and real billing paths. Feedback matters now because the next decision is practical: keep developing if users find it useful enough and it can at least pay for its infrastructure, or scrap it if the time-to-value and support load do not make sense.</span>
+                                    <span class="tag-detail">BudgetBuddy is being tested with real budgets, real sign-ins, real Cloud Sync recovery, and real billing paths. Feedback matters now because the next decision is practical: keep developing if users find it useful enough and it can at least pay for its infrastructure, or scrap it if the time-to-value and support load do not make sense.</span>
                                 </div>
                             </div>
 
                             <div class="tag-item tag-fix">
                                 <span class="tag-icon" aria-hidden="true">FIX</span>
                                 <div>
-                                    <div class="tag-text">Live data-loss scare turned into Buddy Cloud recovery hardening</div>
-                                    <span class="tag-detail">Beta testing exposed a serious edge case where secure sign-out could clear local data and a fresh sign-in could land on a blank budget while the usable copy lived in Version History. Buddy Cloud now treats blank local sign-ins as cloud-priority recovery, preserves a secure-sign-out recovery marker, and can recover the newest non-empty encrypted saved version when needed.</span>
+                                    <div class="tag-text">Live data-loss scare turned into Cloud Sync recovery hardening</div>
+                                    <span class="tag-detail">Beta testing exposed a serious edge case where secure sign-out could clear local data and a fresh sign-in could land on a blank budget while the usable copy lived in Version History. Cloud Sync now treats blank local sign-ins as cloud-priority recovery, preserves a secure-sign-out recovery marker, and can recover the newest non-empty encrypted saved version when needed.</span>
                                 </div>
                             </div>
 
                             <div class="tag-item tag-fix">
                                 <span class="tag-icon" aria-hidden="true">LOG</span>
                                 <div>
-                                    <div class="tag-text">Buddy Cloud logout guard relaxed for already-synced budgets</div>
-                                    <span class="tag-detail">A production sign-out guard was too strict when a signed-in browser had Buddy Cloud enabled but did not have local recovery-key access. Logout now checks whether the browser has newer local budget changes than the last verified Buddy Cloud save. Already-synced budgets can sign out normally, while browsers with unsynced local changes still stop and tell the user to import the recovery key or sync first.</span>
+                                    <div class="tag-text">Cloud Sync logout guard relaxed for already-synced budgets</div>
+                                    <span class="tag-detail">A production sign-out guard was too strict when a signed-in browser had Cloud Sync enabled but did not have local recovery-key access. Logout now checks whether the browser has newer local budget changes than the last verified Cloud Sync save. Already-synced budgets can sign out normally, while browsers with unsynced local changes still stop and tell the user to import the recovery key or sync first.</span>
                                 </div>
                             </div>
 
                             <div class="tag-item tag-security">
                                 <span class="tag-icon" aria-hidden="true">KEY</span>
                                 <div>
-                                    <div class="tag-text">Trusted Buddy Cloud browser key added</div>
+                                    <div class="tag-text">Trusted Cloud Sync browser key added</div>
                                     <span class="tag-detail">After a successful setup or recovery-key import, BudgetBuddy can store a non-extractable WebCrypto key in IndexedDB so the same browser can keep syncing after refresh without storing the raw recovery key in localStorage. The trusted key stays local to the browser, is not part of Account &gt; Devices records, and cannot be displayed as the recovery-key text.</span>
                                 </div>
                             </div>
@@ -359,7 +367,7 @@
                                 <span class="tag-icon" aria-hidden="true">AUTH</span>
                                 <div>
                                     <div class="tag-text">Magic-link and fresh-account safety tightened</div>
-                                    <span class="tag-detail">The login page now blocks duplicate in-flight magic-link requests from the same browser, and signed-in local budget data is scoped to the Supabase account ID. If a deleted or different account signs into the same browser, stale account-scoped budget and Buddy Cloud state is cleared before the app loads, while same-account and existing unmarked beta budgets are preserved.</span>
+                                    <span class="tag-detail">The login page now blocks duplicate in-flight magic-link requests from the same browser, and signed-in local budget data is scoped to the Supabase account ID. If a deleted or different account signs into the same browser, stale account-scoped budget and Cloud Sync state is cleared before the app loads, while same-account and existing unmarked beta budgets are preserved.</span>
                                 </div>
                             </div>
 
@@ -367,15 +375,15 @@
                                 <span class="tag-icon" aria-hidden="true">RLS</span>
                                 <div>
                                     <div class="tag-text">Legacy Supabase policy roles hardened</div>
-                                    <span class="tag-detail">Owner-scoped policies for legacy budget row tables and account lookup tables were tightened from the broad public role to authenticated users only. Buddy Cloud remains the live encrypted budget sync path, but abandoned or legacy tables should not expose anonymous policy surfaces during beta.</span>
+                                    <span class="tag-detail">Owner-scoped policies for legacy budget row tables and account lookup tables were tightened from the broad public role to authenticated users only. Cloud Sync remains the live encrypted budget sync path, but abandoned or legacy tables should not expose anonymous policy surfaces during beta.</span>
                                 </div>
                             </div>
 
                             <div class="tag-item tag-fix">
                                 <span class="tag-icon" aria-hidden="true">KEY</span>
                                 <div>
-                                    <div class="tag-text">Fresh Buddy Cloud setup no longer gets blocked by stale local enabled state</div>
-                                    <span class="tag-detail">If a signed-in account has no encrypted Buddy Cloud vault yet, stale browser-only Buddy Cloud enabled state is cleared so the normal setup flow can create a fresh vault and recovery key. Existing remote vaults still require the saved recovery key before syncing on that browser.</span>
+                                    <div class="tag-text">Fresh Cloud Sync setup no longer gets blocked by stale local enabled state</div>
+                                    <span class="tag-detail">If a signed-in account has no encrypted Cloud Sync vault yet, stale browser-only Cloud Sync enabled state is cleared so the normal setup flow can create a fresh vault and recovery key. Existing remote vaults still require the saved recovery key before syncing on that browser.</span>
                                 </div>
                             </div>
 
@@ -383,7 +391,7 @@
                                 <span class="tag-icon" aria-hidden="true">KEY</span>
                                 <div>
                                     <div class="tag-text">First recovery-key screen now has a timed acknowledgement</div>
-                                    <span class="tag-detail">Fresh Buddy Cloud setup keeps the 72-hour save reminder, but the first recovery-key screen now requires a short read period before users can continue. Users can explicitly choose the 72-hour reminder path, or paste-confirm the matching recovery key before BudgetBuddy marks it saved.</span>
+                                    <span class="tag-detail">Fresh Cloud Sync setup keeps the 72-hour save reminder, but the first recovery-key screen now requires a short read period before users can continue. Users can explicitly choose the 72-hour reminder path, or paste-confirm the matching recovery key before BudgetBuddy marks it saved.</span>
                                 </div>
                             </div>
 
@@ -415,15 +423,15 @@
                                 <span class="tag-icon" aria-hidden="true">LOG</span>
                                 <div>
                                     <div class="tag-text">Provider metadata legal copy clarified</div>
-                                    <span class="tag-detail">Privacy, terms, and support copy now explicitly disclose that infrastructure, authentication, email, payment, and security providers may process or retain operational metadata such as IP-related logs, approximate country or region metadata, user agent/browser hints, request metadata, OAuth provider metadata, delivery logs, billing records, and security/audit records. BudgetBuddy still does not use those records for tracking, behavioral analytics, selling financial behavior, or reading encrypted Buddy Cloud contents.</span>
+                                    <span class="tag-detail">Privacy, terms, and support copy now explicitly disclose that infrastructure, authentication, email, payment, and security providers may process or retain operational metadata such as IP-related logs, approximate country or region metadata, user agent/browser hints, request metadata, OAuth provider metadata, delivery logs, billing records, and security/audit records. BudgetBuddy still does not use those records for tracking, behavioral analytics, selling financial behavior, or reading encrypted Cloud Sync contents.</span>
                                 </div>
                             </div>
 
                             <div class="tag-item tag-security">
                                 <span class="tag-icon" aria-hidden="true">SYNC</span>
                                 <div>
-                                    <div class="tag-text">Buddy Cloud now flags unbacked local changes immediately</div>
-                                    <span class="tag-detail">If this browser has local budget changes newer than the last verified Buddy Cloud save, the header status and Buddy Cloud panel now say Local changes not backed up. The warning is persistent and visible before sign-out or destructive flows, while conflict review still takes priority when both cloud and local copies may differ.</span>
+                                    <div class="tag-text">Cloud Sync now flags unbacked local changes immediately</div>
+                                    <span class="tag-detail">If this browser has local budget changes newer than the last verified Cloud Sync save, the header status and Cloud Sync panel now say Local changes not backed up. The warning is persistent and visible before sign-out or destructive flows, while conflict review still takes priority when both cloud and local copies may differ.</span>
                                 </div>
                             </div>
 
@@ -431,7 +439,7 @@
                                 <span class="tag-icon" aria-hidden="true">ADD</span>
                                 <div>
                                     <div class="tag-text">Add transaction now labels local-only save states</div>
-                                    <span class="tag-detail">When a transaction is created from Add, the Buddy Cloud status now immediately distinguishes browser-only saves, offline saves, unavailable cloud, recovery-key-needed saves, inactive sync slots, and backup-pending saves. The app tells users that new budget activity is local before they hit sign-out, account deletion, or conflict review.</span>
+                                    <span class="tag-detail">When a transaction is created from Add, the Cloud Sync status now immediately distinguishes browser-only saves, offline saves, unavailable cloud, recovery-key-needed saves, inactive sync slots, and backup-pending saves. The app tells users that new budget activity is local before they hit sign-out, account deletion, or conflict review.</span>
                                 </div>
                             </div>
 
@@ -439,7 +447,7 @@
                                 <span class="tag-icon" aria-hidden="true">OUT</span>
                                 <div>
                                     <div class="tag-text">Sign-out backup guard uses clearer local-change wording</div>
-                                    <span class="tag-detail">When sign-out is stopped because this browser has local changes that are not verified in Buddy Cloud, the modal now says Local Changes Not Backed Up instead of leading with recovery-key language. The safety behavior remains strict, but the warning now matches the persistent Buddy Cloud status shown in the app.</span>
+                                    <span class="tag-detail">When sign-out is stopped because this browser has local changes that are not verified in Cloud Sync, the modal now says Local Changes Not Backed Up instead of leading with recovery-key language. The safety behavior remains strict, but the warning now matches the persistent Cloud Sync status shown in the app.</span>
                                 </div>
                             </div>
 
@@ -447,7 +455,7 @@
                                 <span class="tag-icon" aria-hidden="true">DATA</span>
                                 <div>
                                     <div class="tag-text">Data safety moved ahead of feature expansion</div>
-                                    <span class="tag-detail">Auth, billing, Buddy Cloud, secure sign-out, rough logout, conflict review, and recovery-key handling are now treated as production-critical work. New feature work is intentionally secondary until these paths keep passing real beta use.</span>
+                                    <span class="tag-detail">Auth, billing, Cloud Sync, secure sign-out, rough logout, conflict review, and recovery-key handling are now treated as production-critical work. New feature work is intentionally secondary until these paths keep passing real beta use.</span>
                                 </div>
                             </div>
 
@@ -471,7 +479,7 @@
                                 <span class="tag-icon" aria-hidden="true">$</span>
                                 <div>
                                     <div class="tag-text">Premium support is framed as project sustainability</div>
-                                    <span class="tag-detail">Premium is not being positioned as hype. The beta question is whether BudgetBuddy is good enough that users want to help fund reliability, billing, Buddy Cloud, and infrastructure. If it cannot pay for itself, development may stop instead of growing into an unsupported product.</span>
+                                    <span class="tag-detail">Premium is not being positioned as hype. The beta question is whether BudgetBuddy is good enough that users want to help fund reliability, billing, Cloud Sync, and infrastructure. If it cannot pay for itself, development may stop instead of growing into an unsupported product.</span>
                                 </div>
                             </div>
 
@@ -523,24 +531,24 @@
                             <div class="tag-item tag-feature">
                                 <span class="tag-icon" aria-hidden="true">☁️</span>
                                 <div>
-                                    <div class="tag-text">Buddy Cloud Sync moved into v1 production prep</div>
-                                    <span class="tag-detail">Buddy Cloud is now the core free backup and sync path for BudgetBuddy. It supports encrypted cloud vault upload/download, conflict handling, recovery-key import, and a reset path for users who lose the recovery key and need to start their cloud vault over.</span>
+                                    <div class="tag-text">Cloud Sync moved into v1 production prep</div>
+                                    <span class="tag-detail">Cloud Sync is now the core free backup and sync path for BudgetBuddy. It supports encrypted cloud vault upload/download, conflict handling, recovery-key import, and a reset path for users who lose the recovery key and need to start their cloud vault over.</span>
                                 </div>
                             </div>
 
                             <div class="tag-item tag-feature">
                                 <span class="tag-icon" aria-hidden="true">💻</span>
                                 <div>
-                                    <div class="tag-text">Multi-Device Sync Plus added to Buddy Cloud</div>
-                                    <span class="tag-detail">Free Tier now supports two active synced browsers/devices at a time. Premium unlocks unlimited Buddy Cloud device syncs. The app uses privacy-minimal sync slot hashes and timestamps for the Free limit, without storing device names, user agents, IP-derived locations, or readable budget data.</span>
+                                    <div class="tag-text">Multi-Device Sync Plus added to Cloud Sync</div>
+                                    <span class="tag-detail">Free Tier now supports two active synced browsers/devices at a time. Premium unlocks unlimited Cloud Sync slots. The app uses privacy-minimal sync slot hashes and timestamps for the Free limit, without storing device names, user agents, IP-derived locations, or readable budget data.</span>
                                 </div>
                             </div>
 
                             <div class="tag-item tag-feature">
                                 <span class="tag-icon" aria-hidden="true">🕘</span>
                                 <div>
-                                    <div class="tag-text">Cloud Version History added to Buddy Cloud</div>
-                                    <span class="tag-detail">Buddy Cloud now keeps encrypted vault snapshots so users can restore an earlier saved budget version, such as a previous day. Free accounts keep the newest encrypted safety snapshot, while Premium keeps the newest 10 encrypted snapshots. Snapshots are encrypted client-side with the same recovery-key model before storage, and restoring a snapshot happens locally before uploading the restored encrypted vault as current.</span>
+                                    <div class="tag-text">Cloud Version History added to Cloud Sync</div>
+                                    <span class="tag-detail">Cloud Sync now keeps encrypted vault snapshots so users can restore an earlier saved budget version, such as a previous day. Free accounts keep the newest encrypted safety snapshot, while Premium keeps the newest 10 encrypted snapshots. Snapshots are encrypted client-side with the same recovery-key model before storage, and restoring a snapshot happens locally before uploading the restored encrypted vault as current.</span>
                                 </div>
                             </div>
 
@@ -556,7 +564,7 @@
                                 <span class="tag-icon" aria-hidden="true">🗝️</span>
                                 <div>
                                     <div class="tag-text">Recovery key safety model</div>
-                                    <span class="tag-detail">First-time Buddy Cloud setup now starts a 72-hour recovery-key grace period instead of blocking onboarding. Recovery-key reveal now requires a short login-verification guardrail when Supabase supports it, falls back to local unlock when needed, auto-locks after 5 minutes or tab hide, and still enforces key safety before risky actions such as clearing the browser, signing out all devices, or resetting Buddy Cloud. PIN/passkey-protected local key storage is marked as a top v1.1 priority.</span>
+                                    <span class="tag-detail">First-time Cloud Sync setup now starts a 72-hour recovery-key grace period instead of blocking onboarding. Recovery-key reveal now requires a short login-verification guardrail when Supabase supports it, falls back to local unlock when needed, auto-locks after 5 minutes or tab hide, and still enforces key safety before risky actions such as clearing the browser, signing out all devices, or resetting Cloud Sync. PIN/passkey-protected local key storage is marked as a top v1.1 priority.</span>
                                 </div>
                             </div>
 
@@ -564,15 +572,15 @@
                                 <span class="tag-icon" aria-hidden="true">🧭</span>
                                 <div>
                                     <div class="tag-text">Priority Recovery Tools</div>
-                                    <span class="tag-detail">Added guided Buddy Cloud Recovery Help with human-readable sync status, recovery-key checks, version-conflict guidance, device-limit guidance, diagnostic export routing, and safe reset direction. BudgetBuddy still cannot recover or decrypt a lost recovery key, but the app now gives users clearer next steps before they panic or reset unnecessarily.</span>
+                                    <span class="tag-detail">Added guided Cloud Sync Recovery Help with human-readable sync status, recovery-key checks, version-conflict guidance, device-limit guidance, diagnostic export routing, and safe reset direction. BudgetBuddy still cannot recover or decrypt a lost recovery key, but the app now gives users clearer next steps before they panic or reset unnecessarily.</span>
                                 </div>
                             </div>
 
                             <div class="tag-item tag-security">
                                 <span class="tag-icon" aria-hidden="true">♻️</span>
                                 <div>
-                                    <div class="tag-text">Reset Buddy Cloud replaces destructive account deletion</div>
-                                    <span class="tag-detail">The lost-key recovery path now deletes the encrypted Buddy Cloud vault and encrypted version-history snapshots for the signed-in account, keeps the Supabase login intact, clears this browser, and lets the user create a fresh vault with a new recovery key. Full auth-user deletion was removed from the normal reset flow after Supabase returned database-level delete errors, and normal Buddy Cloud reset no longer depends on billing-profile reads.</span>
+                                    <div class="tag-text">Reset Cloud Sync replaces destructive account deletion</div>
+                                    <span class="tag-detail">The lost-key recovery path now deletes the encrypted Cloud Sync vault and encrypted version-history snapshots for the signed-in account, keeps the Supabase login intact, clears this browser, and lets the user create a fresh vault with a new recovery key. Full auth-user deletion was removed from the normal reset flow after Supabase returned database-level delete errors, and normal Cloud Sync reset no longer depends on billing-profile reads.</span>
                                 </div>
                             </div>
 
@@ -612,7 +620,7 @@
                                 <span class="tag-icon" aria-hidden="true">🖥️</span>
                                 <div>
                                     <div class="tag-text">Device and session controls simplified</div>
-                                    <span class="tag-detail">Devices is now focused on session risk and sign-out behavior. Known BudgetBuddy browsers are listed using privacy-minimal browser hashes, existing sync slot hash links, and timestamps, with browser-icon rows, right-aligned individual sign-out controls, and a separate full-width Sign Out All Devices action. Logout, revoked-browser cleanup, Buddy Cloud reset, and Sign Out All Devices now show a Clearing Session screen while local storage, session storage, accessible cookies, and stale page state are cleared before refresh. Manual upload/download controls only appear when Buddy Cloud detects competing changes on another device.</span>
+                                    <span class="tag-detail">Devices is now focused on session risk and sign-out behavior. Known BudgetBuddy browsers are listed using privacy-minimal browser hashes, existing sync slot hash links, and timestamps, with browser-icon rows, right-aligned individual sign-out controls, and a separate full-width Sign Out All Devices action. Logout, revoked-browser cleanup, Cloud Sync reset, and Sign Out All Devices now show a Clearing Session screen while local storage, session storage, accessible cookies, and stale page state are cleared before refresh. Manual upload/download controls only appear when Cloud Sync detects competing changes on another device.</span>
                                 </div>
                             </div>
 
@@ -620,15 +628,15 @@
                                 <span class="tag-icon" aria-hidden="true">🎛️</span>
                                 <div>
                                     <div class="tag-text">Account management modal flow polished</div>
-                                    <span class="tag-detail">Buddy Cloud account-management dialogs now transition smoothly between Devices, Privacy Details, sign-out confirmations, and Back actions. Device sign-out rows give immediate visual feedback, confirmation screens return users to the Devices list instead of dead-ending the flow, and reduced-motion preferences are respected.</span>
+                                    <span class="tag-detail">Cloud Sync account-management dialogs now transition smoothly between Devices, Privacy Details, sign-out confirmations, and Back actions. Device sign-out rows give immediate visual feedback, confirmation screens return users to the Devices list instead of dead-ending the flow, and reduced-motion preferences are respected.</span>
                                 </div>
                             </div>
 
                             <div class="tag-item tag-fix">
                                 <span class="tag-icon" aria-hidden="true">BC</span>
                                 <div>
-                                    <div class="tag-text">Buddy Cloud sync slot cleanup</div>
-                                    <span class="tag-detail">Free Tier capacity now shows as sync slots instead of devices, and Account &gt; Devices can map known browser access records to the existing opaque Buddy Cloud sync slot hashes that already enforce the Free limit. Free sync slots now behave like active browser leases: if a browser does not check in for 60 minutes, the slot can be released automatically. The cleanup does not add device names, user agents, IP-derived locations, recovery keys, or readable budget data.</span>
+                                    <div class="tag-text">Cloud Sync slot cleanup</div>
+                                    <span class="tag-detail">Free Tier capacity now shows as sync slots instead of devices, and Account &gt; Devices can map known browser access records to the existing opaque Cloud Sync slot hashes that already enforce the Free limit. Free sync slots now behave like active browser leases: if a browser does not check in for 60 minutes, the slot can be released automatically. The cleanup does not add device names, user agents, IP-derived locations, recovery keys, or readable budget data.</span>
                                 </div>
                             </div>
 
