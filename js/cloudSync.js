@@ -574,7 +574,7 @@ async function encryptSnapshot(snapshot, keyMaterial) {
     crypto.getRandomValues(iv);
     const key = await getAesKey(keyMaterial);
     const plaintext = JSON.stringify({
-        app: 'BudgetBuddy',
+        app: 'Zam!',
         schemaVersion: SCHEMA_VERSION,
         exportedAt: new Date().toISOString(),
         data: snapshot
@@ -1161,8 +1161,8 @@ async function maybeCreateVaultSnapshot({ payload, checksum, clientUpdatedAt, re
 
     const normalizedReason = String(reason || 'Synced to Cloud Sync.').slice(0, 120);
     const loweredReason = normalizedReason.toLowerCase();
-    const isPreRestoreSafetySnapshot = loweredReason.includes('before restoring buddy cloud version');
-    const isRestoredVersionSnapshot = loweredReason.includes('restored buddy cloud version');
+    const isPreRestoreSafetySnapshot = loweredReason.includes('before restoring cloud sync version');
+    const isRestoredVersionSnapshot = loweredReason.includes('restored cloud sync version');
     const isPreCloudDownloadSafetySnapshot = loweredReason.includes('before keeping cloud version');
     if (!canUseMultipleSyncDevices() && isRestoredVersionSnapshot) return false;
     const forceSnapshot = isRestoredVersionSnapshot || isPreRestoreSafetySnapshot || isPreCloudDownloadSafetySnapshot;
@@ -1215,7 +1215,7 @@ async function createPreRestoreSafetySnapshot(keyMaterial) {
         reason: 'Before restoring Cloud Sync version.'
     });
 
-    if (!created) throw new Error('BudgetBuddy could not create a safety snapshot. Try again before restoring.');
+    if (!created) throw new Error('Zam! could not create a safety snapshot. Try again before restoring.');
     return true;
 }
 
@@ -1233,7 +1233,7 @@ async function createLocalVersionSafetySnapshot(keyMaterial, reason = 'Before ke
         reason
     });
 
-    if (!created) throw new Error('BudgetBuddy could not create a safety snapshot of this browser version. Try again before keeping the cloud version.');
+    if (!created) throw new Error('Zam! could not create a safety snapshot of this browser version. Try again before keeping the cloud version.');
     return true;
 }
 

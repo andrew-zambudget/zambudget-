@@ -14,7 +14,7 @@ function modulePath(path) {
     return `${path}?test=${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-test.describe('BudgetBuddy storage lifecycle', () => {
+test.describe('Zam! storage lifecycle', () => {
     test.beforeEach(async ({ page }) => {
         await resetStorage(page);
     });
@@ -136,7 +136,7 @@ test.describe('BudgetBuddy storage lifecycle', () => {
         expect(result.timestamp).toBeNull();
     });
 
-    test('factoryReset() removes only BudgetBuddy namespace keys', async ({ page }) => {
+    test('factoryReset() removes only Zam! namespace keys', async ({ page }) => {
         await page.evaluate(() => {
             localStorage.setItem('bb_data', '{"transactions":[]}');
             localStorage.setItem('bb_demo_active', 'true');

@@ -3,7 +3,7 @@
  * ⚠️ CORE GUARDRAILS - DO NOT MODIFY WITHOUT EXPLICIT APPROVAL
  * ============================================================================
  *
- * This file contains the IMMUTABLE CORE of BudgetBuddy.
+ * This file contains the IMMUTABLE CORE of Zam!
  * These functions handle the Free Tier baseline logic:
  * - Transaction Management (Add/Delete/Filter)
  * - Category System (Create/Sort/Safety Checks)
@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if (showAuthPrep) {
                             BudgetPrep.failPreparingBudget?.({
                                 title: 'Budget refresh paused',
-                                detail: 'BudgetBuddy could not finish refreshing the signed-in budget state.'
+                                detail: 'Zam! could not finish refreshing the signed-in budget state.'
                             });
                         }
                     } finally {
@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (ownerGuard.changed) {
                 BudgetPrep.updatePreparingBudget?.({
                     title: 'Preparing fresh budget...',
-                    detail: 'This browser was previously tied to a different BudgetBuddy account, so local account data was cleared.'
+                    detail: 'This browser was previously tied to a different Zam! account, so local account data was cleared.'
                 });
             }
         }
@@ -282,7 +282,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (BudgetPrep.isPreparingBudgetVisible?.()) {
             BudgetPrep.failPreparingBudget?.({
                 title: 'Budget did not finish loading',
-                detail: 'BudgetBuddy hit a startup error before the dashboard finished preparing.'
+                detail: 'Zam! hit a startup error before the dashboard finished preparing.'
             });
         }
         if (typeof UI !== 'undefined' && typeof UI.showToast === 'function') {

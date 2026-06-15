@@ -86,14 +86,14 @@
                 link.textContent = 'Signed In';
                 link.dataset.tooltip = email;
                 link.title = email;
-                link.setAttribute('aria-label', `Signed in as ${email}. Back to BudgetBuddy.`);
+                link.setAttribute('aria-label', `Signed in as ${email}. Back to Zam!`);
                 link.classList.add('static-auth-signed-in');
             } else {
                 link.href = 'login.html';
                 link.textContent = 'Log In';
                 link.dataset.tooltip = 'Log In';
                 link.title = 'Log In';
-                link.setAttribute('aria-label', 'Log in to BudgetBuddy');
+                link.setAttribute('aria-label', 'Log in to Zam!');
                 link.classList.remove('static-auth-signed-in');
             }
         });

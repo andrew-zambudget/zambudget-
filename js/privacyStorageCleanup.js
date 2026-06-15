@@ -400,7 +400,7 @@ function mountDemoBackupRecoveryModal() {
     overlay.innerHTML = `
         <section class="bb-demo-recovery-card">
             <h1 id="bbDemoRecoveryTitle">Budget restore paused</h1>
-            <p>BudgetBuddy found a protected pre-demo budget backup, but the demo session was not active. The app is paused so this backup is not overwritten or deleted.</p>
+            <p>Zam! found a protected pre-demo budget backup, but the demo session was not active. The app is paused so this backup is not overwritten or deleted.</p>
             <p class="bb-demo-recovery-note">If restore fails, your browser storage is probably full. Clear some browser storage space, then try again.</p>
             <div class="bb-demo-recovery-actions">
                 <button type="button" class="bb-demo-recovery-action" data-demo-recovery-restore>Restore My Budget</button>

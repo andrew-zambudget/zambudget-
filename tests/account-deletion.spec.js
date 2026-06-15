@@ -32,12 +32,12 @@ test.describe('account deletion safeguards', () => {
 
         const modal = page.locator('#buddyCloudModal');
         await expect(modal).toBeVisible();
-        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete BudgetBuddy Account?');
-        await expect(modal.locator('.buddy-cloud-account-delete-intro strong')).toHaveText('This permanently deletes the BudgetBuddy sign-in for delete-safety@gmail.com.');
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete Zam! Account?');
+        await expect(modal.locator('.buddy-cloud-account-delete-intro strong')).toHaveText('This permanently deletes the Zam! sign-in for delete-safety@gmail.com.');
         await expect(modal).toContainText('Signed in as delete-safety@gmail.com using Google');
         await expect(modal).toContainText('It does not delete your Google account');
         await expect(modal).toContainText('Google connected-app settings');
-        await expect(modal.locator('.buddy-cloud-account-delete-scope')).toContainText('BudgetBuddy will delete:');
+        await expect(modal.locator('.buddy-cloud-account-delete-scope')).toContainText('Zam! will delete:');
         await expect(modal.locator('.buddy-cloud-account-delete-scope li')).toHaveText([
             'Encrypted Cloud Sync vault',
             'Encrypted version-history snapshots',
@@ -47,7 +47,7 @@ test.describe('account deletion safeguards', () => {
         ]);
         await expect(modal).toContainText('Household or family memberships are not currently stored');
         await expect(modal.locator('.buddy-cloud-account-delete-warning')).toContainText('Account deletion is permanent and cannot be undone.');
-        await expect(modal.locator('.buddy-cloud-account-delete-warning')).toContainText('BudgetBuddy cannot decrypt, restore, or recover a deleted Cloud Sync vault, deleted snapshots, or a deleted account.');
+        await expect(modal.locator('.buddy-cloud-account-delete-warning')).toContainText('Zam! cannot decrypt, restore, or recover a deleted Cloud Sync vault, deleted snapshots, or a deleted account.');
         await expect(modal.locator('.buddy-cloud-account-delete-warning')).toContainText('If you have an active Stripe subscription, you must cancel it in Stripe before account deletion can be completed.');
         await expect(modal.locator('.buddy-cloud-account-delete-warning')).toContainText("Browser-only copies on other devices may remain until that device's local site data is cleared.");
         await expect(page.locator('#buddyCloudModalInput')).toHaveAttribute('placeholder', 'DELETE ACCOUNT');
@@ -105,13 +105,13 @@ test.describe('account deletion safeguards', () => {
         const error = page.locator('[data-account-delete-confirm-error]');
 
         await expect(modal).toBeVisible();
-        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete BudgetBuddy Account?');
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete Zam! Account?');
 
         await input.fill('DELETE');
         await modal.getByRole('button', { name: 'Delete Account' }).click();
 
         await expect(modal).toBeVisible();
-        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete BudgetBuddy Account?');
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete Zam! Account?');
         await expect(error).toBeVisible();
         await expect(error).toHaveText('Type DELETE ACCOUNT to confirm account deletion.');
         await expect(input).toHaveAttribute('aria-invalid', 'true');
@@ -143,7 +143,7 @@ test.describe('account deletion safeguards', () => {
 
         const modal = page.locator('#buddyCloudModal');
         await expect(modal).toBeVisible();
-        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete BudgetBuddy Account?');
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete Zam! Account?');
         await expect(modal).toContainText('Signed in as apple-delete@example.com using Apple');
         await expect(modal).toContainText('It does not delete your Apple ID');
         await expect(modal).toContainText('Apple account settings');
@@ -217,10 +217,10 @@ test.describe('account deletion safeguards', () => {
                             return {
                                 data: null,
                                 error: {
-                                    message: 'Verify your login again before deleting your BudgetBuddy account.',
+                                    message: 'Verify your login again before deleting your Zam! account.',
                                     context: {
                                         json: async () => ({
-                                            error: 'Verify your login again before deleting your BudgetBuddy account.',
+                                            error: 'Verify your login again before deleting your Zam! account.',
                                             code: 'REAUTH_REQUIRED'
                                         })
                                     }
@@ -237,7 +237,7 @@ test.describe('account deletion safeguards', () => {
         });
         expect(invokeCalls).toEqual([]);
 
-        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete BudgetBuddy Account?');
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete Zam! Account?');
         await page.locator('#buddyCloudModalInput').fill('DELETE ACCOUNT');
         await page.getByRole('button', { name: 'Delete Account' }).click();
 
@@ -293,10 +293,10 @@ test.describe('account deletion safeguards', () => {
                         return {
                             data: null,
                             error: {
-                                message: 'Verify your login again before deleting your BudgetBuddy account.',
+                                message: 'Verify your login again before deleting your Zam! account.',
                                 context: {
                                     json: async () => ({
-                                        error: 'Verify your login again before deleting your BudgetBuddy account.',
+                                        error: 'Verify your login again before deleting your Zam! account.',
                                         code: 'REAUTH_REQUIRED'
                                     })
                                 }
@@ -311,13 +311,13 @@ test.describe('account deletion safeguards', () => {
         });
         expect(invokeCalls).toEqual([]);
 
-        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete BudgetBuddy Account?');
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete Zam! Account?');
         await page.locator('#buddyCloudModalInput').fill('DELETE ACCOUNT');
         await page.getByRole('button', { name: 'Delete Account' }).click();
 
         const modal = page.locator('#buddyCloudModal');
         await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Fresh Sign-In Required');
-        await expect(modal).toContainText('BudgetBuddy could not complete the in-app verification email.');
+        await expect(modal).toContainText('Zam! could not complete the in-app verification email.');
         await expect(modal).toContainText('Account deletion did not start.');
         await expect(modal).toContainText('Sign out, sign back in');
         await expect(modal).toContainText('Verification email could not be sent.');
@@ -333,7 +333,7 @@ test.describe('account deletion safeguards', () => {
         await page.route('https://budget-buddy.io/**', route => route.fulfill({
             status: 200,
             contentType: 'text/html',
-            body: '<!doctype html><title>BudgetBuddy</title><main>BudgetBuddy website</main>'
+            body: '<!doctype html><title>Zam!</title><main>Zam! website</main>'
         }));
 
         await page.goto('/index.html');
@@ -378,7 +378,7 @@ test.describe('account deletion safeguards', () => {
         });
         expect(invokeCalls).toEqual([]);
 
-        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete BudgetBuddy Account?');
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete Zam! Account?');
         await page.locator('#buddyCloudModalInput').fill('DELETE ACCOUNT');
         await page.getByRole('button', { name: 'Delete Account' }).click();
 
@@ -401,7 +401,7 @@ test.describe('account deletion safeguards', () => {
         await page.route('https://budget-buddy.io/**', route => route.fulfill({
             status: 200,
             contentType: 'text/html',
-            body: '<!doctype html><title>BudgetBuddy</title><main>BudgetBuddy website</main>'
+            body: '<!doctype html><title>Zam!</title><main>Zam! website</main>'
         }));
 
         await page.goto('/index.html');
@@ -432,7 +432,7 @@ test.describe('account deletion safeguards', () => {
             window.handleDeleteBudgetBuddyAccount();
         });
 
-        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete BudgetBuddy Account?');
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete Zam! Account?');
         await page.locator('#buddyCloudModalInput').fill('DELETE ACCOUNT');
         await page.getByRole('button', { name: 'Delete Account' }).click();
 
@@ -481,7 +481,7 @@ test.describe('account deletion safeguards', () => {
         await expect(modal).toBeVisible();
         await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Cancel Premium First');
         await expect(modal).toContainText('This account has an active Premium subscription.');
-        await expect(modal).toContainText('Cancel Premium in Stripe before deleting your BudgetBuddy account.');
+        await expect(modal).toContainText('Cancel Premium in Stripe before deleting your Zam! account.');
         await expect(modal.getByRole('button', { name: 'Delete Account' })).toHaveCount(0);
         await expect(page.locator('#buddyCloudModalInput')).toHaveCount(0);
 
@@ -570,7 +570,7 @@ test.describe('account deletion safeguards', () => {
 
         const modal = page.locator('#buddyCloudModal');
         await expect(modal).toBeVisible();
-        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete BudgetBuddy Account?');
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Delete Zam! Account?');
         await expect(page.locator('#buddyCloudModalInput')).toHaveAttribute('placeholder', 'DELETE ACCOUNT');
         await expect.poll(() => page.evaluate(() => window.__accountDeleteCalls)).toEqual([
             { method: 'invoke', name: 'billing-status', body: {} }

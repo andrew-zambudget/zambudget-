@@ -219,7 +219,7 @@ function warnLegacyStorageFallback(context) {
     const normalized = String(context || 'unknown').slice(0, 120);
     if (legacyStorageFallbackWarnings.has(normalized)) return;
     legacyStorageFallbackWarnings.add(normalized);
-    console.warn(`[BudgetBuddy][${LEGACY_STORAGE_QUARANTINE_ID}] Legacy storage fallback still reachable: ${normalized}`);
+    console.warn(`[Zam!][${LEGACY_STORAGE_QUARANTINE_ID}] Legacy storage fallback still reachable: ${normalized}`);
 }
 
 function readLegacyStorageArray(key, context) {
@@ -1253,7 +1253,7 @@ async function authorizeRecoveryKeyDisplayWithLocalUnlock() {
         eyebrow: 'Account Security',
         title: 'Unlock Recovery Key?',
         body: 'Local unlock is a temporary v1 guardrail.',
-        assurance: 'The key stays local. BudgetBuddy still cannot read your synced budget.',
+        assurance: 'The key stays local. Zam! still cannot read your synced budget.',
         inputLabel: 'Type UNLOCK to continue',
         inputPlaceholder: 'UNLOCK',
         inputSingleLine: true,
@@ -1445,12 +1445,12 @@ async function copyRecoveryKeyToClipboard(recoveryKey) {
 }
 
 async function downloadRecoveryKeyFile(recoveryKey) {
-    const filename = `BudgetBuddy_Recovery_Key_${new Date().toISOString().slice(0, 10)}.txt`;
+    const filename = `Zam_Recovery_Key_${new Date().toISOString().slice(0, 10)}.txt`;
     const body = [
-        'BudgetBuddy Recovery Key',
+        'Zam! Recovery Key',
         '',
-        'Keep this key private. It decrypts your synced BudgetBuddy cloud vault on another device.',
-        'If you lose this key, BudgetBuddy cannot recover your synced budget.',
+        'Keep this key private. It decrypts your synced Cloud Sync vault on another device.',
+        'If you lose this key, Zam! cannot recover your synced budget.',
         '',
         recoveryKey,
         ''
@@ -1690,7 +1690,7 @@ async function askForRecoveryKey() {
         title: 'Enter Recovery Key',
         modalClass: 'buddy-cloud-recovery-key-modal',
         body: 'Enter your Cloud Sync recovery key to unlock this browser.',
-        assurance: 'The key stays local. BudgetBuddy cannot read your synced budget.',
+        assurance: 'The key stays local. Zam! cannot read your synced budget.',
         warning: 'Use only on a trusted device.',
         inputLabel: 'Recovery key',
         inputPlaceholder: 'Paste your Cloud Sync recovery key',
@@ -2032,7 +2032,7 @@ async function chooseBuddyCloudSource(details = {}) {
     const result = await showBuddyCloudModal({
         title: 'Review Saved Versions',
         body: 'Possible data loss prevented. Choose which encrypted version to keep before Cloud Sync overwrites either copy.',
-        assurance: 'No readable budget data is sent to BudgetBuddy during this choice. The selected copy is decrypted or encrypted locally in your browser.',
+        assurance: 'No readable budget data is sent to Zam! during this choice. The selected copy is decrypted or encrypted locally in your browser.',
         customHtml: buildBuddyCloudConflictComparisonHtml(details),
         actions: [
             { id: 'cancel', label: 'Cancel', className: 'btn-cancel' },
@@ -2146,7 +2146,7 @@ async function showRecoveryKeyNotice(recoveryKey, { copied = false, initial = fa
         customHtml: requiresInitialAcknowledgement && !initialAcknowledged ? `
             <div class="buddy-cloud-key-ack" role="status" aria-live="polite">
                 <strong>Take 10 seconds to read this.</strong>
-                <span>Cloud Sync stays active, but save this Recovery Key within 72 hours. If this browser is lost or cleared and you do not have the key, BudgetBuddy cannot recover the encrypted cloud budget.</span>
+                <span>Cloud Sync stays active, but save this Recovery Key within 72 hours. If this browser is lost or cleared and you do not have the key, Zam! cannot recover the encrypted cloud budget.</span>
                 <span>Continue options unlock in <strong data-recovery-key-ack-countdown>${RECOVERY_KEY_ACK_SECONDS}</strong>s.</span>
             </div>
         ` : !initial && !requireDownload ? `
@@ -2256,7 +2256,7 @@ async function showRecoveryKeyNotice(recoveryKey, { copied = false, initial = fa
 async function confirmBuddyCloudDownload() {
     const result = await showBuddyCloudModal({
         title: 'Cloud Sync Version?',
-        body: 'BudgetBuddy will save this local copy as an encrypted safety snapshot, then decrypt and use the cloud version locally.',
+        body: 'Zam! will save this local copy as an encrypted safety snapshot, then decrypt and use the cloud version locally.',
         assurance: 'The cloud vault remains encrypted with our cloud provider. Decryption happens only on this device with your recovery key.',
         detailRows: getBuddyCloudReviewRows(),
         warning: 'Use this unless you know the local copy has newer changes.',
@@ -2273,7 +2273,7 @@ async function confirmBuddyCloudUpload() {
     const result = await showBuddyCloudModal({
         title: 'Local Copy?',
         body: 'This will encrypt the local saved version and replace the current encrypted cloud version.',
-        assurance: 'BudgetBuddy still cannot read the budget contents. Encryption happens locally before upload.',
+        assurance: 'Zam! still cannot read the budget contents. Encryption happens locally before upload.',
         detailRows: getBuddyCloudReviewRows(),
         warning: 'Only use this if you know what you are doing.',
         actions: [
@@ -2336,7 +2336,7 @@ async function confirmBuddyCloudSyncSlotTransfer(details = {}) {
         eyebrow: 'Multi-Device Sync Plus',
         title: 'Multi-Device Sync Plus',
         body: `Free Tier includes ${freeLimit} active Cloud Sync slots. Browsers inactive for ${leaseWindow} are released automatically.`,
-        assurance: 'Budget contents remain encrypted. BudgetBuddy does not store device names, user agents, IP-derived locations, or readable budget data for this limit.',
+        assurance: 'Budget contents remain encrypted. Zam! does not store device names, user agents, IP-derived locations, or readable budget data for this limit.',
         detailRows: getBuddyCloudSyncSlotRows(details),
         warning: 'Use This Browser Instead replaces the oldest active Free sync slot immediately. Inactive browser slots can be reused automatically without removing that browser recovery key.',
         actions: [
@@ -3092,7 +3092,7 @@ function buildBuddyCloudDiagnosticReport() {
             excludesEmail: true
         },
         app: {
-            name: 'BudgetBuddy',
+            name: 'Zam!',
             page: window.location.pathname || '/index.html',
             protocol: window.location.protocol
         },
@@ -3131,7 +3131,7 @@ function buildBuddyCloudDiagnosticReport() {
             conflictDetected: hasBuddyCloudConflict(status),
             freeDeviceLimitBlocked: isBuddyCloudMultiDeviceLimit(status),
             canRecoverLostKey: false,
-            lostKeyGuidance: 'BudgetBuddy cannot recover a lost Cloud Sync recovery key. If the key is permanently lost, reset Cloud Sync to create a new encrypted vault.'
+            lostKeyGuidance: 'Zam! cannot recover a lost Cloud Sync recovery key. If the key is permanently lost, reset Cloud Sync to create a new encrypted vault.'
         },
         browserAccess: {
             hasLocalBrowserAccessToken: Boolean(getBrowserAccessKeyName() && localStorage.getItem(getBrowserAccessKeyName())),
@@ -3155,7 +3155,7 @@ function buildBuddyCloudDiagnosticReport() {
 
 function downloadBuddyCloudDiagnosticReport() {
     const report = buildBuddyCloudDiagnosticReport();
-    const filename = `BudgetBuddy_Diagnostic_Report_${new Date().toISOString().slice(0, 10)}.json`;
+    const filename = `Zam_Diagnostic_Report_${new Date().toISOString().slice(0, 10)}.json`;
     const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -3172,7 +3172,7 @@ async function confirmDiagnosticExport() {
         eyebrow: 'Diagnostics',
         title: 'Export Diagnostic Report?',
         compact: true,
-        customHtml: '<p class="buddy-cloud-modal-copy buddy-cloud-diagnostics-copy">BudgetBuddy will download a local diagnostic JSON file. Review it before sending it to support. No budget contents, transactions, balances, recovery keys, access tokens, or email are included. <a href="privacypolicy.html" target="_blank" rel="noopener">Privacy Policy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a>.</p>',
+        customHtml: '<p class="buddy-cloud-modal-copy buddy-cloud-diagnostics-copy">Zam! will download a local diagnostic JSON file. Review it before sending it to support. No budget contents, transactions, balances, recovery keys, access tokens, or email are included. <a href="privacypolicy.html" target="_blank" rel="noopener">Privacy Policy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a>.</p>',
         actions: [
             { id: 'cancel', label: 'Back', className: 'btn-cancel' },
             { id: 'export', label: 'Export Report', className: 'btn-create' }
@@ -3332,8 +3332,8 @@ function getBuddyCloudSnapshotTag(snapshot = {}) {
     const reason = String(snapshot.snapshot_reason || '').toLowerCase();
     if (snapshot.snapshot_id && snapshot.snapshot_id === getBuddyCloudRecentlyUsedSnapshotId()) return 'Recently used';
     if (reason.includes('before keeping cloud version')) return 'Saved local version';
-    if (reason.includes('before restoring buddy cloud version')) return 'Before restore';
-    if (reason.includes('restored buddy cloud version')) return 'Restored';
+    if (reason.includes('before restoring cloud sync version')) return 'Before restore';
+    if (reason.includes('restored cloud sync version')) return 'Restored';
     return '';
 }
 
@@ -3361,7 +3361,7 @@ async function showBuddyCloudVersionHistoryModal() {
             eyebrow: 'Cloud Sync',
             title: 'Recovery Key Required',
             compact: true,
-            customHtml: '<p class="buddy-cloud-modal-copy">Import your Cloud Sync recovery key to view or restore encrypted snapshots. Snapshots decrypt locally in this browser. BudgetBuddy cannot read them or recover a lost key.</p>',
+            customHtml: '<p class="buddy-cloud-modal-copy">Import your Cloud Sync recovery key to view or restore encrypted snapshots. Snapshots decrypt locally in this browser. Zam! cannot read them or recover a lost key.</p>',
             actions: [
                 { id: 'close', label: 'Back', className: 'btn-cancel' },
                 { id: 'recovery-help', label: 'Recovery Help', className: 'btn-create' }
@@ -3389,7 +3389,7 @@ async function showBuddyCloudVersionHistoryModal() {
             eyebrow: 'Cloud Sync',
             title: 'Cloud Version History',
             body: 'No encrypted snapshots are available yet.',
-            assurance: `BudgetBuddy creates encrypted snapshots after verified Cloud Sync uploads, then keeps the ${formatBuddyCloudSnapshotRetention(versionHistoryLimit).toLowerCase()}.`,
+            assurance: `Zam! creates encrypted snapshots after verified Cloud Sync uploads, then keeps the ${formatBuddyCloudSnapshotRetention(versionHistoryLimit).toLowerCase()}.`,
             actions: [{ id: 'close', label: 'Back', className: 'btn-cancel' }]
         });
         return { action: 'close', snapshots: [] };
@@ -3399,7 +3399,7 @@ async function showBuddyCloudVersionHistoryModal() {
         eyebrow: 'Cloud Sync',
         title: 'Cloud Version History',
         body: 'Restore an earlier saved Cloud Sync version.',
-        assurance: 'BudgetBuddy saves a private backup of your current version first, and cannot read the contents of either version.',
+        assurance: 'Zam! saves a private backup of your current version first, and cannot read the contents of either version.',
         detailRows: [
             { label: 'Snapshots shown', value: String(snapshots.length) },
             { label: 'Retention', value: formatBuddyCloudSnapshotRetention(versionHistoryLimit) },
@@ -3411,7 +3411,7 @@ async function showBuddyCloudVersionHistoryModal() {
             value: snapshot.snapshot_id,
             label: getBuddyCloudVersionActionLabel(snapshot, index).replace(/^Restore\s?/, '')
         })),
-        warning: 'Advanced users only. Restore a previous version only if you know what you are doing or BudgetBuddy Support directed you here.',
+        warning: 'Advanced users only. Restore a previous version only if you know what you are doing or Zam! Support directed you here.',
         actions: [
             { id: 'cancel', label: 'Back', className: 'btn-cancel' },
             { id: 'restore-version', label: 'Restore Selected', className: 'btn-create' }
@@ -3428,8 +3428,8 @@ async function confirmBuddyCloudVersionRestore(snapshot = {}) {
     const result = await showBuddyCloudModal({
         eyebrow: 'Cloud Sync',
         title: 'Restore This Version?',
-        body: 'BudgetBuddy will decrypt this encrypted snapshot locally, replace this browser budget, and upload the restored encrypted vault as current.',
-        assurance: 'The Cloud Sync recovery key does not change, and the key is not sent to BudgetBuddy.',
+        body: 'Zam! will decrypt this encrypted snapshot locally, replace this browser budget, and upload the restored encrypted vault as current.',
+        assurance: 'The Cloud Sync recovery key does not change, and the key is not sent to Zam!',
         detailRows: getBuddyCloudVersionRows(snapshot),
         warning: 'Any unsynced changes in this browser will be replaced.',
         actions: [
@@ -3528,7 +3528,7 @@ async function showLostRecoveryKeyModal() {
         title: 'Lost Recovery Key',
         compact: true,
         modalClass: 'buddy-cloud-recovery-modal',
-        body: 'If the recovery key is permanently lost, BudgetBuddy cannot decrypt the existing Cloud Sync vault.',
+        body: 'If the recovery key is permanently lost, Zam! cannot decrypt the existing Cloud Sync vault.',
         assurance: 'Use a saved key from another trusted place, or reset Cloud Sync and start a new encrypted vault.',
         actions: [
             { id: 'back', label: 'Back', className: 'btn-cancel' },
@@ -3632,7 +3632,7 @@ async function showAdvancedAccountSettingsModal() {
         modalClass: 'buddy-cloud-settings-modal buddy-cloud-advanced-settings-modal',
         body: 'These tools can restore, replace, reset, or permanently delete account data.',
         assurance: 'Version history stores encrypted snapshots only. Restores require confirmation.',
-        warning: 'Use these only when you understand what will change. Some actions can replace the current budget, remove encrypted cloud data, clear this browser, or delete your BudgetBuddy account.',
+        warning: 'Use these only when you understand what will change. Some actions can replace the current budget, remove encrypted cloud data, clear this browser, or delete your Zam! account.',
         actions: [
             { id: 'version-history', label: 'Version History', className: 'btn-cancel' },
             { id: 'reset-cloud', label: 'Reset Cloud Sync', className: 'btn-danger' },
@@ -3719,11 +3719,11 @@ async function confirmSignOutAllDevices() {
     const needsRecoveryKeyBackup = Boolean(cloudStatus.enabled && cloudStatus.hasKey && !hasRecoveryKeyBackedUpFlag());
     const result = await showBuddyCloudModal({
         title: 'Sign Out All Devices?',
-        body: 'This revokes account sessions and known BudgetBuddy browser access records without collecting browser brand, OS, user agent, or IP-derived location.',
-        assurance: 'Supabase will revoke account sessions, and BudgetBuddy will mark known browser access records as revoked. Your encrypted Cloud Sync vault is not deleted, and BudgetBuddy still cannot read it.',
+        body: 'This revokes account sessions and known Zam! browser access records without collecting browser brand, OS, user agent, or IP-derived location.',
+        assurance: 'Supabase will revoke account sessions, and Zam! will mark known browser access records as revoked. Your encrypted Cloud Sync vault is not deleted, and Zam! still cannot read it.',
         warning: needsRecoveryKeyBackup
-            ? 'This clears this browser. BudgetBuddy will require a recovery key download before continuing so this account is not locked out of the encrypted cloud budget.'
-            : 'This clears this browser after sync verification. Other browsers may still have local data until their storage is cleared, but they will be forced out when BudgetBuddy checks their access record.',
+            ? 'This clears this browser. Zam! will require a recovery key download before continuing so this account is not locked out of the encrypted cloud budget.'
+            : 'This clears this browser after sync verification. Other browsers may still have local data until their storage is cleared, but they will be forced out when Zam! checks their access record.',
         inputLabel: 'Type SIGN OUT to confirm',
         inputPlaceholder: 'SIGN OUT',
         inputSingleLine: true,
@@ -3756,9 +3756,9 @@ async function confirmSignOutAllDevices() {
 async function confirmSignOutOtherDevices() {
     const result = await showBuddyCloudModal({
         title: 'Sign Out Other Devices?',
-        body: 'This signs out every other Supabase session for this account and marks known BudgetBuddy browser access records as revoked.',
-        assurance: 'This browser stays signed in. Your encrypted Cloud Sync vault is not deleted, and BudgetBuddy still cannot read it.',
-        warning: 'Other browsers may keep local data until their browser storage is cleared, but BudgetBuddy will force them out when they check in.',
+        body: 'This signs out every other Supabase session for this account and marks known Zam! browser access records as revoked.',
+        assurance: 'This browser stays signed in. Your encrypted Cloud Sync vault is not deleted, and Zam! still cannot read it.',
+        warning: 'Other browsers may keep local data until their browser storage is cleared, but Zam! will force them out when they check in.',
         actions: [
             { id: 'cancel', label: 'Back', className: 'btn-cancel' },
             { id: 'signout-others', label: 'Sign Out Others', className: 'btn-danger' }
@@ -3771,9 +3771,9 @@ async function confirmSignOutOtherDevices() {
 async function confirmRevokeBrowserAccess(label = 'that browser') {
     const result = await showBuddyCloudModal({
         title: 'Sign Out This Browser?',
-        body: `BudgetBuddy will sign out ${label} the next time it opens or refreshes BudgetBuddy.`,
+        body: `Zam! will sign out ${label} the next time it opens or refreshes Zam!`,
         assurance: 'We only store a private browser record and timestamps for this list. No device name, user agent, IP-derived location, or readable budget data is stored.',
-        warning: 'The cloud revoke is immediate. That browser clears itself the next time it contacts BudgetBuddy.',
+        warning: 'The cloud revoke is immediate. That browser clears itself the next time it contacts Zam!',
         actions: [
             { id: 'cancel', label: 'Back', className: 'btn-cancel' },
             { id: 'revoke', label: 'Sign Out Browser', className: 'btn-danger' }
@@ -3786,8 +3786,8 @@ async function confirmRevokeBrowserAccess(label = 'that browser') {
 async function confirmReleaseSyncSlot() {
     const result = await showBuddyCloudModal({
         title: 'Release Unlinked Sync Slot?',
-        body: 'This sync slot is consuming Free Tier Cloud Sync capacity but is not tied to a visible BudgetBuddy browser record.',
-        assurance: 'BudgetBuddy releases only the selected Cloud Sync slot record. It does not revoke your recovery key, delete your encrypted vault, or store a new device identifier.',
+        body: 'This sync slot is consuming Free Tier Cloud Sync capacity but is not tied to a visible Zam! browser record.',
+        assurance: 'Zam! releases only the selected Cloud Sync slot record. It does not revoke your recovery key, delete your encrypted vault, or store a new device identifier.',
         warning: 'Release this only when no visible browser should still own the slot. A browser can claim a slot again only after the recovery key is imported for that session.',
         actions: [
             { id: 'cancel', label: 'Back', className: 'btn-cancel' },
@@ -3805,7 +3805,7 @@ async function showDeviceManagementPrivacyDetails() {
         compact: true,
         modalClass: 'buddy-cloud-privacy-modal',
         body: BROWSER_ACCESS_PRIVACY_COPY,
-        assurance: 'These records only help BudgetBuddy recognize known browser access, match it to existing Cloud Sync slots, and process sign-out or slot-release requests.',
+        assurance: 'These records only help Zam! recognize known browser access, match it to existing Cloud Sync slots, and process sign-out or slot-release requests.',
         detailRows: [
             { label: 'Stored', value: 'Private browser record, sync slot link, timestamps' },
             { label: 'Not stored', value: 'Device names, user agents, IP location' },
@@ -3838,7 +3838,7 @@ function getBuddyCloudDeviceStatusCopy() {
     const freeLimit = Number(status.freeDeviceLimit || status.syncSlotLimit || 2);
     const leaseWindow = getFreeSyncSlotLeaseLabel(status);
     if (!status.signedIn) return 'Sign in to manage Cloud Sync on this browser.';
-    if (!status.enabled || !status.hasKey) return 'Manage known BudgetBuddy browsers for this account.';
+    if (!status.enabled || !status.hasKey) return 'Manage known Zam! browsers for this account.';
     if (isBuddyCloudMultiDeviceLimit(status)) return `Free Tier includes ${freeLimit} active Cloud Sync slots. Browsers inactive for ${leaseWindow} are released automatically, or you can use this browser now.`;
     if (hasBuddyCloudConflict(status)) return 'Possible data loss prevented. Compare the saved versions before Cloud Sync overwrites either copy.';
     if (hasUnbackedLocalChangesStatus(status)) return 'Changes on this browser are saved locally but have not been backed up to Cloud Sync.';
@@ -6143,7 +6143,7 @@ function closeEmergencyFundRecommendationModal() {
     window.setTimeout(() => modal.remove(), 220);
 }
 
-function saveRecommendedEmergencyFundGoal(recommendedAmount, message = 'Emergency fund target reset to BudgetBuddy recommendation.') {
+function saveRecommendedEmergencyFundGoal(recommendedAmount, message = 'Emergency fund target reset to Zam! recommendation.') {
     const symbol = State.getSymbol ? State.getSymbol() : '$';
     setEmergencyFundGoalState(recommendedAmount, false);
     observeLocalSave('Emergency fund recommendation saved partially.');
@@ -6190,9 +6190,9 @@ function openEmergencyFundRecommendationModal(amount, fundStage) {
     modal.innerHTML = `
         <div class="modal-box modal-box-medium emergency-recommendation-box" role="dialog" aria-modal="true" aria-labelledby="emergencyRecommendationTitle" onclick="event.stopPropagation()">
             <button type="button" class="modal-close" onclick="window.cancelEmergencyFundRecommendation()" aria-label="Close emergency fund recommendation">&times;</button>
-            <h3 id="emergencyRecommendationTitle" class="modal-title">BudgetBuddy Recommendation</h3>
+            <h3 id="emergencyRecommendationTitle" class="modal-title">Zam! Recommendation</h3>
             <p class="emergency-recommendation-copy">
-                Based on ${validation.months} months and ${symbol}${formatMoney(validation.monthlyBase)} in monthly expense budgets, BudgetBuddy recommends:
+                Based on ${validation.months} months and ${symbol}${formatMoney(validation.monthlyBase)} in monthly expense budgets, Zam! recommends:
             </p>
             <div class="emergency-recommendation-values">
                 <div>
@@ -6237,7 +6237,7 @@ window.confirmEmergencyFundRecommendation = function() {
 
     closeEmergencyFundRecommendationModal();
     syncOverlayScrollTopState();
-    saveRecommendedEmergencyFundGoal(recommendedAmount, 'Emergency fund target set to BudgetBuddy recommendation.');
+    saveRecommendedEmergencyFundGoal(recommendedAmount, 'Emergency fund target set to Zam! recommendation.');
 };
 
 window.confirmEmergencyFundOverride = function() {
@@ -6295,7 +6295,7 @@ window.openEmergencyFundResetOverrideModal = function(event) {
             <button type="button" class="modal-close" onclick="window.closeEmergencyFundResetOverrideModal()" aria-label="Close reset override">&times;</button>
             <h3 id="emergencyResetOverrideTitle" class="modal-title">Reset Override?</h3>
             <p class="emergency-recommendation-copy">
-                This will replace your custom emergency fund goal with BudgetBuddy's current recommendation.
+                This will replace your custom emergency fund goal with Zam!'s current recommendation.
             </p>
             <div class="emergency-recommendation-values">
                 <div>
@@ -6463,7 +6463,7 @@ window.saveEmergencyFundMonths = function(value) {
     }
 
     if (window.showToast && hasEmergencyFundGoalOverride()) {
-        window.showToast(`Override kept. BudgetBuddy recommends ${symbol}${formatMoney(recommendedAmount)}.`);
+        window.showToast(`Override kept. Zam! recommends ${symbol}${formatMoney(recommendedAmount)}.`);
     }
     renderSavingsTab();
 };
@@ -7131,7 +7131,7 @@ window.exportTransactions = function() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `BudgetBuddy_Export_${window.currentTxFilter}.csv`);
+    link.setAttribute("download", `Zam_Export_${window.currentTxFilter}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -12477,7 +12477,7 @@ export function renderDebtTab() {
                     <div class="debt-empty-state">
                         <div class="debt-empty-icon" aria-hidden="true">✓</div>
                         <h3>No debt accounts yet</h3>
-                        <p>Add a balance when you want BudgetBuddy to track payoff progress.</p>
+                        <p>Add a balance when you want Zam! to track payoff progress.</p>
                         <button type="button" class="btn-create" onclick="window.openAddDebtModal()">Add Debt</button>
                     </div>
                 </section>
@@ -13027,7 +13027,7 @@ window.closeCategoryModal = function() {
 };
 
 // ==========================================
-// ☁️ BUDDY CLOUD: Access & Monetization (Spec 2.4 & 2.5)
+// ☁️ CLOUD SYNC: Access & Monetization (Spec 2.4 & 2.5)
 // ==========================================
 
 const PREMIUM_ACTIVE_KEY = 'bb_premium_active';
@@ -13178,7 +13178,7 @@ function syncBillingUi() {
         accountUpgradeBtn.setAttribute('aria-label', !isPro && !billingEnabled
             ? getBillingDisabledMessage()
             : isPro
-            ? 'Manage Premium subscription. Thank you for supporting BudgetBuddy.'
+            ? 'Manage Premium subscription. Thank you for supporting Zam!'
             : 'Upgrade to Premium');
     }
 
@@ -13276,7 +13276,7 @@ function showStripeRedirectNotice(destinationUrl = 'https://checkout.stripe.com/
                 <button type="button" class="modal-close" id="stripeRedirectClose" aria-label="Cancel Stripe redirect">&times;</button>
                 <h3 id="stripeRedirectTitle" class="modal-title">Opening secure checkout</h3>
                 <p class="stripe-redirect-copy">
-                    You are about to leave BudgetBuddy and continue payment on Stripe's secure checkout page.
+                    You are about to leave Zam! and continue payment on Stripe's secure checkout page.
                 </p>
                 <p class="stripe-redirect-privacy">
                     Once you continue, Stripe may process payment, billing, and device information under Stripe's
@@ -13559,8 +13559,8 @@ export async function handleManageSubscription(event) {
     }
 }
 
-export function showPremiumSuccessModal(title = 'Welcome to BudgetBuddy Pro!', message = 'Your payment was successful and premium access is now active.', options = {}) {
-    const { buttonLabel = 'Start using Pro' } = options;
+export function showPremiumSuccessModal(title = 'Welcome to Zam! Premium', message = 'Your payment was successful and premium access is now active.', options = {}) {
+    const { buttonLabel = 'Start using Premium' } = options;
     document.getElementById('premiumSuccessModal')?.remove();
 
     const modal = document.createElement('div');
@@ -13591,7 +13591,7 @@ export async function handleStripeCheckoutReturn() {
             const verified = await refreshPremiumAccess({ silent: true, checkoutSessionId: sessionId, throwOnError: true });
             if (verified) {
                 showPremiumSuccessModal(
-                    'Welcome to BudgetBuddy Pro!',
+                    'Welcome to Zam! Premium',
                     'Your payment was verified and premium access is now active.'
                 );
             } else {
@@ -13607,8 +13607,8 @@ export async function handleStripeCheckoutReturn() {
             showPremiumSuccessModal(
                 isWrongAccount ? 'Payment Linked To Another Account' : 'Payment Verification Needed',
                 isWrongAccount
-                    ? 'This Stripe checkout was completed for a different BudgetBuddy sign-in. Sign into the account that started checkout to verify Premium, or manage the subscription in Stripe.'
-                    : message || 'BudgetBuddy could not verify this checkout session yet. Refresh and try again, or contact support if the payment appears in Stripe.',
+                    ? 'This Stripe checkout was completed for a different Zam! sign-in. Sign into the account that started checkout to verify Premium, or manage the subscription in Stripe.'
+                    : message || 'Zam! could not verify this checkout session yet. Refresh and try again, or contact support if the payment appears in Stripe.',
                 { buttonLabel: 'Close' }
             );
         }
@@ -13702,7 +13702,7 @@ window.openUpgradeModal = function(featureName = 'this premium feature') {
             <div class="premium-upgrade-header">
                 <div class="premium-upgrade-icon" aria-hidden="true">Pro</div>
                 <div>
-                    <h2 id="upgradeModalTitle" class="modal-title">BudgetBuddy Premium</h2>
+                    <h2 id="upgradeModalTitle" class="modal-title">Zam! Premium</h2>
                     <p class="premium-upgrade-copy">Unlock ${esc(featureName)} plus the paid tools built for recurring budget work.</p>
                 </div>
             </div>
@@ -16019,7 +16019,7 @@ window.exportTransactions = function() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `BudgetBuddy_Transactions_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `Zam_Transactions_${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -16862,11 +16862,11 @@ function getAccountDeletionAuthContextCopy() {
     const provider = getPrimaryAccountAuthProvider();
 
     if (provider === 'google') {
-        return `Signed in as ${email} using Google. Deleting your BudgetBuddy account removes your BudgetBuddy account and app data only. It does not delete your Google account. You can also remove BudgetBuddy from your Google connected-app settings.`;
+        return `Signed in as ${email} using Google. Deleting your Zam! account removes your Zam! account and app data only. It does not delete your Google account. You can also remove Zam! from your Google connected-app settings.`;
     }
 
     if (provider === 'apple') {
-        return `Signed in as ${email} using Apple. Deleting your BudgetBuddy account removes your BudgetBuddy account and app data only. It does not delete your Apple ID. You can also remove BudgetBuddy from your Apple account settings.`;
+        return `Signed in as ${email} using Apple. Deleting your Zam! account removes your Zam! account and app data only. It does not delete your Apple ID. You can also remove Zam! from your Apple account settings.`;
     }
 
     return `Signed in as ${email} using email link.`;
@@ -16875,11 +16875,11 @@ function getAccountDeletionAuthContextCopy() {
 function getAccountDeletionScopeHtml(email, authContextCopy) {
     return `
         <p class="buddy-cloud-modal-copy buddy-cloud-account-delete-intro">
-            <strong>This permanently deletes the BudgetBuddy sign-in for ${esc(email)}.</strong>
+            <strong>This permanently deletes the Zam! sign-in for ${esc(email)}.</strong>
             ${esc(authContextCopy)}
         </p>
         <div class="buddy-cloud-assurance buddy-cloud-account-delete-scope">
-            <p>BudgetBuddy will delete:</p>
+            <p>Zam! will delete:</p>
             <ul>
                 <li>Encrypted Cloud Sync vault</li>
                 <li>Encrypted version-history snapshots</li>
@@ -16887,7 +16887,7 @@ function getAccountDeletionScopeHtml(email, authContextCopy) {
                 <li>Inactive billing profile</li>
                 <li>Supabase auth identity for this account</li>
             </ul>
-            <p>Household or family memberships are not currently stored by BudgetBuddy.</p>
+            <p>Household or family memberships are not currently stored by Zam!</p>
         </div>
     `;
 }
@@ -16896,7 +16896,7 @@ function getAccountDeletionWarningHtml() {
     return `
         <div class="warning-box buddy-cloud-warning buddy-cloud-account-delete-warning">
             <p>Account deletion is permanent and cannot be undone.</p>
-            <p>BudgetBuddy cannot decrypt, restore, or recover a deleted Cloud Sync vault, deleted snapshots, or a deleted account.</p>
+            <p>Zam! cannot decrypt, restore, or recover a deleted Cloud Sync vault, deleted snapshots, or a deleted account.</p>
             <p>If you have an active Stripe subscription, you must cancel it in Stripe before account deletion can be completed. Stripe may retain billing records required for payments, taxes, legal compliance, or dispute handling.</p>
             <p>Browser-only copies on other devices may remain until that device's local site data is cleared.</p>
         </div>
@@ -16912,7 +16912,7 @@ function syncAccountAuthProviderUi() {
     if (passwordBtn) passwordBtn.hidden = !canCurrentUserResetPassword();
 }
 
-function showSessionClearingScreen(message = 'Clearing Session...', detail = 'Clearing this browser and refreshing BudgetBuddy.', options = {}) {
+function showSessionClearingScreen(message = 'Clearing Session...', detail = 'Clearing this browser and refreshing Zam!', options = {}) {
     const { status = '', variant = '' } = options || {};
     let overlay = document.getElementById('sessionClearingOverlay');
     if (!overlay) {
@@ -16931,7 +16931,7 @@ function showSessionClearingScreen(message = 'Clearing Session...', detail = 'Cl
                 </div>
                 <div id="sessionClearingStatus" class="session-clearing-status" hidden></div>
                 <h3 id="sessionClearingTitle">Clearing Session...</h3>
-                <p id="sessionClearingDetail">Clearing this browser and refreshing BudgetBuddy.</p>
+                <p id="sessionClearingDetail">Clearing this browser and refreshing Zam!</p>
                 <div class="session-clearing-progress" aria-hidden="true"><span></span></div>
             </div>
         `;
@@ -17332,7 +17332,7 @@ function renderAccountModalAvatar(container, email, avatarUrl) {
     const initial = getUserInitial(email);
     container.replaceChildren();
     container.classList.add('account-modal-avatar');
-    container.setAttribute('aria-label', `Signed in as ${email || 'BudgetBuddy user'}`);
+    container.setAttribute('aria-label', `Signed in as ${email || 'Zam! user'}`);
     container.setAttribute('data-tooltip', email || 'Signed in account');
     container.removeAttribute('title');
     container.tabIndex = 0;
@@ -17594,7 +17594,7 @@ async function invokeAccountDeleteFunction(options = {}) {
     const { deleteAuthUser = false } = options;
     if (!window.sb?.functions?.invoke || !window.currentUser) {
         throw new Error(deleteAuthUser
-            ? 'Please sign in before deleting your BudgetBuddy account.'
+            ? 'Please sign in before deleting your Zam! account.'
             : 'Please sign in before resetting Cloud Sync.');
     }
 
@@ -17650,9 +17650,9 @@ async function showAccountDeletionBillingUnavailableModal(message = '') {
         eyebrow: 'Premium Subscription',
         title: 'Billing Check Required',
         compact: true,
-        body: message || 'BudgetBuddy could not verify whether this account has an active Premium subscription.',
+        body: message || 'Zam! could not verify whether this account has an active Premium subscription.',
         assurance: 'Account deletion did not start. Try again after billing status is available, or check Stripe Billing Portal.',
-        warning: 'BudgetBuddy will not ask you to confirm account deletion until subscription status is verified.',
+        warning: 'Zam! will not ask you to confirm account deletion until subscription status is verified.',
         actions
     });
 
@@ -17677,7 +17677,7 @@ async function runAccountDeletionBillingPreflight() {
         : 'active';
     const statusArticle = /^[aeiou]/i.test(statusLabel) ? 'an' : 'a';
     await showActiveSubscriptionDeletionBlockedModal(
-        `This account has ${statusArticle} ${statusLabel} Premium subscription. Cancel Premium in Stripe before deleting your BudgetBuddy account.`
+        `This account has ${statusArticle} ${statusLabel} Premium subscription. Cancel Premium in Stripe before deleting your Zam! account.`
     );
     return false;
 }
@@ -17687,8 +17687,8 @@ async function askResetBuddyCloudConfirmation() {
         eyebrow: 'Account Security',
         title: 'Reset Cloud Sync?',
         body: 'Use this only when the recovery key is lost and you need to start Cloud Sync over for this sign-in.',
-        assurance: 'This removes the encrypted Cloud Sync vault and encrypted version-history snapshots from Supabase. Your Supabase login stays active, and BudgetBuddy cannot decrypt or recover the old cloud budget.',
-        warning: 'This is permanent. BudgetBuddy will clear this browser back to a blank state. Your next Cloud Sync setup will create a new encrypted vault and a new recovery key.',
+        assurance: 'This removes the encrypted Cloud Sync vault and encrypted version-history snapshots from Supabase. Your Supabase login stays active, and Zam! cannot decrypt or recover the old cloud budget.',
+        warning: 'This is permanent. Zam! will clear this browser back to a blank state. Your next Cloud Sync setup will create a new encrypted vault and a new recovery key.',
         inputLabel: 'Type DELETE to confirm',
         inputPlaceholder: 'DELETE',
         inputSingleLine: true,
@@ -17713,7 +17713,7 @@ async function askDeleteBudgetBuddyAccountConfirmation() {
     const authContextCopy = getAccountDeletionAuthContextCopy();
     const result = await showBuddyCloudModal({
         eyebrow: 'Account Deletion',
-        title: 'Delete BudgetBuddy Account?',
+        title: 'Delete Zam! Account?',
         compact: true,
         modalClass: 'buddy-cloud-account-delete-modal',
         customHtml: `${getAccountDeletionScopeHtml(email, authContextCopy)}${getAccountDeletionWarningHtml()}`,
@@ -17803,7 +17803,7 @@ async function showAccountDeletionFreshSignInRequiredModal(message = '') {
         eyebrow: 'Account Security',
         title: 'Fresh Sign-In Required',
         compact: true,
-        body: 'BudgetBuddy could not complete the in-app verification email. Account deletion did not start.',
+        body: 'Zam! could not complete the in-app verification email. Account deletion did not start.',
         assurance: 'Sign out, sign back in, then return to Account > Settings > Advanced Features > Delete Account. A fresh login is required before permanent deletion.',
         warning: message || 'Account deletion did not start.',
         actions
@@ -17840,7 +17840,7 @@ async function authorizeAccountDeletionWithSupabase() {
         title: 'Verify Account Deletion',
         compact: true,
         body: `Enter the one-time code sent to ${maskEmailForSecurity(email)}.`,
-        assurance: 'BudgetBuddy requires a fresh login check before permanent account deletion.',
+        assurance: 'Zam! requires a fresh login check before permanent account deletion.',
         warning: 'If the code expires, start account deletion again.',
         inputLabel: 'One-time code',
         inputPlaceholder: '123456',
@@ -17889,8 +17889,8 @@ async function showActiveSubscriptionDeletionBlockedModal(message = '') {
         title: 'Cancel Premium First',
         compact: true,
         body: message || 'Account deletion is paused because this account still has an active Stripe subscription.',
-        assurance: 'BudgetBuddy does not silently cancel paid subscriptions during account deletion. Use Stripe Billing Portal to cancel, then return here after billing status updates.',
-        warning: 'Deleting your BudgetBuddy account before cancelling billing would leave subscription management outside the app.',
+        assurance: 'Zam! does not silently cancel paid subscriptions during account deletion. Use Stripe Billing Portal to cancel, then return here after billing status updates.',
+        warning: 'Deleting your Zam! account before cancelling billing would leave subscription management outside the app.',
         actions
     });
 
@@ -17906,7 +17906,7 @@ function isAccountDeletionReauthRequiredError(error) {
 async function completeBudgetBuddyAccountDeletion({ allowReauthRetry = true } = {}) {
     showSessionClearingScreen(
         'Deleting Account...',
-        'Deleting your BudgetBuddy account. When this finishes, you will be signed out and returned to budget-buddy.io.',
+        'Deleting your Zam! account. When this finishes, you will be signed out and returned to budget-buddy.io.',
         {
             status: 'Permanent deletion in progress',
             variant: 'account-delete'
@@ -17946,7 +17946,7 @@ async function completeBudgetBuddyAccountDeletion({ allowReauthRetry = true } = 
                 eyebrow: 'Account Security',
                 title: 'Verification Required',
                 compact: true,
-                body: err.message || 'Verify your login again before deleting your BudgetBuddy account.',
+                body: err.message || 'Verify your login again before deleting your Zam! account.',
                 assurance: 'Sign out and sign back in, then return to Account > Settings > Advanced Features > Delete Account.',
                 warning: 'Account deletion did not start.',
                 actions: [
@@ -18014,7 +18014,7 @@ export function handleLogout(e) {
     closeAccountModal();
     showAccountConfirmModal({
         title: 'Log out?',
-        message: 'You will be signed out of BudgetBuddy.',
+        message: 'You will be signed out of Zam!',
         note: noteParts.join(' '),
         confirmLabel: 'Secure Sign Out',
         confirmClass: 'btn-danger',

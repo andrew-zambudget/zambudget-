@@ -105,7 +105,7 @@ test.describe('Premium billing copy', () => {
         const modal = page.locator('#premiumSuccessModal');
         await expect(modal).toBeVisible();
         await expect(page.locator('#premiumSuccessTitle')).toHaveText('Payment Linked To Another Account');
-        await expect(modal).toContainText('completed for a different BudgetBuddy sign-in');
+        await expect(modal).toContainText('completed for a different Zam! sign-in');
         await expect(modal.getByRole('button', { name: 'Close', exact: true })).toBeVisible();
         await expect(modal).not.toContainText('Stripe is still confirming your subscription');
     });

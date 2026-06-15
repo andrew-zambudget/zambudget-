@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,follow">
-    <title>BudgetBuddy — Manage Your Budget</title>
+    <title>Zam! — Manage Your Budget</title>
 
     <link rel="stylesheet" href="css/variables.css">
     <link rel="stylesheet" href="css/main.css">
@@ -20,11 +20,11 @@
     <noscript>
         <div class="noscript-fallback">
             <h3>JavaScript Required</h3>
-            <p>BudgetBuddy runs entirely in your browser. Please enable JavaScript to use this application.</p>
+            <p>Zam! runs entirely in your browser. Please enable JavaScript to use this application.</p>
         </div>
     </noscript>
     <header class="app-header">
-        <a href="index.html" class="logo" aria-label="BudgetBuddy home">BudgetBuddy</a>
+        <a href="index.html" class="logo" aria-label="Zam! home">Zam!</a>
 
         <div class="header-controls">
             <button class="icon-btn" id="settingsBtn" onclick="window.openSettingsModal()" aria-label="Settings" data-tooltip="Settings">
@@ -84,10 +84,10 @@
         </div>
     </header>
 
-    <section class="beta-support-strip" aria-label="BudgetBuddy beta signups">
+    <section class="beta-support-strip" aria-label="Zam! beta signups">
         <div class="beta-support-copy">
             <strong>Beta signups are open.</strong>
-            <span>Help test BudgetBuddy and fund continued work on reliability, billing, and Cloud Sync.</span>
+            <span>Help test Zam! and fund continued work on reliability, billing, and Cloud Sync.</span>
         </div>
         <div class="beta-support-actions">
             <a href="https://app.budget-buddy.io/login" class="beta-support-primary" id="betaSupportPrimaryAction">Join Beta</a>
@@ -714,12 +714,12 @@
                                         <section id="settingsBudgetRules" class="settings-card">
                                             <div class="settings-card-header">
                                                 <h4 class="settings-card-title">Budget Rules</h4>
-                                                <p class="settings-card-copy">Control how BudgetBuddy calculates savings, income, and debt priorities.</p>
+                                                <p class="settings-card-copy">Control how Zam! calculates savings, income, and debt priorities.</p>
                                             </div>
 
                                 <div class="form-group settings-field">
                                     <div class="settings-field-label">Include savings in income totals?</div>
-                                    <div class="settings-radio-row settings-segmented" role="radiogroup" aria-label="Treat savings as total income anywhere in BudgetBuddy">
+                                    <div class="settings-radio-row settings-segmented" role="radiogroup" aria-label="Treat savings as total income anywhere in Zam!">
                                         <label class="settings-segment-option">
                                             <input type="radio" name="zbbSavingsAsIncome" id="zbbSavingsAsIncomeNo" value="no">
                                             <span>No, keep separate</span>
@@ -754,7 +754,7 @@
                                             <div class="settings-card-header settings-card-header-row">
                                                 <div>
                                                     <h4 class="settings-card-title">Appearance</h4>
-                                                    <p class="settings-card-copy">Personalize how BudgetBuddy looks.</p>
+                                                    <p class="settings-card-copy">Personalize how Zam! looks.</p>
                                                 </div>
                                                 <div id="settingsAccentSelected" class="settings-selected-pill">Selected: Teal</div>
                                             </div>
@@ -859,7 +859,7 @@
 	                                            <button type="button" class="btn-cancel" onclick="window.clearGiftCardMerchantCacheFromSettings(event)">Clear Cache</button>
 	                                        </div>
 	                                    </div>
-	                                    <div class="settings-privacy-note">BudgetBuddy downloads one full local merchant metadata bundle. Merchant searches and suggestions stay on this device and are not sent to a server.</div>
+	                                    <div class="settings-privacy-note">Zam! downloads one full local merchant metadata bundle. Merchant searches and suggestions stay on this device and are not sent to a server.</div>
 	                                </div>
 
 	                                <div class="form-group settings-field settings-data-tools">
@@ -871,7 +871,7 @@
                                         </button>
                                         <button type="button" class="settings-action-tile settings-action-tile-primary" onclick="document.getElementById('csvImportInput')?.click()">
                                             <span class="settings-action-title">Import CSV</span>
-                                            <span class="settings-action-copy">Bring transaction history into BudgetBuddy.</span>
+                                            <span class="settings-action-copy">Bring transaction history into Zam!</span>
                                         </button>
                                         <input type="file" id="csvImportInput" class="settings-csv-input" accept=".csv,text/csv" onchange="window.importTransactionsFromCSV(event)">
                                     </div>
@@ -888,7 +888,7 @@
                                             <div class="settings-danger-action">
                                                 <div>
                                                     <div class="settings-danger-title">Erase Local Budget Data</div>
-                                                    <div class="help-text">Clears BudgetBuddy transactions, categories, and settings stored in this browser. This cannot be undone.</div>
+                                                    <div class="help-text">Clears Zam! transactions, categories, and settings stored in this browser. This cannot be undone.</div>
                                                 </div>
                                                 <button type="button" class="btn-outline-danger" onclick="window.openResetModal()">Erase Local Budget Data</button>
                                             </div>
@@ -1020,7 +1020,7 @@
                             <div class="warning-box">
                                 <div class="warning-title">Local Browser Reset</div>
                                 <p>
-                                    This clears BudgetBuddy <strong>transactions, categories, settings, and local app data stored in this browser</strong>.
+                                    This clears Zam! <strong>transactions, categories, settings, and local app data stored in this browser</strong>.
                                     It does not delete your Supabase login or perform an account-wide deletion. This action cannot be undone.
                                 </p>
                             </div>
@@ -1333,7 +1333,7 @@
             <span class="footer-dot" aria-hidden="true">&middot;</span>
             <a href="https://budget-buddy.io/terms" class="footer-link" target="_blank" rel="noopener noreferrer">Terms of Service</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>
-            <a href="mailto:social@budget-buddy.io" class="footer-link">Social Contact</a>
+            <a href="mailto:social@zambudget.com" class="footer-link">Social Contact</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>
             <span class="footer-link footer-social-link footer-social-link-disabled" aria-label="TikTok coming soon" aria-disabled="true" data-tooltip="TikTok coming soon">
                 <svg class="footer-social-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -1350,7 +1350,7 @@
             </a>
         </div>
         <div class="copyright-text">
-            &copy; 2026 BudgetBuddy. Product code is private during beta.
+            &copy; 2026 Zam! Product code is private during beta.
         </div>
     </footer>
 

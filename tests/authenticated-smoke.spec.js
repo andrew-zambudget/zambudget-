@@ -29,7 +29,7 @@ async function clearBrowserBudgetState(page) {
     }).catch(() => {});
 }
 
-test.describe('BudgetBuddy authenticated smoke', () => {
+test.describe('Zam! authenticated smoke', () => {
     test.skip(!HAS_AUTH_CREDENTIALS, 'Set BUDGETBUDDY_TEST_EMAIL and BUDGETBUDDY_TEST_PASSWORD for the dedicated smoke-test account.');
 
     test.afterEach(async ({ page }) => {

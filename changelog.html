@@ -8,7 +8,7 @@
     <!-- PRODUCTION UPGRADE: Theme color adapts to mobile browser chrome -->
     <meta name="theme-color" content="#0f1117" media="(prefers-color-scheme: dark)">
     <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)">
-    <title>Changelog - BudgetBuddy</title>
+    <title>Changelog - Zam!</title>
     <style>
         :root{--bg:#0f1117;--surface:#1a1d27;--surface-hover:#242736;--border:#374151;--text:#e4e4e7;--text-dim:#9ca3af;--green:#22c55e;--red:#ef4444;--accent:#8b5cf6;--blue:#3b82f6;--yellow:#f59e0b;--purple:#a855f7}
         [data-theme="light"]{--bg:#f8fafc;--surface:#fff;--surface-hover:#f1f5f9;--border:#cbd5e1;--text:#1e293b;--text-dim:#475569;--green:#16a34a;--red:#dc2626;--accent:#7c3aed;--blue:#2563eb;--yellow:#d97706;--purple:#9333ea}
@@ -181,7 +181,7 @@
 <body>
     <a href="#main" class="skip-link">Skip to main content</a>
     <header class="app-header">
-        <a href="index.html" class="logo">BudgetBuddy</a>
+        <a href="index.html" class="logo">Zam!</a>
 
         <div class="header-controls">
             <div class="theme-toggle-group" role="group" aria-label="Theme selection">
@@ -199,7 +199,7 @@
 
     <main id="main">
         <h1 class="page-title">Release Notes</h1>
-        <p class="page-subtitle">The story of BudgetBuddy, one commit at a time.</p>
+        <p class="page-subtitle">The story of Zam!, one commit at a time.</p>
 
         <!-- Controls & Legend -->
         <div class="controls-bar">
@@ -238,7 +238,7 @@
             <div class="card-body" id="release-v1-body">
                 <div class="card-content">
                     <p class="intro-text">
-                        BudgetBuddy is in v1.0 RC monitoring. The goal now is honest validation: is the product useful enough to keep entering budgets, stable enough to trust with real data, and valuable enough that Premium support can at least cover infrastructure and continued development time?
+                        Zam! is in v1.0 RC monitoring. The goal now is honest validation: is the product useful enough to keep entering budgets, stable enough to trust with real data, and valuable enough that Premium support can at least cover infrastructure and continued development time?
                     </p>
 
                     <div class="release-summary" aria-label="v1.0 release summary by category">
@@ -296,6 +296,14 @@
                             <div class="tag-item tag-ui">
                                 <span class="tag-icon" aria-hidden="true">UI</span>
                                 <div>
+                                    <div class="tag-text">Main app rebranded to Zam!</div>
+                                    <span class="tag-detail">The signed-in app shell, static app pages, safety dialogs, Cloud Sync recovery copy, Premium billing copy, exports, diagnostics, privacy, terms, support, and account-deletion language now use Zam! branding while legacy storage keys, Supabase table names, and compatibility identifiers remain unchanged.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-ui">
+                                <span class="tag-icon" aria-hidden="true">UI</span>
+                                <div>
                                     <div class="tag-text">Login page rebranded to Zam!</div>
                                     <span class="tag-detail">The pre-auth login page now uses the Zam! title, logo text, account messages, beta signup copy, and footer branding while keeping existing auth redirects and storage behavior unchanged.</span>
                                 </div>
@@ -305,7 +313,7 @@
                                 <span class="tag-icon" aria-hidden="true">UI</span>
                                 <div>
                                     <div class="tag-text">Public contact and social routing expanded</div>
-                                    <span class="tag-detail">Public app/support pages now mirror the website's dedicated support, billing, legal, accessibility, social, dev-test mailboxes, and BudgetBuddy mail-only office address with ZIP+4 formatting. TikTok is greyed out while the account is prepared, LinkedIn points to Andrew Struck, and private app repository links are not advertised as public channels. Sign-in and magic-link questions route through Support because the auth email is a no-reply/system address.</span>
+                                    <span class="tag-detail">Public app/support pages now mirror the website's dedicated support, billing, legal, accessibility, and social mailboxes plus the Zam! mail-only office address with ZIP+4 formatting. TikTok is greyed out while the account is prepared, LinkedIn points to Andrew Struck, and private app repository links are not advertised as public channels. Sign-in and magic-link questions route through Support because the auth email is a no-reply/system address.</span>
                                 </div>
                             </div>
 
@@ -329,7 +337,7 @@
                                 <span class="tag-icon" aria-hidden="true">CARD</span>
                                 <div>
                                     <div class="tag-text">Gift-card payment method and balance tracker added</div>
-                                    <span class="tag-detail">The Add tab payment method dropdown now includes Gift Card. Selecting it opens a compact tracker where users can save a gift-card number, total amount, current balance, and expiration date, then BudgetBuddy subtracts each saved gift-card expense and previews the remaining balance before save.</span>
+                                    <span class="tag-detail">The Add tab payment method dropdown now includes Gift Card. Selecting it opens a compact tracker where users can save a gift-card number, total amount, current balance, and expiration date, then Zam! subtracts each saved gift-card expense and previews the remaining balance before save.</span>
                                 </div>
                                 <div class="tag-item tag-security">
                                     <div class="tag-icon">P</div>
@@ -351,7 +359,7 @@
                                 <span class="tag-icon" aria-hidden="true">BETA</span>
                                 <div>
                                     <div class="tag-text">Beta testing is open and intentionally honest</div>
-                                    <span class="tag-detail">BudgetBuddy is being tested with real budgets, real sign-ins, real Cloud Sync recovery, and real billing paths. Feedback matters now because the next decision is practical: keep developing if users find it useful enough and it can at least pay for its infrastructure, or scrap it if the time-to-value and support load do not make sense.</span>
+                                    <span class="tag-detail">Zam! is being tested with real budgets, real sign-ins, real Cloud Sync recovery, and real billing paths. Feedback matters now because the next decision is practical: keep developing if users find it useful enough and it can at least pay for its infrastructure, or scrap it if the time-to-value and support load do not make sense.</span>
                                 </div>
                             </div>
 
@@ -375,7 +383,7 @@
                                 <span class="tag-icon" aria-hidden="true">KEY</span>
                                 <div>
                                     <div class="tag-text">Trusted Cloud Sync browser key added</div>
-                                    <span class="tag-detail">After a successful setup or recovery-key import, BudgetBuddy can store a non-extractable WebCrypto key in IndexedDB so the same browser can keep syncing after refresh without storing the raw recovery key in localStorage. The trusted key stays local to the browser, is not part of Account &gt; Devices records, and cannot be displayed as the recovery-key text.</span>
+                                    <span class="tag-detail">After a successful setup or recovery-key import, Zam! can store a non-extractable WebCrypto key in IndexedDB so the same browser can keep syncing after refresh without storing the raw recovery key in localStorage. The trusted key stays local to the browser, is not part of Account &gt; Devices records, and cannot be displayed as the recovery-key text.</span>
                                 </div>
                             </div>
 
@@ -407,7 +415,7 @@
                                 <span class="tag-icon" aria-hidden="true">KEY</span>
                                 <div>
                                     <div class="tag-text">First recovery-key screen now has a timed acknowledgement</div>
-                                    <span class="tag-detail">Fresh Cloud Sync setup keeps the 72-hour save reminder, but the first recovery-key screen now requires a short read period before users can continue. Users can explicitly choose the 72-hour reminder path, or paste-confirm the matching recovery key before BudgetBuddy marks it saved.</span>
+                                    <span class="tag-detail">Fresh Cloud Sync setup keeps the 72-hour save reminder, but the first recovery-key screen now requires a short read period before users can continue. Users can explicitly choose the 72-hour reminder path, or paste-confirm the matching recovery key before Zam! marks it saved.</span>
                                 </div>
                             </div>
 
@@ -423,7 +431,7 @@
                                 <span class="tag-icon" aria-hidden="true">UID</span>
                                 <div>
                                     <div class="tag-text">Account deletion verifies app-owned UID cleanup</div>
-                                    <span class="tag-detail">Before returning success, the deletion function now verifies that BudgetBuddy-owned vault, snapshot, browser-access, billing-profile, and profile rows no longer contain the deleted account UID. Supabase Auth hard deletion remains the scrub path for the auth UID, created-at, and last-sign-in fields.</span>
+                                    <span class="tag-detail">Before returning success, the deletion function now verifies that Zam-controlled vault, snapshot, browser-access, billing-profile, and profile rows no longer contain the deleted account UID. Supabase Auth hard deletion remains the scrub path for the auth UID, created-at, and last-sign-in fields.</span>
                                 </div>
                             </div>
 
@@ -431,7 +439,7 @@
                                 <span class="tag-icon" aria-hidden="true">ID</span>
                                 <div>
                                     <div class="tag-text">Account deletion scrubs account email metadata</div>
-                                    <span class="tag-detail">The deletion function now checks billing by UID and email before allowing deletion, then deletes and verifies BudgetBuddy-owned billing/profile email rows before reporting success. Verified Supabase Auth deletion remains the source of truth for removing the auth email, login timestamps, sessions, and social-login identity metadata.</span>
+                                    <span class="tag-detail">The deletion function now checks billing by UID and email before allowing deletion, then deletes and verifies Zam-controlled billing/profile email rows before reporting success. Verified Supabase Auth deletion remains the source of truth for removing the auth email, login timestamps, sessions, and social-login identity metadata.</span>
                                 </div>
                             </div>
 
@@ -439,7 +447,7 @@
                                 <span class="tag-icon" aria-hidden="true">LOG</span>
                                 <div>
                                     <div class="tag-text">Provider metadata legal copy clarified</div>
-                                    <span class="tag-detail">Privacy, terms, and support copy now explicitly disclose that infrastructure, authentication, email, payment, and security providers may process or retain operational metadata such as IP-related logs, approximate country or region metadata, user agent/browser hints, request metadata, OAuth provider metadata, delivery logs, billing records, and security/audit records. BudgetBuddy still does not use those records for tracking, behavioral analytics, selling financial behavior, or reading encrypted Cloud Sync contents.</span>
+                                    <span class="tag-detail">Privacy, terms, and support copy now explicitly disclose that infrastructure, authentication, email, payment, and security providers may process or retain operational metadata such as IP-related logs, approximate country or region metadata, user agent/browser hints, request metadata, OAuth provider metadata, delivery logs, billing records, and security/audit records. Zam! still does not use those records for tracking, behavioral analytics, selling financial behavior, or reading encrypted Cloud Sync contents.</span>
                                 </div>
                             </div>
 
@@ -495,7 +503,7 @@
                                 <span class="tag-icon" aria-hidden="true">$</span>
                                 <div>
                                     <div class="tag-text">Premium support is framed as project sustainability</div>
-                                    <span class="tag-detail">Premium is not being positioned as hype. The beta question is whether BudgetBuddy is good enough that users want to help fund reliability, billing, Cloud Sync, and infrastructure. If it cannot pay for itself, development may stop instead of growing into an unsupported product.</span>
+                                    <span class="tag-detail">Premium is not being positioned as hype. The beta question is whether Zam! is good enough that users want to help fund reliability, billing, Cloud Sync, and infrastructure. If it cannot pay for itself, development may stop instead of growing into an unsupported product.</span>
                                 </div>
                             </div>
 
@@ -511,7 +519,7 @@
                                 <span class="tag-icon" aria-hidden="true">FIX</span>
                                 <div>
                                     <div class="tag-text">Checkout repairs stale Stripe customer links</div>
-                                    <span class="tag-detail">If an older billing profile points to a Stripe customer that no longer exists, BudgetBuddy now creates a fresh Stripe customer for the signed-in account before starting Checkout instead of failing with a no-such-customer error.</span>
+                                    <span class="tag-detail">If an older billing profile points to a Stripe customer that no longer exists, Zam! now creates a fresh Stripe customer for the signed-in account before starting Checkout instead of failing with a no-such-customer error.</span>
                                 </div>
                             </div>
 
@@ -548,7 +556,7 @@
                                 <span class="tag-icon" aria-hidden="true">☁️</span>
                                 <div>
                                     <div class="tag-text">Cloud Sync moved into v1 production prep</div>
-                                    <span class="tag-detail">Cloud Sync is now the core free backup and sync path for BudgetBuddy. It supports encrypted cloud vault upload/download, conflict handling, recovery-key import, and a reset path for users who lose the recovery key and need to start their cloud vault over.</span>
+                                    <span class="tag-detail">Cloud Sync is now the core free backup and sync path for Zam!, supporting encrypted cloud vault upload/download, conflict handling, recovery-key import, and a reset path for users who lose the recovery key and need to start their cloud vault over.</span>
                                 </div>
                             </div>
 
@@ -588,7 +596,7 @@
                                 <span class="tag-icon" aria-hidden="true">🧭</span>
                                 <div>
                                     <div class="tag-text">Priority Recovery Tools</div>
-                                    <span class="tag-detail">Added guided Cloud Sync Recovery Help with human-readable sync status, recovery-key checks, version-conflict guidance, device-limit guidance, diagnostic export routing, and safe reset direction. BudgetBuddy still cannot recover or decrypt a lost recovery key, but the app now gives users clearer next steps before they panic or reset unnecessarily.</span>
+                                    <span class="tag-detail">Added guided Cloud Sync Recovery Help with human-readable sync status, recovery-key checks, version-conflict guidance, device-limit guidance, diagnostic export routing, and safe reset direction. Zam! still cannot recover or decrypt a lost recovery key, but the app now gives users clearer next steps before they panic or reset unnecessarily.</span>
                                 </div>
                             </div>
 
@@ -636,7 +644,7 @@
                                 <span class="tag-icon" aria-hidden="true">🖥️</span>
                                 <div>
                                     <div class="tag-text">Device and session controls simplified</div>
-                                    <span class="tag-detail">Devices is now focused on session risk and sign-out behavior. Known BudgetBuddy browsers are listed using privacy-minimal browser hashes, existing sync slot hash links, and timestamps, with browser-icon rows, right-aligned individual sign-out controls, and a separate full-width Sign Out All Devices action. Logout, revoked-browser cleanup, Cloud Sync reset, and Sign Out All Devices now show a Clearing Session screen while local storage, session storage, accessible cookies, and stale page state are cleared before refresh. Manual upload/download controls only appear when Cloud Sync detects competing changes on another device.</span>
+                                    <span class="tag-detail">Devices is now focused on session risk and sign-out behavior. Known Zam! browsers are listed using privacy-minimal browser hashes, existing sync slot hash links, and timestamps, with browser-icon rows, right-aligned individual sign-out controls, and a separate full-width Sign Out All Devices action. Logout, revoked-browser cleanup, Cloud Sync reset, and Sign Out All Devices now show a Clearing Session screen while local storage, session storage, accessible cookies, and stale page state are cleared before refresh. Manual upload/download controls only appear when Cloud Sync detects competing changes on another device.</span>
                                 </div>
                             </div>
 
@@ -953,7 +961,7 @@
             <a href="https://budget-buddy.io/terms" class="footer-link" target="_blank" rel="noopener noreferrer">Terms of Service</a>
         </div>
         <div class="copyright-text">
-            &copy; 2026 BudgetBuddy. Product code is private during beta.
+            &copy; 2026 Zam! Product code is private during beta.
         </div>
     </footer>
 

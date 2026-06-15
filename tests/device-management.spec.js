@@ -104,7 +104,7 @@ test.describe('Cloud Sync device management', () => {
         await expect(modal.getByRole('button', { name: 'Use This Browser' })).toBeVisible();
         await modal.getByRole('button', { name: 'Release sync slot' }).click();
         await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Release Unlinked Sync Slot?');
-        await expect(page.locator('#buddyCloudModal')).toContainText('not tied to a visible BudgetBuddy browser record');
+        await expect(page.locator('#buddyCloudModal')).toContainText('not tied to a visible Zam! browser record');
         await expect(modal).not.toContainText('Current browser · Sync paused');
     });
 

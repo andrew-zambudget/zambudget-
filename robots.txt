@@ -1,7 +1,7 @@
 User-agent: *
 Allow: /
 
-# BudgetBuddy app pages are a functional product surface, not the public SEO surface.
+# Zam! app pages are a functional product surface, not the public SEO surface.
 # Crawlers may access app HTML so page-level noindex directives can be observed.
 # Public marketing and documentation indexing lives at https://budget-buddy.io/.
 

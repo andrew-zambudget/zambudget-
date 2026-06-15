@@ -36,7 +36,7 @@ const REAL_BUDGET = {
     }
 };
 
-test.describe('BudgetBuddy demo app flow', () => {
+test.describe('Zam! demo app flow', () => {
     test.beforeEach(async ({ page }) => {
         await installSignedOutSupabaseStub(page);
         await resetBrowserStorage(page);

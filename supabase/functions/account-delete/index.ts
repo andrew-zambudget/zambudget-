@@ -238,7 +238,7 @@ function requireRecentAuthForAccountDeletion(req: Request, userId: string) {
 
   throw new HttpError(
     401,
-    'Verify your login again before deleting your BudgetBuddy account.',
+    'Verify your login again before deleting your Zam! account.',
     REAUTH_REQUIRED_CODE
   );
 }
@@ -294,7 +294,7 @@ Deno.serve(async (req) => {
       if (billingProfiles.some(hasBlockedBillingSubscription)) {
         throw new HttpError(
           409,
-          'Cancel your active Stripe subscription before deleting your BudgetBuddy account.',
+          'Cancel your active Stripe subscription before deleting your Zam! account.',
           ACTIVE_SUBSCRIPTION_CODE
         );
       }

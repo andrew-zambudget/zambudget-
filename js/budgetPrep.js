@@ -233,7 +233,7 @@ function ensureOverlay() {
                 <span></span>
                 <span></span>
             </div>
-            <p class="budget-prep-kicker">BudgetBuddy</p>
+            <p class="budget-prep-kicker">Zam!</p>
             <h2 id="${TITLE_ID}">Preparing budget...</h2>
             <p id="${DETAIL_ID}">Checking your account and encrypted sync state.</p>
             <div class="budget-prep-meter" aria-hidden="true"><span></span></div>
@@ -319,7 +319,7 @@ export function hidePreparingBudget({ minVisibleMs = 850 } = {}) {
     }, waitMs);
 }
 
-export function failPreparingBudget({ title = 'Budget needs a refresh', detail = 'BudgetBuddy could not finish preparing the dashboard. Your budget data was not changed.' } = {}) {
+export function failPreparingBudget({ title = 'Budget needs a refresh', detail = 'Zam! could not finish preparing the dashboard. Your budget data was not changed.' } = {}) {
     const overlay = ensureOverlay();
     cancelHideTimers();
     stopLineRotation();
