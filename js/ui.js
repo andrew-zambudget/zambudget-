@@ -7071,21 +7071,15 @@ function focusIncomeSourceField(fieldId) {
 window.openIncomeTotalExpectedEditor = function() {
     if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('edit income source')) return;
 
-    const { incomeSources } = getCurrentMonthIncomeContext();
-    if (incomeSources.length === 0) {
+    const entries = getCurrentMonthIncomeEditEntries();
+    if (entries.length === 0) {
         window.openAddSourceModal();
         focusIncomeSourceField('incomeSourcePlanned');
         if (window.showToast) window.showToast('Add an income source to set expected income.');
         return;
     }
 
-    if (incomeSources.length > 1) {
-        if (window.showToast) window.showToast('Edit expected income on the individual income source cards.');
-        return;
-    }
-
-    window.openAddSourceModal(incomeSources[0].name);
-    focusIncomeSourceField('incomeSourcePlanned');
+    openIncomeTotalSourceChooser(entries, 'expected');
 };
 
 function openIncomeLoggedAmountModal(source, existingTx, currentLogged, sourceTxs = []) {
@@ -7167,43 +7161,47 @@ window.openIncomeTotalLoggedEditor = function() {
         return;
     }
 
-    const preferred = pickIncomeTotalEditEntry(entries);
-    if (!preferred) {
-        document.getElementById('incomeTotalSourceChooserModal')?.remove();
-
-        const symbol = State.getSymbol ? State.getSymbol() : '$';
-        const chooser = document.createElement('div');
-        chooser.id = 'incomeTotalSourceChooserModal';
-        chooser.className = 'modal-overlay active';
-        chooser.onclick = (event) => {
-            if (event.target === chooser) window.closeIncomeTotalSourceChooserModal();
-        };
-        chooser.innerHTML = `
-            <div class="modal-box modal-box-medium income-source-picker-modal" role="dialog" aria-modal="true" aria-labelledby="incomeTotalSourceChooserTitle" onclick="event.stopPropagation()">
-                <button type="button" class="modal-close" onclick="window.closeIncomeTotalSourceChooserModal()" aria-label="Close income source chooser">&times;</button>
-                <h3 id="incomeTotalSourceChooserTitle" class="modal-title">Choose income source</h3>
-                <p class="income-total-edit-copy">Pick the source or check to update this month's logged total.</p>
-                <div class="income-source-picker-list">
-                    ${entries.map((entry, index) => `
-                        <button type="button" class="btn-cancel income-source-picker-btn" onclick="window.selectIncomeTotalSource(${jsArg(entry.source.name)})">
-                            <span class="income-source-picker-main">${esc(entry.source.name)}</span>
-                            <span class="income-source-picker-meta">${esc(entry.txCount)} check${entry.txCount === 1 ? '' : 's'} - ${symbol}${formatMoney(entry.currentLogged)} logged${entry.expected > 0 ? ` - ${symbol}${formatMoney(entry.expected)} expected` : ''}${index === 0 ? ' - Suggested' : ''}</span>
-                        </button>
-                    `).join('')}
-                </div>
-                <div class="modal-actions">
-                    <button type="button" class="btn-cancel" onclick="window.closeIncomeTotalSourceChooserModal()">Cancel</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(chooser);
-        syncOverlayScrollTopState();
-        chooser.querySelector('button.income-source-picker-btn, button.btn-cancel')?.focus();
-        return;
-    }
-
-    openIncomeLoggedAmountModal(preferred.source, preferred.selectedTx || preferred.latestTx || null, preferred.currentLogged, preferred.sourceTxs || []);
+    openIncomeTotalSourceChooser(entries, 'logged');
 };
+
+function openIncomeTotalSourceChooser(entries, mode = 'logged') {
+    const symbol = State.getSymbol ? State.getSymbol() : '$';
+    const isLogged = mode === 'logged';
+    const titleText = isLogged ? 'Choose income source to edit logged total' : 'Choose income source to edit expected amount';
+    const helperText = isLogged
+        ? 'Pick the source or check to update this month\'s logged total.'
+        : 'Pick the source to update this month\'s expected amount.';
+
+    document.getElementById('incomeTotalSourceChooserModal')?.remove();
+
+    const chooser = document.createElement('div');
+    chooser.id = 'incomeTotalSourceChooserModal';
+    chooser.className = 'modal-overlay active';
+    chooser.onclick = (event) => {
+        if (event.target === chooser) window.closeIncomeTotalSourceChooserModal();
+    };
+    chooser.innerHTML = `
+        <div class="modal-box modal-box-medium income-source-picker-modal" role="dialog" aria-modal="true" aria-labelledby="incomeTotalSourceChooserTitle" onclick="event.stopPropagation()">
+            <button type="button" class="modal-close" onclick="window.closeIncomeTotalSourceChooserModal()" aria-label="Close income source chooser">&times;</button>
+            <h3 id="incomeTotalSourceChooserTitle" class="modal-title">${titleText}</h3>
+            <p class="income-total-edit-copy">${helperText}</p>
+            <div class="income-source-picker-list">
+                ${entries.map((entry, index) => `
+                    <button type="button" class="btn-cancel income-source-picker-btn" onclick="window.selectIncomeTotalSource(${jsArg(entry.source.name)}, '${mode}')">
+                        <span class="income-source-picker-main">${esc(entry.source.name)}</span>
+                        <span class="income-source-picker-meta">${esc(entry.txCount)} check${entry.txCount === 1 ? '' : 's'} - ${symbol}${formatMoney(entry.currentLogged)} logged${entry.expected > 0 ? ` - ${symbol}${formatMoney(entry.expected)} expected` : ''}${index === 0 ? ' - Suggested' : ''}</span>
+                    </button>
+                `).join('')}
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" onclick="window.closeIncomeTotalSourceChooserModal()">Cancel</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(chooser);
+    syncOverlayScrollTopState();
+    chooser.querySelector('button.income-source-picker-btn, button.btn-cancel')?.focus();
+}
 
 window.closeIncomeTotalSourceChooserModal = function() {
     const modal = document.getElementById('incomeTotalSourceChooserModal');
@@ -7215,7 +7213,7 @@ window.closeIncomeTotalSourceChooserModal = function() {
     }, 220);
 };
 
-window.selectIncomeTotalSource = function(sourceName) {
+window.selectIncomeTotalSource = function(sourceName, targetMode = 'logged') {
     const entries = getCurrentMonthIncomeEditEntries();
     const entry = entries.find(item => item.source.name === sourceName);
     if (!entry) {
@@ -7225,6 +7223,12 @@ window.selectIncomeTotalSource = function(sourceName) {
 
     rememberIncomeTotalSelection(entry.source.name, entry.selectedTx?.id || entry.latestTx?.id || '');
     window.closeIncomeTotalSourceChooserModal();
+    if (targetMode === 'expected') {
+        window.openAddSourceModal(entry.source.name);
+        focusIncomeSourceField('incomeSourcePlanned');
+        return;
+    }
+
     openIncomeLoggedAmountModal(entry.source, entry.selectedTx || entry.latestTx || null, entry.currentLogged, entry.sourceTxs || []);
 };
 

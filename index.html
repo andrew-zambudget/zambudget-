@@ -210,21 +210,16 @@
 
                     <div id="view-income" class="cmd-view" role="tabpanel" aria-labelledby="tab-income">
                         <div class="income-overview-panel" style="display: flex; flex-direction: column; height: 100%;">
-                            <div class="income-total-summary" aria-label="Total income">
-                                <div class="income-total-header">
-                                    <div>
-                                        <div class="income-overview-title" id="incomeTotalTitle">Total Income:</div>
-                                    </div>
+                                <div class="income-total-summary" aria-label="Total income">
+                                    <div class="income-total-header">
+                                        <div>
+                                            <div class="income-overview-title" id="incomeTotalTitle">Total Income:</div>
+                                        </div>
                                     <div class="income-total-amount">
                                         <button type="button" id="incomeTotalLogged" class="income-total-edit-btn" onclick="window.openIncomeTotalLoggedEditor()" aria-label="Edit logged income total">$0.00</button>
                                         <span class="income-total-of">of</span>
                                         <button type="button" id="incomeTotalExpected" class="income-total-edit-btn" onclick="window.openIncomeTotalExpectedEditor()" aria-label="Edit expected income total">$0.00</button>
                                     </div>
-                                </div>
-                                <div class="income-total-legend-row">
-                                    <button type="button" id="incomeTotalLegend" class="income-total-legend" aria-label="Expected is on the left. Logged is on the right." data-tooltip="Expected is on the left. Logged is on the right.">
-                                        <span class="income-total-legend-icon" aria-hidden="true">i</span>
-                                    </button>
                                 </div>
                                 <div class="progress-bar-container income-total-progress" id="incomeTotalProgressTrack" role="group" aria-label="Total income progress percentages">
                                     <div id="incomeTotalProgress" class="progress-bar-fill" aria-hidden="true"></div>
