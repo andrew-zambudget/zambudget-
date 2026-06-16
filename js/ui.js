@@ -7126,7 +7126,7 @@ function openIncomeLoggedAmountModal(source, existingTx, currentLogged, sourceTx
             <input type="hidden" id="incomeTotalEditSourceName" value="${esc(source.name)}">
             ${txSelectHtml}
             <div class="add-form-group mb-lg">
-                <label for="incomeTotalLoggedInput">Logged this month</label>
+                <label for="incomeTotalLoggedInput">Initial Logged Amount</label>
                 <div class="budgeted-input-shell">
                     <span>${esc(symbol)}</span>
                     <input type="number" id="incomeTotalLoggedInput" class="form-input" min="0" step="0.01" placeholder="0.00" value="${currentLogged > 0 ? esc(currentLogged.toFixed(2)) : ''}" inputmode="decimal">
@@ -7162,8 +7162,7 @@ window.openIncomeTotalLoggedEditor = function() {
 
     const entries = getCurrentMonthIncomeEditEntries();
     if (entries.length === 0) {
-        window.openAddSourceModal();
-        focusIncomeSourceField('incomeSourceName');
+        window.openAddSourceModal('', 'incomeSourceLogged');
         if (window.showToast) window.showToast('Add an income source before logging income.');
         return;
     }
@@ -12504,7 +12503,7 @@ export function openCustomIncomeModal() {
     showToast('💡 Enter custom income amount');
 }
 
-export function openAddSourceModal(sourceName = '') {
+export function openAddSourceModal(sourceName = '', focusField = 'incomeSourceName') {
     const wireAmountShellFocus = (inputEl) => {
         const shell = inputEl?.closest('.budgeted-input-shell');
         const group = inputEl?.closest('.add-form-group');
@@ -12674,9 +12673,10 @@ export function openAddSourceModal(sourceName = '') {
         bindIncomeSourceDraftSync();
         openModal('incomeSourceModal');
 
+        const initialIncomeSourceFocus = document.getElementById(focusField) || nameInput;
         setTimeout(() => {
-            if (nameInput && typeof nameInput.focus === 'function') {
-                nameInput.focus();
+            if (initialIncomeSourceFocus && typeof initialIncomeSourceFocus.focus === 'function') {
+                initialIncomeSourceFocus.focus();
             }
         }, 100);
         return;
@@ -12745,7 +12745,10 @@ export function openAddSourceModal(sourceName = '') {
     wireAmountShellFocus(modal.querySelector('#incomeSourcePlanned'));
     wireAmountShellFocus(modal.querySelector('#incomeSourceLogged'));
     bindIncomeSourceDraftSync();
-    document.getElementById('incomeSourceName')?.focus();
+    const initialIncomeSourceFocus = document.getElementById(focusField) || modal.querySelector('#incomeSourceName');
+    if (initialIncomeSourceFocus && typeof initialIncomeSourceFocus.focus === 'function') {
+        initialIncomeSourceFocus.focus();
+    }
 }
 
 window.closeIncomeSourceModal = function() {
