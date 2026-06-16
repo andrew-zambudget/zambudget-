@@ -7087,6 +7087,9 @@ function openIncomeLoggedAmountModal(source, existingTx, currentLogged, sourceTx
 
     const symbol = State.getSymbol ? State.getSymbol() : '$';
     const txList = Array.isArray(sourceTxs) ? sourceTxs : [];
+    const hasSelectedTx = !!(existingTx && existingTx.id);
+    const selectedAmount = hasSelectedTx ? Number(existingTx.amount) : NaN;
+    const selectedAmountNumber = Number.isFinite(selectedAmount) ? Math.max(0, selectedAmount) : NaN;
     const selectedTxId = existingTx?.id || txList[0]?.id || '';
     const txSelectHtml = txList.length > 1 ? `
             <div class="add-form-group mb-lg">
@@ -7120,10 +7123,10 @@ function openIncomeLoggedAmountModal(source, existingTx, currentLogged, sourceTx
             <input type="hidden" id="incomeTotalEditSourceName" value="${esc(source.name)}">
             ${txSelectHtml}
             <div class="add-form-group mb-lg">
-                <label for="incomeTotalLoggedInput">Initial Logged Amount</label>
+                <label for="incomeTotalLoggedInput">Logged Amount</label>
                 <div class="budgeted-input-shell">
                     <span>${esc(symbol)}</span>
-                    <input type="number" id="incomeTotalLoggedInput" class="form-input" min="0" step="0.01" placeholder="0.00" value="${currentLogged > 0 ? esc(currentLogged.toFixed(2)) : ''}" inputmode="decimal">
+                    <input type="number" id="incomeTotalLoggedInput" class="form-input" min="0" step="0.01" placeholder="0.00" value="${Number.isFinite(selectedAmountNumber) ? esc(selectedAmountNumber.toFixed(2)) : (currentLogged > 0 ? esc(currentLogged.toFixed(2)) : '')}" inputmode="decimal">
                 </div>
             </div>
             <div id="incomeTotalEditError" class="transaction-edit-error" role="alert" hidden></div>
@@ -7277,17 +7280,6 @@ window.saveIncomeTotalLoggedEditor = function(event) {
         .filter(tx => tx.category === sourceName)
         .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
     const existingTx = sourceTxs.find(tx => String(tx.id) === String(txId)) || sourceTxs[0] || null;
-    const otherLogged = sourceTxs
-        .filter(tx => !existingTx || String(tx.id) !== String(existingTx.id))
-        .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
-    const adjustedTxAmount = desiredAmount - otherLogged;
-
-    if (adjustedTxAmount < -0.005) {
-        setIncomeTotalEditError('This total is lower than the other checks already logged. Choose a different check or edit the individual deposits.');
-        txSelect?.focus();
-        return;
-    }
-
     if (desiredAmount <= 0) {
         if (existingTx && State.deleteTransaction) {
             const deleted = State.deleteTransaction(existingTx.id);
@@ -7297,26 +7289,18 @@ window.saveIncomeTotalLoggedEditor = function(event) {
             }
         }
     } else if (existingTx) {
-        if (adjustedTxAmount <= 0.005) {
-            const deleted = State.deleteTransaction ? State.deleteTransaction(existingTx.id) : false;
-            if (deleted === false) {
-                setIncomeTotalEditError('Could not remove the logged deposit.');
-                return;
-            }
-        } else {
-            const result = State.updateTransaction
-                ? State.updateTransaction(existingTx.id, {
-                    amount: adjustedTxAmount,
-                    description: existingTx.description || sourceName,
-                    category: sourceName,
-                    type: 'income',
-                    tag: 'income'
-                })
-                : { success: false };
-            if (!result?.success) {
-                setIncomeTotalEditError(result?.error || 'Could not update logged income.');
-                return;
-            }
+        const result = State.updateTransaction
+            ? State.updateTransaction(existingTx.id, {
+                amount: desiredAmount,
+                description: existingTx.description || sourceName,
+                category: sourceName,
+                type: 'income',
+                tag: 'income'
+            })
+            : { success: false };
+        if (!result?.success) {
+            setIncomeTotalEditError(result?.error || 'Could not update logged income.');
+            return;
         }
     } else {
         const nowIso = new Date().toISOString();
