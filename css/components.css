@@ -6280,6 +6280,35 @@ input.error, select.error {
   padding: 0.75rem 2rem;
 }
 
+.income-total-legend-row {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 0.45rem;
+}
+
+.income-total-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-dim, #64748b) 8%, transparent);
+  color: var(--text-dim, #64748b);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  cursor: help;
+  touch-action: manipulation;
+}
+
+.income-total-legend:hover,
+.income-total-legend:focus-visible {
+  color: var(--text, #0f172a);
+  background: color-mix(in srgb, var(--green, #10b981) 10%, transparent);
+  outline: none;
+}
+
 .income-total-celebration-inline-toggle {
   margin: 0;
 }
@@ -6319,6 +6348,57 @@ input.error, select.error {
   color: var(--text-dim, #64748b);
   font-size: 0.9rem;
   line-height: 1.4;
+}
+
+.income-total-edit-copy-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+}
+
+.income-total-check-select {
+  width: 100%;
+}
+
+.income-total-change-check {
+  width: fit-content;
+  margin: -0.15rem 0 0;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.78rem;
+}
+
+.income-source-picker-list,
+.income-check-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0 0 1rem;
+}
+
+.income-source-picker-btn,
+.income-check-picker-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  width: 100%;
+  text-align: left;
+}
+
+.income-source-picker-main,
+.income-check-picker-main {
+  color: var(--text, #0f172a);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.income-source-picker-meta,
+.income-check-picker-meta {
+  color: var(--text-dim, #64748b);
+  font-size: 0.8rem;
+  line-height: 1.35;
 }
 
 /* Update your existing .income-quick-btn */

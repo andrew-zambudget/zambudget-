@@ -221,6 +221,11 @@
                                         <button type="button" id="incomeTotalExpected" class="income-total-edit-btn" onclick="window.openIncomeTotalExpectedEditor()" aria-label="Edit expected income total">$0.00</button>
                                     </div>
                                 </div>
+                                <div class="income-total-legend-row">
+                                    <span id="incomeTotalLegend" class="income-total-legend" role="note" tabindex="0" data-tooltip="Expected is on the left. Logged is on the right.">
+                                        Expected <span aria-hidden="true">&harr;</span> Logged
+                                    </span>
+                                </div>
                                 <div class="progress-bar-container income-total-progress" id="incomeTotalProgressTrack" role="group" aria-label="Total income progress percentages">
                                     <div id="incomeTotalProgress" class="progress-bar-fill" aria-hidden="true"></div>
                                     <button type="button" id="incomeTotalProgressFillBtn" class="progress-segment-hit progress-fill-hit" aria-label="Show logged income percentage" aria-pressed="false" disabled></button>

@@ -6963,6 +6963,98 @@ function getCurrentMonthIncomeContext() {
     return { incomeSources, incomeTxs };
 }
 
+const INCOME_TOTAL_LAST_SELECTION_KEY = 'bb_income_total_last_selection';
+
+function getStoredIncomeTotalSelection() {
+    try {
+        const raw = localStorage.getItem(INCOME_TOTAL_LAST_SELECTION_KEY);
+        if (!raw) return { sourceName: '', txId: '' };
+        const parsed = JSON.parse(raw);
+        return {
+            sourceName: typeof parsed?.sourceName === 'string' ? parsed.sourceName : '',
+            txId: typeof parsed?.txId === 'string' ? parsed.txId : ''
+        };
+    } catch {
+        return { sourceName: '', txId: '' };
+    }
+}
+
+function rememberIncomeTotalSelection(sourceName = '', txId = '') {
+    try {
+        if (!sourceName) {
+            localStorage.removeItem(INCOME_TOTAL_LAST_SELECTION_KEY);
+            return;
+        }
+        localStorage.setItem(INCOME_TOTAL_LAST_SELECTION_KEY, JSON.stringify({
+            sourceName,
+            txId: txId || ''
+        }));
+    } catch {
+        // localStorage may be unavailable in some embedded contexts.
+    }
+}
+
+function getCurrentMonthIncomeEditEntries() {
+    const { incomeSources, incomeTxs } = getCurrentMonthIncomeContext();
+
+    return incomeSources
+        .map(source => {
+            const sourceTxs = incomeTxs
+                .filter(tx => tx.category === source.name)
+                .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
+            const currentLogged = sourceTxs.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+            return {
+                source,
+                sourceTxs,
+                currentLogged,
+                expected: Math.max(0, Number(source.budget) || 0),
+                txCount: sourceTxs.length,
+                latestTx: sourceTxs[0] || null
+            };
+        })
+        .sort((a, b) => {
+            if (b.currentLogged !== a.currentLogged) return b.currentLogged - a.currentLogged;
+            if (b.txCount !== a.txCount) return b.txCount - a.txCount;
+            return String(a.source.name || '').localeCompare(String(b.source.name || ''));
+        });
+}
+
+function pickIncomeTotalEditEntry(entries) {
+    if (!entries.length) return null;
+    if (entries.length === 1) return { ...entries[0], selectedTx: entries[0].latestTx || null };
+
+    const saved = getStoredIncomeTotalSelection();
+    if (saved.sourceName) {
+        const savedEntry = entries.find(entry => entry.source.name === saved.sourceName && entry.txCount > 0);
+        if (savedEntry) {
+            const savedTx = saved.txId
+                ? savedEntry.sourceTxs.find(tx => String(tx.id) === String(saved.txId))
+                : null;
+            return {
+                ...savedEntry,
+                selectedTx: savedTx || savedEntry.latestTx || null
+            };
+        }
+    }
+
+    const activeEntries = entries.filter(entry => entry.txCount > 0);
+    if (activeEntries.length === 1) {
+        return { ...activeEntries[0], selectedTx: activeEntries[0].latestTx || null };
+    }
+
+    return null;
+}
+
+function getIncomeTotalCheckLabel(tx, index, symbol) {
+    const txDate = new Date(tx.date || tx.createdAt);
+    const dateLabel = Number.isNaN(txDate.getTime())
+        ? 'This month'
+        : txDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const amountLabel = `${symbol}${formatMoney(Math.max(0, Number(tx.amount) || 0))}`;
+    const desc = String(tx.description || '').trim();
+    return `${desc || `Check ${index + 1}`} - ${dateLabel} - ${amountLabel}`;
+}
+
 function focusIncomeSourceField(fieldId) {
     window.setTimeout(() => {
         const input = document.getElementById(fieldId);
@@ -6996,10 +7088,27 @@ window.openIncomeTotalExpectedEditor = function() {
     focusIncomeSourceField('incomeSourcePlanned');
 };
 
-function openIncomeLoggedAmountModal(source, existingTx, currentLogged) {
+function openIncomeLoggedAmountModal(source, existingTx, currentLogged, sourceTxs = []) {
     document.getElementById('incomeTotalEditModal')?.remove();
 
     const symbol = State.getSymbol ? State.getSymbol() : '$';
+    const txList = Array.isArray(sourceTxs) ? sourceTxs : [];
+    const selectedTxId = existingTx?.id || txList[0]?.id || '';
+    const txSelectHtml = txList.length > 1 ? `
+            <div class="add-form-group mb-lg">
+                <label for="incomeTotalEditTxSelect">Check to adjust</label>
+                <select id="incomeTotalEditTxSelect" class="form-input income-total-check-select" aria-label="Check to adjust">
+                    ${txList.map((tx, index) => `
+                        <option value="${esc(tx.id)}" ${String(selectedTxId) === String(tx.id) ? 'selected' : ''}>
+                            ${esc(getIncomeTotalCheckLabel(tx, index, symbol))}
+                        </option>
+                    `).join('')}
+                </select>
+                <div class="help-text">The total stays in sync by adjusting one check.</div>
+            </div>
+        ` : `
+            <input type="hidden" id="incomeTotalEditTxId" value="${esc(selectedTxId)}">
+        `;
     const modal = document.createElement('div');
     modal.id = 'incomeTotalEditModal';
     modal.className = 'modal-overlay active';
@@ -7010,9 +7119,12 @@ function openIncomeLoggedAmountModal(source, existingTx, currentLogged) {
         <form class="modal-box modal-box-medium income-total-edit-modal" role="dialog" aria-modal="true" aria-labelledby="incomeTotalEditTitle" onclick="event.stopPropagation()" onsubmit="window.saveIncomeTotalLoggedEditor(event)">
             <button type="button" class="modal-close" onclick="window.closeIncomeTotalLoggedEditor()" aria-label="Close income total editor">&times;</button>
             <h3 id="incomeTotalEditTitle" class="modal-title">Edit Logged Income</h3>
-            <p class="income-total-edit-copy">Updates this month's logged amount for ${esc(source.name)}.</p>
+            <div class="income-total-edit-copy-stack">
+                <p class="income-total-edit-copy">Updates this month's logged amount for ${esc(source.name)}.</p>
+                ${txList.length > 1 ? '<p class="income-total-edit-copy">Pick the check to adjust. The total updates from there.</p>' : ''}
+            </div>
             <input type="hidden" id="incomeTotalEditSourceName" value="${esc(source.name)}">
-            <input type="hidden" id="incomeTotalEditTxId" value="${esc(existingTx?.id || '')}">
+            ${txSelectHtml}
             <div class="add-form-group mb-lg">
                 <label for="incomeTotalLoggedInput">Logged this month</label>
                 <div class="budgeted-input-shell">
@@ -7048,29 +7160,73 @@ window.openIncomeTotalLoggedEditor = function() {
         return;
     }
 
-    const { incomeSources, incomeTxs } = getCurrentMonthIncomeContext();
-    if (incomeSources.length === 0) {
+    const entries = getCurrentMonthIncomeEditEntries();
+    if (entries.length === 0) {
         window.openAddSourceModal();
         focusIncomeSourceField('incomeSourceName');
         if (window.showToast) window.showToast('Add an income source before logging income.');
         return;
     }
 
-    if (incomeSources.length > 1) {
-        if (window.showToast) window.showToast('Edit logged income from the individual income source cards or Recent transactions.');
+    const preferred = pickIncomeTotalEditEntry(entries);
+    if (!preferred) {
+        document.getElementById('incomeTotalSourceChooserModal')?.remove();
+
+        const symbol = State.getSymbol ? State.getSymbol() : '$';
+        const chooser = document.createElement('div');
+        chooser.id = 'incomeTotalSourceChooserModal';
+        chooser.className = 'modal-overlay active';
+        chooser.onclick = (event) => {
+            if (event.target === chooser) window.closeIncomeTotalSourceChooserModal();
+        };
+        chooser.innerHTML = `
+            <div class="modal-box modal-box-medium income-source-picker-modal" role="dialog" aria-modal="true" aria-labelledby="incomeTotalSourceChooserTitle" onclick="event.stopPropagation()">
+                <button type="button" class="modal-close" onclick="window.closeIncomeTotalSourceChooserModal()" aria-label="Close income source chooser">&times;</button>
+                <h3 id="incomeTotalSourceChooserTitle" class="modal-title">Choose income source</h3>
+                <p class="income-total-edit-copy">Pick the source or check to update this month's logged total.</p>
+                <div class="income-source-picker-list">
+                    ${entries.map((entry, index) => `
+                        <button type="button" class="btn-cancel income-source-picker-btn" onclick="window.selectIncomeTotalSource(${jsArg(entry.source.name)})">
+                            <span class="income-source-picker-main">${esc(entry.source.name)}</span>
+                            <span class="income-source-picker-meta">${esc(entry.txCount)} check${entry.txCount === 1 ? '' : 's'} - ${symbol}${formatMoney(entry.currentLogged)} logged${entry.expected > 0 ? ` - ${symbol}${formatMoney(entry.expected)} expected` : ''}${index === 0 ? ' - Suggested' : ''}</span>
+                        </button>
+                    `).join('')}
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="window.closeIncomeTotalSourceChooserModal()">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(chooser);
+        syncOverlayScrollTopState();
+        chooser.querySelector('button.income-source-picker-btn, button.btn-cancel')?.focus();
         return;
     }
 
-    const source = incomeSources[0];
-    const sourceTxs = incomeTxs.filter(tx => tx.category === source.name);
-    if (sourceTxs.length > 1) {
-        if (window.showToast) window.showToast('Multiple deposits are logged. Edit the individual deposits instead.');
+    openIncomeLoggedAmountModal(preferred.source, preferred.selectedTx || preferred.latestTx || null, preferred.currentLogged, preferred.sourceTxs || []);
+};
+
+window.closeIncomeTotalSourceChooserModal = function() {
+    const modal = document.getElementById('incomeTotalSourceChooserModal');
+    if (!modal) return;
+    modal.classList.add('closing');
+    window.setTimeout(() => {
+        modal.remove();
+        syncOverlayScrollTopState();
+    }, 220);
+};
+
+window.selectIncomeTotalSource = function(sourceName) {
+    const entries = getCurrentMonthIncomeEditEntries();
+    const entry = entries.find(item => item.source.name === sourceName);
+    if (!entry) {
+        if (window.showToast) window.showToast('Income source could not be found.');
         return;
     }
 
-    const existingTx = sourceTxs[0] || null;
-    const currentLogged = existingTx ? Math.max(0, Number(existingTx.amount) || 0) : 0;
-    openIncomeLoggedAmountModal(source, existingTx, currentLogged);
+    rememberIncomeTotalSelection(entry.source.name, entry.selectedTx?.id || entry.latestTx?.id || '');
+    window.closeIncomeTotalSourceChooserModal();
+    openIncomeLoggedAmountModal(entry.source, entry.selectedTx || entry.latestTx || null, entry.currentLogged, entry.sourceTxs || []);
 };
 
 window.closeIncomeTotalLoggedEditor = function() {
@@ -7089,7 +7245,8 @@ window.saveIncomeTotalLoggedEditor = function(event) {
     if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('edit income total')) return;
 
     const sourceName = document.getElementById('incomeTotalEditSourceName')?.value || '';
-    const txId = document.getElementById('incomeTotalEditTxId')?.value || '';
+    const txSelect = document.getElementById('incomeTotalEditTxSelect');
+    const txId = txSelect?.value || document.getElementById('incomeTotalEditTxId')?.value || '';
     const amountInput = document.getElementById('incomeTotalLoggedInput');
     const amountRaw = String(amountInput?.value || '').trim();
     const parsedAmount = amountRaw === '' ? 0 : parseFloat(amountRaw);
@@ -7113,13 +7270,21 @@ window.saveIncomeTotalLoggedEditor = function(event) {
         return;
     }
 
-    const sourceTxs = incomeTxs.filter(tx => tx.category === sourceName);
-    if (sourceTxs.length > 1) {
-        setIncomeTotalEditError('Multiple deposits are logged. Edit the individual deposits instead.');
+    const sourceTxs = incomeTxs
+        .filter(tx => tx.category === sourceName)
+        .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
+    const existingTx = sourceTxs.find(tx => String(tx.id) === String(txId)) || sourceTxs[0] || null;
+    const otherLogged = sourceTxs
+        .filter(tx => !existingTx || String(tx.id) !== String(existingTx.id))
+        .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+    const adjustedTxAmount = desiredAmount - otherLogged;
+
+    if (adjustedTxAmount < -0.005) {
+        setIncomeTotalEditError('This total is lower than the other checks already logged. Choose a different check or edit the individual deposits.');
+        txSelect?.focus();
         return;
     }
 
-    const existingTx = sourceTxs.find(tx => String(tx.id) === String(txId)) || sourceTxs[0] || null;
     if (desiredAmount <= 0) {
         if (existingTx && State.deleteTransaction) {
             const deleted = State.deleteTransaction(existingTx.id);
@@ -7129,18 +7294,26 @@ window.saveIncomeTotalLoggedEditor = function(event) {
             }
         }
     } else if (existingTx) {
-        const result = State.updateTransaction
-            ? State.updateTransaction(existingTx.id, {
-                amount: desiredAmount,
-                description: existingTx.description || sourceName,
-                category: sourceName,
-                type: 'income',
-                tag: 'income'
-            })
-            : { success: false };
-        if (!result?.success) {
-            setIncomeTotalEditError(result?.error || 'Could not update logged income.');
-            return;
+        if (adjustedTxAmount <= 0.005) {
+            const deleted = State.deleteTransaction ? State.deleteTransaction(existingTx.id) : false;
+            if (deleted === false) {
+                setIncomeTotalEditError('Could not remove the logged deposit.');
+                return;
+            }
+        } else {
+            const result = State.updateTransaction
+                ? State.updateTransaction(existingTx.id, {
+                    amount: adjustedTxAmount,
+                    description: existingTx.description || sourceName,
+                    category: sourceName,
+                    type: 'income',
+                    tag: 'income'
+                })
+                : { success: false };
+            if (!result?.success) {
+                setIncomeTotalEditError(result?.error || 'Could not update logged income.');
+                return;
+            }
         }
     } else {
         const nowIso = new Date().toISOString();
@@ -7163,6 +7336,7 @@ window.saveIncomeTotalLoggedEditor = function(event) {
         }
     }
 
+    rememberIncomeTotalSelection(sourceName, existingTx?.id || txSelect?.value || '');
     renderIncomeTab();
     renderZBBDashboard();
     renderFormCategories();
