@@ -222,11 +222,156 @@
             </div>
         </div>
 
-        <!-- ===== VERSION 1.0 RC ===== -->
-        <div class="release-card active" data-version="v1.0-rc">
-            <div class="card-header" role="button" tabindex="0" aria-expanded="true" aria-controls="release-v1-body" onclick="toggleCard(this.closest('.release-card'))" onkeydown="handleCardHeaderKeydown(event, this.closest('.release-card'))">
+        <!-- ===== VERSION 1.2 ===== -->
+        <div class="release-card active" data-version="1.2">
+            <div class="card-header" role="button" tabindex="0" aria-expanded="true" aria-controls="release-v12-body" onclick="toggleCard(this.closest('.release-card'))" onkeydown="handleCardHeaderKeydown(event, this.closest('.release-card'))">
                 <div class="version-meta">
                     <div class="version-dot live" aria-hidden="true"></div>
+                    <div>
+                        <div class="version-title">Zam 1.2</div>
+                        <div class="version-date">Released June 16, 2026</div>
+                    </div>
+                </div>
+                <div class="expand-icon" aria-hidden="true">&#9660;</div>
+            </div>
+
+            <div class="card-body" id="release-v12-body">
+                <div class="card-content">
+                    <p class="intro-text">
+                        CSV import is now a full feature release item in the Zam! roadmap. This is a user-facing release aimed at making initial reconciliation flows easier to start.
+                    </p>
+
+                    <div class="release-summary" aria-label="Zam 1.2 release summary by category">
+                        <div class="release-summary-title">At a glance</div>
+                        <div class="release-summary-list">
+                            <div class="release-summary-row summary-feature">
+                                <span class="release-summary-dot" aria-hidden="true"></span>
+                                <span class="release-summary-label">New</span>
+                                <span class="release-summary-copy">CSV transaction import flow with mapping, auto-detection, duplicate handling, preview mode, and import diagnostics.</span>
+                            </div>
+                            <div class="release-summary-row summary-ui">
+                                <span class="release-summary-dot" aria-hidden="true"></span>
+                                <span class="release-summary-label">Improved</span>
+                                <span class="release-summary-copy">Income editing workflows now separate expected and logged flows with better inline edit defaults and visibility.</span>
+                            </div>
+                            <div class="release-summary-row summary-fix">
+                                <span class="release-summary-dot" aria-hidden="true"></span>
+                                <span class="release-summary-label">Fixed</span>
+                                <span class="release-summary-copy">Polish and stability improvements across onboarding, import previews, and transaction handling edge cases.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tag-container">
+                        <div class="tag-group">
+                            <div class="tag-label">New</div>
+
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">CSV</span>
+                                <div>
+                                    <div class="tag-text">CSV transaction import</div>
+                                    <span class="tag-detail">Added a dedicated import entry path for transaction data, including row-by-row processing and status feedback for user-visible results.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">MAP</span>
+                                <div>
+                                    <div class="tag-text">Column mapping</div>
+                                    <span class="tag-detail">Added explicit column mapping between bank CSV exports and Zam! transaction fields for auditability and compatibility with multiple export formats.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">AUTO</span>
+                                <div>
+                                    <div class="tag-text">Automatic column detection</div>
+                                    <span class="tag-detail">Smart defaults now suggest date, description, amount, category, account, and note fields before manual mapping, with reset-to-default controls.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">DUP</span>
+                                <div>
+                                    <div class="tag-text">Duplicate detection</div>
+                                    <span class="tag-detail">Import now detects and reports duplicate rows before commit so users can avoid double-importing known transactions.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">VIEW</span>
+                                <div>
+                                    <div class="tag-text">Import previews</div>
+                                    <span class="tag-detail">Users can review the import result state before committing with clearer ready/duplicate/invalid visibility.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">ERR</span>
+                                <div>
+                                    <div class="tag-text">Invalid row reporting</div>
+                                    <span class="tag-detail">Rows failing date, amount, or format validation are explicitly called out with reason text and kept visible for correction.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">SUM</span>
+                                <div>
+                                    <div class="tag-text">Import summaries</div>
+                                    <span class="tag-detail">Each import run now shows totals (found, ready, duplicate, invalid) so users get immediate confidence before committing.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tag-group">
+                            <div class="tag-label">Improved</div>
+
+                            <div class="tag-item tag-ui">
+                                <span class="tag-icon" aria-hidden="true">INCOME</span>
+                                <div>
+                                    <div class="tag-text">Income editing workflow</div>
+                                    <span class="tag-detail">Income edit flow was refined for faster correction with clearer action paths for expected and logged values.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-ui">
+                                <span class="tag-icon" aria-hidden="true">EXPECTED</span>
+                                <div>
+                                    <div class="tag-text">Expected income management</div>
+                                    <span class="tag-detail">Expected income capture and update behavior was streamlined for faster plan updates before commit.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-ui">
+                                <span class="tag-icon" aria-hidden="true">LOGGED</span>
+                                <div>
+                                    <div class="tag-text">Logged income management</div>
+                                    <span class="tag-detail">Logged income flows now match existing totals more predictably in inline edit and quick-add scenarios.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tag-group">
+                            <div class="tag-label">Fixed</div>
+
+                            <div class="tag-item tag-fix">
+                                <span class="tag-icon" aria-hidden="true">UI</span>
+                                <div>
+                                    <div class="tag-text">Various UI and stability improvements</div>
+                                    <span class="tag-detail">Addressed several import and form-edge behaviors around status summaries, field precedence, and modal interaction state.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== VERSION 1.0 RC ===== -->
+        <div class="release-card" data-version="v1.0-rc">
+            <div class="card-header" role="button" tabindex="0" aria-expanded="false" aria-controls="release-v1-body" onclick="toggleCard(this.closest('.release-card'))" onkeydown="handleCardHeaderKeydown(event, this.closest('.release-card'))">
+                <div class="version-meta">
+                    <div class="version-dot archived" aria-hidden="true"></div>
                     <div>
                         <div class="version-title">v1.0 RC - "The Foundation + Cloud Sync"</div>
                         <div class="version-date">May 31, 2026 launch; June 10-13, 2026 RC hardening</div>
@@ -235,7 +380,7 @@
                 <div class="expand-icon" aria-hidden="true">▼</div>
             </div>
 
-            <div class="card-body" id="release-v1-body">
+            <div class="card-body" id="release-v1-body" hidden>
                 <div class="card-content">
                     <p class="intro-text">
                         Zam! is in v1.0 RC monitoring. The goal now is honest validation: is the product useful enough to keep entering budgets, stable enough to trust with real data, and valuable enough that Premium support can at least cover infrastructure and continued development time?

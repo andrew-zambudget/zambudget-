@@ -25,6 +25,14 @@ Zam! is in beta. This app repository is private product code unless a future rel
 
 The public marketing/docs repository is separate and should use the `zambudget-website` name.
 
+## Current Release Plan
+
+- Zam 1.2 (current): CSV transaction import foundation (mapping, duplicate detection, invalid row reporting, previews, summaries).
+- Zam 1.3: Google Drive import.
+- Zam 1.4: Dropbox import.
+- Zam 1.5: Import reconciliation.
+- Zam 1.6: Statement balancing.
+
 ## Local Checks
 
 Build the Cloudflare static output:
