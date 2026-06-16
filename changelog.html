@@ -313,15 +313,15 @@
                                 <span class="tag-icon" aria-hidden="true">UI</span>
                                 <div>
                                     <div class="tag-text">Public contact and social routing expanded</div>
-                                    <span class="tag-detail">Public app/support pages now mirror the website's dedicated support, billing, legal, accessibility, and social mailboxes plus the Zam! mail-only office address with ZIP+4 formatting. TikTok is greyed out while the account is prepared, LinkedIn points to Andrew Struck, and private app repository links are not advertised as public channels. Sign-in and magic-link questions route through Support because the auth email is a no-reply/system address.</span>
+                                    <span class="tag-detail">Public app footers and support pages now use Help Center, Guides, and Contact Us routing. Unready social channels stay hidden until public handles are ready, while sign-in and magic-link questions route through Support because the auth email is a no-reply/system address.</span>
                                 </div>
                             </div>
 
                             <div class="tag-item tag-security">
                                 <span class="tag-icon" aria-hidden="true">DOC</span>
                                 <div>
-                                    <div class="tag-text">Source-code posture narrowed</div>
-                                    <span class="tag-detail">Public app pages now say the product code remains private during beta. Marketing, privacy, security, changelog, roadmap, and support materials can stay public-facing while app, backend, sync, and infrastructure code stay private.</span>
+                                    <div class="tag-text">Repository copy removed from app footers</div>
+                                    <span class="tag-detail">Public app footers now keep licensing and repository posture out of the compact footer area. Public website, privacy, security, changelog, roadmap, and support materials can carry repository details where that context belongs.</span>
                                 </div>
                             </div>
 
@@ -876,10 +876,10 @@
                 <button type="button" id="licenseCloseBtn" aria-label="Close license dialog" onclick="closeLicenseModal()" style="position:absolute;top:1rem;right:1rem;background:transparent;border:none;color:var(--text-dim);font-size:1.5rem;cursor:pointer;line-height:1; touch-action: manipulation;" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text-dim)'">×</button>
                 <h3 id="licenseModalTitle" style="font-size:1.25rem;font-weight:700;margin-bottom:1.5rem;color:var(--text)">Source Code Posture</h3>
                 <div style="color:var(--text-dim);font-size:0.85rem;line-height:1.7">
-                    <p style="margin-bottom:1rem"><strong style="color:var(--text)">Product code remains private during beta</strong></p>
-                    <p style="margin-bottom:1rem">The app source code, backend code, sync architecture, infrastructure configuration, and secrets-related configuration are private during beta. Public website and support documentation may be published separately for transparency.</p>
-                    <p style="margin-bottom:1rem">Unless a specific file or repository explicitly includes an open-source license, no license is granted to copy, modify, redistribute, or reuse private app, backend, infrastructure, branding, or private documentation.</p>
-                    <p>This source-code posture does not change user privacy, export, billing, or support rights described elsewhere in these terms.</p>
+                    <p style="margin-bottom:1rem"><strong style="color:var(--text)">Repository and licensing details are explicit</strong></p>
+                    <p style="margin-bottom:1rem">Public website, support documentation, and public repositories carry their own license terms where applicable.</p>
+                    <p style="margin-bottom:1rem">Unless a specific file or repository explicitly includes an open-source license, no license is granted to copy, modify, redistribute, or reuse app, backend, infrastructure, branding, or documentation.</p>
+                    <p>Repository status does not change user privacy, export, billing, or support rights described elsewhere in the app.</p>
                 </div>
                 <div style="margin-top:1.5rem;text-align:right">
                     <button type="button" onclick="closeLicenseModal()" style="padding:0.75rem 2rem;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer; touch-action: manipulation;">Close</button>
@@ -948,20 +948,22 @@
     </main>
     <footer>
         <div class="footer-main">
-            <a href="https://budget-buddy.io/changelog" class="footer-btn-pill" target="_blank" rel="noopener noreferrer">v1.0 RC Changelog</a>
+            <a href="https://budget-buddy.io/changelog" class="footer-btn-pill" target="_blank" rel="noopener noreferrer">Changelog</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>
-            <a href="https://budget-buddy.io/featurerequest" class="footer-link" target="_blank" rel="noopener noreferrer">Feature Request</a>
+            <a href="https://budget-buddy.io/contact" class="footer-link" target="_blank" rel="noopener noreferrer">Contact Us</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="https://budget-buddy.io/docs" class="footer-link" target="_blank" rel="noopener noreferrer">Guides</a>
+            <span class="footer-dot" aria-hidden="true">&middot;</span>
+            <a href="https://budget-buddy.io/support" class="footer-link" target="_blank" rel="noopener noreferrer">Help Center</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>
             <a href="https://budget-buddy.io/privacy" class="footer-link" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>
             <a href="https://budget-buddy.io/roadmap" class="footer-link" target="_blank" rel="noopener noreferrer">Roadmap</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>
-            <a href="https://budget-buddy.io/support" class="footer-link" target="_blank" rel="noopener noreferrer">Support</a>
-            <span class="footer-dot" aria-hidden="true">&middot;</span>
             <a href="https://budget-buddy.io/terms" class="footer-link" target="_blank" rel="noopener noreferrer">Terms of Service</a>
         </div>
         <div class="copyright-text">
-            &copy; 2026 Zam! Product code is private during beta.
+            &copy; 2026 Zam!
         </div>
     </footer>
 
