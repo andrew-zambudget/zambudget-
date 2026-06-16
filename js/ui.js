@@ -7170,6 +7170,7 @@ window.openIncomeTotalLoggedEditor = function() {
 function openIncomeTotalSourceChooser(entries, mode = 'logged') {
     const symbol = State.getSymbol ? State.getSymbol() : '$';
     const isLogged = mode === 'logged';
+    const totalLoggedForMonth = entries.reduce((sum, entry) => sum + (Number(entry.currentLogged) || 0), 0);
     const titleText = isLogged ? 'Choose income source to edit logged total' : 'Choose income source to edit expected amount';
     const helperText = isLogged
         ? 'Pick the source or check to update this month\'s logged total.'
@@ -7192,7 +7193,7 @@ function openIncomeTotalSourceChooser(entries, mode = 'logged') {
                 ${entries.map((entry, index) => `
                     <button type="button" class="btn-cancel income-source-picker-btn" onclick="window.selectIncomeTotalSource(${jsArg(entry.source.name)}, '${mode}')">
                         <span class="income-source-picker-main">${esc(entry.source.name)}</span>
-                        <span class="income-source-picker-meta">${esc(entry.txCount)} check${entry.txCount === 1 ? '' : 's'} - ${symbol}${formatMoney(entry.currentLogged)} logged${entry.expected > 0 ? ` - ${symbol}${formatMoney(entry.expected)} expected` : ''}${index === 0 ? ' - Suggested' : ''}</span>
+                        <span class="income-source-picker-meta">${esc(entry.txCount)} check${entry.txCount === 1 ? '' : 's'} - ${((Number(entry.currentLogged) / Math.max(1, totalLoggedForMonth)) * 100).toFixed(0)}% logged - ${symbol}${formatMoney(entry.currentLogged)} logged${entry.expected > 0 ? ` - ${symbol}${formatMoney(entry.expected)} expected` : ''}${index === 0 ? ' - Suggested' : ''}</span>
                     </button>
                 `).join('')}
             </div>
