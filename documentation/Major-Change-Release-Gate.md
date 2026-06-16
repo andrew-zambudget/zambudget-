@@ -13,7 +13,7 @@ Use this gate before shipping any major change, release candidate, billing/accou
 
 Update Privacy Policy copy when a change affects:
 
-- What data BudgetBuddy stores, processes, transmits, deletes, or retains.
+- What data Zam! stores, processes, transmits, deletes, or retains.
 - Cloud Sync encryption, recovery keys, sync metadata, browser access records, snapshots, or account data.
 - Third-party services such as Supabase, Stripe, Cloudflare, analytics, monitoring, email, support tools, or payment systems.
 - User privacy promises, local-only behavior, anonymous/signed-in behavior, diagnostics, logs, or support reports.

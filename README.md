@@ -6,13 +6,13 @@ This repo contains the app shell, client-side budgeting workflows, Cloud Sync cl
 
 ## Repository Naming
 
-Planned GitLab project path:
+Intended GitLab project path after the rename is reachable:
 
 ```text
 https://gitlab.com/andrews.agent949/zambudget-app
 ```
 
-Keep the local `origin` remote on the existing project path until the GitLab project is renamed in GitLab. After the rename, update the local remote:
+Keep the local `origin` remote on the existing project path until the renamed GitLab project URL is reachable from this machine. After verifying access, update the local remote:
 
 ```powershell
 git remote set-url origin https://gitlab.com/andrews.agent949/zambudget-app.git
@@ -44,6 +44,16 @@ Run the higher-risk safety suite:
 ```powershell
 npm run test:e2e:safety
 ```
+
+## Start Here
+
+New maintainers and new Codex chats should begin with `START_HERE.md`, then read:
+
+- `documentation/App-Rebuild-Runbook.md`
+- `documentation/Infrastructure-Inventory.md`
+- `documentation/Cloud-Sync-v1-Production-Checklist.md`
+- `documentation/Major-Change-Release-Gate.md`
+- `documentation/Testing.md`
 
 ## Deployment Naming
 

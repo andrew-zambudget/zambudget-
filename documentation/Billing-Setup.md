@@ -1,6 +1,6 @@
 # Premium Billing Setup
 
-BudgetBuddy Premium uses Stripe Checkout, Stripe Billing Portal, Supabase Auth, Supabase Edge Functions, and the `billing_profiles` table.
+Zam! Premium uses Stripe Checkout, Stripe Billing Portal, Supabase Auth, Supabase Edge Functions, and the `billing_profiles` table.
 
 Supabase project ref: `cmfnmhqyeipgtjktbouk`
 
@@ -33,7 +33,7 @@ supabase link --project-ref cmfnmhqyeipgtjktbouk
 supabase secrets set STRIPE_SECRET_KEY=sk_live_...
 supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...
 supabase secrets set STRIPE_PREMIUM_PRICE_ID=price_1TgrnvJYNoBMRccPPRxiOOid
-supabase secrets set APP_URL=https://your-production-domain.example
+supabase secrets set APP_URL=https://app.zambudget.com
 ```
 
 `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are normally available to Supabase Edge Functions automatically. If your project does not expose them automatically, set them as secrets too.
@@ -43,7 +43,7 @@ supabase secrets set APP_URL=https://your-production-domain.example
 You can also run the helper script from PowerShell:
 
 ```powershell
-.\scripts\deploy-supabase-billing.ps1 -ProjectRef cmfnmhqyeipgtjktbouk -AppUrl https://your-production-domain.example
+.\scripts\deploy-supabase-billing.ps1 -ProjectRef cmfnmhqyeipgtjktbouk -AppUrl https://app.zambudget.com
 ```
 
 1. Apply the migration in `supabase/migrations/202606100001_billing_profiles.sql` with `supabase db push --project-ref cmfnmhqyeipgtjktbouk`.
@@ -67,7 +67,7 @@ https://cmfnmhqyeipgtjktbouk.supabase.co/functions/v1/stripe-webhook
 
 ## Account Deletion and Billing
 
-BudgetBuddy does not silently cancel paid Stripe subscriptions during account deletion. If a user has an active or past-due Stripe subscription, `account-delete` returns `ACTIVE_STRIPE_SUBSCRIPTION` and the app sends the user to Stripe Billing Portal first.
+Zam! does not silently cancel paid Stripe subscriptions during account deletion. If a user has an active or past-due Stripe subscription, `account-delete` returns `ACTIVE_STRIPE_SUBSCRIPTION` and the app sends the user to Stripe Billing Portal first.
 
 After Stripe reports the subscription as cancelled or inactive, account deletion may remove the inactive billing profile record along with the user's Cloud Sync records and auth identity. Stripe may retain billing records required for payments, tax, legal, or dispute handling.
 

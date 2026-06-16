@@ -1,85 +1,65 @@
-# 🚀 PRE-LAUNCH CHECKLIST (Critical Infrastructure)
-# STATUS: TO DO BEFORE LAUNCH DAY
-# PRIORITY: HIGH
-# NOTE: These items prevent "silent failures" and protect your privacy branding.
+# Zam! Pre-Launch Checklist
 
-============================================================================
-1. ANALYTICS (Privacy-First Tracking)
-============================================================================
-- [ ] Tool Selection: Install Plausible or Umami (Open Source, No Cookies, GDPR-ready)
-  - AVOID Google Analytics (Too heavy, hurts privacy brand)
-- [ ] Trackable Events (Minimum Viable):
-  - Page Views (Landing vs. App Load)
-  - CTA Clicks ("Start Budgeting Free")
-  - Waitlist Signups ("Cloud Sync")
-- [ ] Implementation: Add script tag to <head> of landing.html only.
+Status: living checklist
+Priority: high
 
-============================================================================
-2. ERROR MONITORING (Catch Silent Bugs)
-============================================================================
-- [ ] Tool Setup: Create Sentry.io account (Free Tier)
-- [ ] Integration: Add Sentry SDK script to js/main.js
-- [ ] Goal: Automatically capture JS errors, browser versions, and stack traces
-- [ ] Why: Users won't report bugs; they will just leave. This finds them for you.
+Use this checklist before a broad public launch, provider cutover, or paid-user push. It is not a feature backlog.
 
-============================================================================
-3. FEEDBACK LOOP (Direct User Connection)
-================================================================ 
-- [ ] Bug Report Path: Link "Report a Bug" in footer → GitHub Issues or Typeform
-- [ ] Feature Request: Ensure featurerequest.html actually submits data (Form backend?)
-- [ ] Community Link: Add Discord/Email link for direct support
-- [ ] Rule: Make it easier to tell you something is broken than to leave.
+## 1. Privacy-First Visibility
 
-============================================================================
-4. PERFORMANCE AUDIT (Speed & Quality)
-============================================================================
-- [ ] Run Lighthouse Audit (Chrome DevTools > Lighthouse Tab)
-- [ ] Target Scores: Performance ≥ 90, Accessibility ≥ 90
-- [ ] Fixes Needed:
-  - Compress all images (use TinyPNG/WebP format)
-  - Minify CSS/JS if necessary
-  - Remove unused code blocks
-- [ ] Why: Slow load times = lost users on launch day.
+- [ ] Decide whether visitor analytics are enabled.
+- [ ] If analytics are enabled, use privacy-conscious aggregate analytics only.
+- [ ] Avoid ad trackers, data brokerage, fingerprinting, or cross-site profiling.
+- [ ] Update `zambudget.com/privacy`, `zambudget.com/cookie-policy`, and `zambudget.com/trust` before enabling or changing telemetry.
+- [ ] Confirm app pages remain `noindex,follow`.
 
-============================================================================
-5. LEGAL MINIMUMS (Trust & Protection)
-============================================================================
-- [ ] Major Change Gate: Before every major change, RC, or production release,
-  complete documentation/Major-Change-Release-Gate.md. Update or explicitly
-  verify Privacy Policy, Terms, Changelog, and affected zambudget.com
-  marketing copy.
-- [ ] Verify Content: Privacy Policy & Terms of Service pages MUST exist and have text
-- [ ] Key Statement to Include (Copy/Paste this):
-  "BudgetBuddy stores budget data locally by default. If you enable free
-   Cloud Sync, your budget is encrypted on your device before upload,
-   and we cannot read transactions, balances, budgets, categories,
-   descriptions, notes, or amounts."
-- [ ] Placement: Put this statement in the Hero section, Footer, and Privacy Page.
-- [ ] Why: This is your #1 differentiator against paid apps.
+Current public stance: the marketing website may use Cloudflare aggregate delivery, security, performance, and web-analytics telemetry. The app should not add third-party ad tracking or fingerprinting.
 
-============================================================================
-6. VISUAL IDENTITY (Professional Polish)
-============================================================================
-- [ ] Favicon: Create a simple .ico/.png (e.g., a 💰 emoji or stylized 'B')
-- [ ] Open Graph Tags (Social Sharing):
-  - og:title: "BudgetBuddy — Free Open-Source Budget Tracker"
-  - og:description: "Track expenses, crush debt, build savings. No subs. No tracking."
-  - og:image: assets/og-image.png (1200x630px screenshot)
-  - twitter:card: summary_large_image
-- [ ] Why: Ensures your link looks good when shared on Twitter/LinkedIn/Discord.
+## 2. Error Monitoring
 
-============================================================================
-ESTIMATED TIME TO COMPLETE
-============================================================================
-Total Time: ~2.5 Hours
-Impact: Prevents silent user loss, protects reputation, ensures professional look.
+- [ ] Decide whether production error monitoring is needed.
+- [ ] If enabled, document what metadata is collected and where it is sent.
+- [ ] Do not send budget contents, recovery keys, tokens, full card numbers, gift card numbers, PINs, or private exports to monitoring tools.
+- [ ] Update legal/trust docs before enabling a third-party monitoring provider.
 
-============================================================================
-IMPLEMENTATION ORDER
-============================================================================
-1. Legal (Write the copy)
-2. Visuals (Favicon + OG tags)
-3. Analytics (Plausible)
-4. Errors (Sentry)
-5. Feedback (Link setup)
-6. Audit (Lighthouse run)
+## 3. Feedback Loop
+
+- [ ] Confirm website feedback routes to `support@zambudget.com`.
+- [ ] Confirm support docs tell users not to send recovery keys, magic links, passwords, full card numbers, gift card numbers, PINs, or private budget exports.
+- [ ] Confirm public Contact Us, Help Center, Guides, and Trust Stack pages are current.
+
+## 4. Performance And Accessibility
+
+- [ ] Run Lighthouse or an equivalent browser audit on key marketing pages.
+- [ ] Run app smoke tests on desktop and mobile viewports.
+- [ ] Confirm focus states, keyboard navigation, visible labels, and reduced-motion behavior on major flows.
+- [ ] Confirm screenshots/images are optimized and current.
+
+## 5. Legal And Trust
+
+- [ ] Complete `documentation/Major-Change-Release-Gate.md`.
+- [ ] Review app `privacypolicy.html` and `terms.html`.
+- [ ] Review marketing `privacy.html`, `terms.html`, `cookie-policy.html`, and `trust.html`.
+- [ ] Review the public changelog and roadmap.
+- [ ] Confirm Cloud Sync copy accurately says synced budget contents are encrypted client-side and require the user's recovery key or trusted local browser key.
+- [ ] Confirm browser-only local budgets are documented as unrecoverable if local browser storage is lost.
+
+## 6. Billing
+
+- [ ] Do not change Stripe behavior unless billing work is in scope.
+- [ ] Confirm `config.json` billing mode matches the intended launch state.
+- [ ] Confirm Stripe Checkout, Billing Portal, webhooks, cancellation, refund, and account-deletion behavior before accepting paid users.
+- [ ] Confirm public pricing and Premium copy match actual product behavior.
+
+## 7. Deployment Recovery
+
+- [ ] Read `START_HERE.md`.
+- [ ] Read `documentation/App-Rebuild-Runbook.md`.
+- [ ] Read `documentation/Infrastructure-Inventory.md`.
+- [ ] Confirm GitLab, Cloudflare, Supabase, Stripe, Proton Mail, and registrar owner recovery paths.
+- [ ] Confirm secrets can be restored from a password manager or provider dashboard.
+- [ ] Confirm no secret values are committed.
+
+## Launch Rule
+
+If the release changes auth, Cloud Sync, billing, account deletion, data retention, telemetry, public promises, SEO posture, or provider behavior, update legal/docs/changelog before calling it done.

@@ -1,4 +1,4 @@
-# BudgetBuddy Testing
+# Zam! Testing
 
 ## Default test gate
 
@@ -21,7 +21,7 @@ Use a disposable Supabase user created only for automated testing. Do not use a 
 
 The test signs in with the real Supabase browser client, loads `index.html`, verifies the signed-in app shell, checks that Cloud Sync status is readable, then signs out and clears the isolated Playwright browser context. Loading the app can create or update normal account records for that test user, including private browser access and Cloud Sync setup state. It does not add, edit, or delete budget transactions.
 
-Required environment variables:
+Required environment variables. These names are legacy CI variable names; do not rename them until tests and CI are updated together.
 
 ```powershell
 $env:BUDGETBUDDY_TEST_EMAIL='test-user@example.com'

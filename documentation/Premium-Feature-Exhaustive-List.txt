@@ -1,125 +1,66 @@
-# 💎 BUDGETBUDDY PREMIUM FEATURES
-# STATUS: MIXED - BUDDY CLOUD SYNC IS FREE V1; OTHER ITEMS ARE PLANNED
-# LOCATION: /js/premium/
-# NOTE: Cloud Sync is part of the Free Tier baseline.
-#       Future premium items require a paid subscription and server infrastructure.
-#       Do not build these until Core features are stable and launched.
+# Zam! Premium Feature Guardrails
 
-============================================================================
-1. CLOUD & SECURITY (The Sync Engine)
-============================================================================
-- [FREE V1] Cloud Sync
-    Opt-in encrypted vault sync across devices
-    Requires a user-held recovery key on each new device
-    Not gated by Stripe Premium
-    
-- [PLANNED] Auto-Backup History
-    Versioned data snapshots
-    Restore from 7 days, 30 days, or 1 year ago
-    
-- [PLANNED] Multi-Device Login
-    Secure auth (Email/Pass or Passkey)
-    Link multiple devices to one account
-    
-- [PLANNED] Offline-First Conflict Resolution
-    Handle simultaneous edits from two offline devices
-    Smart merge queue
+Status: mixed
 
-============================================================================
-2. INTELLIGENCE & INSIGHTS (The AI Engine)
-============================================================================
-- [PLANNED] AI Spending Analysis
-    Natural language summaries of spending habits
-    Example: "You spent 20% more on dining this month"
-    
-- [PLANNED] Cash Flow Forecasting
-    Predictive modeling based on recurring bills
-    Example: "You will run low on cash in 4 days"
-    
-- [PLANNED] Smart Categorization
-    Auto-tag transactions from description
-    Example: "Starbucks" auto-maps to "Food & Drink"
-    
-- [PLANNED] Anomaly Detection
-    Alerts for unusual charges
-    Example: "$500 grocery charge is 3x your average"
-    
-- [PLANNED] Custom PDF Reports
-    Professional reports for taxes, loans, or reviews
+Cloud Sync is part of the free v1 baseline. Premium should fund expanded infrastructure and advanced planning features without paywalling core budgeting.
 
-============================================================================
-3. AUTOMATION & WORKFLOW
-============================================================================
-- [PLANNED] Recurring Transactions
-    Auto-create entries for rent, subscriptions, salary
-    Flexible rules (e.g. "Last Friday of every month")
-    
-- [PLANNED] Bill Reminders
-    Push notifications or email alerts before due dates
-    
-- [PLANNED] Bank Statement Import
-    Parse CSV imports from common banks
-    
-- [PLANNED] Rules Engine
-    User-defined automation
-    Example: "If Category = Travel, auto-tag as Deductible"
+## Free Baseline
 
-============================================================================
-4. COLLABORATION & SHARING
-============================================================================
-- [PLANNED] Shared Budgets
-    Invite spouse/partner to view or edit
-    Granular permissions (View Only vs. Edit)
-    
-- [PLANNED] Family Savings Goals
-    Joint goals with visible progress for all members
-    
-- [PLANNED] Advisor Share Links
-    Read-only snapshot link for accountants/advisors
+- Core transaction, category, budget, savings, debt, add, recent, export, and local persistence workflows remain free.
+- Cloud Sync encrypted backup/sync remains available for free accounts within published limits.
+- Free accounts currently include a limited number of active Cloud Sync browser slots.
+- Browser-only use remains available without login, with the documented local-data-loss risk.
 
-============================================================================
-5. PRO TOOLS & CUSTOMIZATION
-============================================================================
-- [PLANNED] Unlimited History Retention
-    Remove default time limits on stored data
-    
-- [PLANNED] Advanced Charts
-    Heatmaps, Sankey diagrams, cohort analysis
-    
-- [PLANNED] Custom Themes
-    Personal color themes, fonts, layout preferences
-    Synced to cloud
-    
-- [PLANNED] API Access
-    Private API key for connecting to other apps
+## Premium Direction
 
-============================================================================
-IMPLEMENTATION ROADMAP
-============================================================================
-Phase 1 (MVP Premium): Cloud Sync + Auto-Backup
-    Why: Solves the #1 pain point (losing data on device switch)
-    Price reference: $3.99/mo
+Premium can support:
 
-Phase 2 (Value Add): Recurring Transactions + Bill Reminders
-    Why: Saves massive time. High daily utility.
+- expanded Cloud Sync slot limits
+- expanded encrypted version history
+- shared budgeting
+- reports
+- advanced planning tools
+- support and continued development
 
-Phase 3 (Differentiation): AI Insights + Forecasting
-    Why: Makes the app feel smart and modern. High marketing value.
+Premium must not quietly take away existing core budgeting workflows.
 
-Phase 4 (Niche): Shared Budgets + Custom Reports
-    Why: Targets couples, freelancers, and small businesses.
+## Planned Candidate Areas
 
-============================================================================
-GUARDRAIL REMINDER
-============================================================================
-- Core features (Transactions, Categories, Local Math) stay in /js/core/
-- Core features remain FREE forever. No paywalls. No login required.
-- Premium features live in /js/premium/ and require a subscription.
-- If a premium feature touches core data, it must READ only.
-  It must never WRITE to or ALTER core logic.
-- UI for premium features should show a clear lock icon if unsubscribed.
+Cloud and security:
 
-============================================================================
-PRICING REFERENCE
-============================================================================
-Premium: $3.99/mo -> Multi-Device Sync Plus + supporting development
+- expanded encrypted version history
+- more active synced browser slots
+- stronger local trusted-key controls
+- restore/recovery tooling
+
+Planning and automation:
+
+- recurring transactions
+- bill reminders
+- forecasting
+- subscription tracking
+- rules-based categorization
+
+Reports and insights:
+
+- advanced charts
+- export/report templates
+- budget health summaries
+
+Collaboration:
+
+- shared budgets
+- family/partner budgeting
+- read-only advisor exports or links
+
+## Guardrails
+
+- Do not build Premium changes until the scope is explicit.
+- Do not mix billing changes with unrelated UI polish.
+- Billing changes must go through `documentation/Major-Change-Release-Gate.md`.
+- Public pricing, Terms, Privacy, Trust Stack, and changelog must match actual behavior.
+- Premium UI should explain what is paid without making the free tier feel broken.
+
+## Current Pricing Reference
+
+Premium reference price: `$3.99/month`.

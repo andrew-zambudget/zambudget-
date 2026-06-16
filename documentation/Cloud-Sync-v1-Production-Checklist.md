@@ -27,14 +27,15 @@ Cloud Sync v1 is the default protection path for signed-in users. The app still 
 - The encrypted vault includes transactions, balances, budgets, categories, descriptions, notes, and amounts; the backend cannot read those fields.
 - Cloud Sync v1 does not store device names, user agents, IP-derived location, or persistent device identifiers in the app database.
 - The browser generates a Cloud Sync recovery key.
-- The recovery key is stored only on the user's device in localStorage.
+- Raw recovery-key text is held in memory after import/generation and is not persisted by the current Cloud Sync implementation.
+- Trusted browsers may persist a non-extractable AES-GCM WebCrypto key in IndexedDB so refreshes can keep working without storing exportable recovery-key text.
 - Another device must import the recovery key before it can decrypt the cloud vault.
 - Billing status is intentionally excluded from the cloud vault payload.
 - Local-only budgets have no recovery support after browser/device storage is lost. Cloud Sync and exports are the supported recovery paths.
 
 ## Product Mission
 
-- BudgetBuddy should be usable by anyone.
+- Zam! should be usable by anyone.
 - Core budgeting features should remain available without paywalls.
 - Cloud Sync should make backup/sync safer and more seamless without weakening the privacy promise.
 
@@ -80,7 +81,7 @@ Cloud Sync v1 is the default protection path for signed-in users. The app still 
 - Complete the test matrix against the production Supabase project with a non-admin account.
 - Complete the full account deletion flow in staging/test with a disposable account before enabling it for real users.
 - Verify privacy policy copy says signing in uses Cloud Sync as the default encrypted protection path.
-- Verify privacy policy discloses that infrastructure/payment providers may be subject to lawful requests, while synced budget contents remain encrypted without BudgetBuddy-held recovery keys.
+- Verify privacy policy discloses that infrastructure/payment providers may be subject to lawful requests, while synced budget contents remain encrypted without Zam-held recovery keys.
 - Legal review later: confirm the privacy policy clearly distinguishes encrypted budget contents from operational metadata such as account/auth records, sync timestamps, schema/encryption version, checksums, and billing records if applicable.
 - Verify no Cloud Sync path requires Stripe Premium.
 - Flip `config.json` to `"billingEnabled": true` only after live billing is intentionally ready.

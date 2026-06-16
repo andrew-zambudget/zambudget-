@@ -1,6 +1,6 @@
 # Gift Card Merchant Candidate List - 5,000
 
-This is a working candidate list for expanding BudgetBuddy gift-card merchant metadata. It is not shipped as the app autocomplete bundle yet.
+This is a working candidate list for expanding Zam! gift-card merchant metadata. It is not shipped as the app autocomplete bundle yet.
 
 - Target count: 5,000
 - Current count: 5,000
