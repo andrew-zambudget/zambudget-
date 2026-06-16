@@ -6945,6 +6945,232 @@ function updateIncomeProgressSummary(logged, expected) {
     requestAnimationFrame(updateLabels);
 }
 
+function getCurrentMonthIncomeContext() {
+    const txs = (State.getTransactions ? State.getTransactions() : []).filter(tx => !tx.isDeleted && !tx.isDraftIncomeLog);
+    const categories = State.getCategories ? State.getCategories() : [];
+    const incomeSources = categories.filter(c => c.type === 'income');
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const isCurrentMonth = (tx) => {
+        const txDate = new Date(tx.date || tx.createdAt);
+        return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
+    };
+    const incomeTxs = txs
+        .filter(tx => isIncomeTotalTransaction(tx, false))
+        .filter(isCurrentMonth);
+
+    return { incomeSources, incomeTxs };
+}
+
+function focusIncomeSourceField(fieldId) {
+    window.setTimeout(() => {
+        const input = document.getElementById(fieldId);
+        if (!input) return;
+        try {
+            input.focus({ preventScroll: true });
+        } catch {
+            input.focus();
+        }
+        if (typeof input.select === 'function') input.select();
+    }, 160);
+}
+
+window.openIncomeTotalExpectedEditor = function() {
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('edit income source')) return;
+
+    const { incomeSources } = getCurrentMonthIncomeContext();
+    if (incomeSources.length === 0) {
+        window.openAddSourceModal();
+        focusIncomeSourceField('incomeSourcePlanned');
+        if (window.showToast) window.showToast('Add an income source to set expected income.');
+        return;
+    }
+
+    if (incomeSources.length > 1) {
+        if (window.showToast) window.showToast('Edit expected income on the individual income source cards.');
+        return;
+    }
+
+    window.openAddSourceModal(incomeSources[0].name);
+    focusIncomeSourceField('incomeSourcePlanned');
+};
+
+function openIncomeLoggedAmountModal(source, existingTx, currentLogged) {
+    document.getElementById('incomeTotalEditModal')?.remove();
+
+    const symbol = State.getSymbol ? State.getSymbol() : '$';
+    const modal = document.createElement('div');
+    modal.id = 'incomeTotalEditModal';
+    modal.className = 'modal-overlay active';
+    modal.onclick = (event) => {
+        if (event.target === modal) window.closeIncomeTotalLoggedEditor();
+    };
+    modal.innerHTML = `
+        <form class="modal-box modal-box-medium income-total-edit-modal" role="dialog" aria-modal="true" aria-labelledby="incomeTotalEditTitle" onclick="event.stopPropagation()" onsubmit="window.saveIncomeTotalLoggedEditor(event)">
+            <button type="button" class="modal-close" onclick="window.closeIncomeTotalLoggedEditor()" aria-label="Close income total editor">&times;</button>
+            <h3 id="incomeTotalEditTitle" class="modal-title">Edit Logged Income</h3>
+            <p class="income-total-edit-copy">Updates this month's logged amount for ${esc(source.name)}.</p>
+            <input type="hidden" id="incomeTotalEditSourceName" value="${esc(source.name)}">
+            <input type="hidden" id="incomeTotalEditTxId" value="${esc(existingTx?.id || '')}">
+            <div class="add-form-group mb-lg">
+                <label for="incomeTotalLoggedInput">Logged this month</label>
+                <div class="budgeted-input-shell">
+                    <span>${esc(symbol)}</span>
+                    <input type="number" id="incomeTotalLoggedInput" class="form-input" min="0" step="0.01" placeholder="0.00" value="${currentLogged > 0 ? esc(currentLogged.toFixed(2)) : ''}" inputmode="decimal">
+                </div>
+            </div>
+            <div id="incomeTotalEditError" class="transaction-edit-error" role="alert" hidden></div>
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" onclick="window.closeIncomeTotalLoggedEditor()">Cancel</button>
+                <button type="submit" class="btn-create">Save</button>
+            </div>
+        </form>
+    `;
+
+    document.body.appendChild(modal);
+    syncOverlayScrollTopState();
+    focusIncomeSourceField('incomeTotalLoggedInput');
+}
+
+function setIncomeTotalEditError(message) {
+    const error = document.getElementById('incomeTotalEditError');
+    if (!error) return;
+    error.textContent = message;
+    error.hidden = !message;
+}
+
+window.openIncomeTotalLoggedEditor = function() {
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('edit income total')) return;
+
+    if (shouldTreatSavingsAsIncome()) {
+        if (window.showToast) window.showToast('Edit income and savings entries separately while savings are included in income.');
+        return;
+    }
+
+    const { incomeSources, incomeTxs } = getCurrentMonthIncomeContext();
+    if (incomeSources.length === 0) {
+        window.openAddSourceModal();
+        focusIncomeSourceField('incomeSourceName');
+        if (window.showToast) window.showToast('Add an income source before logging income.');
+        return;
+    }
+
+    if (incomeSources.length > 1) {
+        if (window.showToast) window.showToast('Edit logged income from the individual income source cards or Recent transactions.');
+        return;
+    }
+
+    const source = incomeSources[0];
+    const sourceTxs = incomeTxs.filter(tx => tx.category === source.name);
+    if (sourceTxs.length > 1) {
+        if (window.showToast) window.showToast('Multiple deposits are logged. Edit the individual deposits instead.');
+        return;
+    }
+
+    const existingTx = sourceTxs[0] || null;
+    const currentLogged = existingTx ? Math.max(0, Number(existingTx.amount) || 0) : 0;
+    openIncomeLoggedAmountModal(source, existingTx, currentLogged);
+};
+
+window.closeIncomeTotalLoggedEditor = function() {
+    const modal = document.getElementById('incomeTotalEditModal');
+    if (!modal) return;
+    modal.classList.add('closing');
+    window.setTimeout(() => {
+        modal.remove();
+        syncOverlayScrollTopState();
+    }, 220);
+};
+
+window.saveIncomeTotalLoggedEditor = function(event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('edit income total')) return;
+
+    const sourceName = document.getElementById('incomeTotalEditSourceName')?.value || '';
+    const txId = document.getElementById('incomeTotalEditTxId')?.value || '';
+    const amountInput = document.getElementById('incomeTotalLoggedInput');
+    const amountRaw = String(amountInput?.value || '').trim();
+    const parsedAmount = amountRaw === '' ? 0 : parseFloat(amountRaw);
+    if (!Number.isFinite(parsedAmount) || parsedAmount < 0) {
+        setIncomeTotalEditError('Enter a logged amount of zero or more.');
+        amountInput?.focus();
+        return;
+    }
+    if (parsedAmount > ADD_TX_MAX_AMOUNT) {
+        const symbol = State.getSymbol ? State.getSymbol() : '$';
+        setIncomeTotalEditError(`Amount must be ${symbol}${formatMoney(ADD_TX_MAX_AMOUNT)} or less.`);
+        amountInput?.focus();
+        return;
+    }
+    const desiredAmount = parsedAmount;
+    const { incomeSources, incomeTxs } = getCurrentMonthIncomeContext();
+    const source = incomeSources.find(item => item.name === sourceName);
+
+    if (!source) {
+        setIncomeTotalEditError('Income source could not be found.');
+        return;
+    }
+
+    const sourceTxs = incomeTxs.filter(tx => tx.category === sourceName);
+    if (sourceTxs.length > 1) {
+        setIncomeTotalEditError('Multiple deposits are logged. Edit the individual deposits instead.');
+        return;
+    }
+
+    const existingTx = sourceTxs.find(tx => String(tx.id) === String(txId)) || sourceTxs[0] || null;
+    if (desiredAmount <= 0) {
+        if (existingTx && State.deleteTransaction) {
+            const deleted = State.deleteTransaction(existingTx.id);
+            if (deleted === false) {
+                setIncomeTotalEditError('Could not remove the logged deposit.');
+                return;
+            }
+        }
+    } else if (existingTx) {
+        const result = State.updateTransaction
+            ? State.updateTransaction(existingTx.id, {
+                amount: desiredAmount,
+                description: existingTx.description || sourceName,
+                category: sourceName,
+                type: 'income',
+                tag: 'income'
+            })
+            : { success: false };
+        if (!result?.success) {
+            setIncomeTotalEditError(result?.error || 'Could not update logged income.');
+            return;
+        }
+    } else {
+        const nowIso = new Date().toISOString();
+        const newTx = {
+            id: generateId(),
+            type: 'income',
+            description: sourceName,
+            category: sourceName,
+            amount: desiredAmount,
+            date: getLocalISODate(),
+            paymentMethod: State.getDefaultPayment ? State.getDefaultPayment() : '',
+            notes: '',
+            tag: 'income',
+            createdAt: nowIso
+        };
+        const saved = State.addTransaction ? State.addTransaction(newTx) : false;
+        if (saved === false) {
+            setIncomeTotalEditError('Could not save logged income.');
+            return;
+        }
+    }
+
+    renderIncomeTab();
+    renderZBBDashboard();
+    renderFormCategories();
+    if (window.renderRecentTransactions) window.renderRecentTransactions();
+    window.closeIncomeTotalLoggedEditor();
+    if (window.showToast) window.showToast('Logged income updated.');
+};
+
 export function renderIncomeTab() {
     const breakdownEl = document.getElementById('incomeBreakdown');
     const totalEl = document.getElementById('tabIncomeTotal');
@@ -9408,6 +9634,7 @@ export function initCategoryUI() {
     grid.style.display = 'none';
 
     const defaultCategories = [
+        { name: 'Gift Cards', icon: '🎁' },
         { name: 'Groceries', icon: '🛒' },
         { name: 'Rent', icon: '🏠' },
         { name: 'Gas', icon: '⛽' },
