@@ -7189,7 +7189,6 @@ window.openIncomeTotalLoggedEditor = function() {
 function openIncomeTotalSourceChooser(entries, mode = 'logged') {
     const symbol = State.getSymbol ? State.getSymbol() : '$';
     const isLogged = mode === 'logged';
-    const totalLoggedForMonth = entries.reduce((sum, entry) => sum + (Number(entry.currentLogged) || 0), 0);
     const titleText = isLogged ? 'Choose income source to edit logged total' : 'Choose income source to edit expected amount';
     const helperText = isLogged
         ? 'Pick the source or check to update this month\'s logged total.'
@@ -7208,13 +7207,20 @@ function openIncomeTotalSourceChooser(entries, mode = 'logged') {
             <button type="button" class="modal-close" onclick="window.closeIncomeTotalSourceChooserModal()" aria-label="Close income source chooser">&times;</button>
             <h3 id="incomeTotalSourceChooserTitle" class="modal-title">${titleText}</h3>
             <p class="income-total-edit-copy">${helperText}</p>
-            <div class="income-source-picker-list">
-                ${entries.map((entry, index) => `
+                <div class="income-source-picker-list">
+                ${entries.map((entry, index) => {
+                    const expectedAmount = Number(entry.expected) || 0;
+                    const loggedAmount = Number(entry.currentLogged) || 0;
+                    const pctOfExpected = expectedAmount > 0 ? ((loggedAmount / expectedAmount) * 100).toFixed(0) : '';
+                    const percentText = isLogged && pctOfExpected
+                        ? ` - ${pctOfExpected}% of source expected`
+                        : '';
+                    return `
                     <button type="button" class="btn-cancel income-source-picker-btn" onclick="window.selectIncomeTotalSource(${jsArg(entry.source.name)}, '${mode}')">
                         <span class="income-source-picker-main">${esc(entry.source.name)}</span>
-                        <span class="income-source-picker-meta">${esc(entry.txCount)} check${entry.txCount === 1 ? '' : 's'} - ${((Number(entry.currentLogged) / Math.max(1, totalLoggedForMonth)) * 100).toFixed(0)}% logged - ${symbol}${formatMoney(entry.currentLogged)} logged${entry.expected > 0 ? ` - ${symbol}${formatMoney(entry.expected)} expected` : ''}${index === 0 ? ' - Suggested' : ''}</span>
+                        <span class="income-source-picker-meta">${esc(entry.txCount)} check${entry.txCount === 1 ? '' : 's'} - ${symbol}${formatMoney(loggedAmount)} logged${percentText}${entry.expected > 0 ? ` - ${symbol}${formatMoney(entry.expected)} expected` : ''}${index === 0 ? ' - Suggested' : ''}</span>
                     </button>
-                `).join('')}
+                    `;}).join('')}
             </div>
             <div class="modal-actions">
                 <button type="button" class="btn-cancel" onclick="window.closeIncomeTotalSourceChooserModal()">Cancel</button>
