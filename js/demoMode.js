@@ -25,7 +25,7 @@ const TUTORIAL_ID = 'bbDemoTutorial';
 const TUTORIAL_SPOTLIGHT_ID = 'bbDemoTutorialSpotlight';
 const TUTORIAL_SCRIM_ID = 'bbDemoTutorialScrim';
 const STYLE_ID = 'bbDemoModeStyles';
-const MAIN_SITE_URL = 'https://budget-buddy.io';
+const MAIN_SITE_URL = 'https://zambudget.com';
 const ACCOUNT_PROMPT_DELAY_MS = 30 * 1000;
 
 let countdownTimer = null;

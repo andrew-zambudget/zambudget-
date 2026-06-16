@@ -1,6 +1,6 @@
 param(
     [string]$ProjectRef = "cmfnmhqyeipgtjktbouk",
-    [string]$AppUrl = "https://app.budget-buddy.io"
+    [string]$AppUrl = "https://app.zambudget.com"
 )
 
 $ErrorActionPreference = "Stop"

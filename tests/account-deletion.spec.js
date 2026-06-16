@@ -330,7 +330,7 @@ test.describe('account deletion safeguards', () => {
     });
 
     test('successful delete account shows signed-out redirect screen and leaves the app', async ({ page }) => {
-        await page.route('https://budget-buddy.io/**', route => route.fulfill({
+        await page.route('https://zambudget.com/**', route => route.fulfill({
             status: 200,
             contentType: 'text/html',
             body: '<!doctype html><title>Zam!</title><main>Zam! website</main>'
@@ -386,7 +386,7 @@ test.describe('account deletion safeguards', () => {
         await expect(clearingOverlay).toBeVisible();
         await expect(page.locator('#sessionClearingTitle')).toHaveText('Account Deleted');
         await expect(page.locator('#sessionClearingDetail')).toContainText('You are signed out');
-        await expect(page.locator('#sessionClearingDetail')).toContainText('budget-buddy.io');
+        await expect(page.locator('#sessionClearingDetail')).toContainText('zambudget.com');
         await expect(page.locator('#sessionClearingStatus')).toHaveText('Redirecting to public website');
 
         await expect.poll(() => page.evaluate(() => window.__accountDeleteCalls)).toEqual([
@@ -394,11 +394,11 @@ test.describe('account deletion safeguards', () => {
             { method: 'signOut', payload: { scope: 'global' } }
         ]);
 
-        await page.waitForURL(/https:\/\/budget-buddy\.io\/\?accountDeleted=true&sessionCleared=\d+/, { timeout: 10000 });
+        await page.waitForURL(/https:\/\/zambudget\.com\/\?accountDeleted=true&sessionCleared=\d+/, { timeout: 10000 });
     });
 
     test('delete account does not clear the browser unless auth deletion is confirmed', async ({ page }) => {
-        await page.route('https://budget-buddy.io/**', route => route.fulfill({
+        await page.route('https://zambudget.com/**', route => route.fulfill({
             status: 200,
             contentType: 'text/html',
             body: '<!doctype html><title>Zam!</title><main>Zam! website</main>'

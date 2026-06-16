@@ -62,7 +62,7 @@ Cloud Sync v1 is the default protection path for signed-in users. The app still 
 - Delete Account requires a fresh login verification before the permanent deletion request runs.
 - Delete Account is blocked while Stripe subscription status is active or past_due.
 - Delete Account copy explains that deleted Cloud Sync data, deleted snapshots, deleted account identities, and lost recovery keys cannot be recovered, and that Stripe may retain billing records required for payments, tax, legal, or dispute handling.
-- Delete Account shows a post-deletion confirmation screen and redirects to `https://budget-buddy.io/?accountDeleted=true`. Email confirmation is deferred until transactional support email is configured.
+- Delete Account shows a post-deletion confirmation screen and redirects to `https://zambudget.com/?accountDeleted=true`. Email confirmation is deferred until transactional support email is configured.
 
 ## Live Beta Gate
 

@@ -13436,7 +13436,7 @@ export async function startStripeCheckout(event) {
         }
 
         if (isLiveBillingMode() && isLocalBillingOrigin()) {
-            throw new Error('Live billing must be started from https://app.budget-buddy.io, not localhost.');
+            throw new Error('Live billing must be started from https://app.zambudget.com, not localhost.');
         }
 
         setUpgradeButtonLoading(button, true);
@@ -13542,7 +13542,7 @@ export async function handleManageSubscription(event) {
         }
 
         if (isLiveBillingMode() && isLocalBillingOrigin()) {
-            throw new Error('Live billing must be managed from https://app.budget-buddy.io, not localhost.');
+            throw new Error('Live billing must be managed from https://app.zambudget.com, not localhost.');
         }
 
         portalWindow = openPendingBillingPortalPage();
@@ -17357,7 +17357,7 @@ function updateBetaSupportAction() {
     }
 
     action.textContent = 'Join Beta';
-    action.href = 'https://app.budget-buddy.io/login';
+    action.href = 'https://app.zambudget.com/login';
     action.dataset.tooltip = 'Join beta';
     action.onclick = null;
 }
@@ -17906,7 +17906,7 @@ function isAccountDeletionReauthRequiredError(error) {
 async function completeBudgetBuddyAccountDeletion({ allowReauthRetry = true } = {}) {
     showSessionClearingScreen(
         'Deleting Account...',
-        'Deleting your Zam! account. When this finishes, you will be signed out and returned to budget-buddy.io.',
+        'Deleting your Zam! account. When this finishes, you will be signed out and returned to zambudget.com.',
         {
             status: 'Permanent deletion in progress',
             variant: 'account-delete'
@@ -17922,9 +17922,9 @@ async function completeBudgetBuddyAccountDeletion({ allowReauthRetry = true } = 
         }
         document.getElementById('buddyCloudModal')?.remove();
         await clearBrowserSessionAndRefresh({
-            target: 'https://budget-buddy.io/?accountDeleted=true',
+            target: 'https://zambudget.com/?accountDeleted=true',
             message: 'Account Deleted',
-            detail: 'You are signed out. This browser is being cleared and you are being returned to budget-buddy.io.',
+            detail: 'You are signed out. This browser is being cleared and you are being returned to zambudget.com.',
             status: 'Redirecting to public website',
             variant: 'account-delete'
         });

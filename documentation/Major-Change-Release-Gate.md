@@ -6,7 +6,7 @@ Use this gate before shipping any major change, release candidate, billing/accou
 
 - Review the app legal pages: `privacypolicy.html` and `terms.html`.
 - Review the public changelog: `changelog.html`.
-- Review the marketing website copy on `budget-buddy.io` when the change affects public promises, pricing, privacy, security, Cloud Sync, billing, account deletion, support, or launch copy.
+- Review the marketing website copy on `zambudget.com` when the change affects public promises, pricing, privacy, security, Cloud Sync, billing, account deletion, support, or launch copy.
 - Update the affected files or record that no update was needed before deploy.
 
 ## Update Triggers
@@ -33,7 +33,7 @@ Update Changelog copy when a change is:
 
 Update marketing-site copy when a change affects:
 
-- Claims on `budget-buddy.io`.
+- Claims on `zambudget.com`.
 - Launch, beta, pricing, Premium, privacy, security, or Cloud Sync messaging.
 - CTA destinations or product positioning.
 

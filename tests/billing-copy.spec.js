@@ -140,7 +140,7 @@ test.describe('Premium billing copy', () => {
         });
 
         expect(result.calls).toHaveLength(0);
-        expect(result.messages.join(' ')).toContain('Live billing must be started from https://app.budget-buddy.io');
+        expect(result.messages.join(' ')).toContain('Live billing must be started from https://app.zambudget.com');
     });
 
     test('period-end cancellation shows Premium access is ending', async ({ page }) => {
