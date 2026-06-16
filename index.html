@@ -873,7 +873,7 @@
                                             <span class="settings-action-title">Import CSV</span>
                                             <span class="settings-action-copy">Bring transaction history into Zam!</span>
                                         </button>
-                                        <input type="file" id="csvImportInput" class="settings-csv-input" accept=".csv,text/csv" onchange="window.importTransactionsFromCSV(event)">
+                                        <input type="file" id="csvImportInput" class="settings-csv-input" accept=".csv,text/csv" multiple onchange="window.importTransactionsFromCSV(event)">
                                     </div>
                                     <div class="help-text">Move transaction history in or out with CSV files.</div>
                                 </div>
@@ -1301,6 +1301,131 @@
                                         </div>
                                         <div style="margin-top:1.5rem;text-align:right">
                                             <button onclick="window.closeLicenseModal()" style="padding:0.75rem 2rem;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer">Close</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-overlay" id="csvImportReviewModal" onclick="window.closeModalOnOutsideClick(event)">
+                                    <div class="modal-box csv-import-review-box" role="dialog" aria-modal="true" aria-labelledby="csvImportReviewTitle" aria-describedby="csvImportReviewDescription" onclick="event.stopPropagation()">
+                                        <button type="button" class="modal-close" onclick="window.closeCsvImportReviewModal()" aria-label="Close CSV import review">&times;</button>
+                                        <h3 id="csvImportReviewTitle" class="modal-title mb-sm">Review CSV Import</h3>
+                                        <p id="csvImportReviewDescription" class="csv-import-description">Map CSV columns, identify likely matches, and confirm what to import.</p>
+
+                                        <div id="csvImportReviewWarning" class="csv-import-warning text-red" hidden></div>
+                                        <div class="csv-import-toolbar">
+                                            <button type="button" class="btn-outline-danger" onclick="window.resetCsvImportMapping()">Reset Mapping</button>
+                                            <button type="button" class="btn-small" onclick="window.autoDetectCsvImportMapping()">Auto Detect Columns</button>
+                                        </div>
+                                        <div id="csvImportReviewFiles" class="csv-import-files" aria-live="polite"></div>
+                                        <div id="csvImportReviewSummary" class="csv-import-summary" aria-live="polite"></div>
+                                        <div class="csv-import-filter-row">
+                                            <label class="settings-checkbox-label">
+                                                <input type="checkbox" id="csvImportShowDuplicatesOnly" onchange="window.handleCsvImportMappingChange()">
+                                                Show duplicates only
+                                            </label>
+                                        </div>
+
+                                        <div class="csv-import-mapping-grid" aria-label="CSV column mapping controls">
+                                            <div class="csv-import-field">
+                                                <label for="csvImportMap-date">Date</label>
+                                                <select id="csvImportMap-date" class="csv-import-select" onchange="window.handleCsvImportMappingChange()"></select>
+                                            </div>
+                                            <div class="csv-import-field">
+                                                <label for="csvImportMap-description">Description</label>
+                                                <select id="csvImportMap-description" class="csv-import-select" onchange="window.handleCsvImportMappingChange()"></select>
+                                            </div>
+                                            <div class="csv-import-field">
+                                                <label for="csvImportMap-amount">Amount (or Debit/Credit)</label>
+                                                <select id="csvImportMap-amount" class="csv-import-select" onchange="window.handleCsvImportMappingChange()"></select>
+                                            </div>
+                                            <div class="csv-import-field">
+                                                <label for="csvImportMap-debit">Debit</label>
+                                                <select id="csvImportMap-debit" class="csv-import-select" onchange="window.handleCsvImportMappingChange()"></select>
+                                            </div>
+                                            <div class="csv-import-field">
+                                                <label for="csvImportMap-credit">Credit</label>
+                                                <select id="csvImportMap-credit" class="csv-import-select" onchange="window.handleCsvImportMappingChange()"></select>
+                                            </div>
+                                            <div class="csv-import-field">
+                                                <label for="csvImportMap-category">Category</label>
+                                                <select id="csvImportMap-category" class="csv-import-select" onchange="window.handleCsvImportMappingChange()"></select>
+                                            </div>
+                                            <div class="csv-import-field">
+                                                <label for="csvImportMap-type">Type</label>
+                                                <select id="csvImportMap-type" class="csv-import-select" onchange="window.handleCsvImportMappingChange()"></select>
+                                            </div>
+                                            <div class="csv-import-field">
+                                                <label for="csvImportMap-tag">Tag</label>
+                                                <select id="csvImportMap-tag" class="csv-import-select" onchange="window.handleCsvImportMappingChange()"></select>
+                                            </div>
+                                            <div class="csv-import-field">
+                                                <label for="csvImportMap-paymentMethod">Payment Method</label>
+                                                <select id="csvImportMap-paymentMethod" class="csv-import-select" onchange="window.handleCsvImportMappingChange()"></select>
+                                            </div>
+                                            <div class="csv-import-field">
+                                                <label for="csvImportMap-notes">Notes</label>
+                                                <select id="csvImportMap-notes" class="csv-import-select" onchange="window.handleCsvImportMappingChange()"></select>
+                                            </div>
+                                            <label class="settings-checkbox-label">
+                                                <input type="checkbox" id="csvImportSkipDuplicates" checked onchange="window.handleCsvImportMappingChange()">
+                                                Skip exact duplicate rows
+                                            </label>
+                                        </div>
+
+                                        <div class="csv-import-preview-wrap">
+                                            <table class="csv-import-preview-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>#</th>
+                                                        <th>Source</th>
+                                                        <th>Line</th>
+                                                        <th>Date</th>
+                                                        <th>Description</th>
+                                                        <th>Amount</th>
+                                                        <th>Type</th>
+                                                        <th>Category</th>
+                                                        <th>Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="csvImportPreviewBody">
+                                                <tr>
+                                                    <td colspan="9">Loading preview…</td>
+                                                </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        <div class="modal-actions csv-import-actions">
+                                            <button type="button" class="btn-cancel" onclick="window.cancelCsvImportReview()">Cancel</button>
+                                            <button type="button" id="csvImportConfirmBtn" class="btn-create" onclick="window.confirmCsvImportReview()" disabled>Import 0 Transactions</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-overlay" id="csvImportFeedbackModal" onclick="window.closeModalOnOutsideClick(event)">
+                                    <div class="modal-box csv-import-feedback-box" role="dialog" aria-modal="true" aria-labelledby="csvImportFeedbackTitle" aria-describedby="csvImportFeedbackDescription" onclick="event.stopPropagation()">
+                                        <button type="button" class="modal-close" onclick="window.closeCsvImportFeedbackModal()" aria-label="Close import feedback">&times;</button>
+                                        <h3 id="csvImportFeedbackTitle" class="modal-title mb-sm">Import Complete</h3>
+                                        <p id="csvImportFeedbackDescription" class="csv-import-feedback-description">How did this import go?</p>
+
+                                        <div id="csvImportFeedbackSummary" class="csv-import-feedback-summary" aria-live="polite"></div>
+
+                                        <div id="csvImportFeedbackActions" class="csv-import-feedback-actions">
+                                            <button type="button" class="btn-create" onclick="window.chooseCsvImportFeedbackOutcome('positive')">&#128077; Worked well</button>
+                                            <button type="button" class="btn-cancel" onclick="window.chooseCsvImportFeedbackOutcome('negative')">&#128078; Something was wrong</button>
+                                        </div>
+
+                                        <div id="csvImportFeedbackDetail" class="csv-import-feedback-detail" hidden>
+                                            <p class="csv-import-feedback-label">Tell us what happened</p>
+                                            <textarea id="csvImportFeedbackComment" class="csv-import-feedback-textarea" maxlength="1200" rows="4" placeholder="What should we improve?"></textarea>
+                                            <label class="settings-checkbox-label csv-import-feedback-checkbox">
+                                                <input type="checkbox" id="csvImportIncludeDiagnostics">
+                                                <span>Include technical import details to help troubleshoot.</span>
+                                            </label>
+                                            <p class="csv-import-feedback-note">No transaction amounts or descriptions will be sent.</p>
+
+                                            <div class="modal-actions csv-import-feedback-submit">
+                                                <button type="button" class="btn-cancel" onclick="window.closeCsvImportFeedbackModal()">Close</button>
+                                                <button type="button" class="btn-create" id="csvImportFeedbackSendBtn" onclick="window.sendCsvImportFeedback()">Send feedback</button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

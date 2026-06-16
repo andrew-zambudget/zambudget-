@@ -2648,6 +2648,258 @@ noscript div,
   border-radius: 8px;
 }
 
+#csvImportReviewModal .modal-box {
+  width: min(96vw, 980px);
+  max-width: 980px;
+  max-height: min(92vh, 900px);
+  border-radius: 14px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+#csvImportReviewModal .modal-title {
+  margin: 0;
+}
+
+#csvImportReviewModal .csv-import-description {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+#csvImportReviewModal .csv-import-warning {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+#csvImportReviewModal .csv-import-files,
+#csvImportReviewModal .csv-import-summary {
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--text-dim);
+}
+
+#csvImportReviewModal .csv-import-summary {
+  font-weight: 750;
+  color: var(--text);
+}
+
+#csvImportReviewModal .csv-import-mapping-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-top: 0.25rem;
+}
+
+#csvImportReviewModal .csv-import-toolbar {
+  margin: 0.35rem 0 0.45rem;
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+#csvImportReviewModal .csv-import-toolbar .btn-small {
+  min-width: 0;
+}
+
+#csvImportReviewModal .csv-import-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+#csvImportReviewModal label {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.79rem;
+  line-height: 1.25;
+}
+
+#csvImportReviewModal .csv-import-select {
+  width: 100%;
+  min-height: 38px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.82rem;
+  padding: 0.38rem 0.55rem;
+}
+
+#csvImportReviewModal .csv-import-required {
+  color: var(--red);
+}
+
+#csvImportReviewModal .settings-checkbox-label {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 34px;
+  color: var(--text);
+  font-weight: 700;
+  margin: 0;
+}
+
+#csvImportReviewModal .csv-import-preview-wrap {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  max-height: 280px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+#csvImportReviewModal .csv-import-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+#csvImportReviewModal .csv-import-preview-table th,
+#csvImportReviewModal .csv-import-preview-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.45rem 0.45rem;
+  text-align: left;
+  font-size: 0.78rem;
+  vertical-align: top;
+  color: var(--text);
+}
+
+#csvImportReviewModal .csv-import-preview-table th {
+  position: sticky;
+  top: 0;
+  background: color-mix(in srgb, var(--surface) 88%, var(--bg));
+  color: var(--text-dim);
+  font-weight: 750;
+  z-index: 1;
+  white-space: nowrap;
+}
+
+#csvImportReviewModal .csv-import-preview-table td {
+  word-break: break-word;
+}
+
+#csvImportReviewModal .csv-import-preview-table tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--surface) 80%, var(--bg));
+}
+
+#csvImportReviewModal .csv-import-preview-table thead th:nth-child(1),
+#csvImportReviewModal .csv-import-preview-table tbody td:nth-child(1) {
+  width: 2.25rem;
+}
+
+#csvImportReviewModal .csv-import-preview-table thead th:nth-child(2),
+#csvImportReviewModal .csv-import-preview-table tbody td:nth-child(2) {
+  width: 12%;
+}
+
+#csvImportReviewModal .csv-import-preview-table thead th:nth-child(3),
+#csvImportReviewModal .csv-import-preview-table tbody td:nth-child(3) {
+  width: 5.5rem;
+}
+
+#csvImportReviewModal .csv-import-preview-table thead th:nth-child(4),
+#csvImportReviewModal .csv-import-preview-table tbody td:nth-child(4) {
+  width: 11%;
+}
+
+#csvImportReviewModal .csv-import-preview-table thead th:nth-child(6),
+#csvImportReviewModal .csv-import-preview-table tbody td:nth-child(6) {
+  width: 8.5rem;
+}
+
+#csvImportReviewModal .csv-import-preview-table thead th:nth-child(7),
+#csvImportReviewModal .csv-import-preview-table tbody td:nth-child(7) {
+  width: 14%;
+}
+
+#csvImportReviewModal .csv-import-preview-table thead th:nth-child(8),
+#csvImportReviewModal .csv-import-preview-table tbody td:nth-child(8) {
+  width: 8.5rem;
+}
+
+#csvImportReviewModal .csv-import-actions {
+  margin-top: 0.2rem;
+}
+
+#csvImportFeedbackModal .modal-box {
+  width: min(92vw, 540px);
+  max-width: 540px;
+  max-height: min(88vh, 640px);
+  border-radius: 14px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+#csvImportFeedbackModal .modal-title {
+  margin: 0;
+}
+
+#csvImportFeedbackModal .csv-import-feedback-description {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+#csvImportFeedbackModal .csv-import-feedback-summary {
+  margin-top: 0.1rem;
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
+#csvImportFeedbackModal .csv-import-feedback-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+#csvImportFeedbackModal .csv-import-feedback-detail {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.2rem;
+}
+
+#csvImportFeedbackModal .csv-import-feedback-label {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+#csvImportFeedbackModal .csv-import-feedback-textarea {
+  width: 100%;
+  min-height: 92px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  padding: 0.6rem 0.7rem;
+  font-size: 0.82rem;
+  resize: vertical;
+}
+
+#csvImportFeedbackModal .csv-import-feedback-note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+#csvImportFeedbackModal .csv-import-feedback-checkbox {
+  margin: 0;
+}
+
+#csvImportFeedbackModal .csv-import-feedback-submit {
+  margin-top: 0.15rem;
+}
+
 @media (max-width: 760px) {
   #settingsModal .settings-modal-box {
     width: 100vw;
@@ -2692,6 +2944,43 @@ noscript div,
 
   #settingsModal .settings-dirty-notice {
     flex: 1 0 100%;
+  }
+
+  #csvImportReviewModal .modal-box {
+    width: min(100vw, 420px);
+    max-height: 90vh;
+    border-radius: 14px;
+    padding: 0.9rem;
+  }
+
+  #csvImportReviewModal .csv-import-mapping-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #csvImportReviewModal .csv-import-preview-wrap {
+    max-height: 220px;
+  }
+
+  #csvImportReviewModal .modal-actions {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  #csvImportReviewModal .modal-actions .btn-cancel,
+  #csvImportReviewModal .modal-actions .btn-create {
+    width: 100%;
+  }
+
+  #csvImportFeedbackModal .modal-box {
+    width: min(100vw, 420px);
+    max-height: 82vh;
+    border-radius: 14px;
+    padding: 0.9rem;
+  }
+
+  #csvImportFeedbackModal .csv-import-feedback-actions,
+  #csvImportFeedbackModal .csv-import-feedback-submit {
+    grid-template-columns: 1fr;
   }
 }
 

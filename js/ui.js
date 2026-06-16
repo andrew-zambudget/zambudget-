@@ -7737,6 +7737,8 @@ export function closeModalOnOutsideClick(event) {
         else if (modalId === 'resetConfirmModal') closeResetModal();
         else if (modalId === 'incomeSourceModal') window.closeIncomeSourceModal();
         else if (modalId === 'categoryModal') closeCategoryModal();
+        else if (modalId === 'csvImportReviewModal') window.closeCsvImportReviewModal();
+        else if (modalId === 'csvImportFeedbackModal') window.closeCsvImportFeedbackModal();
         else if (modalId === 'reassignCategoryModal') closeModal('reassignCategoryModal');
         else closeModal(modalId);
     }
@@ -16442,6 +16444,641 @@ window.exportTransactions = function() {
     if (window.showToast) window.showToast('CSV export downloaded.');
 };
 
+const CSV_IMPORT_PREVIEW_LIMIT = 12;
+const CSV_IMPORT_MATCH_WINDOW_DAYS = 7;
+const CSV_IMPORT_MATCH_SIMILARITY_THRESHOLD = 0.52;
+const CSV_IMPORT_MAPPING_SAMPLE_LIMIT = 24;
+const CSV_IMPORT_SELECT_OPTIONS = ['-- Not mapped --'];
+const CSV_IMPORT_FIELD_MAP = [
+    { key: 'date', label: 'Date', aliases: ['date', 'transaction date', 'posted date', 'booking date', 'value date', 'date posted', 'txn date'], optional: true },
+    { key: 'description', label: 'Description', aliases: ['description', 'memo', 'merchant', 'payee', 'name'], optional: true },
+    { key: 'amount', label: 'Amount', aliases: ['amount', 'transaction amount', 'value'], optional: false },
+    { key: 'debit', label: 'Debit', aliases: ['debit', 'debits', 'withdrawal'], optional: true },
+    { key: 'credit', label: 'Credit', aliases: ['credit', 'credits', 'deposit'], optional: true },
+    { key: 'category', label: 'Category', aliases: ['category', 'cat'], optional: true },
+    { key: 'type', label: 'Type', aliases: ['type', 'transaction type'], optional: true },
+    { key: 'tag', label: 'Tag', aliases: ['tag'], optional: true },
+    { key: 'paymentMethod', label: 'Payment Method', aliases: ['payment method', 'paymentmethod', 'account', 'account name'], optional: true },
+    { key: 'notes', label: 'Notes', aliases: ['notes', 'note', 'user note'], optional: true }
+];
+
+const CSV_IMPORT_NOT_MAPPED_VALUE = '';
+let csvImportState = null;
+let csvImportFeedbackContext = null;
+
+function normalizeCsvHeader(value = '') {
+    return String(value || '')
+        .replace(/\uFEFF/g, '')
+        .trim()
+        .toLowerCase()
+        .replace(/[_-]+/g, ' ')
+        .replace(/[^a-z0-9 ]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function hasTextValue(value = '') {
+    return String(value || '').trim() !== '';
+}
+
+function looksLikeCsvDate(value = '') {
+    const compact = String(value || '').trim().replace(/[^\d\/-]/g, '');
+    if (!compact) return false;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(compact)) return true;
+    if (/^\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}$/.test(compact)) return true;
+    return false;
+}
+
+function inferColumnMatch(normalizedHeaders = [], aliases = []) {
+    let bestIndex = -1;
+    let bestScore = 0;
+
+    normalizedHeaders.forEach((header, index) => {
+        aliases.forEach((alias) => {
+            if (!alias) return;
+            let score = 0;
+            if (header === alias) score = 100;
+            else if (header.startsWith(`${alias} `) || header.endsWith(` ${alias}`) || header.includes(` ${alias} `)) score = 80;
+            else if (header.includes(alias)) score = 50;
+            if (score > bestScore) {
+                bestScore = score;
+                bestIndex = index;
+            }
+        });
+    });
+
+    return bestScore > 0 ? bestIndex : -1;
+}
+
+function readCsvFileText(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
+        reader.readAsText(file);
+    });
+}
+
+function parseCsvAmountValue(value = '') {
+    const raw = String(value || '').trim();
+    if (!raw) return NaN;
+
+    let sign = 1;
+    let normalized = raw;
+    if (/^\(.*\)$/.test(normalized)) {
+        sign = -1;
+        normalized = normalized.slice(1, -1);
+    }
+    if (normalized.endsWith('-')) {
+        sign = -1;
+        normalized = normalized.slice(0, -1);
+    }
+    if (normalized.startsWith('+')) normalized = normalized.slice(1);
+    if (normalized.startsWith('-')) {
+        sign = -1;
+        normalized = normalized.slice(1);
+    }
+
+    normalized = normalized.replace(/,/g, '').replace(/[^\d.]/g, '');
+    if (!normalized || normalized === '.') return NaN;
+
+    const parsed = parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed * sign : NaN;
+}
+
+function parseCsvDateValue(value = '', fallback = '') {
+    const raw = String(value || '').trim();
+    if (!raw) return fallback;
+
+    const compact = raw.replace(/[\r\n]/g, '').trim();
+    const mmddyy = compact.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+    const candidate = mmddyy && mmddyy.length === 4
+        ? `${mmddyy[3].length === 2 ? `20${mmddyy[3]}` : mmddyy[3]}-${mmddyy[1].padStart(2, '0')}-${mmddyy[2].padStart(2, '0')}`
+        : compact;
+    const parsed = new Date(candidate);
+    return Number.isNaN(parsed.getTime()) ? fallback : getLocalDateKey(parsed);
+}
+
+function parseDateKeyToTimestamp(dateValue = '') {
+    const value = String(dateValue || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+    const [year, month, day] = value.split('-').map(Number);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+    return Date.UTC(year, month - 1, day);
+}
+
+function csvNormalizeDescription(value = '') {
+    return String(value || '')
+        .toLowerCase()
+        .replace(/\b(?:paid|payment|card|purchase|debit|credit|transfer|txn|xx+)\b/g, ' ')
+        .replace(/[^a-z0-9 ]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function csvDescriptionTokens(value = '') {
+    return csvNormalizeDescription(value)
+        .split(' ')
+        .map((token) => token.trim())
+        .filter((token) => token.length > 1);
+}
+
+function csvDescriptionSimilarity(valueA = '', valueB = '') {
+    const tokensA = csvDescriptionTokens(valueA);
+    const tokensB = csvDescriptionTokens(valueB);
+    if (!tokensA.length || !tokensB.length) return 0;
+
+    const setA = new Set(tokensA);
+    const setB = new Set(tokensB);
+    let intersection = 0;
+
+    setA.forEach((token) => {
+        if (setB.has(token)) intersection += 1;
+    });
+
+    const union = new Set([...setA, ...setB]);
+    return union.size === 0 ? 0 : (intersection / union.size);
+}
+
+function inferCsvMapping(headers = []) {
+    const normalized = headers.map(normalizeCsvHeader);
+    const map = {};
+    CSV_IMPORT_FIELD_MAP.forEach((field) => {
+        const aliases = field.aliases.map(normalizeCsvHeader).filter(Boolean);
+        const index = inferColumnMatch(normalized, aliases);
+        map[field.key] = index;
+    });
+    return map;
+}
+
+function buildCsvImportDefaultMapping(headers = []) {
+    const normalized = headers.map(normalizeCsvHeader);
+    const map = {};
+    const findIndexByAlias = (aliases) => normalized.findIndex((header) => aliases
+        .map((alias) => normalizeCsvHeader(alias))
+        .some((alias) => header === alias || header.includes(alias)));
+
+    map.date = findIndexByAlias(['posted date', 'transaction date', 'booking date', 'value date', 'date']);
+    map.description = findIndexByAlias(['payee', 'memo', 'description', 'merchant']);
+    map.amount = findIndexByAlias(['amount', 'transaction amount', 'value']);
+    if (map.amount < 0) {
+        map.debit = findIndexByAlias(['debit', 'withdrawal']);
+        map.credit = findIndexByAlias(['credit', 'deposit']);
+    } else {
+        map.debit = -1;
+        map.credit = -1;
+    }
+    map.category = findIndexByAlias(['category name', 'category', 'cat']);
+    map.type = findIndexByAlias(['type', 'transaction type']);
+    map.tag = findIndexByAlias(['tag']);
+    map.paymentMethod = findIndexByAlias(['account name', 'account', 'payment method']);
+    map.notes = findIndexByAlias(['user note', 'notes', 'note']);
+
+    return map;
+}
+
+function validateCsvMappedColumnValues(mapping, payloads = []) {
+    const validation = { errors: [], warnings: [], canImport: true };
+    const dateIndex = Number.isInteger(mapping?.date) ? mapping.date : -1;
+    const amountIndex = Number.isInteger(mapping?.amount) ? mapping.amount : -1;
+    const debitIndex = Number.isInteger(mapping?.debit) ? mapping.debit : -1;
+    const creditIndex = Number.isInteger(mapping?.credit) ? mapping.credit : -1;
+
+    if (amountIndex < 0 && debitIndex < 0 && creditIndex < 0) {
+        validation.errors.push('Amount (or Debit/Credit) is required.');
+        validation.canImport = false;
+    }
+
+    const sampleRows = [];
+    for (const payload of payloads) {
+        for (const row of payload.rows || []) {
+            sampleRows.push(row);
+            if (sampleRows.length >= CSV_IMPORT_MAPPING_SAMPLE_LIMIT) break;
+        }
+        if (sampleRows.length >= CSV_IMPORT_MAPPING_SAMPLE_LIMIT) break;
+    }
+
+    if (dateIndex >= 0 && sampleRows.length) {
+        const candidates = sampleRows.map((row) => row?.[dateIndex]).filter(hasTextValue);
+        if (candidates.length) {
+            const good = candidates.filter((value) => looksLikeCsvDate(value)).length;
+            if (good / candidates.length < 0.4) {
+                validation.warnings.push('Date column does not look like dates on most rows.');
+            }
+        }
+    }
+
+    const amountColumns = [
+        { name: 'Amount', index: amountIndex },
+        { name: 'Debit', index: debitIndex },
+        { name: 'Credit', index: creditIndex }
+    ].filter((column) => column.index >= 0);
+
+    amountColumns.forEach((column) => {
+        const candidates = sampleRows
+            .map((row) => row?.[column.index])
+            .filter(hasTextValue)
+            .map((value) => parseCsvAmountValue(value))
+            .filter((value) => Number.isFinite(value) && Math.abs(value) > 0.00001);
+        if (!candidates.length) return;
+        const totalText = sampleRows.filter((row) => hasTextValue(row?.[column.index])).length;
+        if (totalText > 0 && candidates.length / totalText < 0.4) {
+            validation.warnings.push(`${column.name} column is not consistently numeric.`);
+        }
+    });
+
+    if (debitIndex >= 0 && creditIndex >= 0) {
+        let overlapCount = 0;
+        for (const row of sampleRows) {
+            const debit = parseCsvAmountValue(row?.[debitIndex]);
+            const credit = parseCsvAmountValue(row?.[creditIndex]);
+            const debitHasValue = Number.isFinite(debit) && Math.abs(debit) > 0.00001;
+            const creditHasValue = Number.isFinite(credit) && Math.abs(credit) > 0.00001;
+            if (debitHasValue && creditHasValue) {
+                overlapCount += 1;
+            }
+        }
+        if (overlapCount > 0) {
+            validation.warnings.push('Some rows contain both Debit and Credit values.');
+        }
+    }
+
+    return validation;
+}
+
+function applyCsvImportMapping(mapping = {}) {
+    CSV_IMPORT_FIELD_MAP.forEach((field) => {
+        const select = document.getElementById(`csvImportMap-${field.key}`);
+        if (!select) return;
+        const mapped = Number.isInteger(mapping?.[field.key]) ? mapping[field.key] : -1;
+        select.value = mapped >= 0 ? String(mapped) : CSV_IMPORT_NOT_MAPPED_VALUE;
+    });
+    refreshCsvImportReview(Boolean(document.getElementById('csvImportSkipDuplicates')?.checked));
+}
+
+function renderCsvImportFieldOptions(headers = []) {
+    return headers.map((header, index) => {
+        const label = String(header || '').trim() || `Column ${index + 1}`;
+        return `<option value="${index}">${esc(label)} (col ${index + 1})</option>`;
+    }).join('');
+}
+
+function mapValueFromRow(row, mapping, key) {
+    const idx = mapping?.[key] ?? -1;
+    if (idx < 0) return '';
+    return String(row?.[idx] || '').trim();
+}
+
+function normalizeCsvTransactionType(rawType = '', rawAmount = 0, fallbackType = '') {
+    const normalized = String(rawType || '').trim().toLowerCase();
+    if (['income', 'credit', 'deposit', 'payroll', 'salary', 'received'].includes(normalized)) return 'income';
+    if (['expense', 'debit', 'withdrawal', 'purchase', 'payment'].includes(normalized)) return 'expense';
+    if (normalized === 'savings') return 'savings';
+    if (normalized === 'debt') return 'debt';
+    if (fallbackType) return fallbackType;
+    return rawAmount >= 0 ? 'income' : 'expense';
+}
+
+function getCsvAmountFromColumns(row, mapping, rowIndexHint = 0) {
+    const rawAmount = mapValueFromRow(row, mapping, 'amount');
+    const parsedAmount = parseCsvAmountValue(rawAmount);
+    const amountHasValue = hasTextValue(rawAmount);
+
+    if (Number.isFinite(parsedAmount) && Math.abs(parsedAmount) > 0.00001) {
+        return { amount: Math.abs(parsedAmount), source: 'amount' };
+    }
+
+    const rawDebit = mapValueFromRow(row, mapping, 'debit');
+    const rawCredit = mapValueFromRow(row, mapping, 'credit');
+    const parsedDebit = parseCsvAmountValue(rawDebit);
+    const parsedCredit = parseCsvAmountValue(rawCredit);
+    const debitHasValue = Number.isFinite(parsedDebit) && Math.abs(parsedDebit) > 0.00001;
+    const creditHasValue = Number.isFinite(parsedCredit) && Math.abs(parsedCredit) > 0.00001;
+
+    if (debitHasValue && creditHasValue) {
+        return {
+            source: 'conflict',
+            error: `Row ${rowIndexHint} has both debit and credit values.`
+        };
+    }
+
+    if (debitHasValue) return { amount: Math.abs(parsedDebit), source: 'debit', typeHint: 'expense' };
+    if (creditHasValue) return { amount: Math.abs(parsedCredit), source: 'credit', typeHint: 'income' };
+
+    if (amountHasValue) {
+        return {
+            source: 'amount',
+            error: `Row ${rowIndexHint} has an invalid Amount value.`
+        };
+    }
+
+    return { source: 'none', error: `Row ${rowIndexHint} is missing an Amount value.` };
+}
+
+function csvImportFingerprint(tx) {
+    const amountText = Number.parseFloat(tx?.amount || 0).toFixed(2);
+    const desc = String(tx?.description || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    return `${tx?.date || ''}|${amountText}|${desc}`;
+}
+
+function findBestCsvMatchForRow(parsedRow, candidateRows = [], usedMatchIds = new Set()) {
+    const amount = Number.parseFloat(parsedRow?.tx?.amount || 0);
+    const importDateMs = parseDateKeyToTimestamp(parsedRow?.date);
+    const dateWindow = CSV_IMPORT_MATCH_WINDOW_DAYS;
+    const descriptionCandidates = [];
+    const importType = String(parsedRow?.tx?.type || 'expense');
+    const importDescription = String(parsedRow?.description || '').trim();
+
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+    if (!importDateMs) return null;
+
+    for (const tx of candidateRows) {
+        if (!tx || usedMatchIds.has(tx.id)) continue;
+        if (String(tx.type || '') !== importType) continue;
+
+        const txAmount = Number.parseFloat(tx.amount || 0);
+        if (!Number.isFinite(txAmount) || Math.abs(txAmount - amount) > 0.005) continue;
+
+        const txDateMs = parseDateKeyToTimestamp(tx.date);
+        if (!txDateMs) continue;
+
+        const dayDiff = Math.abs(importDateMs - txDateMs) / (1000 * 60 * 60 * 24);
+        if (dayDiff > dateWindow) continue;
+
+        const candidateDescription = String(tx.rawDescription || tx.description || tx.notes || '').trim();
+        const similarity = csvDescriptionSimilarity(importDescription, candidateDescription);
+        if (similarity < CSV_IMPORT_MATCH_SIMILARITY_THRESHOLD) continue;
+
+        descriptionCandidates.push({
+            tx,
+            similarity,
+            dayDiff
+        });
+    }
+
+    if (!descriptionCandidates.length) return null;
+
+    descriptionCandidates.sort((a, b) => {
+        if (b.similarity !== a.similarity) return b.similarity - a.similarity;
+        return a.dayDiff - b.dayDiff;
+    });
+
+    const best = descriptionCandidates[0];
+    return {
+        txId: best.tx.id,
+        description: best.tx.description || best.tx.rawDescription || parsedRow?.description || '',
+        date: best.tx.date || '',
+        amount: best.tx.amount || 0,
+        similarity: best.similarity,
+        dayDiff: best.dayDiff
+    };
+}
+
+function buildCsvImportRow(fileName, sourceRow, row, mapping, now) {
+    const amountResult = getCsvAmountFromColumns(row, mapping, sourceRow);
+    if (!amountResult || amountResult.error) {
+        return {
+            status: 'invalid',
+            fileName,
+            sourceRow,
+            reason: amountResult?.error ? amountResult.error : 'Amount is missing or invalid.',
+            date: '',
+            description: '',
+            amount: '',
+            category: '',
+            type: '',
+            tx: null,
+            fingerprint: ''
+        };
+    }
+
+    const typeGuess = normalizeCsvTransactionType(mapValueFromRow(row, mapping, 'type'), amountResult.amount, amountResult.typeHint || '');
+    const defaultDate = now.slice(0, 10);
+    const rawDate = mapValueFromRow(row, mapping, 'date');
+    const date = parseCsvDateValue(rawDate, defaultDate);
+    const description = mapValueFromRow(row, mapping, 'description') || 'Imported Transaction';
+    const category = mapValueFromRow(row, mapping, 'category');
+    const tag = mapValueFromRow(row, mapping, 'tag') || (typeGuess === 'savings' || typeGuess === 'debt' ? typeGuess : 'transaction');
+    const paymentMethod = mapValueFromRow(row, mapping, 'paymentMethod');
+    const notes = mapValueFromRow(row, mapping, 'notes');
+
+    const tx = {
+        id: generateId(),
+        type: typeGuess,
+        description,
+        category,
+        amount: Math.abs(Math.round(amountResult.amount * 100) / 100),
+        date,
+        paymentMethod,
+        notes,
+        tag,
+        rawDescription: description,
+        rawAmount: amountResult.amount,
+        createdAt: now,
+        createdAtUTC: now,
+        serverLoggedAtUTC: now,
+        sourceFile: fileName,
+        sourceRow
+    };
+
+    return {
+        status: 'ok',
+        fileName,
+        sourceRow,
+        reason: '',
+        date,
+        description,
+        amount: formatMoney(Math.abs(tx.amount)),
+        category,
+        type: tx.type,
+        tx,
+        fingerprint: csvImportFingerprint(tx)
+    };
+}
+
+function readCsvMappingFromSelectors() {
+    const map = {};
+    CSV_IMPORT_FIELD_MAP.forEach((field) => {
+        const select = document.getElementById(`csvImportMap-${field.key}`);
+        const raw = select?.value;
+        const parsed = raw === CSV_IMPORT_NOT_MAPPED_VALUE ? -1 : Number.parseInt(raw, 10);
+        map[field.key] = Number.isFinite(parsed) ? parsed : -1;
+    });
+    return map;
+}
+
+function buildCsvImportPreviewState(mapping, skipDuplicates = false) {
+    const payloads = csvImportState?.filePayloads || [];
+    const now = new Date().toISOString();
+    const entries = [];
+    const importRows = [];
+    let valid = 0;
+    let invalid = 0;
+    let duplicate = 0;
+    let changed = 0;
+
+    const existing = (State.getTransactions ? State.getTransactions() : []) || [];
+    const existingSet = new Set((existing || []).map((tx) => csvImportFingerprint(tx)));
+    const inSession = new Set();
+    const usedMatchIds = new Set();
+
+    for (const payload of payloads) {
+        payload.rows.forEach((row, rowIndex) => {
+            const sourceRow = payload.firstDataLine + rowIndex;
+            const parsed = buildCsvImportRow(payload.fileName, sourceRow, row, mapping, now);
+            if (parsed.status !== 'ok') {
+                invalid += 1;
+                entries.push(parsed);
+                return;
+            }
+
+            const fp = parsed.fingerprint;
+            const isDuplicate = existingSet.has(fp) || inSession.has(fp);
+            if (isDuplicate) {
+                duplicate += 1;
+                parsed.status = 'duplicate';
+                parsed.reason = 'Exact duplicate detected.';
+                entries.push(parsed);
+
+                if (skipDuplicates) return;
+
+                valid += 1;
+                inSession.add(fp);
+                importRows.push(parsed.tx);
+                return;
+            }
+
+            const potentialMatch = findBestCsvMatchForRow(parsed, existing, usedMatchIds);
+            if (potentialMatch) {
+                parsed.status = 'changed';
+                parsed.reason = `Potential match found: ${potentialMatch.description} (${potentialMatch.date})`;
+                parsed.match = potentialMatch;
+                changed += 1;
+                usedMatchIds.add(potentialMatch.txId);
+            }
+
+            valid += 1;
+            inSession.add(fp);
+            importRows.push(parsed.tx);
+            entries.push(parsed);
+        });
+    }
+
+    return {
+        totalRows: entries.length,
+        validRows: valid,
+        invalidRows: invalid,
+        duplicateRows: duplicate,
+        changedRows: changed,
+        importRows,
+        entries: entries.slice(0, CSV_IMPORT_PREVIEW_LIMIT),
+        allEntries: entries
+    };
+}
+
+function refreshCsvImportReview(skipDuplicates = false) {
+    if (!csvImportState) return;
+    const mapping = readCsvMappingFromSelectors();
+    const preview = buildCsvImportPreviewState(mapping, skipDuplicates);
+    const showDuplicatesOnly = Boolean(document.getElementById('csvImportShowDuplicatesOnly')?.checked);
+
+    csvImportState.mapping = mapping;
+    csvImportState.totalRows = preview.totalRows;
+    csvImportState.validRows = preview.validRows;
+    csvImportState.invalidRows = preview.invalidRows;
+    csvImportState.duplicateRows = preview.duplicateRows;
+    csvImportState.changedRows = preview.changedRows;
+    csvImportState.importRows = preview.importRows;
+    csvImportState.allEntries = preview.allEntries;
+    const filteredEntries = showDuplicatesOnly
+        ? csvImportState.allEntries.filter((row) => row.status === 'duplicate')
+        : csvImportState.allEntries;
+    csvImportState.entries = filteredEntries.slice(0, CSV_IMPORT_PREVIEW_LIMIT);
+
+    const summaryEl = document.getElementById('csvImportReviewSummary');
+    const warningEl = document.getElementById('csvImportReviewWarning');
+    const filesEl = document.getElementById('csvImportReviewFiles');
+    const previewBody = document.getElementById('csvImportPreviewBody');
+    const confirmBtn = document.getElementById('csvImportConfirmBtn');
+
+    const amountSourceSelected = (Number.isInteger(mapping?.amount) ? mapping.amount : -1) >= 0
+        || (Number.isInteger(mapping?.debit) ? mapping.debit : -1) >= 0
+        || (Number.isInteger(mapping?.credit) ? mapping.credit : -1) >= 0;
+    const mappingValidation = validateCsvMappedColumnValues(mapping, csvImportState?.filePayloads || []);
+    if (warningEl) {
+        const messages = [...mappingValidation.errors, ...mappingValidation.warnings];
+        if (!messages.length) {
+            warningEl.hidden = true;
+            warningEl.textContent = '';
+        } else {
+            warningEl.hidden = false;
+            warningEl.innerHTML = messages.map((message) => esc(message)).join('<br>');
+        }
+    }
+
+    if (filesEl) filesEl.textContent = `Source files: ${(csvImportState.fileSummaries || []).join(', ')}`;
+    if (summaryEl) {
+        const changedRows = csvImportState.changedRows || 0;
+        const duplicateFilterLabel = showDuplicatesOnly ? 'Showing duplicates only' : '';
+        const viewSuffix = duplicateFilterLabel ? ` | ${duplicateFilterLabel}` : '';
+        const rowsFound = csvImportState.totalRows || 0;
+        const skippedDuplicates = skipDuplicates ? (csvImportState.duplicateRows || 0) : 0;
+        const importRowsCount = csvImportState.importRows ? csvImportState.importRows.length : 0;
+        const invalidRows = csvImportState.invalidRows || 0;
+        const dupRows = csvImportState.duplicateRows || 0;
+        const pluralRows = (n) => (n === 1 ? '' : 's');
+        const duplicateWord = dupRows === 1 ? 'duplicate' : 'duplicates';
+
+        const summaryLines = [
+            `${rowsFound} transaction${pluralRows(rowsFound)} found`,
+            changedRows > 0 ? `Potential matches: ${changedRows}` : '',
+            invalidRows > 0 ? `Invalid rows: ${invalidRows}` : '',
+            dupRows > 0 ? `${dupRows} ${duplicateWord} detected` : '',
+            `${importRowsCount} transaction${pluralRows(importRowsCount)} ready to import`
+        ].filter(Boolean);
+
+        if (dupRows > 0 && skippedDuplicates > 0) {
+            summaryLines.push(`${skippedDuplicates} duplicate${pluralRows(skippedDuplicates)} will be skipped`);
+        }
+
+        summaryEl.innerHTML = summaryLines.join('<br>') + (viewSuffix ? `<br>${viewSuffix.replace(/^[\s|]*/, '')}` : '');
+    }
+    if (confirmBtn) {
+        const importCount = csvImportState.importRows ? csvImportState.importRows.length : 0;
+        confirmBtn.textContent = `Import ${importCount} Transactions`;
+        confirmBtn.disabled = !amountSourceSelected || !mappingValidation.canImport || !csvImportState.importRows.length;
+    }
+
+    if (previewBody) {
+        previewBody.innerHTML = csvImportState.entries.length
+            ? csvImportState.entries.map((row, index) => {
+                const status = row.status === 'duplicate'
+                    ? 'Duplicate'
+                    : row.status === 'changed'
+                        ? 'Potential Match'
+                        : row.status === 'invalid'
+                            ? 'Invalid'
+                            : 'New';
+                const reason = row.reason ? ` <span class=\"text-muted\">${esc(row.reason)}</span>` : '';
+                return `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${esc(row.fileName)}</td>
+                        <td>${row.sourceRow}</td>
+                        <td>${esc(row.date)}</td>
+                        <td>${esc(row.description)}</td>
+                        <td>${formatMoney(Math.abs(Number.parseFloat(row.tx?.amount || 0)))}${reason}</td>
+                        <td>${esc(row.type)}</td>
+                        <td>${esc(row.category)}</td>
+                        <td>${status}</td>
+                    </tr>
+                `;
+            }).join('')
+            : '<tr><td colspan="9">No rows to preview.</td></tr>';
+    }
+
+}
+
 function parseCsvRows(text) {
     const rows = [];
     let row = [];
@@ -16476,85 +17113,287 @@ function parseCsvRows(text) {
     return rows;
 }
 
-window.importTransactionsFromCSV = function(event) {
-    const input = event?.target;
-    const file = input?.files?.[0];
-    if (!file) return;
+window.openCsvImportReviewModal = function(filePayloads) {
+    const firstPayload = filePayloads[0] || { headers: [] };
+    const firstMapping = inferCsvMapping(firstPayload.headers || []);
+    const defaultMapping = buildCsvImportDefaultMapping(firstPayload.headers || []);
+    const fileSummaries = filePayloads.map((payload) => payload.fileName);
 
-    const reader = new FileReader();
-    reader.onload = () => {
-        try {
-            const rows = parseCsvRows(String(reader.result || ''));
-            if (rows.length < 2) throw new Error('No transaction rows found.');
-
-            const headers = rows[0].map(header => String(header || '').trim().toLowerCase());
-            const indexOf = (...names) => names.map(name => headers.indexOf(name)).find(index => index >= 0);
-            const indexes = {
-                date: indexOf('date'),
-                description: indexOf('description', 'name'),
-                category: indexOf('category'),
-                type: indexOf('type'),
-                amount: indexOf('amount'),
-                tag: indexOf('tag'),
-                paymentMethod: indexOf('payment method', 'paymentmethod'),
-                notes: indexOf('notes'),
-                serverLoggedAtUTC: indexOf('server logged utc', 'serverloggedatutc', 'created utc', 'createdatutc', 'created at utc')
-            };
-
-            if (indexes.amount === undefined || indexes.amount < 0) {
-                throw new Error('CSV must include an Amount column.');
-            }
-
-            const now = new Date().toISOString();
-            const today = now.slice(0, 10);
-            const imported = rows.slice(1).map((row, rowIndex) => {
-                const get = (key) => indexes[key] >= 0 ? String(row[indexes[key]] || '').trim() : '';
-                const rawAmount = get('amount').replace(/[^0-9.-]/g, '');
-                const parsedAmount = parseFloat(rawAmount);
-                if (!Number.isFinite(parsedAmount)) return null;
-
-                const rawType = get('type').toLowerCase();
-                const type = ['income', 'expense', 'savings', 'debt'].includes(rawType) ? rawType : 'expense';
-                const tag = get('tag') || (type === 'savings' || type === 'debt' ? type : 'transaction');
-                const rawDate = get('date');
-                const date = rawDate && !Number.isNaN(Date.parse(rawDate)) ? rawDate : today;
-                const rawUtc = get('serverLoggedAtUTC');
-                const serverLoggedAtUTC = rawUtc && !Number.isNaN(Date.parse(rawUtc))
-                    ? new Date(rawUtc).toISOString()
-                    : now;
-
-                return {
-                    id: `tx_import_${Date.now()}_${rowIndex}_${Math.random().toString(36).slice(2, 8)}`,
-                    type,
-                    description: get('description') || 'Imported Transaction',
-                    category: get('category'),
-                    amount: Math.abs(parsedAmount),
-                    date,
-                    paymentMethod: get('paymentMethod'),
-                    notes: get('notes'),
-                    tag,
-                    createdAt: serverLoggedAtUTC,
-                    createdAtUTC: serverLoggedAtUTC,
-                    serverLoggedAtUTC
-                };
-            }).filter(Boolean);
-
-            if (imported.length === 0) throw new Error('No valid transaction rows found.');
-
-            const existing = State.getTransactions ? State.getTransactions() : [];
-            if (!saveTransactionArray([...existing, ...imported])) return;
-            observeLocalSave(`Imported ${imported.length} transaction${imported.length === 1 ? '' : 's'} and saved partially.`);
-            if (window.showToast) window.showToast(`Imported ${imported.length} transaction${imported.length === 1 ? '' : 's'}.`);
-            refreshRecentDependents();
-        } catch (error) {
-            console.error('[CSV Import]', error);
-            recordSyncEvent(error.message || 'CSV import failed.', 'error');
-            if (window.showToast) window.showToast(error.message || 'CSV import failed.');
-        } finally {
-            if (input) input.value = '';
-        }
+    csvImportState = {
+        filePayloads,
+        fileSummaries,
+        mapping: firstMapping,
+        defaultMapping,
+        entries: [],
+        allEntries: []
     };
-    reader.readAsText(file);
+
+    CSV_IMPORT_FIELD_MAP.forEach((field) => {
+        const select = document.getElementById(`csvImportMap-${field.key}`);
+        if (!select) return;
+        const options = [
+            `<option value="">${CSV_IMPORT_SELECT_OPTIONS[0]}</option>`,
+            renderCsvImportFieldOptions(firstPayload.headers || [])
+        ].join('');
+
+        select.innerHTML = options;
+    });
+    applyCsvImportMapping(firstMapping);
+
+    const skipDuplicatesInput = document.getElementById('csvImportSkipDuplicates');
+    if (skipDuplicatesInput) skipDuplicatesInput.checked = true;
+    refreshCsvImportReview(Boolean(skipDuplicatesInput?.checked));
+    openModal('csvImportReviewModal');
+};
+
+window.autoDetectCsvImportMapping = function() {
+    if (!csvImportState?.filePayloads?.length) return;
+    const firstPayload = csvImportState.filePayloads[0] || { headers: [] };
+    const mapping = inferCsvMapping(firstPayload.headers || []);
+    applyCsvImportMapping(mapping);
+    csvImportState.mapping = mapping;
+    const skipDuplicatesInput = document.getElementById('csvImportSkipDuplicates');
+    refreshCsvImportReview(Boolean(skipDuplicatesInput?.checked));
+};
+
+window.resetCsvImportMapping = function() {
+    if (!csvImportState?.filePayloads?.length) return;
+    const firstPayload = csvImportState.filePayloads[0] || { headers: [] };
+    const mapping = buildCsvImportDefaultMapping(firstPayload.headers || []);
+    applyCsvImportMapping(mapping);
+    csvImportState.mapping = mapping;
+    const skipDuplicatesInput = document.getElementById('csvImportSkipDuplicates');
+    refreshCsvImportReview(Boolean(skipDuplicatesInput?.checked));
+};
+
+window.closeCsvImportReviewModal = function() {
+    const input = document.getElementById('csvImportInput');
+    if (input) input.value = '';
+    if (typeof closeModal === 'function') closeModal('csvImportReviewModal');
+    else document.getElementById('csvImportReviewModal')?.classList.remove('active');
+    csvImportState = null;
+};
+
+window.cancelCsvImportReview = function() {
+    window.closeCsvImportReviewModal();
+};
+
+window.confirmCsvImportReview = function() {
+    if (!csvImportState) return;
+    const toImport = csvImportState.importRows || [];
+    const skipDuplicatesChecked = Boolean(document.getElementById('csvImportSkipDuplicates')?.checked);
+    const duplicateCount = csvImportState.duplicateRows || 0;
+    const changedRows = csvImportState.changedRows || 0;
+    const errorCount = csvImportState.invalidRows || 0;
+    const rowCount = csvImportState.totalRows || 0;
+    const rowsImported = toImport.length;
+    const duplicatesSkipped = skipDuplicatesChecked ? duplicateCount : 0;
+    if (!toImport.length) {
+        if (window.showToast) window.showToast('No valid CSV rows to import.');
+        return;
+    }
+
+    const existing = State.getTransactions ? State.getTransactions() : [];
+    if (!saveTransactionArray([...existing, ...toImport])) return;
+    const skipNote = duplicatesSkipped > 0 ? `${duplicatesSkipped} duplicate${duplicatesSkipped === 1 ? '' : 's'} skipped` : '';
+    const skipSuffix = duplicatesSkipped > 0 ? ` with ${skipNote}` : '';
+    observeLocalSave(`Imported ${rowsImported} transaction${rowsImported === 1 ? '' : 's'} from CSV${skipSuffix}`);
+    recordSyncEvent(`Imported ${rowsImported} transaction${rowsImported === 1 ? '' : 's'} from CSV${skipSuffix}.`, 'local');
+    refreshRecentDependents();
+
+    csvImportFeedbackContext = {
+        rowsFound: rowCount,
+        rowsImported,
+        duplicatesSkipped,
+        duplicateCount,
+        changedRows,
+        errorCount,
+        skipDuplicatesChecked,
+        fileNames: (csvImportState.fileSummaries || []).join(', '),
+        userId: window.currentUser?.id || 'Not signed in',
+        timestamp: new Date().toISOString()
+    };
+
+    window.closeCsvImportReviewModal();
+    window.openCsvImportFeedbackModal();
+};
+
+window.openCsvImportFeedbackModal = function() {
+    if (!csvImportFeedbackContext) {
+        csvImportFeedbackContext = {
+            rowsFound: 0,
+            rowsImported: 0,
+            duplicatesSkipped: 0,
+            duplicateCount: 0,
+            changedRows: 0,
+            errorCount: 0,
+            skipDuplicatesChecked: false,
+            fileNames: '',
+            userId: window.currentUser?.id || 'Not signed in',
+            timestamp: new Date().toISOString()
+        };
+    }
+
+    const summaryEl = document.getElementById('csvImportFeedbackSummary');
+    const actionsEl = document.getElementById('csvImportFeedbackActions');
+    const detailEl = document.getElementById('csvImportFeedbackDetail');
+    const commentEl = document.getElementById('csvImportFeedbackComment');
+    const diagnosticsEl = document.getElementById('csvImportIncludeDiagnostics');
+
+    if (summaryEl) {
+        const lines = [
+            'Import complete',
+            `${csvImportFeedbackContext.rowsImported} transaction${csvImportFeedbackContext.rowsImported === 1 ? '' : 's'} imported`,
+            `${csvImportFeedbackContext.duplicatesSkipped > 0 ? `${csvImportFeedbackContext.duplicatesSkipped} duplicate${csvImportFeedbackContext.duplicatesSkipped === 1 ? '' : 's'} skipped` : '0 duplicate skipped'}`
+        ];
+        summaryEl.textContent = lines.join('\n');
+    }
+    if (actionsEl) {
+        actionsEl.hidden = false;
+        actionsEl.style.display = 'grid';
+    }
+    if (detailEl) detailEl.hidden = true;
+    if (commentEl) commentEl.value = '';
+    if (diagnosticsEl) diagnosticsEl.checked = false;
+    csvImportFeedbackContext.outcome = null;
+
+    openModal('csvImportFeedbackModal');
+};
+
+window.closeCsvImportFeedbackModal = function() {
+    if (typeof closeModal === 'function') {
+        closeModal('csvImportFeedbackModal');
+    } else {
+        document.getElementById('csvImportFeedbackModal')?.classList.remove('active');
+    }
+    const commentEl = document.getElementById('csvImportFeedbackComment');
+    if (commentEl) commentEl.value = '';
+    csvImportFeedbackContext = null;
+};
+
+window.chooseCsvImportFeedbackOutcome = function(outcome) {
+    if (!csvImportFeedbackContext) return;
+    csvImportFeedbackContext.outcome = outcome;
+    const actionsEl = document.getElementById('csvImportFeedbackActions');
+    const detailEl = document.getElementById('csvImportFeedbackDetail');
+    const commentEl = document.getElementById('csvImportFeedbackComment');
+
+    if (actionsEl) {
+        actionsEl.hidden = true;
+        actionsEl.style.display = 'none';
+    }
+    if (detailEl) detailEl.hidden = false;
+    if (commentEl) commentEl.focus();
+};
+
+window.sendCsvImportFeedback = function() {
+    if (!csvImportFeedbackContext || !csvImportFeedbackContext.outcome) {
+        if (window.showToast) window.showToast('Please choose a feedback result before sending.');
+        return;
+    }
+
+    const commentEl = document.getElementById('csvImportFeedbackComment');
+    const diagnosticsEl = document.getElementById('csvImportIncludeDiagnostics');
+    const userComment = String(commentEl?.value || '').trim();
+    const includeDiagnostics = Boolean(diagnosticsEl?.checked);
+    const deviceMeta = [
+        navigator.userAgent || 'Unknown',
+        navigator.platform ? `Platform: ${navigator.platform}` : null,
+        `Viewport: ${window.innerWidth || 0}x${window.innerHeight || 0}`
+    ].filter(Boolean).join(' | ');
+
+    const lines = [
+        'Import feedback',
+        `Outcome: ${csvImportFeedbackContext.outcome === 'positive' ? 'Worked well' : 'Something was wrong'}`,
+        `Rows found: ${csvImportFeedbackContext.rowsFound}`,
+        `Rows imported: ${csvImportFeedbackContext.rowsImported}`,
+        `Duplicates skipped: ${csvImportFeedbackContext.duplicatesSkipped}`,
+        `Error count: ${csvImportFeedbackContext.errorCount}`,
+        `User ID: ${csvImportFeedbackContext.userId}`,
+        `Browser/device: ${deviceMeta}`,
+        `Timestamp: ${csvImportFeedbackContext.timestamp}`,
+        `File name(s): ${csvImportFeedbackContext.fileNames || 'Unknown'}`
+    ];
+
+    lines.push(`User comment: ${userComment || '(none)'}`);
+
+    if (includeDiagnostics) {
+        lines.push('');
+        lines.push('Technical import details:');
+        lines.push(`Rows found: ${csvImportFeedbackContext.rowsFound}`);
+        lines.push(`Rows imported: ${csvImportFeedbackContext.rowsImported}`);
+        lines.push(`Duplicate rows detected: ${csvImportFeedbackContext.duplicateCount}`);
+        lines.push(`Potential matches: ${csvImportFeedbackContext.changedRows}`);
+        lines.push(`Invalid rows: ${csvImportFeedbackContext.errorCount}`);
+        lines.push(`Skip duplicates enabled: ${csvImportFeedbackContext.skipDuplicatesChecked ? 'Yes' : 'No'}`);
+        lines.push('');
+        lines.push('No transaction amounts, descriptions, or full CSV contents were included.');
+    } else {
+        lines.push('No transaction amounts or descriptions were included.');
+    }
+
+    const subject = encodeURIComponent(`CSV import feedback - ${csvImportFeedbackContext.outcome === 'positive' ? 'worked well' : 'needs attention'}`);
+    const body = encodeURIComponent(lines.join('\n'));
+    window.location.href = `mailto:support@zambudget.com?subject=${subject}&body=${body}`;
+
+    if (window.showToast) {
+        window.showToast('Opening your email app...');
+    }
+    window.closeCsvImportFeedbackModal();
+};
+
+window.skipCsvImportFeedback = window.closeCsvImportFeedbackModal;
+
+window.handleCsvImportMappingChange = function() {
+    if (!csvImportState) return;
+    refreshCsvImportReview(Boolean(document.getElementById('csvImportSkipDuplicates')?.checked));
+};
+
+window.importTransactionsFromCSV = async function(event) {
+    const input = event?.target;
+    const files = Array.from(input?.files || []);
+    if (!files.length) return;
+
+    try {
+        const filePayloads = [];
+
+        for (const file of files) {
+            const text = await readCsvFileText(file);
+            const rows = parseCsvRows(String(text || ''));
+
+            if (!rows.length) throw new Error(`No rows found in ${file.name}.`);
+
+            let headerIndex = 0;
+            while (headerIndex < rows.length && rows[headerIndex].every((cell) => String(cell || '').trim() === '')) {
+                headerIndex += 1;
+            }
+            if (headerIndex >= rows.length) throw new Error(`CSV has no readable header in ${file.name}.`);
+
+            const headers = rows[headerIndex].map((header) => String(header || '').trim());
+            if (!headers.length) throw new Error(`CSV has no header in ${file.name}.`);
+
+            const dataRows = rows
+                .slice(headerIndex + 1)
+                .filter((row) => Array.isArray(row) && row.some((cell) => String(cell || '').trim() !== ''));
+            if (!dataRows.length) throw new Error(`CSV has no import rows in ${file.name}.`);
+
+            filePayloads.push({
+                fileName: file.name,
+                headers,
+                rows: dataRows,
+                firstDataLine: headerIndex + 2
+            });
+        }
+
+        if (!filePayloads.length) throw new Error('No readable CSV rows found.');
+
+        window.openCsvImportReviewModal(filePayloads);
+    } catch (error) {
+        console.error('[CSV Import]', error);
+        recordSyncEvent(error.message || 'CSV import failed.', 'error');
+        if (window.showToast) window.showToast(error.message || 'CSV import failed.');
+        if (input) input.value = '';
+    }
 };
 
 // ==========================================
@@ -18755,3 +19594,4 @@ window.toggleBulkMode = toggleBulkMode;
 window.handleCardClick = handleCardClick;
 window.bulkDeleteTransactions = bulkDeleteTransactions;
 window.bulkMoveTransactions = bulkMoveTransactions;
+
