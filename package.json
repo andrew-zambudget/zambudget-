@@ -1,4 +1,6 @@
 {
+  "name": "zambudget-app",
+  "private": true,
   "scripts": {
     "build": "node scripts/build-cloudflare.js",
     "deploy": "wrangler deploy",
