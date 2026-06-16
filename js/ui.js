@@ -5329,15 +5329,25 @@ function shouldTreatSavingsAsIncome() {
     return Boolean(State.getTreatSavingsAsIncomeInZbb?.());
 }
 
+function normalizeTypeOrTag(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
 function isSavingsTransaction(tx = {}) {
-    const type = String(tx?.type || '').toLowerCase();
-    const tag = String(tx?.tag || '').toLowerCase();
+    const type = normalizeTypeOrTag(tx?.type);
+    const tag = normalizeTypeOrTag(tx?.tag);
     return type === 'savings' || tag === 'savings';
 }
 
-function isIncomeTotalTransaction(tx = {}, treatSavingsAsIncome = shouldTreatSavingsAsIncome()) {
-    const type = String(tx?.type || '').toLowerCase();
+function isIncomeTotalTransaction(
+    tx = {},
+    treatSavingsAsIncome = shouldTreatSavingsAsIncome(),
+    savingsCategoryNames = new Set()
+) {
+    const type = normalizeTypeOrTag(tx?.type);
+    const categoryName = normalizeTypeOrTag(tx?.category);
     if (isSavingsTransaction(tx)) return Boolean(treatSavingsAsIncome);
+    if (!treatSavingsAsIncome && savingsCategoryNames.has(categoryName)) return false;
     return type === 'income';
 }
 
@@ -6937,12 +6947,18 @@ function updateIncomeProgressSummary(logged, expected) {
 function getCurrentMonthIncomeContext({ includeSavingsInIncome = false } = {}) {
     const txs = (State.getTransactions ? State.getTransactions() : []).filter(tx => !tx.isDeleted && !tx.isDraftIncomeLog);
     const categories = State.getCategories ? State.getCategories() : [];
+    const savingsCategoryNames = new Set(
+        categories
+            .filter(c => ['savings', 'sinking_fund', 'external'].includes(String(c?.type || '').trim().toLowerCase()))
+            .map(c => String(c?.name || '').trim().toLowerCase())
+            .filter(name => Boolean(name))
+    );
     const incomeSources = categories.filter(c => c.type === 'income');
     const incomeSourceNames = new Set(incomeSources.map(src => String(src.name || '').trim().toLowerCase()));
     if (includeSavingsInIncome) {
         categories
-            .filter(c => c.type === 'savings')
-            .forEach(c => incomeSourceNames.add(String(c.name || '').trim().toLowerCase()));
+            .filter(c => ['savings', 'sinking_fund', 'external'].includes(String(c?.type || '').trim().toLowerCase()))
+            .forEach(c => incomeSourceNames.add(String(c?.name || '').trim().toLowerCase()));
     }
     const normalizeCategoryName = (value = '') => String(value || '').trim().toLowerCase();
     const now = new Date();
@@ -6954,7 +6970,7 @@ function getCurrentMonthIncomeContext({ includeSavingsInIncome = false } = {}) {
         return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
     };
     const incomeTxs = txs
-        .filter(tx => isIncomeTotalTransaction(tx, includeSavingsInIncome))
+        .filter(tx => isIncomeTotalTransaction(tx, includeSavingsInIncome, savingsCategoryNames))
         .filter(tx => {
             const normalizedCategory = normalizeCategoryName(tx.category);
             return !hasNamedSourceFilter || (normalizedCategory && incomeSourceNames.has(normalizedCategory));
@@ -7525,6 +7541,13 @@ function legacyRenderRecentTransactionsV3() {
     if (!listContainer) return;
 
     let txs = State.getTransactions() || [];
+    const categories = State.getCategories ? State.getCategories() : [];
+    const savingsCategoryNames = new Set(
+        categories
+            .filter(c => ['savings', 'sinking_fund', 'external'].includes(String(c?.type || '').trim().toLowerCase()))
+            .map(c => String(c?.name || '').trim().toLowerCase())
+            .filter(name => Boolean(name))
+    );
     const symbol = State.getSymbol ? State.getSymbol() : '$';
 
     // 1. Exclude soft-deleted items (Cloud Sync)
@@ -7551,7 +7574,7 @@ function legacyRenderRecentTransactionsV3() {
     const currentFilter = window.currentTxFilter || 'all';
 
     if (currentFilter === 'income') {
-        txs = txs.filter(tx => isIncomeTotalTransaction(tx, shouldTreatSavingsAsIncome()));
+        txs = txs.filter(tx => isIncomeTotalTransaction(tx, shouldTreatSavingsAsIncome(), savingsCategoryNames));
     }
     else if (currentFilter === 'expense') {
         // ONLY filter if they explicitly clicked the "Expense" pill

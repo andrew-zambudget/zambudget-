@@ -82,6 +82,25 @@ const DEMO_TOTAL_MISMATCH_CASE = {
     }
 };
 
+const DEMO_TOTAL_LEGACY_SAVINGS_WHITESPACE_CASE = {
+    ...DEMO_TOTAL_MISMATCH_CASE,
+    transactions: [
+        ...DEMO_TOTAL_MISMATCH_CASE.transactions,
+        {
+            id: 'demo-savings-legacy-whitespace',
+            type: 'income',
+            description: 'Legacy savings deposit with legacy tag spacing',
+            category: 'Side Work',
+            amount: 250,
+            date: '2026-06-12',
+            paymentMethod: 'bank',
+            notes: '',
+            tag: ' savings ',
+            createdAt: '2026-06-12T12:00:00.000Z'
+        }
+    ]
+};
+
 test.describe('income total formula in demo-like data', () => {
     test.beforeEach(async ({ page }) => {
         await installSignedOutSupabaseStub(page);
@@ -102,5 +121,19 @@ test.describe('income total formula in demo-like data', () => {
         await expect(page.locator('#incomeTotalExpected')).toHaveText('$3,000.00');
         await expect(page.locator('#incomeBreakdown .category-item').filter({ hasText: 'Side Work' }))
             .toContainText('Logged: $420.00');
+    });
+
+    test('ignores legacy savings row format when savings is not included', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+        await page.evaluate((budget) => {
+            localStorage.setItem('bb_demo_active', 'true');
+            window.replaceSnapshot?.(budget);
+            window.render?.();
+        }, DEMO_TOTAL_LEGACY_SAVINGS_WHITESPACE_CASE);
+        await page.evaluate(() => window.switchTab('income'));
+
+        await expect(page.locator('#incomeTotalLogged')).toHaveText('$3,020.00');
+        await expect(page.locator('#incomeTotalExpected')).toHaveText('$3,000.00');
     });
 });
