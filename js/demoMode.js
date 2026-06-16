@@ -327,7 +327,7 @@ function getSampleBudget() {
             makeTransaction('demo-utility-1', 'expense', 138.27, 'Utilities', 'Electric and internet', -6, 'card'),
             makeTransaction('demo-dining-1', 'expense', 38.18, 'Dining Out', 'Dinner with friends', -4, 'card'),
             makeTransaction('demo-gas-1', 'expense', 44.91, 'Transportation', 'Fuel', -3, 'card'),
-            makeTransaction('demo-savings-1', 'income', 250, 'Emergency Fund', 'Emergency fund deposit', -2, 'bank', 'Sample savings progress'),
+            makeTransaction('demo-savings-1', 'savings', 250, 'Emergency Fund', 'Emergency fund deposit', -2, 'bank'),
             makeTransaction('demo-debt-1', 'expense', 125, 'Credit Card', 'Extra credit card payment', -1, 'bank')
         ],
         categories: [

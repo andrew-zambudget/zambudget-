@@ -197,6 +197,83 @@ function normalizeGiftCards(cards = []) {
         });
 }
 
+function normalizeBudgetValue(rawBudget) {
+    if (typeof rawBudget === 'number' && Number.isFinite(rawBudget)) {
+        return Math.max(0, rawBudget);
+    }
+
+    if (typeof rawBudget === 'string') {
+        const parsed = Number.parseFloat(rawBudget.replace(/,/g, '').trim());
+        return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+    }
+
+    if (typeof rawBudget === 'boolean') {
+        return rawBudget ? 1 : 0;
+    }
+
+    const parsed = Number(rawBudget);
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+}
+
+function normalizeLoadedCategory(category = {}) {
+    if (!category || typeof category !== 'object') return null;
+
+    const sourceBudget = category.budget;
+    const normalizedBudget = normalizeBudgetValue(sourceBudget);
+
+    if (!Number.isFinite(Number(sourceBudget)) && typeof sourceBudget !== 'number') {
+        return {
+            ...category,
+            budget: normalizedBudget
+        };
+    }
+
+    if (typeof sourceBudget === 'number' && sourceBudget !== normalizedBudget) {
+        return {
+            ...category,
+            budget: normalizedBudget
+        };
+    }
+
+    if (typeof sourceBudget !== 'number' && sourceBudget !== undefined && sourceBudget !== '' && sourceBudget !== null) {
+        return {
+            ...category,
+            budget: normalizedBudget
+        };
+    }
+
+    if (category.budget !== undefined) {
+        return {
+            ...category,
+            budget: normalizedBudget
+        };
+    }
+
+    return category;
+}
+
+function normalizeLoadedCategories(categories = []) {
+    if (!Array.isArray(categories)) return { categories: [], changed: false };
+
+    const normalized = [];
+    let changed = false;
+
+    for (const category of categories) {
+        const normalizedCategory = normalizeLoadedCategory(category);
+        if (!normalizedCategory) continue;
+        const hadSourceBudget = Object.prototype.hasOwnProperty.call(category, 'budget');
+        const wasFixed = !Number.isFinite(normalizeBudgetValue(category.budget))
+            || normalizedCategory.budget !== category.budget
+            || (typeof category.budget !== 'number' && hadSourceBudget);
+        if (wasFixed) {
+            changed = true;
+        }
+        normalized.push(normalizedCategory);
+    }
+
+    return { categories: normalized, changed };
+}
+
 function getMutableGiftCards() {
     state.settings.giftCards = normalizeGiftCards(state.settings.giftCards);
     return state.settings.giftCards;
@@ -204,7 +281,8 @@ function getMutableGiftCards() {
 
 function applyLoadedPayload(parsed = {}) {
     state.transactions = (parsed.transactions || []).map(tx => normalizeTransaction(tx, false));
-    state.categories = parsed.categories || [];
+    const categoryLoad = normalizeLoadedCategories(parsed.categories || []);
+    state.categories = categoryLoad.categories;
     state.settings = { ...state.settings, ...parsed.settings };
     state.settings.giftCards = normalizeGiftCards(state.settings.giftCards);
     const savingsGoal = parseFloat(state.settings.savingsGoal);
@@ -222,7 +300,7 @@ function applyLoadedPayload(parsed = {}) {
     state.settings.treatSavingsAsIncomeInZbb = false;
     const orderChanged = normalizeCategoryCustomOrder();
     const arrayChanged = applyCustomOrderToCategoryArray();
-    return orderChanged || arrayChanged;
+    return orderChanged || arrayChanged || categoryLoad.changed;
 }
 
 // ==========================================

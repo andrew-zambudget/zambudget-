@@ -5265,23 +5265,12 @@ export function renderZBBDashboard() {
     const assEl = document.getElementById('zbbAssigned');
     if (!incEl || !tbbEl || !assEl) return;
 
-    const allTxs = State.getTransactions() || [];
     const categories = State.getCategories() || [];
-    const symbol = State.getSymbol ? State.getSymbol() : '$';
     const treatSavingsAsIncome = shouldTreatSavingsAsIncome();
+    const { incomeTxs } = getCurrentMonthIncomeContext({ includeSavingsInIncome: treatSavingsAsIncome });
+    const symbol = State.getSymbol ? State.getSymbol() : '$';
 
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
-    const isCurrentMonthTx = (tx) => {
-        const txDate = new Date(tx.date || tx.createdAt);
-        return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
-    };
-    const monthlyIncome = allTxs
-        .filter(tx => isIncomeTotalTransaction(tx, treatSavingsAsIncome))
-        .filter(isCurrentMonthTx)
-        .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+    const monthlyIncome = incomeTxs.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
 
     const budgetCategories = categories.filter(cat => cat.type !== 'income');
     const assignedFunds = budgetCategories.reduce((sum, cat) => sum + (Number(cat.budget) || 0), 0);
@@ -6945,19 +6934,31 @@ function updateIncomeProgressSummary(logged, expected) {
     requestAnimationFrame(updateLabels);
 }
 
-function getCurrentMonthIncomeContext() {
+function getCurrentMonthIncomeContext({ includeSavingsInIncome = false } = {}) {
     const txs = (State.getTransactions ? State.getTransactions() : []).filter(tx => !tx.isDeleted && !tx.isDraftIncomeLog);
     const categories = State.getCategories ? State.getCategories() : [];
     const incomeSources = categories.filter(c => c.type === 'income');
+    const incomeSourceNames = new Set(incomeSources.map(src => String(src.name || '').trim().toLowerCase()));
+    if (includeSavingsInIncome) {
+        categories
+            .filter(c => c.type === 'savings')
+            .forEach(c => incomeSourceNames.add(String(c.name || '').trim().toLowerCase()));
+    }
+    const normalizeCategoryName = (value = '') => String(value || '').trim().toLowerCase();
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
+    const hasNamedSourceFilter = incomeSourceNames.size > 0;
     const isCurrentMonth = (tx) => {
         const txDate = new Date(tx.date || tx.createdAt);
         return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
     };
     const incomeTxs = txs
-        .filter(tx => isIncomeTotalTransaction(tx, false))
+        .filter(tx => isIncomeTotalTransaction(tx, includeSavingsInIncome))
+        .filter(tx => {
+            const normalizedCategory = normalizeCategoryName(tx.category);
+            return !hasNamedSourceFilter || (normalizedCategory && incomeSourceNames.has(normalizedCategory));
+        })
         .filter(isCurrentMonth);
 
     return { incomeSources, incomeTxs };
@@ -6996,11 +6997,13 @@ function rememberIncomeTotalSelection(sourceName = '', txId = '') {
 
 function getCurrentMonthIncomeEditEntries() {
     const { incomeSources, incomeTxs } = getCurrentMonthIncomeContext();
+    const normalizeIncomeCategory = (value = '') => String(value || '').trim().toLowerCase();
 
     return incomeSources
         .map(source => {
+            const sourceKey = normalizeIncomeCategory(source.name);
             const sourceTxs = incomeTxs
-                .filter(tx => tx.category === source.name)
+                .filter(tx => normalizeIncomeCategory(tx.category) === sourceKey)
                 .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
             const currentLogged = sourceTxs.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
             return {
@@ -7269,7 +7272,7 @@ window.saveIncomeTotalLoggedEditor = function(event) {
         return;
     }
     const desiredAmount = parsedAmount;
-    const { incomeSources, incomeTxs } = getCurrentMonthIncomeContext();
+    const { incomeSources, incomeTxs } = getCurrentMonthIncomeContext({ includeSavingsInIncome: false });
     const source = incomeSources.find(item => item.name === sourceName);
 
     if (!source) {
@@ -7277,8 +7280,10 @@ window.saveIncomeTotalLoggedEditor = function(event) {
         return;
     }
 
+    const normalizeIncomeCategory = (value = '') => String(value || '').trim().toLowerCase();
+    const sourceKey = normalizeIncomeCategory(source.name);
     const sourceTxs = incomeTxs
-        .filter(tx => tx.category === sourceName)
+        .filter(tx => normalizeIncomeCategory(tx.category) === sourceKey)
         .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
     const existingTx = sourceTxs.find(tx => String(tx.id) === String(txId)) || sourceTxs[0] || null;
     if (desiredAmount <= 0) {
@@ -7339,32 +7344,20 @@ export function renderIncomeTab() {
     const projectedEl = document.getElementById('tabIncomeProjected');
     if (!breakdownEl) return;
 
-    const txs = State.getTransactions() || [];
-    const categories = State.getCategories() || [];
-    const symbol = State.getSymbol ? State.getSymbol() : '$';
     const treatSavingsAsIncome = shouldTreatSavingsAsIncome();
-
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+    const { incomeSources, incomeTxs } = getCurrentMonthIncomeContext();
+    const symbol = State.getSymbol ? State.getSymbol() : '$';
+    const normalizeIncomeCategory = (value = '') => String(value || '').trim().toLowerCase();
 
     // 1. Calculate Monthly Logged Income
-    const monthlyIncome = txs
-        .filter(tx => isIncomeTotalTransaction(tx, treatSavingsAsIncome))
-        .filter(tx => {
-            const txDate = new Date(tx.date || tx.createdAt);
-            return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
-        })
-        .reduce((sum, tx) => sum + tx.amount, 0);
+    const monthlyIncome = incomeTxs.reduce((sum, tx) => sum + (Number(tx?.amount) || 0), 0);
 
     setIncomeTotalLabels(treatSavingsAsIncome);
     if (totalEl) totalEl.textContent = `${symbol}${formatMoney(monthlyIncome)}`;
 
     // 2. Render Income Sources (Categories of type 'income')
-    const incomeSources = categories.filter(c => c.type === 'income');
-
     // 3. Projected calculation (Simple V1: Expected Budgets vs Actual)
-    const expectedIncome = incomeSources.reduce((sum, src) => sum + (src.budget || 0), 0);
+    const expectedIncome = incomeSources.reduce((sum, src) => sum + (Number(src.budget) || 0), 0);
     const projected = Math.max(monthlyIncome, expectedIncome);
     if (projectedEl) projectedEl.textContent = `${symbol}${formatMoney(projected)}`;
     updateIncomeProgressSummary(monthlyIncome, expectedIncome);
@@ -7398,14 +7391,11 @@ export function renderIncomeTab() {
 
     // 5. Build Source Cards
     const incomeSourceCards = visibleIncomeSources.map(src => {
-        const expected = src.budget || 0;
-        const logged = txs
-            .filter(tx => isIncomeTotalTransaction(tx, false) && tx.category === src.name)
-            .filter(tx => {
-                const txDate = new Date(tx.date || tx.createdAt);
-                return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
-            })
-            .reduce((sum, tx) => sum + tx.amount, 0);
+        const expected = Number(src.budget) || 0;
+        const sourceKey = normalizeIncomeCategory(src.name);
+        const logged = incomeTxs
+            .filter(tx => normalizeIncomeCategory(tx.category) === sourceKey)
+            .reduce((sum, tx) => sum + (Number(tx?.amount) || 0), 0);
         const frequencyLabel = formatPayFrequency(src.payFrequency);
         return `
         <div class="category-item" style="display: flex; align-items: center; padding: 0.75rem; cursor: pointer; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 0.75rem;" onclick="window.openCategoryDrillDown(${jsArg(src.name)}, ${jsArg(src.icon || '')})">
@@ -11386,7 +11376,7 @@ window.openCategoryDrillDown = function(categoryName, categoryIcon) {
 
     const budgetDisplay = document.getElementById('drillDownBudgetText');
     const budgetInput = document.getElementById('drillDownBudget');
-    const sourceBudget = targetCategory.budget || 0;
+    const sourceBudget = Number(targetCategory.budget) || 0;
     if (budgetInput) budgetInput.value = sourceBudget ? sourceBudget.toFixed(2) : '';
 
     // 3. --- THE MAGIC: DYNAMIC LABELS ---
@@ -12780,7 +12770,8 @@ window.saveIncomeSource = function() {
     const rawName = nameInput?.value.trim() || '';
     const name = cleanNameInput(rawName);
     const icon = document.getElementById('incomeSourceIcon')?.value.trim() || '💵';
-    const plannedAmount = Math.max(0, parseFloat(document.getElementById('incomeSourcePlanned')?.value) || 0);
+    const plannedAmountRaw = String(document.getElementById('incomeSourcePlanned')?.value || '').replace(/,/g, '').trim();
+    const plannedAmount = Math.max(0, parseFloat(plannedAmountRaw) || 0);
     const payFrequency = document.getElementById('incomeSourceFrequency')?.value || '';
     const originalName = document.getElementById('incomeSourceOriginalName')?.value || '';
 
