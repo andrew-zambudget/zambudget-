@@ -49,3 +49,19 @@ Do not add these without a new privacy review:
 - Adding analytics that capture row values, descriptions, amounts, account names, categories, notes, or merchant names.
 - Adding cloud export destinations.
 - Adding provider-side import processing.
+
+## Required Cookie and Site Data
+
+Current behavior:
+
+- Zam uses required first-party site data on `app.zambudget.com`.
+- `zam_site_data_notice` is a first-party, host-only cookie set by `app.zambudget.com` after the user acknowledges the required site-data notice.
+- The notice cookie records only that the browser has seen the notice.
+- The notice cookie is not used for advertising, analytics, retargeting, or cross-site tracking.
+- LocalStorage, sessionStorage, and IndexedDB remain required for browser budgets, preferences, sign-in state, Cloud Sync trusted browser unlocks, and security-related flows.
+
+Privacy/legal requirement:
+
+- Do not add advertising, analytics, or tracking cookies without a new privacy/legal review.
+- Do not set `Domain=.zambudget.com` for the notice cookie. It must remain host-only for `app.zambudget.com`.
+- If required site data is blocked, Zam should warn the user instead of pretending the app can save or load normally.
