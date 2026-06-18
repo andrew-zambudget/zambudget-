@@ -105,7 +105,7 @@ Verify before launch/cutover:
 - Edge Functions are deployed to the production project.
 - Billing functions fail closed when unauthenticated.
 - Account deletion requires recent verification.
-- OAuth redirect URLs use `https://app.zambudget.com` and approved local development URLs only.
+- Auth, SMTP, email templates, and OAuth redirect URLs pass `documentation/Auth-Cutover-Checklist.md`.
 
 ## Billing Restore/Verify
 

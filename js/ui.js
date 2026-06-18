@@ -13465,6 +13465,7 @@ const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['active']);
 const ACCOUNT_DELETE_BLOCKED_SUBSCRIPTION_STATUSES = new Set(['active', 'past_due']);
 const LOGOUT_BACKUP_BLOCKED_CODE = 'BUDDY_CLOUD_LOGOUT_BACKUP_BLOCKED';
 const LOCAL_DEV_HOSTS = new Set(['localhost', '127.0.0.1', '']);
+const AUTH_PRODUCTION_APP_ORIGIN = 'https://app.zambudget.com';
 const STRIPE_REDIRECT_REVIEW_SECONDS = 3;
 const DEV_IMPORT_AUDIT_FLAG = 'bb_dev_import_audit_details';
 
@@ -13482,6 +13483,12 @@ function getCheckoutReturnUrl(params = {}) {
 
 function isLocalBillingOrigin() {
     return ['localhost', '127.0.0.1'].includes(window.location.hostname);
+}
+
+function getAuthRedirectUrl(path) {
+    const isLocalHost = LOCAL_DEV_HOSTS.has(window.location.hostname);
+    const base = isLocalHost ? `${AUTH_PRODUCTION_APP_ORIGIN}/` : window.location.href;
+    return new URL(path, base).href;
 }
 
 function isLiveBillingMode() {
@@ -20463,7 +20470,7 @@ async function executePasswordReset() {
     }
 
     const { error } = await window.sb.auth.resetPasswordForEmail(email, {
-        redirectTo: new URL('login.html', window.location.href).href
+        redirectTo: getAuthRedirectUrl('login.html')
     });
 
     if (error) {

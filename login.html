@@ -361,6 +361,8 @@
     var magicLinkCooldownTimer = null;
     var magicLinkRequestInFlight = false;
     var MAGIC_LINK_RATE_LIMIT_SECONDS = 60;
+    var PRODUCTION_APP_ORIGIN = 'https://app.zambudget.com';
+    var LOCAL_AUTH_HOSTS = ['localhost', '127.0.0.1', ''];
 
     // --- THEME HANDLING ---
     function applyTheme(mode) {
@@ -409,8 +411,15 @@
         }
     }
 
-    function getAppUrl(path) {
-        return new URL(path, window.location.href).href;
+    function isLocalAuthHost() {
+        return LOCAL_AUTH_HOSTS.indexOf(window.location.hostname) !== -1;
+    }
+
+    function getAuthRedirectUrl(path) {
+        var base = isLocalAuthHost()
+            ? PRODUCTION_APP_ORIGIN + '/'
+            : window.location.href;
+        return new URL(path, base).href;
     }
 
     function showAuthMessage(text, type) {
@@ -552,7 +561,7 @@
         var { error } = await sb.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: getAppUrl('index.html')
+                redirectTo: getAuthRedirectUrl('index.html')
             }
         });
 
@@ -581,7 +590,7 @@
         var { error } = await sb.auth.signInWithOAuth({
             provider: 'apple',
             options: {
-                redirectTo: getAppUrl('index.html')
+                redirectTo: getAuthRedirectUrl('index.html')
             }
         });
 
@@ -616,7 +625,7 @@
             var { error } = await sb.auth.signInWithOtp({
                 email: email,
                 options: {
-                    emailRedirectTo: getAppUrl('index.html'),
+                    emailRedirectTo: getAuthRedirectUrl('index.html'),
                     shouldCreateUser: authMode === 'signup'
                 }
             });
