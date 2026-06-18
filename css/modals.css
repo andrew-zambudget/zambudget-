@@ -1511,6 +1511,109 @@ body.budget-restore-active {
   pointer-events: auto;
 }
 
+.csv-import-complete-notice {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: min(420px, calc(100vw - 2rem));
+  padding: 0.7rem 0.75rem 0.7rem 0.9rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--green);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px var(--shadow);
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.csv-import-complete-notice.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.csv-import-complete-notice-copy {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+  flex: 1;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.csv-import-complete-notice-copy strong {
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.csv-import-complete-notice-copy span {
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
+.csv-import-complete-notice-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+}
+
+.csv-import-complete-feedback-btn,
+.csv-import-complete-dismiss-btn {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.csv-import-complete-feedback-btn {
+  min-height: 32px;
+  padding: 0 0.75rem;
+}
+
+.csv-import-complete-dismiss-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.csv-import-complete-feedback-btn:hover,
+.csv-import-complete-dismiss-btn:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+
+.csv-import-complete-feedback-btn:active,
+.csv-import-complete-dismiss-btn:active {
+  transform: scale(0.96);
+}
+
+@media (max-width: 600px) {
+  .csv-import-complete-notice {
+    right: 0.75rem;
+    bottom: 4.75rem;
+    left: 0.75rem;
+    width: auto;
+    align-items: flex-start;
+  }
+
+  .csv-import-complete-notice-actions {
+    align-self: flex-start;
+  }
+}
+
 /* --- 4. SCROLL TOP BUTTON --- */
 .scroll-top-btn {
   position: fixed;

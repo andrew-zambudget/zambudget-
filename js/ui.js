@@ -16811,6 +16811,7 @@ const CSV_IMPORT_FIELD_MAP = [
 const CSV_IMPORT_NOT_MAPPED_VALUE = '';
 let csvImportState = null;
 let csvImportFeedbackContext = null;
+let csvImportCompleteNoticeTimer = null;
 let csvImportFilterMode = 'all';
 let csvImportPreviewMode = CSV_IMPORT_PREVIEW_MODE_PARSED;
 let csvImportSearchQuery = '';
@@ -18997,6 +18998,61 @@ window.confirmCsvImportReview = function() {
     };
 
     window.closeCsvImportReviewModal();
+    window.showCsvImportCompleteNotice();
+};
+
+window.dismissCsvImportCompleteNotice = function({ clearContext = true } = {}) {
+    if (csvImportCompleteNoticeTimer) {
+        window.clearTimeout(csvImportCompleteNoticeTimer);
+        csvImportCompleteNoticeTimer = null;
+    }
+
+    const notice = document.getElementById('csvImportCompleteNotice');
+    if (notice) {
+        notice.classList.remove('show');
+        window.setTimeout(() => notice.remove(), 180);
+    }
+
+    if (clearContext) csvImportFeedbackContext = null;
+};
+
+window.showCsvImportCompleteNotice = function() {
+    if (!csvImportFeedbackContext) return;
+
+    window.dismissCsvImportCompleteNotice({ clearContext: false });
+
+    const notice = document.createElement('div');
+    notice.id = 'csvImportCompleteNotice';
+    notice.className = 'csv-import-complete-notice';
+    notice.setAttribute('role', 'status');
+    notice.setAttribute('aria-live', 'polite');
+
+    const importedLabel = `${csvImportFeedbackContext.rowsImported} transaction${csvImportFeedbackContext.rowsImported === 1 ? '' : 's'} imported`;
+    const duplicateLabel = `${csvImportFeedbackContext.duplicatesSkipped || 0} duplicate${csvImportFeedbackContext.duplicatesSkipped === 1 ? '' : 's'} skipped`;
+    const notImportedLabel = `${csvImportFeedbackContext.rowsNotImported || 0} row${csvImportFeedbackContext.rowsNotImported === 1 ? '' : 's'} not imported`;
+
+    notice.innerHTML = `
+        <div class="csv-import-complete-notice-copy">
+            <strong>Import complete</strong>
+            <span>${importedLabel}, ${duplicateLabel}, ${notImportedLabel}</span>
+        </div>
+        <div class="csv-import-complete-notice-actions">
+            <button type="button" class="csv-import-complete-feedback-btn" onclick="window.openCsvImportFeedbackFromNotice()">Feedback</button>
+            <button type="button" class="csv-import-complete-dismiss-btn" onclick="window.dismissCsvImportCompleteNotice()" aria-label="Dismiss import complete notice">&times;</button>
+        </div>
+    `;
+
+    document.body.appendChild(notice);
+    window.requestAnimationFrame?.(() => notice.classList.add('show'));
+    if (!window.requestAnimationFrame) notice.classList.add('show');
+
+    csvImportCompleteNoticeTimer = window.setTimeout(() => {
+        window.dismissCsvImportCompleteNotice();
+    }, 9000);
+};
+
+window.openCsvImportFeedbackFromNotice = function() {
+    window.dismissCsvImportCompleteNotice({ clearContext: false });
     window.openCsvImportFeedbackModal();
 };
 
@@ -19027,7 +19083,7 @@ window.openCsvImportFeedbackModal = function() {
         const lines = [
             'Import complete',
             `${csvImportFeedbackContext.rowsImported} transaction${csvImportFeedbackContext.rowsImported === 1 ? '' : 's'} imported`,
-            `${csvImportFeedbackContext.duplicatesSkipped > 0 ? `${csvImportFeedbackContext.duplicatesSkipped} duplicate${csvImportFeedbackContext.duplicatesSkipped === 1 ? '' : 's'} skipped` : '0 duplicate skipped'}`,
+            `${csvImportFeedbackContext.duplicatesSkipped || 0} duplicate${csvImportFeedbackContext.duplicatesSkipped === 1 ? '' : 's'} skipped`,
             `${csvImportFeedbackContext.rowsNotImported || 0} row${csvImportFeedbackContext.rowsNotImported === 1 ? '' : 's'} not imported`
         ];
         summaryEl.textContent = lines.join('\n');
