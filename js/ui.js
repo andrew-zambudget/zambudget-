@@ -7491,54 +7491,6 @@ function legacyFilterTransactionsV1(filterType) {
     window.renderRecentTransactions();
 };
 
-window.exportTransactions = function() {
-  let txs = State.getTransactions() || [];
-
-  // 1. Exclude soft-deleted items
-  txs = txs.filter(tx => !tx.isDeleted);
-
-  // 2. FILTER: Keep ONLY Expense Transactions
-  // This excludes Income (type='income'), Savings (tag='savings' or type='savings'), and Debt (type='debt')
-  txs = txs.filter(tx =>
-      tx.type === 'expense' &&
-      tx.tag !== 'savings' &&
-      tx.tag !== 'debt' // Optional if debt txs have type='debt'
-  );
-
-    if (txs.length === 0) {
-        if(typeof showToast === 'function') showToast('⚠️ No transactions to export');
-        return;
-    }
-
-    const sorted = [...txs].sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
-    const csvField = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
-    let csvContent = "Date,Description,Category,Type,Amount,Tag,Payment Method,Notes\n";
-
-    sorted.forEach(tx => {
-        const date = csvField(tx.date || '');
-        const desc = csvField(tx.description || tx.name || '');
-        const cat = csvField(tx.category || '');
-        const type = csvField(tx.type || '');
-        const amt = tx.amount || 0;
-        const tag = csvField(tx.tag || '');
-        const method = csvField(tx.paymentMethod || '');
-        const notes = csvField(tx.notes || '');
-
-        csvContent += `${date},${desc},${cat},${type},${amt},${tag},${method},${notes}\n`;
-    });
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Zam_Export_${window.currentTxFilter}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    if(typeof showToast === 'function') showToast('✅ Export downloaded successfully!');
-};
-
 // LEGACY-QUARANTINE 2026-06:
 // Older recent-list renderer. Do not wire new UI to this; delete after the
 // fallback warnings stay silent through a verified beta window.
@@ -16590,44 +16542,240 @@ window.executeTxDelete = function() {
     window.closeDeleteTxModal();
 };
 
-window.exportTransactions = function() {
-    const txs = getRecentTransactions()
-        .sort((a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0));
+const CSV_EXPORT_HEADERS = ['Date', 'Description', 'Amount', 'Category', 'Account', 'Notes'];
+const CSV_EXPORT_DATE_RANGE_CURRENT = 'current';
+const CSV_EXPORT_DATE_RANGE_LAST = 'last';
+const CSV_EXPORT_DATE_RANGE_CUSTOM = 'custom';
+const CSV_EXPORT_DATE_RANGE_ALL = 'all';
+const CSV_EXPORT_DATE_RANGES = new Set([
+    CSV_EXPORT_DATE_RANGE_CURRENT,
+    CSV_EXPORT_DATE_RANGE_LAST,
+    CSV_EXPORT_DATE_RANGE_CUSTOM,
+    CSV_EXPORT_DATE_RANGE_ALL
+]);
 
-    if (txs.length === 0) {
-        if (window.showToast) window.showToast('No transactions to export.');
+function getCsvExportDefaultFileName() {
+    return `zam-transactions-${getLocalDateKey()}.csv`;
+}
+
+function sanitizeCsvExportFileName(value = '') {
+    const fallback = getCsvExportDefaultFileName();
+    let name = String(value || '')
+        .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/[. ]+$/g, '');
+    if (!name) name = fallback;
+    if (!/\.csv$/i.test(name)) name += '.csv';
+    return name;
+}
+
+function getCsvExportMonthBounds(offsetMonths = 0) {
+    const today = new Date();
+    const start = new Date(today.getFullYear(), today.getMonth() + offsetMonths, 1);
+    const end = new Date(today.getFullYear(), today.getMonth() + offsetMonths + 1, 0);
+    return {
+        start: getLocalDateKey(start),
+        end: getLocalDateKey(end)
+    };
+}
+
+function getCsvExportDate(tx = {}) {
+    const rawDate = String(tx.date || '').trim();
+    if (isValidLocalISODate(rawDate)) return rawDate;
+    return parseCsvDateValue(rawDate, '');
+}
+
+function getCsvExportSourceTransactions() {
+    return (State.getTransactions ? State.getTransactions() : [])
+        .filter(tx => tx && !tx.isDeleted && !tx.isDraftIncomeLog);
+}
+
+function getCsvExportAccountLabel(value = '') {
+    const labels = {
+        '': 'Not set',
+        card: 'Credit/Debit Card',
+        cash: 'Cash',
+        bank: 'Bank Transfer',
+        gift_card: 'Gift Card'
+    };
+    const key = String(value || '');
+    return labels[key] || key;
+}
+
+function getCsvExportUniqueValues(transactions = [], field = '') {
+    return [...new Set(transactions
+        .map(tx => String(tx?.[field] || '').trim())
+        .filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b));
+}
+
+function renderCsvExportSelectOptions(select, values = [], allLabel = 'All') {
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = [
+        `<option value="">${esc(allLabel)}</option>`,
+        ...values.map(value => `<option value="${esc(value)}">${esc(fieldLabelForCsvExport(select.id, value))}</option>`)
+    ].join('');
+    select.value = values.includes(current) ? current : '';
+}
+
+function fieldLabelForCsvExport(selectId = '', value = '') {
+    return selectId === 'csvExportAccount' ? getCsvExportAccountLabel(value) : value;
+}
+
+function getCsvExportOptionsFromControls() {
+    const rangeValue = String(document.getElementById('csvExportDateRange')?.value || CSV_EXPORT_DATE_RANGE_CURRENT);
+    const dateRange = CSV_EXPORT_DATE_RANGES.has(rangeValue) ? rangeValue : CSV_EXPORT_DATE_RANGE_CURRENT;
+    return {
+        dateRange,
+        startDate: String(document.getElementById('csvExportStartDate')?.value || ''),
+        endDate: String(document.getElementById('csvExportEndDate')?.value || ''),
+        account: String(document.getElementById('csvExportAccount')?.value || ''),
+        category: String(document.getElementById('csvExportCategory')?.value || ''),
+        fileName: sanitizeCsvExportFileName(document.getElementById('csvExportFileName')?.value || '')
+    };
+}
+
+function getCsvExportBounds(options = {}) {
+    if (options.dateRange === CSV_EXPORT_DATE_RANGE_ALL) return { start: '', end: '' };
+    if (options.dateRange === CSV_EXPORT_DATE_RANGE_LAST) return getCsvExportMonthBounds(-1);
+    if (options.dateRange === CSV_EXPORT_DATE_RANGE_CUSTOM) {
+        const start = isValidLocalISODate(options.startDate) ? options.startDate : '';
+        const end = isValidLocalISODate(options.endDate) ? options.endDate : '';
+        return { start, end };
+    }
+    return getCsvExportMonthBounds(0);
+}
+
+function getCsvExportFilteredTransactions(options = {}) {
+    const { start, end } = getCsvExportBounds(options);
+    return getCsvExportSourceTransactions()
+        .filter(tx => {
+            const date = getCsvExportDate(tx);
+            if (!date) return false;
+            if (start && date < start) return false;
+            if (end && date > end) return false;
+            if (options.account && String(tx.paymentMethod || '') !== options.account) return false;
+            if (options.category && String(tx.category || '') !== options.category) return false;
+            return true;
+        })
+        .sort((a, b) => {
+            const dateCompare = getCsvExportDate(a).localeCompare(getCsvExportDate(b));
+            if (dateCompare !== 0) return dateCompare;
+            return String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
+        });
+}
+
+function getCsvExportAmount(tx = {}) {
+    return getSignedTransactionAmount(tx).toFixed(2);
+}
+
+function csvExportField(value = '') {
+    const text = String(value ?? '');
+    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function buildCsvExportContent(transactions = []) {
+    const rows = [CSV_EXPORT_HEADERS.join(',')];
+    transactions.forEach(tx => {
+        rows.push([
+            getCsvExportDate(tx),
+            csvExportField(tx.description || tx.name || ''),
+            getCsvExportAmount(tx),
+            csvExportField(tx.category || ''),
+            csvExportField(tx.paymentMethod || ''),
+            csvExportField(tx.notes || '')
+        ].join(','));
+    });
+    return `${rows.join('\n')}\n`;
+}
+
+function refreshCsvExportModal() {
+    const options = getCsvExportOptionsFromControls();
+    const customRange = document.getElementById('csvExportCustomRange');
+    const countEl = document.getElementById('csvExportCount');
+    const confirmBtn = document.getElementById('csvExportConfirmBtn');
+    const fileNameInput = document.getElementById('csvExportFileName');
+
+    if (customRange) customRange.hidden = options.dateRange !== CSV_EXPORT_DATE_RANGE_CUSTOM;
+    const transactions = getCsvExportFilteredTransactions(options);
+    const count = transactions.length;
+    if (countEl) {
+        countEl.textContent = count > 0
+            ? `${count} transaction${count === 1 ? '' : 's'} will be exported`
+            : 'No transactions match these filters.';
+        countEl.classList.toggle('is-empty', count === 0);
+    }
+    if (confirmBtn) confirmBtn.disabled = count === 0;
+    if (fileNameInput && !String(fileNameInput.value || '').trim()) {
+        fileNameInput.value = getCsvExportDefaultFileName();
+    }
+}
+
+function populateCsvExportFilters() {
+    const transactions = getCsvExportSourceTransactions();
+    renderCsvExportSelectOptions(
+        document.getElementById('csvExportAccount'),
+        getCsvExportUniqueValues(transactions, 'paymentMethod'),
+        'All Accounts'
+    );
+    renderCsvExportSelectOptions(
+        document.getElementById('csvExportCategory'),
+        getCsvExportUniqueValues(transactions, 'category'),
+        'All Categories'
+    );
+}
+
+window.openCsvExportModal = function() {
+    const fileNameInput = document.getElementById('csvExportFileName');
+    const rangeSelect = document.getElementById('csvExportDateRange');
+    const startInput = document.getElementById('csvExportStartDate');
+    const endInput = document.getElementById('csvExportEndDate');
+
+    if (fileNameInput) fileNameInput.value = getCsvExportDefaultFileName();
+    if (rangeSelect) rangeSelect.value = CSV_EXPORT_DATE_RANGE_CURRENT;
+    if (startInput) startInput.value = '';
+    if (endInput) endInput.value = '';
+    populateCsvExportFilters();
+    refreshCsvExportModal();
+    openModal('csvExportModal');
+};
+
+window.exportTransactions = window.openCsvExportModal;
+
+window.handleCsvExportOptionsChange = function() {
+    refreshCsvExportModal();
+};
+
+window.closeCsvExportModal = function() {
+    if (typeof closeModal === 'function') closeModal('csvExportModal');
+    else document.getElementById('csvExportModal')?.classList.remove('active');
+};
+
+window.confirmCsvExport = function() {
+    const options = getCsvExportOptionsFromControls();
+    const transactions = getCsvExportFilteredTransactions(options);
+    if (!transactions.length) {
+        if (window.showToast) window.showToast('No transactions match these filters.');
+        refreshCsvExportModal();
         return;
     }
 
-    const csvField = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
-    const rows = ['Date,Description,Category,Type,Amount,Tag,Payment Method,Notes,Server Logged UTC'];
-
-    txs.forEach(tx => {
-        rows.push([
-            csvField(tx.date || ''),
-            csvField(tx.description || tx.name || ''),
-            csvField(tx.category || ''),
-            csvField(tx.type || ''),
-            csvField(tx.amount || 0),
-            csvField(tx.tag || ''),
-            csvField(tx.paymentMethod || ''),
-            csvField(tx.notes || ''),
-            csvField(getTransactionUtcTimestamp(tx))
-        ].join(','));
-    });
-
-    const blob = new Blob([`${rows.join('\n')}\n`], { type: 'text/csv;charset=utf-8;' });
+    const fileName = sanitizeCsvExportFileName(options.fileName);
+    const blob = new Blob([buildCsvExportContent(transactions)], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Zam_Transactions_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = fileName;
     document.body.appendChild(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
 
-    recordSyncEvent(`Exported ${txs.length} transaction${txs.length === 1 ? '' : 's'} to CSV.`, 'local');
-    if (window.showToast) window.showToast('CSV export downloaded.');
+    recordSyncEvent(`Exported ${transactions.length} transaction${transactions.length === 1 ? '' : 's'} to CSV.`, 'local');
+    if (window.showToast) window.showToast(`Exported ${transactions.length} transaction${transactions.length === 1 ? '' : 's'} to CSV.`);
+    window.closeCsvExportModal();
 };
 
 const CSV_IMPORT_PREVIEW_LIMIT = 12;
@@ -17101,7 +17249,11 @@ function getCsvAmountFromColumns(row, mapping, rowIndexHint = 0) {
         const amountHasValue = hasTextValue(rawAmount);
 
         if (Number.isFinite(parsedAmount) && Math.abs(parsedAmount) > 0.00001) {
-            return { amount: Math.abs(parsedAmount), source: 'amount' };
+            return {
+                amount: Math.abs(parsedAmount),
+                source: 'amount',
+                typeHint: parsedAmount >= 0 ? 'income' : 'expense'
+            };
         }
 
         if (amountHasValue) {

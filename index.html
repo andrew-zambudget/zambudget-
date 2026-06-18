@@ -1304,6 +1304,61 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div class="modal-overlay" id="csvExportModal" onclick="window.closeModalOnOutsideClick(event)">
+                                    <div class="modal-box csv-export-box" role="dialog" aria-modal="true" aria-labelledby="csvExportTitle" aria-describedby="csvExportDescription" onclick="event.stopPropagation()">
+                                        <button type="button" class="modal-close" onclick="window.closeCsvExportModal()" aria-label="Close CSV export">&times;</button>
+                                        <h3 id="csvExportTitle" class="modal-title mb-sm">Export CSV</h3>
+                                        <p id="csvExportDescription" class="csv-export-description">Choose the transaction data to download.</p>
+
+                                        <div class="csv-export-grid">
+                                            <div class="csv-export-field">
+                                                <label for="csvExportDateRange">Date range</label>
+                                                <select id="csvExportDateRange" onchange="window.handleCsvExportOptionsChange()">
+                                                    <option value="current">Current Month</option>
+                                                    <option value="last">Last Month</option>
+                                                    <option value="custom">Custom Range</option>
+                                                    <option value="all">All Time</option>
+                                                </select>
+                                            </div>
+                                            <div class="csv-export-field">
+                                                <label for="csvExportFileName">File name</label>
+                                                <input type="text" id="csvExportFileName" maxlength="120" oninput="window.handleCsvExportOptionsChange()" autocomplete="off">
+                                            </div>
+                                            <div id="csvExportCustomRange" class="csv-export-custom-range" hidden>
+                                                <div class="csv-export-field">
+                                                    <label for="csvExportStartDate">Start date</label>
+                                                    <input type="date" id="csvExportStartDate" onchange="window.handleCsvExportOptionsChange()">
+                                                </div>
+                                                <div class="csv-export-field">
+                                                    <label for="csvExportEndDate">End date</label>
+                                                    <input type="date" id="csvExportEndDate" onchange="window.handleCsvExportOptionsChange()">
+                                                </div>
+                                            </div>
+                                            <div class="csv-export-field">
+                                                <label for="csvExportAccount">Account</label>
+                                                <select id="csvExportAccount" onchange="window.handleCsvExportOptionsChange()">
+                                                    <option value="">All Accounts</option>
+                                                </select>
+                                            </div>
+                                            <div class="csv-export-field">
+                                                <label for="csvExportCategory">Category</label>
+                                                <select id="csvExportCategory" onchange="window.handleCsvExportOptionsChange()">
+                                                    <option value="">All Categories</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div id="csvExportCount" class="csv-export-count" aria-live="polite">0 transactions will be exported</div>
+                                        <div class="csv-export-plaintext-note">
+                                            Exported CSV files are plain text after download. Store them carefully.
+                                        </div>
+
+                                        <div class="modal-actions csv-export-actions">
+                                            <button type="button" class="btn-cancel" onclick="window.closeCsvExportModal()">Cancel</button>
+                                            <button type="button" id="csvExportConfirmBtn" class="btn-create" onclick="window.confirmCsvExport()" disabled>Export CSV</button>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div class="modal-overlay" id="csvImportReviewModal" onclick="window.closeModalOnOutsideClick(event)">
                                     <div class="modal-box csv-import-review-box" role="dialog" aria-modal="true" aria-labelledby="csvImportReviewTitle" aria-describedby="csvImportReviewDescription" onclick="event.stopPropagation()">
                                         <button type="button" class="modal-close" onclick="window.closeCsvImportReviewModal()" aria-label="Close CSV import review">&times;</button>

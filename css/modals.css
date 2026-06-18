@@ -2648,6 +2648,103 @@ noscript div,
   border-radius: 8px;
 }
 
+#csvExportModal .modal-box {
+  width: min(94vw, 660px);
+  max-width: 660px;
+  border-radius: 14px;
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+#csvExportModal .modal-title {
+  margin: 0;
+}
+
+#csvExportModal .csv-export-description {
+  margin: -0.3rem 2rem 0 0;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+#csvExportModal .csv-export-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+#csvExportModal .csv-export-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+#csvExportModal .csv-export-field label {
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+
+#csvExportModal .csv-export-field input,
+#csvExportModal .csv-export-field select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.62rem 0.7rem;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+#csvExportModal .csv-export-field input:focus,
+#csvExportModal .csv-export-field select:focus {
+  border-color: var(--accent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  outline-offset: 1px;
+}
+
+#csvExportModal .csv-export-custom-range {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+#csvExportModal .csv-export-custom-range[hidden] {
+  display: none;
+}
+
+#csvExportModal .csv-export-count {
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  border-radius: 10px;
+  padding: 0.8rem 0.9rem;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 850;
+}
+
+#csvExportModal .csv-export-count.is-empty {
+  border-color: color-mix(in srgb, var(--yellow) 38%, var(--border));
+  background: color-mix(in srgb, var(--yellow) 10%, var(--surface));
+}
+
+#csvExportModal .csv-export-plaintext-note {
+  border: 1px solid color-mix(in srgb, var(--yellow) 30%, var(--border));
+  border-radius: 8px;
+  padding: 0.7rem 0.8rem;
+  background: color-mix(in srgb, var(--yellow) 8%, var(--surface));
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+#csvExportModal .csv-export-actions {
+  margin-top: 0.1rem;
+}
+
 #csvImportReviewModal .modal-box {
   width: min(96vw, 980px);
   max-width: 980px;
@@ -4614,6 +4711,27 @@ noscript div,
 
   #settingsModal .settings-dirty-notice {
     flex: 1 0 100%;
+  }
+
+  #csvExportModal .modal-box {
+    width: min(94vw, 520px);
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  #csvExportModal .csv-export-grid,
+  #csvExportModal .csv-export-custom-range {
+    grid-template-columns: 1fr;
+  }
+
+  #csvExportModal .csv-export-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  #csvExportModal .csv-export-actions .btn-cancel,
+  #csvExportModal .csv-export-actions .btn-create {
+    width: 100%;
   }
 
   #csvImportReviewModal .modal-box {
