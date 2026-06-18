@@ -1314,16 +1314,17 @@
                                         <div class="csv-import-source-row">
                                             <div id="csvImportReviewFiles" class="csv-import-files" aria-live="polite"></div>
                                             <div class="csv-import-file-actions">
-                                                <button type="button" class="csv-import-file-btn" onclick="window.replaceCsvImportFile()" aria-label="Replace selected CSV file">
+                                                <button type="button" class="csv-import-file-btn csv-import-file-btn-outline" onclick="window.replaceCsvImportFile()" aria-label="Replace selected CSV file">
                                                     <span aria-hidden="true">&#8635;</span>
                                                     Replace File
                                                 </button>
-                                                <button type="button" class="csv-import-file-btn csv-import-file-btn-danger" onclick="window.deleteCsvImportFile()" aria-label="Remove selected CSV file from this import" title="Removes this file from the import review only.">
+                                                <button type="button" class="csv-import-file-btn csv-import-file-btn-outline csv-import-file-btn-danger" onclick="window.deleteCsvImportFile()" aria-label="Remove selected CSV file from this import" title="Removes this file from the import review only.">
                                                     <span aria-hidden="true">&times;</span>
                                                     Remove File
                                                 </button>
                                             </div>
                                         </div>
+                                        <div class="csv-import-preview-shell">
                                         <div class="csv-import-summary-hero" aria-live="polite">
                                             <div class="csv-import-summary-title">Import Summary</div>
                                             <div id="csvImportSummaryPrimary" class="csv-import-summary-primary"></div>
@@ -1332,27 +1333,21 @@
                                         </div>
                                         <div id="csvImportCompactFilterRow" class="csv-import-review-tools">
                                             <div class="csv-import-review-tools-title">Preview</div>
-                                            <div class="csv-import-search-row">
-                                                <label for="csvImportSearchRows" class="csv-import-search-label">Search rows</label>
-                                                <input
-                                                    type="text"
-                                                    id="csvImportSearchRows"
-                                                    class="csv-import-search-input"
-                                                    placeholder="Filter by description, amount, date, status..."
-                                                    oninput="window.handleCsvImportSearchRowsChange()"
-                                                    aria-label="Search rows"
-                                                />
-                                            </div>
-                                            <div class="csv-import-preview-count">
-                                                <span id="csvImportPreviewCount" aria-live="polite"></span>
-                                                <button type="button" class="btn-small btn-slim" id="csvImportPreviewToggleBtn" onclick="window.toggleCsvImportPreviewLimit()" hidden>Show All</button>
-                                                <button type="button" class="btn-small btn-slim csv-import-preview-reset-btn" id="csvImportResetPreviewHeightBtn" onclick="window.resetCsvImportPreviewHeight()" title="Reset preview height" aria-label="Reset preview height">Reset Height</button>
-                                                <button type="button" class="btn-small btn-slim" id="csvImportExpandPreviewBtn" onclick="window.openCsvImportPreviewExpandPanel()" aria-label="Expand transaction preview. Spacebar open or close." aria-keyshortcuts="Space" data-tooltip="Spacebar Open/Close">Expand Preview</button>
-                                            </div>
-                                            <div class="csv-import-selection-tools" aria-live="polite">
-                                                <span id="csvImportSelectionCount" class="csv-import-selection-count">0 selected for import</span>
-                                                <button type="button" class="btn-small btn-slim" id="csvImportSelectReadyBtn" onclick="window.selectAllCsvImportReadyRows()">Select all ready rows</button>
-                                                <button type="button" class="btn-small btn-slim csv-import-preview-reset-btn" id="csvImportClearSelectionBtn" onclick="window.clearCsvImportSelection()">Clear selection</button>
+                                            <div class="csv-import-command-row">
+                                                <div class="csv-import-command-cell csv-import-command-filters">
+                                                    <div class="csv-import-filter-group" role="group" aria-label="Preview filters">
+                                                        <button type="button" class="btn-small btn-slim" id="csvImportViewAll" onclick="window.setCsvImportFilterMode('all')">All</button>
+                                                        <button type="button" class="btn-small btn-slim" id="csvImportViewReady" onclick="window.setCsvImportFilterMode('ready')">Ready</button>
+                                                        <button type="button" class="btn-small btn-slim" id="csvImportViewDuplicates" onclick="window.setCsvImportFilterMode('duplicates')">Duplicates</button>
+                                                        <button type="button" class="btn-small btn-slim" id="csvImportViewAttention" onclick="window.setCsvImportFilterMode('attention')">Needs Review</button>
+                                                        <button type="button" class="btn-small btn-slim" id="csvImportViewInvalid" onclick="window.setCsvImportFilterMode('invalid')">Invalid</button>
+                                                    </div>
+                                                </div>
+                                                <div class="csv-import-command-cell csv-import-command-actions">
+                                                    <div class="csv-import-view-actions">
+                                                        <span class="csv-import-compact-actions-hint">Shortcut: Spacebar</span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -1484,18 +1479,6 @@
                                             </div>
                                         </div>
 
-                                        <div
-                                            id="csvImportPreviewResizeHandle"
-                                            class="csv-import-preview-resize-handle"
-                                            role="separator"
-                                            aria-orientation="horizontal"
-                                            aria-label="Resize preview vertically"
-                                            tabindex="0"
-                                            onkeydown="window.handleCsvImportPreviewResizeKey(event)"
-                                            ondblclick="window.resetCsvImportPreviewHeight()"
-                                        >
-                                            <span aria-hidden="true"></span>
-                                        </div>
                                         <div id="csvImportPreviewWrap" class="csv-import-preview-wrap">
                                             <table class="csv-import-preview-table">
                                                 <thead id="csvImportPreviewHeader">
@@ -1511,10 +1494,54 @@
                                                 </thead>
                                                 <tbody id="csvImportPreviewBody">
                                                 <tr>
-                                                    <td colspan="6">Loading preview…</td>
+                                                <td colspan="7">Loading preview...</td>
                                                 </tr>
                                                 </tbody>
                                             </table>
+                                        </div>
+                                        <div class="csv-import-preview-summary-row">
+                                            <div class="csv-import-preview-summary-toolbar">
+                                                <button
+                                                    type="button"
+                                                    class="btn-small btn-slim csv-import-preview-mini-action csv-import-preview-toggle-btn csv-import-btn-gray"
+                                                    id="csvImportPreviewToggleBtn"
+                                                    onclick="window.toggleCsvImportPreviewLimit()"
+                                                    hidden
+                                                >Show All</button>
+                                                <button
+                                                    type="button"
+                                                    class="btn-small btn-slim csv-import-expand-preview-btn"
+                                                    id="csvImportExpandPreviewBtn"
+                                                    onclick="window.openCsvImportPreviewExpandPanel()"
+                                                    aria-label="Expand transaction preview. Spacebar open or close."
+                                                    aria-keyshortcuts="Space"
+                                                    data-tooltip="Spacebar Open/Close"
+                                                >
+                                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                        <path d="M4 16V20M4 20H8" />
+                                                        <path d="M20 16V20M20 20H16" />
+                                                        <path d="M20 8V4M20 4H16" />
+                                                        <path d="M4 8V4M4 4H8" />
+                                                    </svg>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    class="btn-small btn-slim csv-import-preview-mini-action csv-import-btn-blue"
+                                                    id="csvImportSelectReadyBtn"
+                                                    onclick="window.selectAllCsvImportReadyRows()"
+                                                >Select all ready rows</button>
+                                                <button
+                                                    type="button"
+                                                    class="btn-small btn-slim csv-import-preview-mini-action csv-import-preview-reset-btn csv-import-btn-gray"
+                                                    id="csvImportClearSelectionBtn"
+                                                    onclick="window.clearCsvImportSelection()"
+                                                >Clear selection</button>
+                                            </div>
+                                            <div class="csv-import-preview-summary-status">
+                                                <span id="csvImportPreviewCount" aria-live="polite"></span>
+                                                <span id="csvImportSelectionCount" class="csv-import-selection-count" aria-live="polite">0 selected</span>
+                                            </div>
+                                        </div>
                                         </div>
                                         <div id="csvImportPreviewExpandedPanel" class="csv-import-preview-expanded-panel" aria-hidden="true" tabindex="-1">
                                             <div class="csv-import-preview-expanded-header">
@@ -1545,6 +1572,7 @@
                                                 <button type="button" class="btn-small" id="csvImportExpandedViewAll" onclick="window.setCsvImportFilterMode('all')">All</button>
                                                 <button type="button" class="btn-small" id="csvImportExpandedViewReady" onclick="window.setCsvImportFilterMode('ready')">Ready</button>
                                                 <button type="button" class="btn-small" id="csvImportExpandedViewDuplicates" onclick="window.setCsvImportFilterMode('duplicates')">Duplicates</button>
+                                                <button type="button" class="btn-small" id="csvImportExpandedViewAttention" onclick="window.setCsvImportFilterMode('attention')">Needs Review</button>
                                                 <button type="button" class="btn-small" id="csvImportExpandedViewInvalid" onclick="window.setCsvImportFilterMode('invalid')">Invalid</button>
                                             </div>
 
@@ -1566,7 +1594,7 @@
                                                     </thead>
                                                     <tbody id="csvImportExpandedPreviewBody">
                                                     <tr>
-                                                        <td colspan="6">Loading preview…</td>
+                                                        <td colspan="7">Loading preview...</td>
                                                     </tr>
                                                     </tbody>
                                                 </table>

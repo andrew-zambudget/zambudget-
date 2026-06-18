@@ -1315,7 +1315,7 @@ async function authorizeRecoveryKeyDisplayWithSupabase() {
         title: 'Verify Login',
         body: `Enter the one-time code sent to ${maskEmailForSecurity(email)}.`,
         assurance: 'This unlocks recovery-key display on this browser.',
-        warning: 'This is a v1 reveal guardrail. v1.1 will add PIN/passkey-protected local key storage.',
+        warning: 'This is a v1 reveal guardrail. It does not add a PIN or passkey lock to the recovery key.',
         inputLabel: 'One-time code',
         inputPlaceholder: '123456',
         inputSingleLine: true,
@@ -9529,9 +9529,12 @@ export function submitTransaction() {
 
         if (blockDebtLockedSavingsIncreaseIfNeeded(newTx)) return;
 
-        const saveResult = paymentMethod === GIFT_CARD_PAYMENT_METHOD
+        const addResult = paymentMethod === GIFT_CARD_PAYMENT_METHOD
             ? State.addTransactionWithGiftCard?.(newTx, giftCard.id)
-            : { success: State.addTransaction(newTx) !== false };
+            : State.addTransaction(newTx);
+        const saveResult = addResult && addResult.success !== undefined
+            ? addResult
+            : { success: addResult !== false };
         if (!saveResult?.success) {
             const message = saveResult?.error || 'Could not save transaction.';
             if (paymentMethod === GIFT_CARD_PAYMENT_METHOD) setGiftCardError(message);
@@ -13463,6 +13466,7 @@ const ACCOUNT_DELETE_BLOCKED_SUBSCRIPTION_STATUSES = new Set(['active', 'past_du
 const LOGOUT_BACKUP_BLOCKED_CODE = 'BUDDY_CLOUD_LOGOUT_BACKUP_BLOCKED';
 const LOCAL_DEV_HOSTS = new Set(['localhost', '127.0.0.1', '']);
 const STRIPE_REDIRECT_REVIEW_SECONDS = 3;
+const DEV_IMPORT_AUDIT_FLAG = 'bb_dev_import_audit_details';
 
 function getCheckoutReturnUrl(params = {}) {
     const url = new URL('index.html', window.location.href);
@@ -15390,6 +15394,177 @@ function getEditCategoryOptions(tx) {
     return categories;
 }
 
+function isDevImportAuditEnabled() {
+    try {
+        const params = new URLSearchParams(window.location.search || '');
+        return LOCAL_DEV_HOSTS.has(window.location.hostname)
+            || params.has('devImportAudit')
+            || localStorage.getItem(DEV_IMPORT_AUDIT_FLAG) === 'true';
+    } catch {
+        return false;
+    }
+}
+
+window.enableDevImportAuditDetails = function() {
+    try {
+        localStorage.setItem(DEV_IMPORT_AUDIT_FLAG, 'true');
+        if (window.showToast) window.showToast('Dev import audit details enabled.');
+    } catch {
+        // Dev-only helper must not affect normal app behavior.
+    }
+};
+
+window.disableDevImportAuditDetails = function() {
+    try {
+        localStorage.removeItem(DEV_IMPORT_AUDIT_FLAG);
+        if (window.showToast) window.showToast('Dev import audit details disabled.');
+    } catch {
+        // Dev-only helper must not affect normal app behavior.
+    }
+};
+
+function getTransactionImportDetails(tx = {}) {
+    const isMarkedImported = tx?.source_type === 'csv_import'
+        || tx?.sourceType === 'csv_import'
+        || tx?.importDetails?.sourceType === 'csv_import';
+    if (!isMarkedImported) return null;
+
+    const details = tx?.importDetails && typeof tx.importDetails === 'object'
+        ? tx.importDetails
+        : null;
+    if (details?.sourceType === 'csv_import') return details;
+
+    if (isMarkedImported) {
+        return {
+            sourceType: 'csv_import',
+            sourceFileName: tx.sourceFile || '',
+            sourceLineNumber: tx.sourceRow || '',
+            importedAt: tx.createdAtUTC || tx.createdAt || '',
+            importId: '',
+            rawCsvValues: [],
+            mappedImportValues: null
+        };
+    }
+    return null;
+}
+
+function formatImportAuditDateTime(value = '') {
+    const date = value ? new Date(value) : null;
+    if (!date || Number.isNaN(date.getTime())) return value || 'Unavailable';
+    return new Intl.DateTimeFormat(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZoneName: 'short'
+    }).format(date);
+}
+
+function normalizeImportAuditString(value = '') {
+    return String(value ?? '').trim();
+}
+
+function importAuditAmountMatches(currentValue, originalValue) {
+    const current = Number.parseFloat(currentValue);
+    const original = Number.parseFloat(originalValue);
+    if (!Number.isFinite(current) && !Number.isFinite(original)) return true;
+    if (!Number.isFinite(current) || !Number.isFinite(original)) return false;
+    return Math.abs(current - original) < 0.005;
+}
+
+function getImportAuditChangedFields(tx = {}, mapped = {}) {
+    if (!mapped || typeof mapped !== 'object') return [];
+
+    const checks = [
+        ['Description', normalizeImportAuditString(tx.description || tx.name), normalizeImportAuditString(mapped.description)],
+        ['Date', normalizeImportAuditString(tx.date), normalizeImportAuditString(mapped.date)],
+        ['Category', normalizeImportAuditString(tx.category), normalizeImportAuditString(mapped.category)],
+        ['Payment Method', normalizeImportAuditString(tx.paymentMethod), normalizeImportAuditString(mapped.paymentMethod)],
+        ['Notes', normalizeImportAuditString(tx.notes), normalizeImportAuditString(mapped.notes)]
+    ];
+
+    const changed = checks
+        .filter(([, current, original]) => current !== original)
+        .map(([label]) => label);
+
+    if (!importAuditAmountMatches(tx.amount, mapped.amount)) changed.push('Amount');
+    return changed;
+}
+
+function renderImportAuditKeyValue(label, value) {
+    return `
+        <div class="transaction-import-kv">
+            <dt>${esc(label)}</dt>
+            <dd>${esc(value === '' || value === null || value === undefined ? 'Blank' : value)}</dd>
+        </div>
+    `;
+}
+
+function renderTransactionImportAuditSection(tx = {}) {
+    if (!isDevImportAuditEnabled()) return '';
+
+    const details = getTransactionImportDetails(tx);
+    if (!details) return '';
+
+    const sourceLine = details.sourceLineNumber ? `Line ${details.sourceLineNumber}` : 'Line unavailable';
+    const mapped = details.mappedImportValues || null;
+    const changedFields = mapped ? getImportAuditChangedFields(tx, mapped) : [];
+    const integrityText = mapped
+        ? changedFields.length
+            ? `Edited since import: ${changedFields.join(', ')}`
+            : 'Current fields match original mapped values.'
+        : 'Original mapped values unavailable for this transaction.';
+    const rawValues = Array.isArray(details.rawCsvValues) ? details.rawCsvValues : [];
+
+    const mappedRows = mapped ? [
+        ['Date', mapped.date],
+        ['Description', mapped.description],
+        ['Amount', Number.isFinite(Number.parseFloat(mapped.amount)) ? formatMoney(Math.abs(Number.parseFloat(mapped.amount))) : mapped.amount],
+        ['Signed amount', Number.isFinite(Number.parseFloat(mapped.signedAmount)) ? String(mapped.signedAmount) : mapped.signedAmount],
+        ['Type', mapped.type],
+        ['Category', mapped.category],
+        ['Payment method', mapped.paymentMethod],
+        ['Notes', mapped.notes],
+        ['Amount mode', mapped.amountMode],
+        ['Amount column', mapped.amountColumn],
+        ['Debit column', mapped.debitColumn],
+        ['Credit column', mapped.creditColumn]
+    ].filter(([, value]) => value !== undefined && value !== null && String(value) !== '') : [];
+
+    return `
+        <details class="transaction-import-details">
+            <summary>
+                <span class="transaction-import-summary-title">Import Details</span>
+                <span class="transaction-import-summary-meta">Imported from CSV - ${esc(sourceLine)}</span>
+            </summary>
+            <div class="transaction-import-details-body">
+                <p class="transaction-import-helper">Read-only source information from the original CSV import. Dev-only for 1.2 QA.</p>
+                <div class="transaction-import-integrity ${changedFields.length ? 'is-changed' : 'is-matched'}">${esc(integrityText)}</div>
+                <dl class="transaction-import-kv-grid">
+                    ${renderImportAuditKeyValue('Source', 'CSV Import')}
+                    ${renderImportAuditKeyValue('File', details.sourceFileName || 'Unavailable')}
+                    ${renderImportAuditKeyValue('CSV line', details.sourceLineNumber || 'Unavailable')}
+                    ${renderImportAuditKeyValue('Imported', formatImportAuditDateTime(details.importedAt || ''))}
+                    ${details.importId ? renderImportAuditKeyValue('Import ID', details.importId) : ''}
+                </dl>
+                ${mappedRows.length ? `
+                    <div class="transaction-import-section-title">Mapped Import Values</div>
+                    <dl class="transaction-import-kv-grid">
+                        ${mappedRows.map(([label, value]) => renderImportAuditKeyValue(label, value)).join('')}
+                    </dl>
+                ` : '<p class="transaction-import-empty">Original CSV details unavailable for this transaction.</p>'}
+                ${rawValues.length ? `
+                    <div class="transaction-import-section-title">Original CSV Values</div>
+                    <dl class="transaction-import-kv-grid transaction-import-raw-grid">
+                        ${rawValues.map(item => renderImportAuditKeyValue(`${item.header || `Column ${item.column}`} (col ${item.column})`, item.value)).join('')}
+                    </dl>
+                ` : ''}
+            </div>
+        </details>
+    `;
+}
+
 function openTransactionEditModal(txId) {
     const tx = getTransactionById(txId);
     if (!tx) return false;
@@ -15408,6 +15583,9 @@ function openTransactionEditModal(txId) {
     const dateLabel = getRelativeEditDateLabel(dateValue);
     const dateSubLabel = formatCalendarDateLabel(dateValue) || dateValue;
     const paymentMethod = ADD_TX_PAYMENT_METHODS.has(String(tx.paymentMethod || '')) ? String(tx.paymentMethod || '') : '';
+    const showImportAudit = Boolean(isDevImportAuditEnabled() && getTransactionImportDetails(tx));
+    const importAuditBadge = showImportAudit ? '<span class="transaction-import-badge">Imported from CSV</span>' : '';
+    const importAuditSection = showImportAudit ? renderTransactionImportAuditSection(tx) : '';
 
     const modal = document.createElement('div');
     modal.id = 'recentEditTransactionModal';
@@ -15420,7 +15598,7 @@ function openTransactionEditModal(txId) {
         <form class="modal-box modal-box-medium transaction-edit-modal" role="dialog" aria-modal="true" aria-labelledby="recentEditTransactionTitle" onclick="event.stopPropagation()" onsubmit="window.confirmRecentEditTransaction(event, ${jsArg(txId)})">
             <button type="button" class="modal-close" onclick="window.closeRecentEditTransactionModal()" aria-label="Close transaction edit">&times;</button>
             <h3 id="recentEditTransactionTitle" class="modal-title">Edit Transaction</h3>
-            <p class="transaction-edit-meta">${esc(display.kindLabel)} - ${esc(display.timestampText)}</p>
+            <p class="transaction-edit-meta">${esc(display.kindLabel)}${importAuditBadge} - ${esc(display.timestampText)}</p>
             <div class="transaction-edit-grid">
                 <div class="add-form-group transaction-edit-full">
                     <label for="editTxDescription">Description</label>
@@ -15468,6 +15646,7 @@ function openTransactionEditModal(txId) {
                     <textarea id="editTxNotes" class="notes-textarea" maxlength="${ADD_TX_NOTES_MAX_LENGTH}" rows="3">${esc(tx.notes || '')}</textarea>
                 </div>
             </div>
+            ${importAuditSection}
             <div id="editTxError" class="transaction-edit-error" role="alert" hidden></div>
             <div class="modal-actions">
                 <button type="button" class="btn-cancel" onclick="window.closeRecentEditTransactionModal()">Cancel</button>
@@ -16456,6 +16635,11 @@ const CSV_IMPORT_AMOUNT_MODE_DEBIT_CREDIT = 'debitCredit';
 const CSV_IMPORT_PREVIEW_MODE_PARSED = 'parsed';
 const CSV_IMPORT_PREVIEW_MODE_RAW = 'raw';
 const CSV_IMPORT_PREVIEW_MODES = new Set([CSV_IMPORT_PREVIEW_MODE_PARSED, CSV_IMPORT_PREVIEW_MODE_RAW]);
+const CSV_IMPORT_SORT_DIRECTIONS = new Set(['asc', 'desc']);
+const CSV_IMPORT_SORT_DIRECTION_ASC = 'asc';
+const CSV_IMPORT_SORT_DIRECTION_DESC = 'desc';
+const CSV_IMPORT_SORT_FIELD_PARSED_DEFAULT = 'line';
+const CSV_IMPORT_SORT_FIELD_RAW_DEFAULT = 'line';
 const CSV_IMPORT_FIELD_MAP = [
     { key: 'date', label: 'Date', aliases: ['date', 'transaction date', 'posted date', 'booking date', 'value date', 'date posted', 'txn date'], optional: true },
     { key: 'description', label: 'Description', aliases: ['description', 'memo', 'merchant', 'payee', 'name'], optional: true },
@@ -16478,12 +16662,10 @@ let csvImportSearchQuery = '';
 let csvImportAdvancedOptionsOpen = false;
 let csvImportPreviewExpanded = false;
 let csvImportExpandedPreviewOpen = false;
-let csvImportPreviewResizeCleanup = null;
+let csvImportSortField = CSV_IMPORT_SORT_FIELD_PARSED_DEFAULT;
+let csvImportSortDirection = CSV_IMPORT_SORT_DIRECTION_ASC;
 
-const CSV_IMPORT_FILTER_MODES = new Set(['all', 'ready', 'duplicates', 'invalid']);
-const CSV_IMPORT_PREVIEW_MIN_HEIGHT = 180;
-const CSV_IMPORT_PREVIEW_DEFAULT_HEIGHT = 340;
-const CSV_IMPORT_PREVIEW_MAX_HEIGHT = 760;
+const CSV_IMPORT_FILTER_MODES = new Set(['all', 'ready', 'duplicates', 'attention', 'invalid']);
 
 function normalizeCsvHeader(value = '') {
     return String(value || '')
@@ -16638,6 +16820,7 @@ function parseCsvDateValue(value = '', fallback = '') {
     const candidate = mmddyy && mmddyy.length === 4
         ? `${mmddyy[3].length === 2 ? `20${mmddyy[3]}` : mmddyy[3]}-${mmddyy[1].padStart(2, '0')}-${mmddyy[2].padStart(2, '0')}`
         : compact;
+    if (isValidLocalISODate(candidate)) return candidate;
     const parsed = new Date(candidate);
     return Number.isNaN(parsed.getTime()) ? fallback : getLocalDateKey(parsed);
 }
@@ -16997,6 +17180,43 @@ function findBestCsvMatchForRow(parsedRow, candidateRows = [], usedMatchIds = ne
     };
 }
 
+function buildCsvImportRawValueDetails(headers = [], values = []) {
+    const headerList = Array.isArray(headers) ? headers : [];
+    const valueList = Array.isArray(values) ? values : [];
+    const count = Math.max(headerList.length, valueList.length);
+
+    return Array.from({ length: count }, (_, index) => ({
+        column: index + 1,
+        header: String(headerList[index] || `Column ${index + 1}`).trim() || `Column ${index + 1}`,
+        value: String(valueList[index] ?? '')
+    }));
+}
+
+function buildCsvImportMappedValueDetails(row = [], mapping = {}, amountResult = {}, tx = {}) {
+    const amountMode = getCsvImportAmountMode(mapping);
+
+    return {
+        date: String(tx.date || ''),
+        description: String(tx.description || ''),
+        amount: Number.isFinite(Number.parseFloat(tx.amount)) ? Number.parseFloat(tx.amount) : '',
+        signedAmount: Number.isFinite(Number.parseFloat(amountResult?.amount)) ? Number.parseFloat(amountResult.amount) : '',
+        type: String(tx.type || ''),
+        category: String(tx.category || ''),
+        paymentMethod: String(tx.paymentMethod || ''),
+        notes: String(tx.notes || ''),
+        amountMode,
+        amountColumn: amountMode === CSV_IMPORT_AMOUNT_MODE_SINGLE
+            ? mapValueFromRow(row, mapping, 'amount')
+            : '',
+        debitColumn: amountMode === CSV_IMPORT_AMOUNT_MODE_DEBIT_CREDIT
+            ? mapValueFromRow(row, mapping, 'debit')
+            : '',
+        creditColumn: amountMode === CSV_IMPORT_AMOUNT_MODE_DEBIT_CREDIT
+            ? mapValueFromRow(row, mapping, 'credit')
+            : ''
+    };
+}
+
 function buildCsvImportRow(fileName, sourceRow, row, mapping, now, rawHeaders = []) {
     const safeRawValues = Array.isArray(row) ? row.map((value) => String(value || '')) : [];
     const safeRawHeaders = Array.isArray(rawHeaders) ? rawHeaders.map((value) => String(value || '')) : [];
@@ -17081,8 +17301,19 @@ function buildCsvImportRow(fileName, sourceRow, row, mapping, now, rawHeaders = 
         createdAt: now,
         createdAtUTC: now,
         serverLoggedAtUTC: now,
+        source_type: 'csv_import',
         sourceFile: fileName,
         sourceRow
+    };
+
+    tx.importDetails = {
+        sourceType: 'csv_import',
+        sourceFileName: fileName,
+        sourceLineNumber: sourceRow,
+        importedAt: now,
+        importId: `csv-${now}-${sourceRow}`,
+        rawCsvValues: buildCsvImportRawValueDetails(safeRawHeaders, safeRawValues),
+        mappedImportValues: buildCsvImportMappedValueDetails(row, mapping, amountResult, tx)
     };
 
     return {
@@ -17214,6 +17445,142 @@ function getCsvImportAmountText(row = {}) {
     return row?.amount || '';
 }
 
+function getCsvImportStatusSortValue(row = {}) {
+    const status = csvImportGetRowStatus(row);
+    if (status === 'ready') return 0;
+    if (status === 'attention') return 1;
+    if (status === 'duplicate') return 2;
+    return 3;
+}
+
+function getCsvImportSortFieldValue(row = {}, field = '', mode = CSV_IMPORT_PREVIEW_MODE_PARSED, sourceEntries = []) {
+    const safeField = String(field || '').trim();
+    const status = csvImportGetRowStatus(row);
+    const amountValue = Number.isFinite(Number.parseFloat(row?.tx?.amount))
+        ? Number.parseFloat(row.tx.amount)
+        : Number.NaN;
+
+    if (safeField === 'import') {
+        return isCsvImportEntrySelected(row) ? 1 : 0;
+    }
+
+    if (safeField === 'line') {
+        const sourceLine = getCsvImportSourceLineLabel(row);
+        return Number.isFinite(sourceLine) ? sourceLine : Number.MAX_SAFE_INTEGER;
+    }
+
+    if (safeField === 'index') {
+        const stableIndex = Number.parseInt(row?._csvImportSortIndex, 10);
+        return Number.isFinite(stableIndex) ? stableIndex : Number.MAX_SAFE_INTEGER;
+    }
+
+    if (safeField === 'date') {
+        return parseDateKeyToTimestamp(row?.date || '') ?? Number.MAX_SAFE_INTEGER;
+    }
+
+    if (safeField === 'description') {
+        return String(row?.description || '').toLowerCase();
+    }
+
+    if (safeField === 'amount') {
+        return Number.isFinite(amountValue) ? amountValue : Number.MAX_SAFE_INTEGER;
+    }
+
+    if (safeField === 'status') {
+        return getCsvImportStatusSortValue(row);
+    }
+
+    if (mode === CSV_IMPORT_PREVIEW_MODE_RAW && safeField.startsWith('raw-')) {
+        const index = safeField.startsWith('raw-') ? Number.parseInt(safeField.slice(4), 10) : -1;
+        const rawValue = Number.isInteger(index) && index >= 0 && Array.isArray(row?.rawValues)
+            ? row.rawValues[index]
+            : '';
+        return String(rawValue || '').toLowerCase();
+    }
+
+    return safeField === 'index'
+        ? Number.parseInt(row?._csvImportSortIndex, 10)
+        : String(row?._csvImportSortValue || '').toLowerCase();
+}
+
+function compareCsvImportSortValues(a, b) {
+    const aIsNumber = Number.isFinite(a);
+    const bIsNumber = Number.isFinite(b);
+    const aIsMissing = a == null || (aIsNumber && Number.isNaN(a));
+    const bIsMissing = b == null || (bIsNumber && Number.isNaN(b));
+
+    if (aIsMissing && bIsMissing) return 0;
+    if (aIsMissing) return 1;
+    if (bIsMissing) return -1;
+
+    if (aIsNumber && bIsNumber) return a - b;
+    if (aIsNumber) return -1;
+    if (bIsNumber) return 1;
+
+    const aText = String(a).toLowerCase();
+    const bText = String(b).toLowerCase();
+    return aText.localeCompare(bText, undefined, { numeric: true, sensitivity: 'base' });
+}
+
+function getCsvImportRawSortFields(entries = []) {
+    const headers = getCsvImportReferenceRawHeaders(entries);
+    const maxColumns = Math.max(
+        headers.length,
+        getCsvImportReferenceRawColumnCount(entries)
+    );
+    return maxColumns > 0
+        ? Array.from({ length: maxColumns }, (_, index) => `raw-${index}`)
+        : [];
+}
+
+function getCsvImportAvailableSortFields(mode = CSV_IMPORT_PREVIEW_MODE_PARSED, entries = []) {
+    if (mode === CSV_IMPORT_PREVIEW_MODE_RAW) {
+        return [
+            'import',
+            'index',
+            'line',
+            ...getCsvImportRawSortFields(entries),
+            'status'
+        ];
+    }
+
+    return ['import', 'index', 'line', 'date', 'description', 'amount', 'status'];
+}
+
+function normalizeCsvImportSortState(mode = CSV_IMPORT_PREVIEW_MODE_PARSED, entries = []) {
+    const available = getCsvImportAvailableSortFields(mode, entries);
+    const nextField = available.includes(csvImportSortField)
+        ? csvImportSortField
+        : (mode === CSV_IMPORT_PREVIEW_MODE_RAW ? CSV_IMPORT_SORT_FIELD_RAW_DEFAULT : CSV_IMPORT_SORT_FIELD_PARSED_DEFAULT);
+    const direction = CSV_IMPORT_SORT_DIRECTIONS.has(csvImportSortDirection)
+        ? csvImportSortDirection
+        : CSV_IMPORT_SORT_DIRECTION_ASC;
+    return { field: nextField, direction };
+}
+
+function getCsvImportSortArrow(field = '') {
+    if (field !== csvImportSortField) return '\u2195';
+    return csvImportSortDirection === CSV_IMPORT_SORT_DIRECTION_ASC ? '\u2191' : '\u2193';
+}
+
+function csvImportSortEntries(entries = [], mode = CSV_IMPORT_PREVIEW_MODE_PARSED, field = CSV_IMPORT_SORT_FIELD_PARSED_DEFAULT, direction = CSV_IMPORT_SORT_DIRECTION_ASC) {
+    const normalizedDirection = direction === CSV_IMPORT_SORT_DIRECTION_DESC
+        ? CSV_IMPORT_SORT_DIRECTION_DESC
+        : CSV_IMPORT_SORT_DIRECTION_ASC;
+    const sorted = entries.slice();
+    const directionMultiplier = normalizedDirection === CSV_IMPORT_SORT_DIRECTION_ASC ? 1 : -1;
+
+    sorted.sort((left, right) => {
+        const leftValue = getCsvImportSortFieldValue(left, field, mode);
+        const rightValue = getCsvImportSortFieldValue(right, field, mode);
+        const diff = compareCsvImportSortValues(leftValue, rightValue) * directionMultiplier;
+        if (diff !== 0) return diff;
+        return (Number.parseInt(left?._csvImportSortIndex, 10) || 0) - (Number.parseInt(right?._csvImportSortIndex, 10) || 0);
+    });
+
+    return sorted;
+}
+
 function csvImportGetRowStatus(row = {}) {
     if (!row || row.status === 'invalid') return 'invalid';
     if (row.status === 'attention') return 'attention';
@@ -17271,16 +17638,16 @@ function syncCsvImportSelection(entries = []) {
 
 function renderCsvImportRowSelectionControl(row = {}) {
     const selectable = isCsvImportEntrySelectable(row);
-    const selected = selectable && isCsvImportEntrySelected(row);
+    if (!selectable) return '';
+
+    const selected = isCsvImportEntrySelected(row);
     const key = getCsvImportEntryKey(row);
     const status = csvImportGetRowStatus(row);
-    const label = selectable
-        ? selected
-            ? 'Selected for import'
-            : 'Not selected for import'
-        : status === 'invalid'
-            ? 'Invalid rows cannot be imported'
-            : 'Duplicate rows are skipped by default';
+    const label = selected
+        ? 'Selected for import'
+        : status === 'attention'
+            ? 'Needs attention row can be imported'
+            : 'Ready row can be imported';
     return `
         <label class="csv-import-row-select-label" title="${esc(label)}">
             <input
@@ -17301,11 +17668,10 @@ function csvImportFilterEntries(entries = [], filterMode = 'ready', searchQuery 
     if (mode === 'all') return entries.slice();
     const modeRows = mode === 'duplicates'
         ? entries.filter((row) => csvImportGetRowStatus(row) === 'duplicate')
+        : mode === 'attention'
+            ? entries.filter((row) => csvImportGetRowStatus(row) === 'attention')
         : mode === 'invalid'
-            ? entries.filter((row) => {
-                const status = csvImportGetRowStatus(row);
-                return status === 'invalid' || status === 'attention';
-            })
+            ? entries.filter((row) => csvImportGetRowStatus(row) === 'invalid')
             : entries.filter((row) => csvImportGetRowStatus(row) === 'ready');
 
     const normalizedQuery = String(searchQuery || '').trim().toLowerCase();
@@ -17346,11 +17712,11 @@ function csvImportRenderParsedRows(entries = [], showReasons = false) {
             const reasonText = getCsvImportDisplayReason(row);
             const reason = reasonText && showReasons ? ` <span class="text-muted">(${esc(reasonText)})</span>` : '';
             const selectedClass = isCsvImportEntrySelected(row) ? ' csv-import-row-selected' : '';
-            return `
-                <tr class="${rowClass}${selectedClass}">
-                    <td class="csv-import-select-cell">${renderCsvImportRowSelectionControl(row)}</td>
-                    <td>${index + 1}</td>
-                    <td>${row.sourceRow || ''}</td>
+                return `
+                    <tr class="${rowClass}${selectedClass}">
+                        <td class="csv-import-select-cell">${renderCsvImportRowSelectionControl(row)}</td>
+                        <td>${index + 1}</td>
+                        <td>${row.sourceRow || ''}</td>
                     <td>${esc(row.date || '')}</td>
                     <td>${esc(row.description || '')}</td>
                     <td class="csv-import-amount-cell">${esc(amount || '')}${reason}</td>
@@ -17359,6 +17725,34 @@ function csvImportRenderParsedRows(entries = [], showReasons = false) {
             `;
         }).join('')
         : '<tr><td colspan="7">No rows to preview.</td></tr>';
+}
+
+function csvImportRenderSortableHeaderCell(field, label, thClass = '') {
+    const isActive = field === csvImportSortField;
+    const ariaSort = isActive
+        ? (csvImportSortDirection === CSV_IMPORT_SORT_DIRECTION_ASC ? 'ascending' : 'descending')
+        : 'none';
+    const arrow = getCsvImportSortArrow(field);
+    const direction = isActive && csvImportSortDirection === CSV_IMPORT_SORT_DIRECTION_ASC
+        ? CSV_IMPORT_SORT_DIRECTION_DESC
+        : CSV_IMPORT_SORT_DIRECTION_ASC;
+    const title = `Sort ${label} ${direction}ending`;
+
+    const className = `csv-import-sortable${isActive ? ' is-active' : ''}${thClass ? ` ${thClass}` : ''}`;
+    return `
+        <th class="${className}" data-sort="${field}" aria-sort="${ariaSort}">
+            <button
+                type="button"
+                class="csv-import-sortable-button"
+                data-tooltip="${title}"
+                onclick="window.setCsvImportSort('${field}')"
+                aria-label="${title}"
+            >
+                <span class="csv-import-sort-label">${esc(label)}</span>
+                <span class="csv-import-sort-arrow" aria-hidden="true">${arrow}</span>
+            </button>
+        </th>
+    `;
 }
 
 function csvImportRenderRawRows(entries = []) {
@@ -17380,6 +17774,7 @@ function csvImportRenderRawRows(entries = []) {
                 return `
                     <tr class="${rowClass}${selectedClass}">
                         <td class="csv-import-select-cell">${renderCsvImportRowSelectionControl(row)}</td>
+                        <td>${index + 1}</td>
                         <td>${row.sourceRow || ''}</td>
                         ${cells}
                         <td><span class="csv-import-status-badge ${badgeClass}">${label}</span></td>
@@ -17392,13 +17787,13 @@ function csvImportRenderRawRows(entries = []) {
 function csvImportRenderParsedHeader() {
     return `
         <tr>
-            <th>Import</th>
-            <th>#</th>
-            <th>Line</th>
-            <th>Date</th>
-            <th>Description</th>
-            <th>Amount</th>
-            <th>Status</th>
+            ${csvImportRenderSortableHeaderCell('import', 'Import')}
+            ${csvImportRenderSortableHeaderCell('index', '#')}
+            ${csvImportRenderSortableHeaderCell('line', 'Line')}
+            ${csvImportRenderSortableHeaderCell('date', 'Date')}
+            ${csvImportRenderSortableHeaderCell('description', 'Description')}
+            ${csvImportRenderSortableHeaderCell('amount', 'Amount')}
+            ${csvImportRenderSortableHeaderCell('status', 'Status')}
         </tr>
     `;
 }
@@ -17409,19 +17804,33 @@ function csvImportRenderRawHeader(entries = []) {
         headers.length,
         getCsvImportReferenceRawColumnCount(entries)
     );
+    const sortFieldMap = maxColumns ? Array.from({ length: maxColumns }, (_, index) => `raw-${index}`) : [];
+    const rawSortHeaders = maxColumns
+        ? headers.length
+            ? headers.map((value, index) => ({
+                label: String(value || `Column ${index + 1}`).trim(),
+                field: sortFieldMap[index]
+            }))
+            : Array.from({ length: maxColumns }, (_, index) => ({
+                label: `Column ${index + 1}`,
+                field: sortFieldMap[index]
+            }))
+        : [];
     const headerCells = headers.length
-        ? headers.map((value, index) => {
-            const header = String(value || '').trim();
-            return `<th class="csv-import-raw-header-cell">${esc(header || `Column ${index + 1}`)}</th>`;
-        }).join('')
-        : Array.from({ length: maxColumns }, (_, index) => `<th class="csv-import-raw-header-cell">Column ${index + 1}</th>`).join('');
+        ? rawSortHeaders.map(({ label, field }) => csvImportRenderSortableHeaderCell(field, label, 'csv-import-raw-header-cell')).join('')
+        : Array.from({ length: maxColumns }, (_, index) => {
+            const field = sortFieldMap[index];
+            const label = `Column ${index + 1}`;
+            return csvImportRenderSortableHeaderCell(field, label, 'csv-import-raw-header-cell');
+        }).join('');
 
     return `
         <tr>
-            <th>Import</th>
-            <th>Line</th>
+            ${csvImportRenderSortableHeaderCell('import', 'Import')}
+            ${csvImportRenderSortableHeaderCell('index', '#')}
+            ${csvImportRenderSortableHeaderCell('line', 'Line')}
             ${headerCells}
-            <th>Status</th>
+            ${csvImportRenderSortableHeaderCell('status', 'Status')}
         </tr>
     `;
 }
@@ -17525,7 +17934,8 @@ function csvImportRenderPreviewCards(entries = [], mode = CSV_IMPORT_PREVIEW_MOD
 function getCsvImportFilterLabel(mode = 'ready') {
     if (mode === 'all') return 'rows';
     if (mode === 'duplicates') return 'duplicate rows';
-    if (mode === 'invalid') return 'rows needing attention';
+    if (mode === 'attention') return 'rows needing review';
+    if (mode === 'invalid') return 'invalid rows';
     return 'ready transactions';
 }
 
@@ -17568,12 +17978,14 @@ function updateCsvImportFilterButtons(mode = 'ready') {
         ['all', document.getElementById('csvImportViewAll')],
         ['ready', document.getElementById('csvImportViewReady')],
         ['duplicates', document.getElementById('csvImportViewDuplicates')],
+        ['attention', document.getElementById('csvImportViewAttention')],
         ['invalid', document.getElementById('csvImportViewInvalid')]
     ];
     const expandedButtons = [
         ['all', document.getElementById('csvImportExpandedViewAll')],
         ['ready', document.getElementById('csvImportExpandedViewReady')],
         ['duplicates', document.getElementById('csvImportExpandedViewDuplicates')],
+        ['attention', document.getElementById('csvImportExpandedViewAttention')],
         ['invalid', document.getElementById('csvImportExpandedViewInvalid')]
     ];
     buttons.forEach(([key, button]) => {
@@ -17603,6 +18015,7 @@ function updateCsvImportFilterButtons(mode = 'ready') {
         reviewModal.classList.toggle('is-filter-all', mode === 'all');
         reviewModal.classList.toggle('is-filter-ready', mode === 'ready');
         reviewModal.classList.toggle('is-filter-duplicates', mode === 'duplicates');
+        reviewModal.classList.toggle('is-filter-attention', mode === 'attention');
         reviewModal.classList.toggle('is-filter-invalid', mode === 'invalid');
     }
 }
@@ -17622,6 +18035,7 @@ function buildCsvImportPreviewState(mapping, skipDuplicates = false) {
     const existingSet = new Set((existing || []).map((tx) => csvImportFingerprint(tx)));
     const inSession = new Set();
     const usedMatchIds = new Set();
+    let sortIndex = 0;
 
     for (const payload of payloads) {
         payload.rows.forEach((row, rowIndex) => {
@@ -17634,6 +18048,8 @@ function buildCsvImportPreviewState(mapping, skipDuplicates = false) {
                 now,
                 payload.headers || []
             );
+            parsed._csvImportSortIndex = sortIndex;
+            sortIndex += 1;
             parsed.selectionKey = `${payload.fileName || 'csv'}:${sourceRow}:${rowIndex}`;
             if (parsed.status === 'invalid') {
                 invalid += 1;
@@ -17714,7 +18130,15 @@ function refreshCsvImportReview(skipDuplicates = false) {
     const selectedEntries = syncCsvImportSelection(csvImportState.allEntries);
     csvImportState.selectedEntries = selectedEntries;
     csvImportState.importRows = selectedEntries.map((row) => row.tx).filter(Boolean);
-    const filteredEntries = csvImportFilterEntries(csvImportState.allEntries, csvImportFilterMode, query);
+    const sortState = normalizeCsvImportSortState(csvImportPreviewMode, csvImportState.allEntries);
+    csvImportSortField = sortState.field;
+    csvImportSortDirection = sortState.direction;
+    const filteredEntries = csvImportSortEntries(
+        csvImportFilterEntries(csvImportState.allEntries, csvImportFilterMode, query),
+        csvImportPreviewMode,
+        csvImportSortField,
+        csvImportSortDirection
+    );
     csvImportState.entries = csvImportPreviewExpanded
         ? filteredEntries
         : filteredEntries.slice(0, CSV_IMPORT_PREVIEW_LIMIT);
@@ -17869,7 +18293,7 @@ function refreshCsvImportReview(skipDuplicates = false) {
     if (previewCountEl) {
         const shown = csvImportState.entries.length;
         const total = filteredEntries.length;
-        previewCountEl.textContent = `Showing ${shown} of ${total} ${getCsvImportFilterLabel(csvImportFilterMode)}`;
+        previewCountEl.textContent = `Showing ${shown} of ${total}`;
         previewCountEl.hidden = Boolean(csvImportExpandedPreviewOpen);
     }
     const selectedCountText = `${importRowsCount} selected for import`;
@@ -17944,7 +18368,8 @@ function getCsvImportFilterLongLabel(mode = 'ready', count = 0) {
     const plural = count === 1 ? '' : 's';
     if (mode === 'all') return `${count} row${plural}`;
     if (mode === 'duplicates') return `${count} duplicate row${plural}`;
-    if (mode === 'invalid') return `${count} row${plural} needing attention`;
+    if (mode === 'attention') return `${count} row${plural} needing review`;
+    if (mode === 'invalid') return `${count} invalid row${plural}`;
     return `${count} ready transaction${count === 1 ? '' : 's'}`;
 }
 
@@ -17952,7 +18377,27 @@ window.setCsvImportPreviewMode = function(mode) {
     const nextMode = CSV_IMPORT_PREVIEW_MODES.has(mode) ? mode : CSV_IMPORT_PREVIEW_MODE_PARSED;
     csvImportPreviewMode = nextMode;
     csvImportPreviewExpanded = false;
+    const sortState = normalizeCsvImportSortState(csvImportPreviewMode, csvImportState?.allEntries || []);
+    csvImportSortField = sortState.field;
+    csvImportSortDirection = sortState.direction;
     if (!csvImportState) return;
+    refreshCsvImportReview(Boolean(document.getElementById('csvImportSkipDuplicates')?.checked));
+};
+
+window.setCsvImportSort = function(field) {
+    if (!csvImportState) return;
+    const entries = csvImportState.allEntries || [];
+    const normalized = normalizeCsvImportSortState(csvImportPreviewMode, entries);
+    const nextDirection = String(field || '') === normalized.field
+        ? (normalized.direction === CSV_IMPORT_SORT_DIRECTION_ASC ? CSV_IMPORT_SORT_DIRECTION_DESC : CSV_IMPORT_SORT_DIRECTION_ASC)
+        : CSV_IMPORT_SORT_DIRECTION_ASC;
+    const nextField = getCsvImportAvailableSortFields(csvImportPreviewMode, entries).includes(String(field || '').trim())
+        ? String(field || '').trim()
+        : normalized.field;
+
+    csvImportSortField = nextField;
+    csvImportSortDirection = nextDirection;
+    csvImportPreviewExpanded = false;
     refreshCsvImportReview(Boolean(document.getElementById('csvImportSkipDuplicates')?.checked));
 };
 
@@ -18038,102 +18483,6 @@ window.toggleCsvImportPreviewLimit = function() {
     if (!csvImportState) return;
     csvImportPreviewExpanded = !csvImportPreviewExpanded;
     refreshCsvImportReview(Boolean(document.getElementById('csvImportSkipDuplicates')?.checked));
-};
-
-function getCsvImportPreviewHeightBounds() {
-    const viewportLimit = Math.max(460, Math.floor((window.innerHeight || CSV_IMPORT_PREVIEW_MAX_HEIGHT) * 0.78));
-    return {
-        min: CSV_IMPORT_PREVIEW_MIN_HEIGHT,
-        max: Math.max(CSV_IMPORT_PREVIEW_MIN_HEIGHT, Math.min(CSV_IMPORT_PREVIEW_MAX_HEIGHT, viewportLimit))
-    };
-}
-
-function setCsvImportPreviewHeight(height) {
-    const wrap = document.getElementById('csvImportPreviewWrap');
-    if (!wrap) return;
-    const bounds = getCsvImportPreviewHeightBounds();
-    const nextHeight = Math.max(bounds.min, Math.min(bounds.max, Math.round(height)));
-    wrap.style.setProperty('--csv-import-preview-height', `${nextHeight}px`);
-    wrap.style.setProperty('height', `${nextHeight}px`, 'important');
-    wrap.style.setProperty('max-height', 'none', 'important');
-    wrap.classList.add('is-user-sized');
-}
-
-window.resetCsvImportPreviewHeight = function() {
-    const wrap = document.getElementById('csvImportPreviewWrap');
-    if (!wrap) return;
-    wrap.style.removeProperty('--csv-import-preview-height');
-    wrap.style.height = '';
-    wrap.style.maxHeight = '';
-    wrap.classList.remove('is-user-sized');
-};
-
-window.startCsvImportPreviewResize = function(event) {
-    const wrap = document.getElementById('csvImportPreviewWrap');
-    const handle = document.getElementById('csvImportPreviewResizeHandle');
-    if (!wrap || !handle || !event || event.pointerType === 'touch' || !Number.isFinite(event.clientY)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (typeof csvImportPreviewResizeCleanup === 'function') csvImportPreviewResizeCleanup();
-
-    const startY = event.clientY;
-    const startHeight = wrap.getBoundingClientRect().height || CSV_IMPORT_PREVIEW_DEFAULT_HEIGHT;
-    const pointerId = event.pointerId;
-    const eventPrefix = event.type && event.type.startsWith('mouse') ? 'mouse' : 'pointer';
-    const moveEventName = eventPrefix === 'mouse' ? 'mousemove' : 'pointermove';
-    const endEventName = eventPrefix === 'mouse' ? 'mouseup' : 'pointerup';
-    const cancelEventName = eventPrefix === 'mouse' ? 'mouseleave' : 'pointercancel';
-    handle.classList.add('is-dragging');
-    if (handle.setPointerCapture && Number.isFinite(pointerId)) {
-        try { handle.setPointerCapture(pointerId); } catch (error) {}
-    }
-
-    const onMove = (moveEvent) => {
-        if (!Number.isFinite(moveEvent.clientY)) return;
-        moveEvent.preventDefault();
-        const delta = moveEvent.clientY - startY;
-        setCsvImportPreviewHeight(startHeight + delta);
-    };
-    const onEnd = () => {
-        handle.classList.remove('is-dragging');
-        document.removeEventListener(moveEventName, onMove);
-        document.removeEventListener(endEventName, onEnd);
-        document.removeEventListener(cancelEventName, onEnd);
-        csvImportPreviewResizeCleanup = null;
-    };
-
-    csvImportPreviewResizeCleanup = onEnd;
-    document.addEventListener(moveEventName, onMove, { passive: false });
-    document.addEventListener(endEventName, onEnd);
-    document.addEventListener(cancelEventName, onEnd);
-};
-
-document.addEventListener('pointerdown', (event) => {
-    const handle = event.target?.closest?.('#csvImportPreviewResizeHandle');
-    if (!handle) return;
-    window.startCsvImportPreviewResize(event);
-});
-
-document.addEventListener('mousedown', (event) => {
-    const handle = event.target?.closest?.('#csvImportPreviewResizeHandle');
-    if (!handle || window.PointerEvent) return;
-    window.startCsvImportPreviewResize(event);
-});
-
-window.handleCsvImportPreviewResizeKey = function(event) {
-    const wrap = document.getElementById('csvImportPreviewWrap');
-    if (!wrap || !event) return;
-    const currentHeight = wrap.getBoundingClientRect().height || CSV_IMPORT_PREVIEW_DEFAULT_HEIGHT;
-    if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        setCsvImportPreviewHeight(currentHeight + 32);
-    } else if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        setCsvImportPreviewHeight(currentHeight - 32);
-    } else if (event.key === 'Home' || event.key === 'Escape') {
-        event.preventDefault();
-        window.resetCsvImportPreviewHeight();
-    }
 };
 
 window.openCsvImportPreviewExpandPanel = function() {
@@ -18332,7 +18681,6 @@ window.openCsvImportReviewModal = function(filePayloads) {
     if (compactSearchInput) compactSearchInput.value = '';
     const expandedSearchInput = document.getElementById('csvImportExpandedSearchRows');
     if (expandedSearchInput) expandedSearchInput.value = '';
-    window.resetCsvImportPreviewHeight();
     csvImportSearchQuery = '';
     const skipDuplicatesInput = document.getElementById('csvImportSkipDuplicates');
     if (skipDuplicatesInput) {
@@ -18344,6 +18692,8 @@ window.openCsvImportReviewModal = function(filePayloads) {
     csvImportFilterMode = 'all';
     csvImportPreviewMode = CSV_IMPORT_PREVIEW_MODE_PARSED;
     csvImportPreviewExpanded = false;
+    csvImportSortField = CSV_IMPORT_SORT_FIELD_PARSED_DEFAULT;
+    csvImportSortDirection = CSV_IMPORT_SORT_DIRECTION_ASC;
     csvImportAdvancedOptionsOpen = false;
     applyCsvImportMapping(firstMapping);
     refreshCsvImportReview(Boolean(skipDuplicatesInput?.checked));
@@ -18393,8 +18743,6 @@ window.deleteCsvImportFile = function() {
 window.closeCsvImportReviewModal = function() {
     const input = document.getElementById('csvImportInput');
     if (input) input.value = '';
-    if (typeof csvImportPreviewResizeCleanup === 'function') csvImportPreviewResizeCleanup();
-    window.resetCsvImportPreviewHeight();
     const compactSearchInput = document.getElementById('csvImportSearchRows');
     if (compactSearchInput) compactSearchInput.value = '';
     const expandedSearchInput = document.getElementById('csvImportExpandedSearchRows');

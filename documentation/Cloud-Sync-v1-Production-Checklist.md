@@ -73,7 +73,7 @@ Cloud Sync v1 is the default protection path for signed-in users. The app still 
 - Confirm Privacy Policy and Terms match current Cloud Sync behavior.
 - Confirm no analytics, advertising pixels, third-party tracking scripts, or fingerprinting scripts are loaded by the app.
 - Confirm support paths exist for lost recovery key, device limit / Paused sync, and version conflict review.
-- Keep PIN/passkey-protected local recovery-key storage as the top v1.1 security priority.
+- Track PIN/passkey-protected local recovery-key storage as future security design work; do not describe it as implemented until the design ships.
 
 ## Live Launch Gate
 
