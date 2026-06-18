@@ -171,6 +171,19 @@
             text-align: center;
         }
 
+        .oauth-disclosure-note {
+            margin: 0.55rem 0 0;
+            color: var(--text-dim);
+            font-size: 0.78rem;
+            line-height: 1.45;
+            text-align: center;
+        }
+
+        .oauth-disclosure-note strong {
+            color: var(--text);
+            font-weight: 700;
+        }
+
         .google-mark {
             width: 18px;
             height: 18px;
@@ -314,6 +327,9 @@
                 </svg>
                 Continue with Google
             </button>
+            <p class="oauth-disclosure-note">
+                <strong>Google sign-in is optional.</strong> It opens Google OAuth, which browser privacy tools may show as a Google tracker/request. Google receives sign-in metadata; Zam! does not share budget data or recovery keys with Google.
+            </p>
 
             <button type="button" class="auth-provider-btn auth-provider-btn-disabled" id="appleSignInBtn" disabled aria-disabled="true" title="Apple sign-in is waiting until demand is high enough.">
                 <svg class="apple-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">

@@ -72,6 +72,7 @@ test.describe('login page safeguards', () => {
         await page.goto('/login.html');
         await expect(page.locator('#authTitle')).toHaveText('Welcome Back');
         await expect(page.locator('#magicLinkBtn')).toHaveText('Email me a sign-in link');
+        await expect(page.locator('.oauth-disclosure-note')).toContainText('browser privacy tools may show as a Google tracker/request');
 
         await page.locator('#magicEmail').fill('existing@example.com');
         await page.locator('#magicLinkBtn').click();
