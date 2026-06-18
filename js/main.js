@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (State.isBrowserStorageAvailable?.({ refresh: true }) === false) {
         BudgetPrep.failPreparingBudget?.({
             title: 'Browser storage is blocked',
-            detail: 'Enable site data for app.zambudget.com so Zam can load and save this browser budget.'
+            detail: 'Zam needs required browser site data to save and load your budget on this device. Enable site data for app.zambudget.com or use your browser settings to clear/reset it.'
         });
         return;
     }

@@ -1,6 +1,6 @@
 (function () {
     const COOKIE_NAME = 'zam_site_data_notice';
-    const COOKIE_VALUE = 'acknowledged';
+    const COOKIE_VALUE = 'required';
     const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 180;
     const NOTICE_ID = 'zamSiteDataNotice';
     const STYLE_ID = 'zamSiteDataNoticeStyles';
@@ -125,7 +125,8 @@
     }
 
     function showNotice() {
-        if (getCookie(COOKIE_NAME) === COOKIE_VALUE || document.getElementById(NOTICE_ID)) return;
+        const currentValue = getCookie(COOKIE_NAME);
+        if ((currentValue === COOKIE_VALUE || currentValue === 'acknowledged') || document.getElementById(NOTICE_ID)) return;
 
         injectStyles();
 
@@ -140,8 +141,8 @@
                 <p>Zam uses required first-party site data on app.zambudget.com for budgets, sign-in state, Cloud Sync trusted browser keys, preferences, and security. No analytics or advertising cookies are used. Blocking site data may stop Zam from saving or loading correctly.</p>
             </div>
             <div class="site-data-notice-actions">
-                <a class="site-data-notice-link" href="https://zambudget.com/privacy" target="_blank" rel="noopener noreferrer">Privacy</a>
-                <button type="button" class="site-data-notice-button">I understand</button>
+                <a class="site-data-notice-link" href="https://zambudget.com/privacy" target="_blank" rel="noopener noreferrer">Learn more</a>
+                <button type="button" class="site-data-notice-button">Got it</button>
             </div>
         `;
 

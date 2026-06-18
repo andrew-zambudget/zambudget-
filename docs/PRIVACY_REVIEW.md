@@ -55,7 +55,7 @@ Do not add these without a new privacy review:
 Current behavior:
 
 - Zam uses required first-party site data on `app.zambudget.com`.
-- `zam_site_data_notice` is a first-party, host-only cookie set by `app.zambudget.com` after the user acknowledges the required site-data notice.
+- `zam_site_data_notice=required` is a first-party, host-only cookie set by `app.zambudget.com` after the user acknowledges the required site-data notice.
 - The notice cookie records only that the browser has seen the notice.
 - The notice cookie is not used for advertising, analytics, retargeting, or cross-site tracking.
 - LocalStorage, sessionStorage, and IndexedDB remain required for browser budgets, preferences, sign-in state, Cloud Sync trusted browser unlocks, and security-related flows.
