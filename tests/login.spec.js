@@ -7,7 +7,7 @@ test.describe('login page safeguards', () => {
     });
 
     test('magic link rate limit shows clear cooldown guidance', async ({ page }) => {
-        await page.route('**/@supabase/supabase-js@2', route => route.fulfill({
+        await page.route('**/js/vendor/supabase.js', route => route.fulfill({
             status: 200,
             contentType: 'application/javascript',
             body: `
@@ -47,7 +47,7 @@ test.describe('login page safeguards', () => {
     });
 
     test('default email sign-in does not auto-create accounts', async ({ page }) => {
-        await page.route('**/@supabase/supabase-js@2', route => route.fulfill({
+        await page.route('**/js/vendor/supabase.js', route => route.fulfill({
             status: 200,
             contentType: 'application/javascript',
             body: `
@@ -89,7 +89,7 @@ test.describe('login page safeguards', () => {
     });
 
     test('magic link submit is single-flight during duplicate submit events', async ({ page }) => {
-        await page.route('**/@supabase/supabase-js@2', route => route.fulfill({
+        await page.route('**/js/vendor/supabase.js', route => route.fulfill({
             status: 200,
             contentType: 'application/javascript',
             body: `
@@ -132,7 +132,7 @@ test.describe('login page safeguards', () => {
     });
 
     test('unknown existing-account sign-in does not expose account absence', async ({ page }) => {
-        await page.route('**/@supabase/supabase-js@2', route => route.fulfill({
+        await page.route('**/js/vendor/supabase.js', route => route.fulfill({
             status: 200,
             contentType: 'application/javascript',
             body: `
@@ -178,7 +178,7 @@ test.describe('login page safeguards', () => {
     });
 
     test('create account mode explicitly allows account creation by email', async ({ page }) => {
-        await page.route('**/@supabase/supabase-js@2', route => route.fulfill({
+        await page.route('**/js/vendor/supabase.js', route => route.fulfill({
             status: 200,
             contentType: 'application/javascript',
             body: `
