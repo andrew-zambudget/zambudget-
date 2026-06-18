@@ -4220,6 +4220,12 @@ noscript div,
   overflow: hidden;
 }
 
+#csvImportReviewModal .csv-import-preview-table th.csv-import-static-header {
+  padding: 0.45rem;
+  color: var(--text-dim);
+  font-weight: 750;
+}
+
 #csvImportReviewModal .csv-import-sortable.is-active {
   background: color-mix(in srgb, var(--surface) 84%, var(--accent) 16%);
 }
@@ -4235,7 +4241,7 @@ noscript div,
   align-items: center;
   justify-content: space-between;
   gap: 0.35rem;
-  padding: 0.45rem 1.05rem 0.45rem 0.45rem;
+  padding: 0.45rem;
   color: inherit;
   background: transparent;
   transition: background-color 0.15s ease, color 0.15s ease;
@@ -4261,13 +4267,13 @@ noscript div,
 
 #csvImportReviewModal .csv-import-sortable-button .csv-import-sort-arrow {
   display: inline-flex;
-  width: 0.85rem;
+  min-width: 0.65rem;
   justify-content: center;
   flex: 0 0 auto;
   color: var(--text-dim);
-  font-size: 0.84rem;
+  font-size: 0.78rem;
   position: static;
-  margin-left: auto;
+  margin-left: 0.16rem;
   transform: none;
 }
 
@@ -4657,14 +4663,16 @@ noscript div,
     justify-content: flex-start;
   }
 
-  #csvImportReviewModal .csv-import-filter-group {
+  #csvImportReviewModal .csv-import-filter-group,
+  #csvImportReviewModal .csv-import-command-cell .csv-import-filter-group {
     display: flex;
     flex-wrap: wrap;
     overflow: visible;
   }
 
-  #csvImportReviewModal .csv-import-filter-group .btn-small {
-    flex: 0 1 auto;
+  #csvImportReviewModal .csv-import-filter-group .btn-small,
+  #csvImportReviewModal .csv-import-command-cell .csv-import-filter-group .btn-small {
+    flex: 1 1 calc(50% - 0.3rem);
     min-width: 0;
   }
 
@@ -4702,6 +4710,11 @@ noscript div,
     height: 250px;
     max-height: 250px;
     resize: none;
+    overflow-x: auto;
+  }
+
+  #csvImportReviewModal:not(.csv-import-expanded-preview-open) .csv-import-preview-table:not(.csv-import-preview-table-raw) {
+    min-width: 680px;
   }
 
   #csvImportReviewModal .csv-import-preview-expanded-panel {

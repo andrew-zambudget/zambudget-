@@ -16818,17 +16818,30 @@ function parseCsvAmountValue(value = '') {
     return Number.isFinite(parsed) ? parsed * sign : NaN;
 }
 
+function buildStrictCsvDateCandidate(yearValue, monthValue, dayValue) {
+    let year = Number.parseInt(yearValue, 10);
+    const month = Number.parseInt(monthValue, 10);
+    const day = Number.parseInt(dayValue, 10);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return '';
+
+    if (String(yearValue).length === 2) year += 2000;
+    const candidate = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return isValidLocalISODate(candidate) ? candidate : '';
+}
+
 function parseCsvDateValue(value = '', fallback = '') {
     const raw = String(value || '').trim();
     if (!raw) return fallback;
 
-    const compact = raw.replace(/[\r\n]/g, '').trim();
-    const mmddyy = compact.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-    const candidate = mmddyy && mmddyy.length === 4
-        ? `${mmddyy[3].length === 2 ? `20${mmddyy[3]}` : mmddyy[3]}-${mmddyy[1].padStart(2, '0')}-${mmddyy[2].padStart(2, '0')}`
-        : compact;
-    if (isValidLocalISODate(candidate)) return candidate;
-    const parsed = new Date(candidate);
+    const compact = raw.replace(/[\r\n]/g, ' ').replace(/\s+/g, ' ').trim();
+    const yearFirst = compact.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T].*)?$/);
+    if (yearFirst) return buildStrictCsvDateCandidate(yearFirst[1], yearFirst[2], yearFirst[3]) || fallback;
+
+    const monthFirst = compact.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/);
+    if (monthFirst) return buildStrictCsvDateCandidate(monthFirst[3], monthFirst[1], monthFirst[2]) || fallback;
+
+    if (isValidLocalISODate(compact)) return compact;
+    const parsed = new Date(compact);
     return Number.isNaN(parsed.getTime()) ? fallback : getLocalDateKey(parsed);
 }
 
@@ -17248,6 +17261,7 @@ function buildCsvImportRow(fileName, sourceRow, row, mapping, now, rawHeaders = 
 
     const typeGuess = normalizeCsvTransactionType(mapValueFromRow(row, mapping, 'type'), amountResult.amount, amountResult.typeHint || '');
     const rawDate = mapValueFromRow(row, mapping, 'date');
+    const rawDescription = mapValueFromRow(row, mapping, 'description');
     if (!rawDate) {
         return {
             status: 'invalid',
@@ -17268,6 +17282,9 @@ function buildCsvImportRow(fileName, sourceRow, row, mapping, now, rawHeaders = 
 
     const date = parseCsvDateValue(rawDate, '');
     if (!date) {
+        const previewAmount = Number.isFinite(amountResult.amount)
+            ? formatMoney(Math.abs(Math.round(amountResult.amount * 100) / 100))
+            : '';
         return {
             status: 'invalid',
             fileName,
@@ -17275,17 +17292,16 @@ function buildCsvImportRow(fileName, sourceRow, row, mapping, now, rawHeaders = 
             reason: 'Date is invalid.',
             rawHeaders: safeRawHeaders,
             rawValues: safeRawValues,
-            date: '',
-            description: '',
-            amount: '',
-            category: '',
+            date: rawDate,
+            description: rawDescription,
+            amount: previewAmount,
+            category: mapValueFromRow(row, mapping, 'category'),
             type: '',
             tx: null,
             fingerprint: ''
         };
     }
 
-    const rawDescription = mapValueFromRow(row, mapping, 'description');
     const descriptionMissing = !rawDescription;
     const description = rawDescription || 'Imported Transaction';
     const category = mapValueFromRow(row, mapping, 'category');
@@ -17543,15 +17559,13 @@ function getCsvImportRawSortFields(entries = []) {
 function getCsvImportAvailableSortFields(mode = CSV_IMPORT_PREVIEW_MODE_PARSED, entries = []) {
     if (mode === CSV_IMPORT_PREVIEW_MODE_RAW) {
         return [
-            'import',
-            'index',
             'line',
             ...getCsvImportRawSortFields(entries),
             'status'
         ];
     }
 
-    return ['import', 'index', 'line', 'date', 'description', 'amount', 'status'];
+    return ['line', 'date', 'description', 'amount', 'status'];
 }
 
 function normalizeCsvImportSortState(mode = CSV_IMPORT_PREVIEW_MODE_PARSED, entries = []) {
@@ -17565,8 +17579,8 @@ function normalizeCsvImportSortState(mode = CSV_IMPORT_PREVIEW_MODE_PARSED, entr
     return { field: nextField, direction };
 }
 
-function getCsvImportSortArrow(field = '') {
-    if (field !== csvImportSortField) return '\u2195';
+function getCsvImportSortArrow(field = '', activeOnly = false) {
+    if (field !== csvImportSortField) return activeOnly ? '' : '\u2195';
     return csvImportSortDirection === CSV_IMPORT_SORT_DIRECTION_ASC ? '\u2191' : '\u2193';
 }
 
@@ -17739,10 +17753,11 @@ function csvImportRenderSortableHeaderCell(field, label, thClass = '') {
     const ariaSort = isActive
         ? (csvImportSortDirection === CSV_IMPORT_SORT_DIRECTION_ASC ? 'ascending' : 'descending')
         : 'none';
-    const arrow = getCsvImportSortArrow(field);
+    const arrow = getCsvImportSortArrow(field, true);
     const direction = isActive && csvImportSortDirection === CSV_IMPORT_SORT_DIRECTION_ASC
         ? CSV_IMPORT_SORT_DIRECTION_DESC
         : CSV_IMPORT_SORT_DIRECTION_ASC;
+    const displayLabel = isActive && arrow ? `${label} ${arrow}` : label;
     const title = `Sort ${label} ${direction}ending`;
 
     const className = `csv-import-sortable${isActive ? ' is-active' : ''}${thClass ? ` ${thClass}` : ''}`;
@@ -17755,11 +17770,15 @@ function csvImportRenderSortableHeaderCell(field, label, thClass = '') {
                 onclick="window.setCsvImportSort('${field}')"
                 aria-label="${title}"
             >
-                <span class="csv-import-sort-label">${esc(label)}</span>
-                <span class="csv-import-sort-arrow" aria-hidden="true">${arrow}</span>
+                <span class="csv-import-sort-label">${esc(displayLabel)}</span>
             </button>
         </th>
     `;
+}
+
+function csvImportRenderStaticHeaderCell(label, thClass = '') {
+    const className = `csv-import-static-header${thClass ? ` ${thClass}` : ''}`;
+    return `<th class="${className}" scope="col">${esc(label)}</th>`;
 }
 
 function csvImportRenderRawRows(entries = []) {
@@ -17794,8 +17813,8 @@ function csvImportRenderRawRows(entries = []) {
 function csvImportRenderParsedHeader() {
     return `
         <tr>
-            ${csvImportRenderSortableHeaderCell('import', 'Import')}
-            ${csvImportRenderSortableHeaderCell('index', '#')}
+            ${csvImportRenderStaticHeaderCell('Import')}
+            ${csvImportRenderStaticHeaderCell('#')}
             ${csvImportRenderSortableHeaderCell('line', 'Line')}
             ${csvImportRenderSortableHeaderCell('date', 'Date')}
             ${csvImportRenderSortableHeaderCell('description', 'Description')}
@@ -17833,8 +17852,8 @@ function csvImportRenderRawHeader(entries = []) {
 
     return `
         <tr>
-            ${csvImportRenderSortableHeaderCell('import', 'Import')}
-            ${csvImportRenderSortableHeaderCell('index', '#')}
+            ${csvImportRenderStaticHeaderCell('Import')}
+            ${csvImportRenderStaticHeaderCell('#')}
             ${csvImportRenderSortableHeaderCell('line', 'Line')}
             ${headerCells}
             ${csvImportRenderSortableHeaderCell('status', 'Status')}
@@ -18212,7 +18231,7 @@ function refreshCsvImportReview(skipDuplicates = false) {
         summaryBreakdownEl.innerHTML = [
             `${importRowsCount} selected for import`,
             duplicateRows > 0 ? `${duplicateRows} duplicate${pluralRows(duplicateRows)} will be skipped` : '',
-            reviewRows > 0 ? `${reviewRows} row${pluralRows(reviewRows)} need review` : ''
+            reviewRows > 0 ? `${reviewRows} row${pluralRows(reviewRows)} ${reviewRows === 1 ? 'needs' : 'need'} review` : ''
         ].filter(Boolean).join('<br>');
     }
 

@@ -13,6 +13,11 @@ const IMPORT_CSV = [
     '2026-06-04,Bad Amount,abc,,Groceries,Checking,bad amount'
 ].join('\n');
 
+const IMPOSSIBLE_DATE_CSV = [
+    'Posted Date,Payee / Memo,Debit,Credit,Category Name,Account Name,User Note',
+    '2026-06-31,IMPOSSIBLE DATE,8.88,,Groceries,Checking,impossible date'
+].join('\n');
+
 async function seedImportHarness(page) {
     await page.evaluate(() => {
         window.currentUser = { id: 'csv-import-review-test-user' };
@@ -55,11 +60,11 @@ async function seedImportHarness(page) {
     });
 }
 
-async function openImportReview(page) {
-    await page.evaluate(async (csvText) => {
-        const file = new File([csvText], 'zam_csv_import_review_test.csv', { type: 'text/csv' });
+async function openImportReview(page, csvText = IMPORT_CSV, fileName = 'zam_csv_import_review_test.csv') {
+    await page.evaluate(async ({ text, name }) => {
+        const file = new File([text], name, { type: 'text/csv' });
         await window.importTransactionsFromCSV({ target: { files: [file], value: '' } });
-    }, IMPORT_CSV);
+    }, { text: csvText, name: fileName });
 }
 
 test.describe('CSV import review', () => {
@@ -84,6 +89,14 @@ test.describe('CSV import review', () => {
         await expect(page.locator('#csvImportSummaryBreakdown')).toContainText('2 rows need review');
         await expect(page.locator('#csvImportSummaryAttention')).toContainText('Line 3: Description is missing');
         await expect(page.locator('#csvImportConfirmBtn')).toHaveText('Import 1 Transaction');
+        await expect(page.locator('#csvImportPreviewHeader th[data-sort="import"]')).toHaveCount(0);
+        await expect(page.locator('#csvImportPreviewHeader th[data-sort="index"]')).toHaveCount(0);
+        await expect(page.locator('#csvImportPreviewHeader th.csv-import-static-header').first()).toContainText('Import');
+        await expect(page.locator('#csvImportPreviewHeader .csv-import-sort-arrow')).toHaveCount(0);
+        await expect(page.locator('#csvImportPreviewHeader th[data-sort="line"] .csv-import-sort-label')).toHaveText('Line ↑');
+        await page.locator('#csvImportPreviewHeader th[data-sort="amount"] .csv-import-sortable-button').click();
+        await expect(page.locator('#csvImportPreviewHeader .csv-import-sort-arrow')).toHaveCount(0);
+        await expect(page.locator('#csvImportPreviewHeader th[data-sort="amount"] .csv-import-sort-label')).toHaveText('Amount ↑');
 
         const expandButtonFits = await page.evaluate(() => {
             const button = document.getElementById('csvImportExpandPreviewBtn')?.getBoundingClientRect();
@@ -161,5 +174,25 @@ test.describe('CSV import review', () => {
         await expect(page.locator('#recentEditTransactionModal .transaction-import-summary-meta')).toContainText('Imported from CSV');
 
         expect(browserErrors).toEqual([]);
+    });
+
+    test('rejects impossible calendar dates without normalizing them', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+        await seedImportHarness(page);
+        await openImportReview(page, IMPOSSIBLE_DATE_CSV, 'zam_impossible_date_test.csv');
+
+        await expect(page.locator('#csvImportReviewModal')).toBeVisible();
+        await expect(page.locator('#csvImportSummaryPrimary')).toHaveText('1 row found');
+        await expect(page.locator('#csvImportSummaryBreakdown')).toContainText('0 selected for import');
+        await expect(page.locator('#csvImportSummaryBreakdown')).toContainText('1 row needs review');
+        await expect(page.locator('#csvImportSummaryAttention')).toContainText('Line 2: Invalid date');
+
+        await page.locator('#csvImportViewInvalid').click();
+        const invalidRow = page.locator('#csvImportPreviewBody .csv-import-row-invalid');
+        await expect(invalidRow).toHaveCount(1);
+        await expect(invalidRow).toContainText('IMPOSSIBLE DATE');
+        await expect(invalidRow).toContainText('Invalid date');
+        await expect(invalidRow).not.toContainText('2026-06-30');
     });
 });
