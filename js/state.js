@@ -35,10 +35,67 @@ let state = {
 
 let suppressCloudQueue = false;
 const DEMO_ACTIVE_KEY = 'bb_demo_active';
+const STORAGE_TEST_KEY = 'bb_storage_available_test';
 const SIGNED_OUT_WRITE_MESSAGE = 'Sign in or start the demo before adding real budget data.';
+const BROWSER_STORAGE_BLOCKED_MESSAGE = 'Browser storage is blocked. Enable site data for app.zambudget.com so Zam can load and save this browser budget.';
 let lastSignedOutWriteNoticeAt = 0;
+let lastBrowserStorageNoticeAt = 0;
+let browserStorageAvailable = null;
 const GIFT_CARD_NAME_MAX_LENGTH = 32;
 const GIFT_CARD_NUMBER_MAX_LENGTH = 80;
+
+function notifyBrowserStorageBlocked() {
+    if (typeof window === 'undefined' || typeof window.showToast !== 'function') return;
+
+    const now = Date.now();
+    if (now - lastBrowserStorageNoticeAt < 4000) return;
+    lastBrowserStorageNoticeAt = now;
+    window.showToast(BROWSER_STORAGE_BLOCKED_MESSAGE);
+}
+
+function markBrowserStorageBlocked(error = null) {
+    browserStorageAvailable = false;
+    if (error) console.warn('[State] Browser storage is unavailable.', error);
+    notifyBrowserStorageBlocked();
+}
+
+export function isBrowserStorageAvailable({ refresh = false } = {}) {
+    if (!refresh && browserStorageAvailable !== null) return browserStorageAvailable;
+
+    try {
+        if (typeof localStorage === 'undefined') {
+            browserStorageAvailable = false;
+            return false;
+        }
+        localStorage.setItem(STORAGE_TEST_KEY, '1');
+        localStorage.removeItem(STORAGE_TEST_KEY);
+        browserStorageAvailable = true;
+        return true;
+    } catch (error) {
+        markBrowserStorageBlocked(error);
+        return false;
+    }
+}
+
+function storageGet(key, fallback = '') {
+    try {
+        return localStorage.getItem(key) ?? fallback;
+    } catch (error) {
+        markBrowserStorageBlocked(error);
+        return fallback;
+    }
+}
+
+function storageSet(key, value) {
+    try {
+        localStorage.setItem(key, value);
+        browserStorageAvailable = true;
+        return true;
+    } catch (error) {
+        markBrowserStorageBlocked(error);
+        return false;
+    }
+}
 
 function isSignedInForBudgetWrites() {
     return Boolean(typeof window !== 'undefined' && window.currentUser?.id);
@@ -100,11 +157,13 @@ function secureRemoveSession(key) {
 }
 
 function getLocalUpdatedAt() {
-    return localStorage.getItem('bb_local_updated_at') || '';
+    return storageGet('bb_local_updated_at', '');
 }
 
 function setLocalUpdatedAt(value = new Date().toISOString()) {
-    localStorage.setItem('bb_local_updated_at', value);
+    if (!storageSet('bb_local_updated_at', value)) {
+        throw new Error('Browser storage is unavailable.');
+    }
     return value;
 }
 
@@ -307,7 +366,8 @@ function applyLoadedPayload(parsed = {}) {
 // PERSISTENCE ENGINE
 // ==========================================
 export function initState() {
-    const saved = localStorage.getItem('bb_data');
+    isBrowserStorageAvailable({ refresh: true });
+    const saved = storageGet('bb_data', '');
     let loadedSavedPayload = false;
     let loadedPayloadChanged = false;
     if (saved) {
@@ -322,10 +382,12 @@ export function initState() {
     if (loadedSavedPayload) {
         if (loadedPayloadChanged) {
             try {
-                localStorage.setItem('bb_data', JSON.stringify(getDurablePayload()));
+                if (!storageSet('bb_data', JSON.stringify(getDurablePayload()))) {
+                    throw new Error('Browser storage is unavailable.');
+                }
                 setLocalUpdatedAt();
             } catch (e) {
-                console.error('[State] CRITICAL: Storage limits prevented state correction on boot', e);
+                console.error('[State] CRITICAL: Browser storage prevented state correction on boot', e);
             }
         } else if (!getLocalUpdatedAt()) {
             try {
@@ -347,7 +409,9 @@ export function save(options = {}) {
 
     try {
         const payload = JSON.stringify(getDurablePayload());
-        localStorage.setItem('bb_data', payload);
+        if (!storageSet('bb_data', payload)) {
+            throw new Error('Browser storage is unavailable.');
+        }
         const localUpdatedAt = setLocalUpdatedAt();
 
         if (!suppressCloudQueue && window.BuddyCloud?.queuePush) {
@@ -355,8 +419,8 @@ export function save(options = {}) {
         }
         return true;
     } catch (e) {
-        console.error('[State] CRITICAL: Storage Quota Exceeded or Write Error', e);
-        if (window.showToast) window.showToast('⚠️ Storage limit reached. Cannot save data.');
+        console.error('[State] CRITICAL: Browser storage write failed', e);
+        notifyBrowserStorageBlocked();
         return false;
     }
 }
@@ -407,7 +471,9 @@ export function replaceSnapshot(snapshot = {}, options = {}) {
     }
 
     try {
-        localStorage.setItem('bb_data', JSON.stringify(getDurablePayload()));
+        if (!storageSet('bb_data', JSON.stringify(getDurablePayload()))) {
+            throw new Error('Browser storage is unavailable.');
+        }
     } catch (e) {
         console.error('[State] CRITICAL: Snapshot replacement failed disk write. Rolling back memory state.', e);
         state.transactions = rollbackTransactions;
@@ -1194,13 +1260,21 @@ export const getCurrentDrilldownCat = () => state.currentDrilldownCat;
 export const setCurrentDrilldownCat = (c) => state.currentDrilldownCat = c;
 
 export const factoryReset = () => {
-    Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('bb_')) secureRemove(key);
-    });
+    try {
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('bb_')) secureRemove(key);
+        });
+    } catch (error) {
+        markBrowserStorageBlocked(error);
+    }
 
-    Object.keys(sessionStorage).forEach(key => {
-        if (key.startsWith('bb_')) secureRemoveSession(key);
-    });
+    try {
+        Object.keys(sessionStorage).forEach(key => {
+            if (key.startsWith('bb_')) secureRemoveSession(key);
+        });
+    } catch {
+        // If session storage is blocked, there is nothing else to clear.
+    }
 
     window.location.reload();
 };

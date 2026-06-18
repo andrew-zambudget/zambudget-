@@ -35,6 +35,14 @@ window.currentUser = null;
 window.bbConfig = null;
 let appStateInitialized = false;
 
+function readLocalStorageValue(key, fallback = '') {
+    try {
+        return localStorage.getItem(key) || fallback;
+    } catch {
+        return fallback;
+    }
+}
+
 /**
  * 1. THE BRIDGE (100% Bulletproof Version)
  * Force-binds all exported functions from State and UI modules to the window object.
@@ -72,6 +80,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('[main.js] Initializing Application...');
     const privacyCleanup = runPrivacyStorageCleanup();
     if (privacyCleanup?.blocked) return;
+
+    if (State.isBrowserStorageAvailable?.({ refresh: true }) === false) {
+        BudgetPrep.failPreparingBudget?.({
+            title: 'Browser storage is blocked',
+            detail: 'Enable site data for app.zambudget.com so Zam can load and save this browser budget.'
+        });
+        return;
+    }
 
     try {
         // --- SUPABASE INITIALIZATION START ---
@@ -254,9 +270,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => UI.repairViewportLayout?.(), 150);
 
         // Apply theme safely
-        const savedTheme = localStorage.getItem('bb_theme_mode') || 'system';
+        const savedTheme = readLocalStorageValue('bb_theme_mode', 'system');
         if (UI.applyTheme) UI.applyTheme(savedTheme);
-        UI.applyAccentTheme?.(localStorage.getItem('bb_accent_color') || 'teal');
+        UI.applyAccentTheme?.(readLocalStorageValue('bb_accent_color', 'teal'));
 
         if (!DemoMode.isDemoModeActive?.()) {
             BudgetPrep.updatePreparingBudget?.({ detail: 'Confirming encrypted Cloud Sync protection.' });
