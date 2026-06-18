@@ -27,7 +27,7 @@ The public marketing/docs repository is separate and should use the `zambudget-w
 
 ## Current Release Plan
 
-- Zam 1.2 (current): CSV transaction import foundation (mapping, duplicate detection, invalid row reporting, previews, summaries).
+- Zam 1.2 RC (current): CSV transaction import foundation (mapping, duplicate detection, invalid row reporting, previews, summaries).
 - Zam 1.3: Google Drive import.
 - Zam 1.4: Dropbox import.
 - Zam 1.5: Import reconciliation.

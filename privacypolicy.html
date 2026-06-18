@@ -72,7 +72,7 @@
 
     <main id="main">
         <h1 class="page-title">Privacy Policy</h1>
-        <p class="page-subtitle">Last updated: June 15, 2026</p>
+        <p class="page-subtitle">Last updated: June 18, 2026</p>
 
         <div class="section">
             <h2 class="section-title">Our Promise to You</h2>
@@ -107,6 +107,7 @@
                     <li><strong>Browser-only:</strong> If you use Zam! without signing in, budget data stays only in that browser's localStorage.</li>
                     <li><strong>Trusted browser key:</strong> After Cloud Sync setup or recovery-key import, this browser may store a non-extractable WebCrypto key in IndexedDB so refreshes can keep syncing without asking for the recovery key again. The raw recovery key is not stored in localStorage and cannot be displayed from this trusted key. Zam! does not upload this trusted key or include it in device-management records, but app code running in this browser can use it locally to encrypt and decrypt your Cloud Sync vault while you are signed in.</li>
                     <li><strong>Gift card merchant metadata cache:</strong> If you use gift-card merchant hints, Zam! downloads one full merchant metadata bundle to this browser. Merchant searches, suggestion filtering, and selections happen locally; Zam! does not send individual merchant search terms or suggestion choices to a server. You can clear this cache in Global Settings.</li>
+                    <li><strong>CSV import feedback:</strong> After a CSV import, Zam! may offer an optional feedback email. If you choose to send it, the email can include your comment and safe import metadata such as file name, rows found, rows imported, duplicates skipped, error count, browser/device hints, timestamp, and user ID. Zam! does not include transaction amounts, transaction descriptions, full CSV contents, account names, recovery keys, or budget exports unless you type or attach them yourself.</li>
                     <li>No servers store readable financial information, transactions, balances, budgets, categories, descriptions, notes, gift-card card numbers, gift-card balances, gift-card expiration dates, or amounts.</li>
                 </ul>
                 <p><strong>Note on browser-only budgets:</strong> Clearing browser data, site data, storage, or using privacy-cleanup tools can remove a browser-only budget. Zam! cannot recover browser-only budgets after browser/device storage is lost. Signing in uses Cloud Sync as the default encrypted backup path.</p>
@@ -233,7 +234,7 @@
     </main>
     <footer>
         <div class="footer-main">
-            <a href="https://zambudget.com/changelog" class="footer-btn-pill" target="_blank" rel="noopener noreferrer">Changelog</a>
+            <a href="https://zambudget.com/changelog" class="footer-btn-pill" target="_blank" rel="noopener noreferrer">v1.2 RC</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>
             <a href="https://zambudget.com/contact" class="footer-link" target="_blank" rel="noopener noreferrer">Contact Us</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>
