@@ -122,6 +122,12 @@ test.describe('CSV import review', () => {
         await expect(page.locator('#csvImportConfirmBtn')).toHaveText('Import 2 Transactions');
 
         await page.locator('#csvImportConfirmBtn').click();
+        await expect(page.locator('#csvImportReviewModal')).toBeHidden();
+        await expect(page.locator('#csvImportFeedbackModal')).toBeHidden();
+        await expect(page.locator('#csvImportCompleteNotice')).toBeVisible();
+        await expect(page.locator('#csvImportCompleteNotice')).toContainText('2 transactions imported');
+        await expect(page.locator('#csvImportCompleteNotice')).toContainText('1 duplicate skipped');
+        await page.locator('#csvImportCompleteNotice .csv-import-complete-feedback-btn').click();
         await expect(page.locator('#csvImportFeedbackModal')).toBeVisible();
         await expect(page.locator('#csvImportFeedbackSummary')).toContainText('2 transactions imported');
         await expect(page.locator('#csvImportFeedbackSummary')).toContainText('1 duplicate skipped');

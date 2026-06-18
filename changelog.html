@@ -222,11 +222,112 @@
             </div>
         </div>
 
-        <!-- ===== VERSION 1.2 ===== -->
-        <div class="release-card active" data-version="1.2">
-            <div class="card-header" role="button" tabindex="0" aria-expanded="true" aria-controls="release-v12-body" onclick="toggleCard(this.closest('.release-card'))" onkeydown="handleCardHeaderKeydown(event, this.closest('.release-card'))">
+        <!-- ===== VERSION 1.3 ===== -->
+        <div class="release-card active" data-version="1.3">
+            <div class="card-header" role="button" tabindex="0" aria-expanded="true" aria-controls="release-v13-body" onclick="toggleCard(this.closest('.release-card'))" onkeydown="handleCardHeaderKeydown(event, this.closest('.release-card'))">
                 <div class="version-meta">
                     <div class="version-dot live" aria-hidden="true"></div>
+                    <div>
+                        <div class="version-title">Zam 1.3 RC</div>
+                        <div class="version-date">Release candidate - June 18, 2026</div>
+                    </div>
+                </div>
+                <div class="expand-icon" aria-hidden="true">&#9660;</div>
+            </div>
+
+            <div class="card-body" id="release-v13-body">
+                <div class="card-content">
+                    <p class="intro-text">
+                        CSV export is now in release-candidate testing for Zam! 1.3. This release adds the outbound half of data portability so users can download plain CSV transaction backups and re-import Zam exports without data-shape surprises.
+                    </p>
+
+                    <div class="release-summary" aria-label="Zam 1.3 RC release summary by category">
+                        <div class="release-summary-title">At a glance</div>
+                        <div class="release-summary-list">
+                            <div class="release-summary-row summary-feature">
+                                <span class="release-summary-dot" aria-hidden="true"></span>
+                                <span class="release-summary-label">New</span>
+                                <span class="release-summary-copy">CSV export with date range, account, category, safe filename handling, and stable Zam-compatible columns.</span>
+                            </div>
+                            <div class="release-summary-row summary-security">
+                                <span class="release-summary-dot" aria-hidden="true"></span>
+                                <span class="release-summary-label">Privacy</span>
+                                <span class="release-summary-copy">Export stays local to the browser and clearly warns that downloaded CSV files are plaintext after download.</span>
+                            </div>
+                            <div class="release-summary-row summary-fix">
+                                <span class="release-summary-dot" aria-hidden="true"></span>
+                                <span class="release-summary-label">QA</span>
+                                <span class="release-summary-copy">Added export-to-import roundtrip coverage for dates, descriptions, amounts, categories, accounts, notes, and CSV escaping.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tag-container">
+                        <div class="tag-group">
+                            <div class="tag-label">New</div>
+
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">CSV</span>
+                                <div>
+                                    <div class="tag-text">CSV export foundation</div>
+                                    <span class="tag-detail">Users can download transaction CSV files using Current Month, Last Month, Custom Range, or All Time filters.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">FILTER</span>
+                                <div>
+                                    <div class="tag-text">Account and category filters</div>
+                                    <span class="tag-detail">Export can be narrowed by existing account/payment-method text and category without adding a new schema.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">FILE</span>
+                                <div>
+                                    <div class="tag-text">Safer file names</div>
+                                    <span class="tag-detail">Export filenames end in .csv, remove unsafe filename characters, and fall back to a generated Zam transaction export name.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tag-group">
+                            <div class="tag-label">Improved</div>
+
+                            <div class="tag-item tag-ui">
+                                <span class="tag-icon" aria-hidden="true">ROUND</span>
+                                <div>
+                                    <div class="tag-text">Zam export to Zam import</div>
+                                    <span class="tag-detail">Exported files use Date, Description, Amount, Category, Account, and Notes columns in a format designed to import back into Zam cleanly.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">LOCAL</span>
+                                <div>
+                                    <div class="tag-text">Local export posture</div>
+                                    <span class="tag-detail">Export uses the budget data already available in the browser and does not upload transaction data just to create a CSV.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-fix">
+                                <span class="tag-icon" aria-hidden="true">QA</span>
+                                <div>
+                                    <div class="tag-text">Import/export test coverage</div>
+                                    <span class="tag-detail">Focused Playwright coverage now checks export filters, plaintext CSV formatting, file-name cleanup, and Zam export roundtrip behavior.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== VERSION 1.2 ===== -->
+        <div class="release-card" data-version="1.2">
+            <div class="card-header" role="button" tabindex="0" aria-expanded="false" aria-controls="release-v12-body" onclick="toggleCard(this.closest('.release-card'))" onkeydown="handleCardHeaderKeydown(event, this.closest('.release-card'))">
+                <div class="version-meta">
+                    <div class="version-dot archived" aria-hidden="true"></div>
                     <div>
                         <div class="version-title">Zam 1.2 RC</div>
                         <div class="version-date">Release candidate - June 18, 2026</div>
@@ -235,7 +336,7 @@
                 <div class="expand-icon" aria-hidden="true">&#9660;</div>
             </div>
 
-            <div class="card-body" id="release-v12-body">
+            <div class="card-body" id="release-v12-body" hidden>
                 <div class="card-content">
                     <p class="intro-text">
                         CSV import is now in release-candidate testing for Zam! 1.2. This is a user-facing release aimed at making initial reconciliation flows easier to start before the final 1.2 label.
@@ -1101,7 +1202,7 @@
     </main>
     <footer>
         <div class="footer-main">
-            <a href="https://zambudget.com/changelog" class="footer-btn-pill" target="_blank" rel="noopener noreferrer">v1.2 RC</a>
+            <a href="https://zambudget.com/changelog" class="footer-btn-pill" target="_blank" rel="noopener noreferrer">v1.3 RC</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>
             <a href="https://zambudget.com/contact" class="footer-link" target="_blank" rel="noopener noreferrer">Contact Us</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>

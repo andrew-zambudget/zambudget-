@@ -37,3 +37,14 @@ BUDGETBUDDY_TEST_PASSWORD
 ```
 
 If Supabase password sign-in is disabled for the project, leave these variables unset until a disposable automated auth path exists. Magic-link and OAuth sign-in are still the right human-facing login paths, but they are not reliable CI smoke-test mechanisms.
+
+## CSV import/export hardening
+
+For Zam 1.4 import/export hardening, run the focused CSV gate before broader tests:
+
+```powershell
+npx playwright test tests/csv-import-review.spec.js tests/csv-export-foundation.spec.js
+npm run build
+```
+
+These tests cover safe import row selection, duplicate and invalid row handling, strict date validation, imported transaction details, export filters, plaintext CSV formatting, filename cleanup, and Zam export-to-import roundtrip behavior.

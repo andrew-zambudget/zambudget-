@@ -116,6 +116,7 @@ test.describe('CSV export foundation', () => {
         await expect(page.locator('#csvExportCount')).toHaveText('2 transactions will be exported');
         await expect(page.locator('#csvExportFileName')).toHaveValue(/zam-transactions-\d{4}-\d{2}-\d{2}\.csv/);
         await expect(page.locator('#csvExportConfirmBtn')).toBeEnabled();
+        await expect(page.locator('.csv-export-plaintext-note')).toContainText('plain text after download');
 
         await page.locator('#csvExportDateRange').selectOption('all');
         await expect(page.locator('#csvExportCount')).toHaveText('3 transactions will be exported');
@@ -172,8 +173,10 @@ test.describe('CSV export foundation', () => {
         await expect(page.locator('#csvImportSummaryPrimary')).toHaveText('3 rows found');
         await expect(page.locator('#csvImportSummaryBreakdown')).toContainText('3 selected for import');
         await page.locator('#csvImportConfirmBtn').click();
-        await expect(page.locator('#csvImportFeedbackModal')).toBeVisible();
-        await page.locator('#csvImportFeedbackModal .modal-close').click();
+        await expect(page.locator('#csvImportReviewModal')).toBeHidden();
+        await expect(page.locator('#csvImportFeedbackModal')).toBeHidden();
+        await expect(page.locator('#csvImportCompleteNotice')).toBeVisible();
+        await expect(page.locator('#csvImportCompleteNotice')).toContainText('3 transactions imported');
 
         const roundTrip = await page.evaluate(() => window.getTransactions()
             .map(tx => ({
