@@ -1,6 +1,6 @@
 # Infrastructure Inventory
 
-Last updated: 2026-06-16
+Last updated: 2026-06-18
 
 This is a private app-repo inventory. It may name internal app systems and migration/function filenames, but it must still never contain secret values.
 
@@ -25,6 +25,8 @@ Keep website and app routes separated.
 - Public project URL is in `config.json`.
 - Public anon/publishable key is in `config.json`.
 - Service-role key stays in Supabase/provider secret storage only.
+- Browser client: `@supabase/supabase-js` is a runtime dependency and is served from `js/vendor/supabase.js`.
+- Do not switch the browser client back to a third-party CDN without a privacy/legal review. The local vendor file intentionally avoids a third-party network request on every app load.
 
 Edge Functions:
 

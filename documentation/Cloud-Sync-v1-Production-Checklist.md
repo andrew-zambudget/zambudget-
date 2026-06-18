@@ -72,6 +72,7 @@ Cloud Sync v1 is the default protection path for signed-in users. The app still 
 - If billing is enabled, complete Stripe Checkout, Billing Portal, webhook, and refund/cancel tests with a real low-value or Stripe test configuration before inviting users.
 - Confirm Privacy Policy and Terms match current Cloud Sync behavior.
 - Confirm no analytics, advertising pixels, third-party tracking scripts, or fingerprinting scripts are loaded by the app.
+- Confirm app runtime libraries are served from `app.zambudget.com`; `js/vendor/supabase.js` must not be replaced with a public CDN script unless privacy/legal docs are re-reviewed first.
 - Confirm support paths exist for lost recovery key, device limit / Paused sync, and version conflict review.
 - Track PIN/passkey-protected local recovery-key storage as future security design work; do not describe it as implemented until the design ships.
 
