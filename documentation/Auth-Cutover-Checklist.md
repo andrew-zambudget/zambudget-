@@ -4,6 +4,28 @@ Last updated: 2026-06-18
 
 Use this checklist whenever app auth, Supabase Auth, SMTP, Proton Mail, OAuth, or app-domain routing changes.
 
+## Current Backlog Item
+
+Provider-side Supabase Auth templates still need a manual Zam cutover pass.
+
+Observed stale confirmation-email labels to replace:
+
+- `BudgetBuddy Security`
+- `Confirm your BudgetBuddy email address`
+- `finish creating your BudgetBuddy account`
+- `BudgetBuddy will never ask for your recovery key by email.`
+- `support@budget-buddy.io`
+
+Target replacements:
+
+- `Zam! Security`
+- `Confirm your Zam! email address`
+- `finish creating your Zam! account`
+- `Zam! will never ask for your Cloud Sync recovery key by email.`
+- `support@zambudget.com`
+
+This is a Supabase dashboard / SMTP-template task, not an app-code task. Verify every Supabase Auth email template listed below before launch.
+
 ## Required Production Settings
 
 Supabase Auth URL configuration:
