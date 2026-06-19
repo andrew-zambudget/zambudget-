@@ -1423,18 +1423,8 @@ function markRecoveryKeyCopyButtonCopied(button) {
 
 function scheduleRecoveryKeyClipboardClear(recoveryKey) {
     clearTimeout(recoveryKeyClipboardClearTimer);
-    recoveryKeyClipboardClearTimer = setTimeout(async () => {
-        try {
-            if (!navigator.clipboard?.readText || !navigator.clipboard?.writeText) return;
-            const currentText = await navigator.clipboard.readText();
-            if (currentText === recoveryKey) {
-                await navigator.clipboard.writeText('');
-            }
-        } catch {
-            // Clipboard reads can be blocked by the browser; never overwrite blindly.
-        } finally {
-            resetRecoveryKeyCopyButtonLabels();
-        }
+    recoveryKeyClipboardClearTimer = setTimeout(() => {
+        resetRecoveryKeyCopyButtonLabels();
     }, RECOVERY_KEY_CLIPBOARD_CLEAR_MS);
 }
 
@@ -2141,7 +2131,7 @@ async function showRecoveryKeyNotice(recoveryKey, { copied = false, initial = fa
         warning: requireDownload
             ? 'Download this recovery key before continuing. If you lose this key, we cannot recover your synced budget.'
             : keyCopied
-            ? 'The key was copied to your clipboard. It will be cleared in about 60 seconds if it still contains this key. Store it somewhere private. If you lose this key, we cannot recover your synced budget.'
+            ? 'The key was copied to your clipboard. Zam never reads your clipboard, so clear it manually after saving it somewhere private. If you lose this key, we cannot recover your synced budget.'
             : 'Store this key somewhere private. If you lose this key, we cannot recover your synced budget.',
         customHtml: requiresInitialAcknowledgement && !initialAcknowledged ? `
             <div class="buddy-cloud-key-ack" role="status" aria-live="polite">

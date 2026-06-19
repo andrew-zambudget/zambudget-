@@ -252,7 +252,7 @@
                             <div class="release-summary-row summary-security">
                                 <span class="release-summary-dot" aria-hidden="true"></span>
                                 <span class="release-summary-label">Privacy</span>
-                                <span class="release-summary-copy">Suggestions run in the browser. Accepted aliases are remembered for the same browser/user only and are not shared across users.</span>
+                                <span class="release-summary-copy">Suggestions run in the browser. Accepted aliases are local only, and the app now blocks clipboard-read access while keeping user-triggered copy actions write-only.</span>
                             </div>
                             <div class="release-summary-row summary-ui">
                                 <span class="release-summary-dot" aria-hidden="true"></span>
@@ -287,6 +287,14 @@
                                 <div>
                                     <div class="tag-text">Original CSV value preserved</div>
                                     <span class="tag-detail">Accepting a cleanup updates the visible description but keeps the original raw CSV description for auditability.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">CLIP</span>
+                                <div>
+                                    <div class="tag-text">Clipboard reads blocked</div>
+                                    <span class="tag-detail">Recovery-key copy actions now write only. Zam no longer reads the clipboard to auto-clear copied keys, and deployed app assets include a Permissions-Policy header that blocks clipboard-read permission prompts.</span>
                                 </div>
                             </div>
                         </div>

@@ -4,7 +4,7 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const outDir = path.join(root, 'dist');
 const copyDirs = ['css', 'js', 'data'];
-const copyFiles = ['config.json', 'robots.txt'];
+const copyFiles = ['config.json', 'robots.txt', '_headers'];
 
 fs.rmSync(outDir, { recursive: true, force: true });
 fs.mkdirSync(outDir, { recursive: true });
