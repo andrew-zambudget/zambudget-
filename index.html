@@ -934,6 +934,12 @@
                                         <input type="file" id="csvImportInput" class="settings-csv-input" accept=".csv,text/csv" multiple onchange="window.importTransactionsFromCSV(event)">
                                     </div>
                                     <div class="help-text">Move transaction history in or out with CSV files.</div>
+                                    <div class="settings-recent-imports">
+                                        <div class="settings-field-label">Recent Imports</div>
+                                        <div id="csvImportBatchList" class="settings-import-batch-list" aria-live="polite">
+                                            <div class="settings-import-empty">No CSV imports recorded on this browser yet.</div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                         </section>

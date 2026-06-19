@@ -182,6 +182,56 @@ test.describe('CSV import review', () => {
         expect(browserErrors).toEqual([]);
     });
 
+    test('records import batches and can undo imported rows without touching manual transactions', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+        await seedImportHarness(page);
+        await openImportReview(page);
+
+        await expect(page.locator('#csvImportReviewModal')).toBeVisible();
+        await expect(page.locator('#csvImportConfirmBtn')).toHaveText('Import 1 Transaction');
+        await page.locator('#csvImportConfirmBtn').click();
+
+        await expect(page.locator('#csvImportCompleteNotice')).toBeVisible();
+        await page.locator('#csvImportCompleteNotice .csv-import-complete-review-btn').click();
+        await expect(page.locator('#csvImportBatchViewModal')).toBeVisible();
+        await expect(page.locator('#csvImportBatchViewModal')).toContainText('zam_csv_import_review_test.csv');
+        await expect(page.locator('#csvImportBatchViewModal .csv-import-batch-table tbody tr')).toHaveCount(1);
+        await page.locator('#csvImportBatchViewModal .modal-close').click();
+
+        const beforeUndo = await page.evaluate(() => ({
+            importedCount: window.getTransactions().filter(tx => tx.source_type === 'csv_import').length,
+            manualExists: window.getTransactions().some(tx => tx.id === 'existing-coffee'),
+            batchIds: [...new Set(window.getTransactions()
+                .filter(tx => tx.source_type === 'csv_import')
+                .map(tx => tx.import_batch_id || tx.importBatchId || tx.importDetails?.importBatchId || ''))]
+        }));
+        expect(beforeUndo.importedCount).toBe(1);
+        expect(beforeUndo.manualExists).toBe(true);
+        expect(beforeUndo.batchIds).toHaveLength(1);
+        expect(beforeUndo.batchIds[0]).toBeTruthy();
+
+        await page.locator('#csvImportCompleteNotice .csv-import-complete-undo-btn').click();
+        await expect(page.locator('#csvImportUndoModal')).toBeVisible();
+        await expect(page.locator('#csvImportUndoModal')).toContainText('This will remove 1 transaction imported from:');
+        await page.locator('#csvImportUndoModal button', { hasText: 'Undo Import' }).click();
+
+        await expect(page.locator('#csvImportUndoModal')).toBeHidden();
+        await expect(page.locator('#csvImportCompleteNotice')).toHaveCount(0);
+
+        const afterUndo = await page.evaluate(() => ({
+            importedCount: window.getTransactions().filter(tx => tx.source_type === 'csv_import').length,
+            manualExists: window.getTransactions().some(tx => tx.id === 'existing-coffee')
+        }));
+        expect(afterUndo.importedCount).toBe(0);
+        expect(afterUndo.manualExists).toBe(true);
+
+        await page.evaluate(() => window.openSettingsModal());
+        await expect(page.locator('#settingsModal')).toBeVisible();
+        await expect(page.locator('#csvImportBatchList')).toContainText('Undone');
+        await expect(page.locator('#csvImportBatchList button', { hasText: 'Undo' })).toBeDisabled();
+    });
+
     test('rejects impossible calendar dates without normalizing them', async ({ page }) => {
         await page.goto('/index.html');
         await waitForAppReady(page);

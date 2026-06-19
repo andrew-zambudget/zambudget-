@@ -3613,6 +3613,98 @@ input.error, select.error {
   display: none;
 }
 
+.settings-recent-imports {
+  margin-top: 0.95rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.settings-import-batch-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.settings-import-empty {
+  padding: 0.75rem;
+  border: 1px dashed var(--border, #e2e8f0);
+  border-radius: 10px;
+  color: var(--text-dim, #64748b);
+  background: color-mix(in srgb, var(--surface, #ffffff) 84%, var(--bg, #f8fafc));
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.settings-import-batch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.7rem;
+  align-items: center;
+  padding: 0.75rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface, #ffffff) 88%, var(--bg, #f8fafc));
+}
+
+.settings-import-batch-main {
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.settings-import-batch-main strong,
+.settings-import-batch-main span,
+.settings-import-batch-main em {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-import-batch-main strong {
+  color: var(--text, #0f172a);
+  font-size: 0.84rem;
+  line-height: 1.25;
+}
+
+.settings-import-batch-main span {
+  color: var(--text-dim, #64748b);
+  font-size: 0.75rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.settings-import-batch-main em {
+  color: color-mix(in srgb, var(--accent, #14b8a6) 72%, var(--text, #0f172a));
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.settings-import-batch-actions {
+  display: inline-flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.settings-import-batch-actions .btn-cancel {
+  min-height: 34px;
+  padding: 0 0.7rem;
+  font-size: 0.76rem;
+}
+
+@media (max-width: 560px) {
+  .settings-import-batch {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-import-batch-actions {
+    justify-content: stretch;
+  }
+
+  .settings-import-batch-actions .btn-cancel {
+    flex: 1 1 8rem;
+  }
+}
+
 .sync-history-panel {
   border: 1px solid color-mix(in srgb, var(--accent, #14b8a6) 16%, var(--border, #e2e8f0));
   border-radius: 18px;

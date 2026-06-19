@@ -1565,6 +1565,7 @@ body.budget-restore-active {
 
 .csv-import-complete-review-btn,
 .csv-import-complete-feedback-btn,
+.csv-import-complete-undo-btn,
 .csv-import-complete-dismiss-btn {
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -1578,7 +1579,8 @@ body.budget-restore-active {
 }
 
 .csv-import-complete-review-btn,
-.csv-import-complete-feedback-btn {
+.csv-import-complete-feedback-btn,
+.csv-import-complete-undo-btn {
   min-height: 32px;
   padding: 0 0.75rem;
 }
@@ -1599,6 +1601,7 @@ body.budget-restore-active {
 
 .csv-import-complete-review-btn:hover,
 .csv-import-complete-feedback-btn:hover,
+.csv-import-complete-undo-btn:hover,
 .csv-import-complete-dismiss-btn:hover {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 10%, var(--surface));
@@ -1606,6 +1609,7 @@ body.budget-restore-active {
 
 .csv-import-complete-review-btn:active,
 .csv-import-complete-feedback-btn:active,
+.csv-import-complete-undo-btn:active,
 .csv-import-complete-dismiss-btn:active {
   transform: scale(0.96);
 }
@@ -1727,6 +1731,132 @@ body.budget-restore-active {
   border-color: color-mix(in srgb, #93c5fd 40%, var(--border));
   border-left-color: #60a5fa;
   background: color-mix(in srgb, #1d4ed8 22%, var(--surface));
+}
+
+.csv-import-batch-modal,
+.csv-import-undo-modal {
+  display: grid;
+  gap: 0.9rem;
+  text-align: left;
+}
+
+.csv-import-batch-meta,
+.csv-import-undo-file {
+  display: grid;
+  gap: 0.22rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 86%, var(--bg));
+}
+
+.csv-import-batch-meta strong,
+.csv-import-undo-file {
+  color: var(--text);
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.csv-import-batch-meta span {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.csv-import-batch-table-wrap {
+  max-height: min(48dvh, 420px);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.csv-import-batch-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 620px;
+  font-size: 0.82rem;
+}
+
+.csv-import-batch-table th,
+.csv-import-batch-table td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  text-align: left;
+  vertical-align: top;
+}
+
+.csv-import-batch-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 88%, var(--bg));
+  font-size: 0.74rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.csv-import-batch-table tr:hover td {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.csv-import-batch-table td:nth-child(3) {
+  white-space: nowrap;
+  font-weight: 850;
+}
+
+.csv-import-batch-table td:last-child {
+  color: var(--text-dim);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.csv-import-batch-table strong,
+.csv-import-batch-table span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.csv-import-batch-table span {
+  margin-top: 0.18rem;
+  color: var(--text-dim);
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
+.csv-import-batch-empty,
+.csv-import-undo-warning {
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  font-size: 0.84rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.csv-import-batch-empty {
+  color: var(--text-dim);
+  background: color-mix(in srgb, var(--surface) 84%, var(--bg));
+  border: 1px dashed var(--border);
+}
+
+.csv-import-undo-warning {
+  color: color-mix(in srgb, #b45309 82%, var(--text));
+  background: color-mix(in srgb, #f59e0b 13%, var(--surface));
+  border: 1px solid color-mix(in srgb, #f59e0b 38%, var(--border));
+}
+
+.csv-import-batch-actions,
+.csv-import-undo-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+[data-theme="dark"] .csv-import-undo-warning {
+  color: #fcd34d;
+  background: color-mix(in srgb, #f59e0b 14%, var(--surface));
+  border-color: color-mix(in srgb, #f59e0b 42%, var(--border));
 }
 
 .smart-merchant-cleanup-modal {

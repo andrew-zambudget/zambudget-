@@ -12146,6 +12146,7 @@ export function openSettingsModal() {
 
     renderSyncHistory();
     updateGiftCardMerchantCacheUi();
+    renderCsvImportBatchList();
     openModal('settingsModal');
 }
 
@@ -15826,11 +15827,13 @@ function updateMerchantSuggestionTransaction(txId, updates = {}, fallbackMutator
     const tx = txs.find(item => String(item.id) === String(txId));
     if (!tx) return { success: false, error: 'Transaction not found.' };
 
+    const now = new Date().toISOString();
+    const safeUpdates = markCsvImportTransactionEdited(tx, updates, now);
     if (State.updateTransaction) {
-        return State.updateTransaction(txId, updates);
+        return State.updateTransaction(txId, safeUpdates);
     }
 
-    Object.assign(tx, updates, { updatedAt: new Date().toISOString() });
+    Object.assign(tx, safeUpdates, { updatedAt: now });
     if (typeof fallbackMutator === 'function') fallbackMutator(tx);
     return saveTransactionArray(txs)
         ? { success: true }
@@ -15986,7 +15989,7 @@ window.confirmRecentEditTransaction = function(event, txId) {
         return;
     }
 
-    const updates = { description, display_name: description, displayName: description, amount, date, category, paymentMethod, notes };
+    const updates = markCsvImportTransactionEdited(tx, { description, display_name: description, displayName: description, amount, date, category, paymentMethod, notes });
     if (State.updateTransaction) {
         const result = State.updateTransaction(txId, updates);
         if (!result?.success) {
@@ -16000,6 +16003,11 @@ window.confirmRecentEditTransaction = function(event, txId) {
         tx.category = category;
         tx.paymentMethod = paymentMethod;
         tx.notes = notes;
+        if (updates.importEditedAt) {
+            tx.importEditedAt = updates.importEditedAt;
+            tx.import_edited_at = updates.import_edited_at;
+            tx.importDetails = updates.importDetails;
+        }
         tx.updatedAt = new Date().toISOString();
         if (!saveTransactionArray(txs)) return;
     }
@@ -17091,6 +17099,7 @@ const CSV_IMPORT_MATCH_SIMILARITY_THRESHOLD = 0.52;
 const CSV_IMPORT_MAPPING_SAMPLE_LIMIT = 24;
 const CSV_IMPORT_SELECT_OPTIONS = ['-- Not mapped --'];
 const CSV_IMPORT_SAVED_MAPPINGS_KEY = 'bb_csv_import_mappings_v1';
+const CSV_IMPORT_BATCHES_STORAGE_KEY = 'bb_csv_import_batches_v1';
 const CSV_IMPORT_DEFAULT_MAPPING_NAME = 'Custom CSV Mapping';
 const CSV_IMPORT_AMOUNT_MODE_SINGLE = 'single';
 const CSV_IMPORT_AMOUNT_MODE_DEBIT_CREDIT = 'debitCredit';
@@ -17635,6 +17644,140 @@ function saveCsvMappingForHeaders(headers = [], mapping = {}, name = CSV_IMPORT_
         savedAt: new Date().toISOString()
     };
     return writeCsvSavedMappings(mappings);
+}
+
+function readCsvImportBatches() {
+    try {
+        const raw = localStorage.getItem(CSV_IMPORT_BATCHES_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed.filter(item => item && typeof item === 'object' && item.id) : [];
+    } catch (error) {
+        console.warn('[CSV Import] Could not read import batches', error);
+        return [];
+    }
+}
+
+function writeCsvImportBatches(batches = []) {
+    try {
+        localStorage.setItem(CSV_IMPORT_BATCHES_STORAGE_KEY, JSON.stringify(batches.slice(0, 30)));
+        return true;
+    } catch (error) {
+        console.warn('[CSV Import] Could not save import batch history', error);
+        return false;
+    }
+}
+
+function recordCsvImportBatch(batch = {}) {
+    if (!batch?.id) return false;
+    const batches = readCsvImportBatches().filter(item => String(item.id) !== String(batch.id));
+    batches.unshift({
+        id: String(batch.id),
+        sourceFileName: String(batch.sourceFileName || ''),
+        sourceFileNames: Array.isArray(batch.sourceFileNames) ? batch.sourceFileNames.map(String).filter(Boolean) : [],
+        importedAt: batch.importedAt || new Date().toISOString(),
+        rowsFound: Number.parseInt(batch.rowsFound, 10) || 0,
+        rowsImported: Number.parseInt(batch.rowsImported, 10) || 0,
+        duplicatesSkipped: Number.parseInt(batch.duplicatesSkipped, 10) || 0,
+        rowsNotImported: Number.parseInt(batch.rowsNotImported, 10) || 0,
+        changedRows: Number.parseInt(batch.changedRows, 10) || 0,
+        errorCount: Number.parseInt(batch.errorCount, 10) || 0,
+        importTransactionIds: Array.isArray(batch.importTransactionIds) ? batch.importTransactionIds.map(String).filter(Boolean) : [],
+        undoneAt: batch.undoneAt || ''
+    });
+    return writeCsvImportBatches(batches);
+}
+
+function updateCsvImportBatch(batchId, updates = {}) {
+    const batches = readCsvImportBatches();
+    const index = batches.findIndex(batch => String(batch.id) === String(batchId));
+    if (index < 0) return false;
+    batches[index] = { ...batches[index], ...updates };
+    return writeCsvImportBatches(batches);
+}
+
+function getCsvImportBatchId(tx = {}) {
+    return String(tx.import_batch_id || tx.importBatchId || tx.import_id || tx.importDetails?.importBatchId || tx.importDetails?.importId || '').trim();
+}
+
+function getCsvImportBatchTransactions(batchId = '') {
+    const safeBatchId = String(batchId || '').trim();
+    if (!safeBatchId) return [];
+    return (State.getTransactions ? State.getTransactions() : [])
+        .filter(tx => !tx.isDeleted && isCsvImportedTransaction(tx) && getCsvImportBatchId(tx) === safeBatchId);
+}
+
+function getCsvImportBatchSummary(batchId = '') {
+    const batches = readCsvImportBatches();
+    const stored = batches.find(batch => String(batch.id) === String(batchId));
+    const txs = getCsvImportBatchTransactions(batchId);
+    const fallbackFileNames = [...new Set(txs.map(tx => tx.sourceFile || tx.importDetails?.sourceFileName || '').filter(Boolean))];
+    const sourceFileNames = stored?.sourceFileNames?.length ? stored.sourceFileNames : fallbackFileNames;
+    const importedAt = stored?.importedAt || txs[0]?.importDetails?.importedAt || txs[0]?.createdAt || '';
+
+    return {
+        ...(stored || {}),
+        id: String(batchId || stored?.id || ''),
+        sourceFileName: stored?.sourceFileName || sourceFileNames.join(', ') || 'CSV import',
+        sourceFileNames,
+        importedAt,
+        rowsImported: Number.parseInt(stored?.rowsImported, 10) || txs.length,
+        duplicatesSkipped: Number.parseInt(stored?.duplicatesSkipped, 10) || 0,
+        rowsNotImported: Number.parseInt(stored?.rowsNotImported, 10) || 0,
+        existingTransactionCount: txs.length,
+        editedTransactionCount: txs.filter(isCsvImportTransactionEditedAfterImport).length,
+        undoneAt: stored?.undoneAt || ''
+    };
+}
+
+function markCsvImportTransactionEdited(tx = {}, updates = {}, now = new Date().toISOString()) {
+    if (!isCsvImportedTransaction(tx)) return updates;
+    return {
+        ...updates,
+        importEditedAt: now,
+        import_edited_at: now,
+        importDetails: {
+            ...(tx.importDetails || {}),
+            editedAt: now
+        }
+    };
+}
+
+function isCsvImportTransactionEditedAfterImport(tx = {}) {
+    if (!isCsvImportedTransaction(tx)) return false;
+    const editedAt = tx.importEditedAt || tx.import_edited_at || tx.importDetails?.editedAt || '';
+    if (editedAt) return true;
+
+    const updatedAt = tx.updatedAt || '';
+    if (!updatedAt) return false;
+
+    const importedAt = tx.importDetails?.importedAt || tx.createdAt || tx.createdAtUTC || '';
+    if (!importedAt) return true;
+
+    const updatedTime = Date.parse(updatedAt);
+    const importedTime = Date.parse(importedAt);
+    if (!Number.isFinite(updatedTime) || !Number.isFinite(importedTime)) return Boolean(updatedAt);
+    return updatedTime > importedTime + 1000;
+}
+
+function getRecentCsvImportBatchSummaries() {
+    const batches = readCsvImportBatches();
+    const batchIds = new Set(batches.map(batch => String(batch.id)).filter(Boolean));
+    (State.getTransactions ? State.getTransactions() : []).forEach((tx) => {
+        const batchId = getCsvImportBatchId(tx);
+        if (batchId) batchIds.add(batchId);
+    });
+
+    return Array.from(batchIds)
+        .map(batchId => getCsvImportBatchSummary(batchId))
+        .filter(batch => batch.id)
+        .sort((a, b) => String(b.importedAt || '').localeCompare(String(a.importedAt || '')))
+        .slice(0, 10);
+}
+
+function formatCsvImportBatchDate(value = '') {
+    if (!value) return 'Unknown date';
+    const dateKey = String(value).slice(0, 10);
+    return dateKey ? formatDate(dateKey) : 'Unknown date';
 }
 
 function hasTextValue(value = '') {
@@ -18228,6 +18371,8 @@ function buildCsvImportRow(fileName, sourceRow, row, mapping, now, rawHeaders = 
         sourceFile: fileName,
         sourceRow,
         import_id: importId,
+        import_batch_id: importId,
+        importBatchId: importId,
         import_row_id: importRowId,
         merchant_cleanup_status: merchantSuggestion ? MERCHANT_CLEANUP_STATUS_SUGGESTED : MERCHANT_CLEANUP_STATUS_NONE,
         merchant_suggestion_id: merchantSuggestion?.id || '',
@@ -18240,6 +18385,7 @@ function buildCsvImportRow(fileName, sourceRow, row, mapping, now, rawHeaders = 
         sourceLineNumber: sourceRow,
         importedAt: now,
         importId,
+        importBatchId: importId,
         rawCsvValues: buildCsvImportRawValueDetails(safeRawHeaders, safeRawValues),
         mappedImportValues: buildCsvImportMappedValueDetails(row, mapping, amountResult, tx)
     };
@@ -19763,8 +19909,37 @@ window.confirmCsvImportReview = function() {
         saveCurrentCsvImportMapping();
     }
 
+    const batchId = getCsvImportBatchId(toImport[0]) || `csv-${new Date().toISOString()}`;
+    const importedAt = toImport[0]?.importDetails?.importedAt || toImport[0]?.createdAt || new Date().toISOString();
+    toImport.forEach((tx, index) => {
+        tx.import_batch_id = batchId;
+        tx.importBatchId = batchId;
+        tx.import_id = tx.import_id || batchId;
+        tx.import_row_id = tx.import_row_id || `${batchId}-${tx.sourceRow || index + 1}`;
+        tx.importDetails = {
+            ...(tx.importDetails || {}),
+            importId: tx.importDetails?.importId || tx.import_id || batchId,
+            importBatchId: batchId
+        };
+    });
+
     const existing = State.getTransactions ? State.getTransactions() : [];
     if (!saveTransactionArray([...existing, ...toImport])) return;
+    const sourceFileNames = [...new Set((csvImportState.filePayloads || []).map(payload => payload.fileName).filter(Boolean))];
+    const sourceFileName = sourceFileNames.length ? sourceFileNames.join(', ') : (csvImportState.fileSummaries || []).join(', ');
+    recordCsvImportBatch({
+        id: batchId,
+        sourceFileName,
+        sourceFileNames,
+        importedAt,
+        rowsFound: rowCount,
+        rowsImported,
+        duplicatesSkipped,
+        rowsNotImported,
+        changedRows,
+        errorCount,
+        importTransactionIds: toImport.map(tx => tx.id).filter(Boolean)
+    });
     const skipNote = duplicatesSkipped > 0 ? `${duplicatesSkipped} duplicate${duplicatesSkipped === 1 ? '' : 's'} skipped` : '';
     const skipSuffix = duplicatesSkipped > 0 ? ` with ${skipNote}` : '';
     observeLocalSave(`Imported ${rowsImported} transaction${rowsImported === 1 ? '' : 's'} from CSV${skipSuffix}`);
@@ -19781,6 +19956,7 @@ window.confirmCsvImportReview = function() {
         errorCount,
         merchantSuggestionsFound,
         merchantSuggestionTransactionIds,
+        importBatchId: batchId,
         skipDuplicatesChecked,
         fileNames: (csvImportState.fileSummaries || []).join(', '),
         userId: window.currentUser?.id || 'Not signed in',
@@ -19824,6 +20000,185 @@ function getCsvImportCompleteSummaryLabels() {
         merchantSuggestionCount: context.merchantSuggestionsFound || 0
     };
 }
+
+function renderCsvImportBatchList() {
+    const list = document.getElementById('csvImportBatchList');
+    if (!list) return;
+
+    const batches = getRecentCsvImportBatchSummaries();
+    if (!batches.length) {
+        list.innerHTML = '<div class="settings-import-empty">No CSV imports recorded on this browser yet.</div>';
+        return;
+    }
+
+    list.innerHTML = batches.map((batch) => {
+        const undone = Boolean(batch.undoneAt);
+        const canUndo = !undone && batch.existingTransactionCount > 0;
+        const statusText = undone
+            ? `Undone ${formatCsvImportBatchDate(batch.undoneAt)}`
+            : `${batch.existingTransactionCount} currently in budget`;
+        return `
+            <div class="settings-import-batch" data-batch-id="${esc(batch.id)}">
+                <div class="settings-import-batch-main">
+                    <strong>${esc(formatCsvImportBatchDate(batch.importedAt))} - ${esc(batch.sourceFileName || 'CSV import')}</strong>
+                    <span>${batch.rowsImported || batch.existingTransactionCount} imported - ${batch.duplicatesSkipped || 0} duplicates skipped - ${batch.rowsNotImported || 0} not imported</span>
+                    <em>${esc(statusText)}</em>
+                </div>
+                <div class="settings-import-batch-actions">
+                    <button type="button" class="btn-cancel" onclick="window.openCsvImportBatchViewModal(${jsArg(batch.id)})" ${batch.existingTransactionCount > 0 ? '' : 'disabled'}>View</button>
+                    <button type="button" class="btn-cancel settings-import-undo-btn" onclick="window.openCsvImportUndoModal(${jsArg(batch.id)})" ${canUndo ? '' : 'disabled'}>Undo</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderCsvImportBatchRows(txs = []) {
+    if (!txs.length) {
+        return '<div class="csv-import-batch-empty">No transactions from this import are currently in this browser budget.</div>';
+    }
+
+    return `
+        <div class="csv-import-batch-table-wrap">
+            <table class="csv-import-batch-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${txs.map(tx => `
+                        <tr>
+                            <td>${esc(tx.date ? formatDate(tx.date) : 'No date')}</td>
+                            <td>
+                                <strong>${esc(tx.description || tx.name || 'Imported Transaction')}</strong>
+                                <span>${esc(tx.category || 'Uncategorized')}</span>
+                            </td>
+                            <td>${esc(formatMoney(Number(tx.amount) || 0))}</td>
+                            <td>${isCsvImportTransactionEditedAfterImport(tx) ? 'Edited after import' : 'Imported'}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+window.openCsvImportBatchViewModal = function(batchId) {
+    const batch = getCsvImportBatchSummary(batchId);
+    const txs = getCsvImportBatchTransactions(batchId);
+    document.getElementById('csvImportBatchViewModal')?.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'csvImportBatchViewModal';
+    modal.className = 'modal-overlay active csv-import-batch-modal-overlay';
+    modal.onclick = (event) => {
+        if (event.target === modal) window.closeCsvImportBatchViewModal();
+    };
+
+    modal.innerHTML = `
+        <div class="modal-box modal-box-large csv-import-batch-modal" role="dialog" aria-modal="true" aria-labelledby="csvImportBatchViewTitle" onclick="event.stopPropagation()">
+            <button type="button" class="modal-close" onclick="window.closeCsvImportBatchViewModal()" aria-label="Close imported transactions">&times;</button>
+            <h3 id="csvImportBatchViewTitle" class="modal-title">Imported Transactions</h3>
+            <div class="csv-import-batch-meta">
+                <strong>${esc(batch.sourceFileName || 'CSV import')}</strong>
+                <span>${esc(formatCsvImportBatchDate(batch.importedAt))} - ${txs.length} transaction${txs.length === 1 ? '' : 's'} currently in budget</span>
+            </div>
+            ${renderCsvImportBatchRows(txs)}
+            <div class="modal-actions csv-import-batch-actions">
+                <button type="button" class="btn-cancel" onclick="window.closeCsvImportBatchViewModal()">Close</button>
+                <button type="button" class="btn-cancel csv-import-undo-action" onclick="window.openCsvImportUndoModal(${jsArg(batch.id)})" ${txs.length ? '' : 'disabled'}>Undo This Import</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+};
+
+window.closeCsvImportBatchViewModal = function() {
+    const modal = document.getElementById('csvImportBatchViewModal');
+    if (!modal) return;
+    modal.classList.add('closing');
+    window.setTimeout(() => modal.remove(), 180);
+};
+
+window.openCsvImportUndoModal = function(batchId) {
+    const batch = getCsvImportBatchSummary(batchId);
+    const txs = getCsvImportBatchTransactions(batchId);
+    if (!batch.id || !txs.length) {
+        if (window.showToast) window.showToast('No transactions from this import are available to undo.');
+        renderCsvImportBatchList();
+        return;
+    }
+
+    document.getElementById('csvImportUndoModal')?.remove();
+    const editedWarning = batch.editedTransactionCount > 0
+        ? `<div class="csv-import-undo-warning">${batch.editedTransactionCount} transaction${batch.editedTransactionCount === 1 ? '' : 's'} from this import ${batch.editedTransactionCount === 1 ? 'was' : 'were'} edited after import. Undoing will remove ${batch.editedTransactionCount === 1 ? 'that edited transaction' : 'those edited transactions'} too.</div>`
+        : '';
+
+    const modal = document.createElement('div');
+    modal.id = 'csvImportUndoModal';
+    modal.className = 'modal-overlay active csv-import-undo-modal-overlay';
+    modal.onclick = (event) => {
+        if (event.target === modal) window.closeCsvImportUndoModal();
+    };
+
+    modal.innerHTML = `
+        <div class="modal-box modal-box-medium csv-import-undo-modal" role="dialog" aria-modal="true" aria-labelledby="csvImportUndoTitle" onclick="event.stopPropagation()">
+            <button type="button" class="modal-close" onclick="window.closeCsvImportUndoModal()" aria-label="Close undo import">&times;</button>
+            <h3 id="csvImportUndoTitle" class="modal-title">Undo this import?</h3>
+            <p>This will remove ${txs.length} transaction${txs.length === 1 ? '' : 's'} imported from:</p>
+            <div class="csv-import-undo-file">${esc(batch.sourceFileName || 'CSV import')}</div>
+            <p>Manual transactions, unrelated imports, and merchant cleanup aliases will not be removed.</p>
+            ${editedWarning}
+            <div class="modal-actions csv-import-undo-actions">
+                <button type="button" class="btn-cancel" onclick="window.closeCsvImportUndoModal()">Cancel</button>
+                <button type="button" class="btn-outline-danger" onclick="window.confirmUndoCsvImportBatch(${jsArg(batch.id)})">Undo Import</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+};
+
+window.closeCsvImportUndoModal = function() {
+    const modal = document.getElementById('csvImportUndoModal');
+    if (!modal) return;
+    modal.classList.add('closing');
+    window.setTimeout(() => modal.remove(), 180);
+};
+
+window.confirmUndoCsvImportBatch = function(batchId) {
+    const batch = getCsvImportBatchSummary(batchId);
+    const txs = getCsvImportBatchTransactions(batchId);
+    if (!batch.id || !txs.length) {
+        if (window.showToast) window.showToast('No transactions from this import are available to undo.');
+        return;
+    }
+
+    const removeIds = new Set(txs.map(tx => tx.id).filter(Boolean));
+    const current = State.getTransactions ? State.getTransactions() : [];
+    const remaining = current.filter(tx => !removeIds.has(tx.id));
+    if (!saveTransactionArray(remaining)) return;
+
+    updateCsvImportBatch(batch.id, {
+        undoneAt: new Date().toISOString(),
+        undoneTransactionCount: removeIds.size
+    });
+    recordSyncEvent(`Undid CSV import from ${batch.sourceFileName || 'CSV import'} (${removeIds.size} transaction${removeIds.size === 1 ? '' : 's'} removed).`, 'local');
+    observeLocalSave(`Undid CSV import (${removeIds.size} transaction${removeIds.size === 1 ? '' : 's'} removed)`);
+
+    window.closeCsvImportUndoModal();
+    window.closeCsvImportBatchViewModal();
+    window.dismissCsvImportCompleteNotice?.({ clearContext: true });
+    window.closeCsvImportCompleteModal?.({ clearContext: true });
+    refreshRecentDependents();
+    renderCsvImportBatchList();
+    if (window.showToast) window.showToast(`CSV import undone. Removed ${removeIds.size} transaction${removeIds.size === 1 ? '' : 's'}.`);
+};
 
 function getPendingMerchantCleanupSuggestionRows(preferredIds = []) {
     const txs = State.getTransactions ? State.getTransactions() : [];
@@ -20232,6 +20587,8 @@ window.showCsvImportCompleteModal = function() {
             </div>
             <div class="modal-actions csv-import-complete-modal-actions">
                 <button type="button" class="btn-create" onclick="window.openMerchantCleanupSuggestionsFromNotice()">Review Suggestions</button>
+                <button type="button" class="btn-cancel" onclick="window.openCsvImportBatchViewModal(${jsArg(csvImportFeedbackContext.importBatchId || '')})">View Imported Transactions</button>
+                <button type="button" class="btn-cancel csv-import-undo-action" onclick="window.openCsvImportUndoModal(${jsArg(csvImportFeedbackContext.importBatchId || '')})">Undo This Import</button>
                 <button type="button" class="btn-cancel" onclick="window.closeCsvImportCompleteModal()">Skip for now</button>
             </div>
             <div class="csv-import-complete-feedback-row">
@@ -20268,6 +20625,8 @@ window.showCsvImportCompleteNotice = function() {
             <span>${importedLabel}, ${duplicateLabel}, ${notImportedLabel}</span>
         </div>
         <div class="csv-import-complete-notice-actions">
+            <button type="button" class="csv-import-complete-review-btn" onclick="window.openCsvImportBatchViewModal(${jsArg(csvImportFeedbackContext.importBatchId || '')})">View</button>
+            <button type="button" class="csv-import-complete-undo-btn" onclick="window.openCsvImportUndoModal(${jsArg(csvImportFeedbackContext.importBatchId || '')})">Undo</button>
             <button type="button" class="csv-import-complete-feedback-btn" onclick="window.openCsvImportFeedbackFromNotice()">Feedback</button>
             <button type="button" class="csv-import-complete-dismiss-btn" onclick="window.dismissCsvImportCompleteNotice()" aria-label="Dismiss import complete notice">&times;</button>
         </div>
