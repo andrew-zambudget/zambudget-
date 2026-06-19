@@ -2082,11 +2082,13 @@
   top: 50%;
   height: 2px;
   background-color: var(--positive, #4caf50);
-  width: 0%;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
   animation: strikeAnim 0.6s ease-out forwards;
 }
 
-@keyframes strikeAnim { to { width: 100%; } }
+@keyframes strikeAnim { to { transform: scaleX(1); } }
 
 .celebrate-shimmer {
   animation: shimmerLoop 2s infinite alternate;

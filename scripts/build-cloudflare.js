@@ -4,7 +4,7 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const outDir = path.join(root, 'dist');
 const copyDirs = ['css', 'js', 'data'];
-const copyFiles = ['config.json', 'robots.txt', '_headers'];
+const copyFiles = ['config.json', 'robots.txt', '_headers', 'favicon.ico'];
 const routeAliases = [
   { route: 'login', source: 'login.html' },
   { route: 'auth/callback', source: 'login.html' },

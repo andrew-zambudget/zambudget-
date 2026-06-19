@@ -1633,6 +1633,7 @@ input.error, select.error {
   border-top: none;
   border-radius: 0 0 8px 8px;
   overflow: hidden;
+  transform-origin: top;
   animation: notesExpand 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -1643,12 +1644,12 @@ input.error, select.error {
 @keyframes notesExpand {
   from {
     opacity: 0;
-    max-height: 0;
+    transform: scaleY(0.96);
     padding: 0 0.75rem;
   }
   to {
     opacity: 1;
-    max-height: 200px;
+    transform: scaleY(1);
     padding: 0.75rem;
   }
 }
