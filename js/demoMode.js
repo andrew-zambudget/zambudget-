@@ -497,7 +497,7 @@ function injectStyles() {
     style.id = STYLE_ID;
     style.textContent = `
         body.bb-demo-active {
-            padding-bottom: 96px;
+            padding-bottom: 82px;
         }
 
         body.bb-demo-active.bb-demo-banner-minimized {
@@ -515,16 +515,16 @@ function injectStyles() {
             z-index: 2500;
             display: grid;
             grid-template-columns: 1fr auto;
-            gap: 16px;
+            gap: 12px;
             align-items: center;
-            width: min(920px, calc(100vw - 32px));
-            padding: 14px 16px;
+            width: min(780px, calc(100vw - 32px));
+            padding: 10px 12px;
             color: #f8fafc;
             background:
                 linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(17, 94, 89, 0.94)),
                 #0f172a;
             border: 1px solid rgba(148, 163, 184, 0.28);
-            border-radius: 18px;
+            border-radius: 14px;
             box-shadow: 0 18px 50px rgba(15, 23, 42, 0.32);
             transform: translateX(-50%);
             animation: bbDemoSlideUp 260ms ease-out;
@@ -535,7 +535,7 @@ function injectStyles() {
             position: absolute;
             inset: 1px;
             pointer-events: none;
-            border-radius: 17px;
+            border-radius: 13px;
             background: linear-gradient(120deg, rgba(20, 184, 166, 0.22), transparent 34%, rgba(255, 255, 255, 0.12) 62%, transparent);
             opacity: 0.78;
         }
@@ -548,10 +548,10 @@ function injectStyles() {
 
         .bb-demo-label {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             align-items: center;
-            margin: 0 0 4px;
-            font-size: 0.78rem;
+            margin: 0 0 2px;
+            font-size: 0.7rem;
             font-weight: 800;
             letter-spacing: 0;
             text-transform: uppercase;
@@ -569,8 +569,8 @@ function injectStyles() {
         .bb-demo-copy {
             margin: 0;
             color: rgba(248, 250, 252, 0.84);
-            font-size: 0.94rem;
-            line-height: 1.35;
+            font-size: 0.86rem;
+            line-height: 1.28;
         }
 
         .bb-demo-timer {
@@ -581,7 +581,7 @@ function injectStyles() {
 
         .bb-demo-banner-actions {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             align-items: center;
             justify-content: flex-end;
             flex-wrap: wrap;
@@ -603,18 +603,18 @@ function injectStyles() {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-height: 40px;
-            padding: 0 14px;
+            min-height: 32px;
+            padding: 0 10px;
             border: 0;
             border-radius: 999px;
             font: inherit;
-            font-size: 0.88rem;
+            font-size: 0.78rem;
             font-weight: 800;
             color: #0f172a;
             background: #ffffff;
             cursor: pointer;
             text-decoration: none;
-            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.22);
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
             transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
         }
 
@@ -634,8 +634,15 @@ function injectStyles() {
         }
 
         .bb-demo-toggle {
-            min-height: 34px;
-            padding: 0 12px;
+            min-height: 30px;
+            padding: 0 9px;
+        }
+
+        .bb-demo-action-quiet {
+            color: rgba(248, 250, 252, 0.88);
+            background: transparent;
+            border: 1px solid rgba(248, 250, 252, 0.16);
+            box-shadow: none;
         }
 
         .bb-demo-banner.is-minimized {
@@ -939,7 +946,7 @@ function injectStyles() {
 
         @media (max-width: 720px) {
             body.bb-demo-active {
-                padding-bottom: 176px;
+                padding-bottom: 134px;
             }
 
             body.bb-demo-active.bb-demo-banner-minimized {
@@ -954,8 +961,9 @@ function injectStyles() {
                 grid-template-columns: 1fr;
                 align-items: stretch;
                 bottom: 10px;
-                width: min(370px, calc(100vw - 20px));
-                padding: 14px;
+                width: min(420px, calc(100vw - 20px));
+                padding: 10px;
+                gap: 8px;
             }
 
             .bb-demo-banner.is-minimized {
@@ -970,7 +978,7 @@ function injectStyles() {
             }
 
             .bb-demo-banner-actions {
-                justify-content: stretch;
+                justify-content: flex-start;
             }
 
             .bb-account-banner {
@@ -986,7 +994,7 @@ function injectStyles() {
             }
 
             .bb-demo-action {
-                flex: 1 1 130px;
+                flex: 0 1 auto;
             }
 
             .bb-demo-tutorial-card {
@@ -1053,10 +1061,10 @@ function renderBanner() {
         <div class="bb-demo-banner-actions">
             <button type="button" class="bb-demo-action" data-demo-action="create-account">Create Free Account</button>
             <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="login">Sign In</button>
-            <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="tour">Tour</button>
-            <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="restart">Reset Demo</button>
-            <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="end">End Demo</button>
-            <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="website">Back to Website</button>
+            <button type="button" class="bb-demo-action bb-demo-action-secondary bb-demo-action-quiet" data-demo-action="tour">Tour</button>
+            <button type="button" class="bb-demo-action bb-demo-action-secondary bb-demo-action-quiet" data-demo-action="restart">Reset Demo</button>
+            <button type="button" class="bb-demo-action bb-demo-action-secondary bb-demo-action-quiet" data-demo-action="end">End Demo</button>
+            <button type="button" class="bb-demo-action bb-demo-action-secondary bb-demo-action-quiet" data-demo-action="website">Back to Website</button>
             <button type="button" class="bb-demo-action bb-demo-action-secondary bb-demo-toggle" data-demo-action="toggle-banner" aria-expanded="true" aria-label="Minimize demo banner">Minimize</button>
         </div>
     `;
