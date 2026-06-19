@@ -608,6 +608,16 @@ function syncCloudActionButtons() {
                 : showKeyReminder
                 ? 'warning'
                 : humanStatus.severity;
+            const reminderTitle = showKeyReminder
+                ? (grace.expired ? 'Recovery key not saved' : 'Recovery key reminder')
+                : humanStatus.title;
+            const reminderDetail = status.hasExportableKey
+                ? grace.expired
+                    ? 'Save your recovery key before relying on Cloud Sync as your backup. If this browser is lost or cleared, we cannot recover your encrypted cloud budget.'
+                    : `Save your recovery key within ${formatGraceHours(grace.remainingMs)}. Clearing this browser or losing this device can remove trusted key access.`
+                : grace.expired
+                ? 'Import and verify your saved recovery key before relying on Cloud Sync as your backup. If this browser is lost or cleared, we cannot recover your encrypted cloud budget.'
+                : `Import and verify your saved recovery key within ${formatGraceHours(grace.remainingMs)}. This trusted browser can sync, but the key text is no longer viewable after refresh.`;
             nudge.classList.toggle('is-synced', nudgeSeverity === 'synced');
             nudge.classList.toggle('is-warning', nudgeSeverity === 'warning');
             nudge.classList.toggle('is-error', nudgeSeverity === 'error');
@@ -619,11 +629,9 @@ function syncCloudActionButtons() {
                     </svg>
                 </span>
                 <span class="sync-cloud-lock-tooltip" role="tooltip"><span class="sync-cloud-lock-tooltip-encrypted">Encrypted</span> with <span class="sync-cloud-lock-tooltip-cipher">AES-GCM-256</span></span>
-                <div class="sync-cloud-nudge-title">${showKeyReminder && grace.expired ? 'Recovery key not saved' : esc(humanStatus.title)}</div>
+                <div class="sync-cloud-nudge-title">${esc(reminderTitle)}</div>
                 <p>${showKeyReminder
-                    ? grace.expired
-                        ? 'Save your recovery key before relying on Cloud Sync as your backup. If this browser is lost or cleared, we cannot recover your encrypted cloud budget.'
-                        : `Save your recovery key within ${formatGraceHours(grace.remainingMs)}. Clearing this browser or losing this device can remove trusted key access.`
+                    ? esc(reminderDetail)
                     : esc(humanStatus.detail)}</p>
             `;
         } else if (signedIn) {
@@ -1403,8 +1411,16 @@ function formatGraceHours(ms) {
 
 function needsRecoveryKeySaveReminder() {
     const status = window.BuddyCloud?.getStatus?.() || {};
-    const needsReminder = Boolean(status.signedIn && status.enabled && status.hasKey && status.hasExportableKey && !hasRecoveryKeySavedFlag());
-    if (needsReminder) startRecoveryKeyGracePeriod();
+    const grace = getRecoveryKeyGraceState();
+    const hasActiveGrace = Boolean(grace.startedAt);
+    const needsReminder = Boolean(
+        status.signedIn
+        && status.enabled
+        && status.hasKey
+        && !hasRecoveryKeySavedFlag()
+        && (status.hasExportableKey || hasActiveGrace)
+    );
+    if (needsReminder && status.hasExportableKey && !hasActiveGrace) startRecoveryKeyGracePeriod();
     return needsReminder;
 }
 
@@ -13606,10 +13622,16 @@ function syncAccountRecoveryUi() {
     }
 
     const grace = getRecoveryKeyGraceState();
+    const hasExportableKey = Boolean(status.hasExportableKey);
     const title = grace.expired ? 'Recovery key not saved' : 'Recovery key reminder';
-    const message = grace.expired
-        ? 'Save it before relying on Cloud Sync as your backup.'
-        : `Save it within ${formatGraceHours(grace.remainingMs)}. Cloud Sync stays active during this grace period.`;
+    const message = hasExportableKey
+        ? grace.expired
+            ? 'Save it before relying on Cloud Sync as your backup.'
+            : `Save it within ${formatGraceHours(grace.remainingMs)}. Cloud Sync stays active during this grace period.`
+        : grace.expired
+        ? 'Import and verify your saved key before relying on Cloud Sync as your backup.'
+        : `Import and verify your saved key within ${formatGraceHours(grace.remainingMs)}. Cloud Sync stays active during this grace period.`;
+    const actionLabel = hasExportableKey ? 'Save Key' : 'Import Key';
 
     el.hidden = false;
     el.classList.remove('is-required');
@@ -13619,7 +13641,7 @@ function syncAccountRecoveryUi() {
             <div class="account-recovery-title">${esc(title)}</div>
             <div class="account-recovery-message">${esc(message)}</div>
         </div>
-        <button type="button" class="account-recovery-action" onclick="event.stopPropagation(); window.closeAccountModal(); window.showBuddyCloudRecoveryKey(event)">Save Key</button>
+        <button type="button" class="account-recovery-action" onclick="event.stopPropagation(); window.closeAccountModal(); window.showBuddyCloudRecoveryKey(event)">${esc(actionLabel)}</button>
     `;
 }
 

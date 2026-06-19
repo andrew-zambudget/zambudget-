@@ -1,13 +1,14 @@
 const { test, expect } = require('@playwright/test');
 const {
-    resetBrowserStorage
+    resetBrowserStorage,
+    waitForAppReady
 } = require('./helpers/appHarness');
 
 const TEST_USER_ID = 'fresh-recovery-key-user';
 const TEST_EMAIL = 'test-user@example.invalid';
 
 function installFreshSignedInSupabaseStub(page) {
-    return page.route('**/@supabase/supabase-js@2', route => route.fulfill({
+    return page.route(/.*(?:@supabase\/supabase-js@2|js\/vendor\/supabase\.js).*/, route => route.fulfill({
         status: 200,
         contentType: 'application/javascript',
         body: `
@@ -186,6 +187,17 @@ test.describe('recovery key setup guardrails', () => {
         expect(flags.backedUp).toBeNull();
         expect(flags.saved).toBeNull();
         expect(flags.graceStarted).toBeTruthy();
+
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await waitForAppReady(page);
+        await page.waitForFunction(() => {
+            const status = window.BuddyCloud?.getStatus?.() || {};
+            return Boolean(status.signedIn && status.enabled && status.hasKey && !status.hasExportableKey);
+        });
+
+        const nudge = page.locator('.sync-cloud-nudge');
+        await expect(nudge).toContainText('Recovery key reminder');
+        await expect(nudge).toContainText('Import and verify your saved recovery key within');
     });
 
     test('fresh setup validates pasted recovery key before marking it saved', async ({ page }) => {
