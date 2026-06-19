@@ -17196,6 +17196,7 @@ const CSV_IMPORT_NOT_MAPPED_VALUE = '';
 let csvImportState = null;
 let csvImportFeedbackContext = null;
 let csvImportCompleteNoticeTimer = null;
+let smartMerchantCleanupReviewState = null;
 let csvImportFilterMode = 'all';
 let csvImportPreviewMode = CSV_IMPORT_PREVIEW_MODE_PARSED;
 let csvImportSearchQuery = '';
@@ -19528,10 +19529,53 @@ function renderSmartMerchantCleanupRows(rows = []) {
     `;
 }
 
+function renderSmartMerchantCleanupComplete(state = {}) {
+    const accepted = state.accepted || 0;
+    const ignored = state.ignored || 0;
+    const total = state.total || accepted + ignored;
+    const skipped = Math.max(0, total - accepted - ignored);
+    return `
+        <div class="smart-merchant-cleanup-complete" role="status">
+            <strong>Cleanup review complete</strong>
+            <span>${accepted} accepted</span>
+            <span>${ignored} ignored</span>
+            <span>${skipped} skipped</span>
+        </div>
+    `;
+}
+
 function getSelectedSmartMerchantCleanupIds() {
     return Array.from(document.querySelectorAll('#smartMerchantCleanupModal .smart-merchant-cleanup-row-select:checked'))
         .map(input => input.dataset.txId)
         .filter(Boolean);
+}
+
+function refreshSmartMerchantCleanupModal() {
+    const modal = document.getElementById('smartMerchantCleanupModal');
+    if (!modal || !smartMerchantCleanupReviewState) return;
+
+    const rows = getPendingMerchantCleanupSuggestionRows(smartMerchantCleanupReviewState.preferredIds || []);
+    const reviewed = (smartMerchantCleanupReviewState.accepted || 0) + (smartMerchantCleanupReviewState.ignored || 0);
+    const total = smartMerchantCleanupReviewState.total || rows.length || reviewed;
+    const intro = document.getElementById('smartMerchantCleanupIntro');
+    const progress = document.getElementById('smartMerchantCleanupProgress');
+    const body = document.getElementById('smartMerchantCleanupBody');
+    const acceptBtn = document.getElementById('smartMerchantCleanupAcceptSelectedBtn');
+    const ignoreBtn = document.getElementById('smartMerchantCleanupIgnoreSelectedBtn');
+    const doneBtn = document.getElementById('smartMerchantCleanupDoneBtn');
+
+    if (intro) {
+        intro.textContent = rows.length
+            ? `Zam found ${total} possible merchant cleanup suggestion${total === 1 ? '' : 's'}. Original CSV descriptions stay preserved.`
+            : 'Every reviewed suggestion has been saved. Original CSV descriptions stay preserved.';
+    }
+    if (progress) progress.textContent = `${reviewed} of ${total} reviewed`;
+    if (body) body.innerHTML = rows.length ? renderSmartMerchantCleanupRows(rows) : renderSmartMerchantCleanupComplete(smartMerchantCleanupReviewState);
+
+    if (acceptBtn) acceptBtn.hidden = rows.length === 0;
+    if (ignoreBtn) ignoreBtn.hidden = rows.length === 0;
+    if (doneBtn) doneBtn.textContent = rows.length ? 'Skip for now' : 'Done';
+    window.updateSmartMerchantCleanupSelectedCount();
 }
 
 window.updateSmartMerchantCleanupSelectedCount = function() {
@@ -19568,6 +19612,7 @@ window.closeSmartMerchantCleanupModal = function({ clearContext = false } = {}) 
         modal.classList.add('closing');
         window.setTimeout(() => modal.remove(), 180);
     }
+    smartMerchantCleanupReviewState = null;
     if (clearContext) csvImportFeedbackContext = null;
 };
 
@@ -19583,6 +19628,12 @@ window.openSmartMerchantCleanupModal = function(options = {}) {
         if (window.showToast) window.showToast('No Smart Merchant Cleanup suggestions to review.');
         return;
     }
+    smartMerchantCleanupReviewState = {
+        preferredIds: [...preferredIds],
+        total: rows.length,
+        accepted: 0,
+        ignored: 0
+    };
 
     document.getElementById('smartMerchantCleanupModal')?.remove();
     const modal = document.createElement('div');
@@ -19598,15 +19649,20 @@ window.openSmartMerchantCleanupModal = function(options = {}) {
             <div class="smart-merchant-cleanup-head">
                 <div>
                     <h3 id="smartMerchantCleanupTitle" class="modal-title">Smart Merchant Cleanup</h3>
-                    <p>Zam found ${rows.length} possible merchant cleanup suggestion${rows.length === 1 ? '' : 's'}. Original CSV descriptions stay preserved.</p>
+                    <p id="smartMerchantCleanupIntro">Zam found ${rows.length} possible merchant cleanup suggestion${rows.length === 1 ? '' : 's'}. Original CSV descriptions stay preserved.</p>
                 </div>
-                <span id="smartMerchantCleanupSelectedCount" class="smart-merchant-cleanup-selected">${rows.length} of ${rows.length} selected</span>
+                <div class="smart-merchant-cleanup-badges">
+                    <span id="smartMerchantCleanupProgress" class="smart-merchant-cleanup-selected">0 of ${rows.length} reviewed</span>
+                    <span id="smartMerchantCleanupSelectedCount" class="smart-merchant-cleanup-selected">${rows.length} of ${rows.length} selected</span>
+                </div>
             </div>
-            ${renderSmartMerchantCleanupRows(rows)}
+            <div id="smartMerchantCleanupBody">
+                ${renderSmartMerchantCleanupRows(rows)}
+            </div>
             <div class="modal-actions smart-merchant-cleanup-actions">
                 <button type="button" id="smartMerchantCleanupAcceptSelectedBtn" class="btn-create" onclick="window.acceptSelectedMerchantSuggestions(event)">Accept Selected</button>
                 <button type="button" id="smartMerchantCleanupIgnoreSelectedBtn" class="btn-cancel" onclick="window.ignoreSelectedMerchantSuggestions(event)">Ignore Selected</button>
-                <button type="button" class="btn-cancel" onclick="window.closeSmartMerchantCleanupModal({ clearContext: true })">Skip for now</button>
+                <button type="button" id="smartMerchantCleanupDoneBtn" class="btn-cancel" onclick="window.closeSmartMerchantCleanupModal({ clearContext: true })">Skip for now</button>
             </div>
         </div>
     `;
@@ -19629,12 +19685,13 @@ window.acceptSelectedMerchantSuggestions = function(event) {
     const results = selectedIds.map(id => acceptMerchantSuggestionById(id));
     const accepted = results.filter(result => result?.success).length;
     const failed = results.length - accepted;
+    if (smartMerchantCleanupReviewState) smartMerchantCleanupReviewState.accepted += accepted;
     refreshRecentDependents();
-    window.closeSmartMerchantCleanupModal({ clearContext: true });
+    refreshSmartMerchantCleanupModal();
     if (window.showToast) {
         window.showToast(failed
             ? `${accepted} suggestion${accepted === 1 ? '' : 's'} accepted, ${failed} failed.`
-            : `${accepted} suggestion${accepted === 1 ? '' : 's'} accepted.`);
+            : `${accepted} suggestion${accepted === 1 ? '' : 's'} accepted. Continue reviewing remaining suggestions.`);
     }
 };
 
@@ -19652,12 +19709,13 @@ window.ignoreSelectedMerchantSuggestions = function(event) {
     const results = selectedIds.map(id => ignoreMerchantSuggestionById(id));
     const ignored = results.filter(result => result?.success).length;
     const failed = results.length - ignored;
+    if (smartMerchantCleanupReviewState) smartMerchantCleanupReviewState.ignored += ignored;
     refreshRecentDependents();
-    window.closeSmartMerchantCleanupModal({ clearContext: true });
+    refreshSmartMerchantCleanupModal();
     if (window.showToast) {
         window.showToast(failed
             ? `${ignored} suggestion${ignored === 1 ? '' : 's'} ignored, ${failed} failed.`
-            : `${ignored} suggestion${ignored === 1 ? '' : 's'} ignored.`);
+            : `${ignored} suggestion${ignored === 1 ? '' : 's'} ignored. Continue reviewing remaining suggestions.`);
     }
 };
 

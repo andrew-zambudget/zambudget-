@@ -76,6 +76,7 @@ Rules:
 - Zam does not send merchant descriptions to a third-party recognition API.
 - Zam does not auto-apply cleanup.
 - The user must click Accept before the visible description changes.
+- Accepting or ignoring a suggestion keeps the Smart Merchant Cleanup modal open so the user can continue reviewing the batch.
 - Ignore keeps the current description and suppresses that suggestion.
 - The original CSV description is preserved in `raw_description` / Import Details.
 - Accepted aliases are remembered for the same browser/user only in `bb_merchant_aliases_v1`.

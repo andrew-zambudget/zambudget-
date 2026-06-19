@@ -1768,6 +1768,13 @@ body.budget-restore-active {
   white-space: nowrap;
 }
 
+.smart-merchant-cleanup-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
 .smart-merchant-cleanup-table-wrap {
   overflow: auto;
   border: 1px solid color-mix(in srgb, #93c5fd 40%, var(--border));
@@ -1858,6 +1865,31 @@ body.budget-restore-active {
   background: var(--surface);
 }
 
+.smart-merchant-cleanup-complete {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--green) 34%, var(--border));
+  border-left: 4px solid var(--green);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--green) 10%, var(--surface));
+}
+
+.smart-merchant-cleanup-complete strong,
+.smart-merchant-cleanup-complete span {
+  display: block;
+  min-width: 0;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1.3;
+}
+
+.smart-merchant-cleanup-complete span {
+  color: var(--text-dim);
+}
+
 .smart-merchant-cleanup-actions {
   justify-content: flex-end;
 }
@@ -1931,6 +1963,14 @@ body.budget-restore-active {
 
   .smart-merchant-cleanup-selected {
     width: max-content;
+  }
+
+  .smart-merchant-cleanup-badges {
+    justify-content: flex-start;
+  }
+
+  .smart-merchant-cleanup-complete {
+    grid-template-columns: 1fr 1fr;
   }
 
   .smart-merchant-cleanup-actions {

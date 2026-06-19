@@ -105,7 +105,10 @@ test.describe('Smart Merchant Cleanup', () => {
         await cleanupModal.locator('.smart-merchant-cleanup-row-select').nth(1).uncheck();
         await expect(cleanupModal.locator('#smartMerchantCleanupSelectedCount')).toContainText('1 of 2 selected');
         await cleanupModal.locator('#smartMerchantCleanupAcceptSelectedBtn').click();
-        await expect(cleanupModal).toHaveCount(0);
+        await expect(cleanupModal).toBeVisible();
+        await expect(cleanupModal.locator('#smartMerchantCleanupProgress')).toContainText('1 of 2 reviewed');
+        await expect(cleanupModal).not.toContainText('STARBUCKS STORE #1234');
+        await expect(cleanupModal).toContainText('AMZN MKTP US*AB123');
 
         const afterAccept = await page.evaluate(() => {
             const txs = window.getTransactions();
@@ -128,10 +131,11 @@ test.describe('Smart Merchant Cleanup', () => {
         expect(afterAccept.aliases.some(alias => alias.cleaned_name === 'Starbucks')).toBe(true);
         expect(afterAccept.ambiguous.merchant_cleanup_status).toBe('none');
 
-        await page.evaluate((txId) => window.openRecentEditTransactionModal(null, txId), afterAccept.amazon.id);
-        await expect(page.locator('#recentEditTransactionModal .transaction-merchant-suggestion')).toBeVisible();
-        await page.locator('#recentEditTransactionModal .transaction-merchant-btn-ignore').click();
-        await expect(page.locator('#recentEditTransactionModal .transaction-merchant-suggestion')).toHaveCount(0);
+        await cleanupModal.locator('#smartMerchantCleanupIgnoreSelectedBtn').click();
+        await expect(cleanupModal).toBeVisible();
+        await expect(cleanupModal).toContainText('Cleanup review complete');
+        await expect(cleanupModal).toContainText('1 accepted');
+        await expect(cleanupModal).toContainText('1 ignored');
 
         const afterIgnore = await page.evaluate(() => {
             const amazon = window.getTransactions().find(tx => tx.raw_description === 'AMZN MKTP US*AB123');
@@ -144,6 +148,9 @@ test.describe('Smart Merchant Cleanup', () => {
         expect(afterIgnore.description).toBe('AMZN MKTP US*AB123');
         expect(afterIgnore.rawDescription).toBe('AMZN MKTP US*AB123');
         expect(afterIgnore.status).toBe('ignored');
+
+        await cleanupModal.locator('#smartMerchantCleanupDoneBtn').click();
+        await expect(cleanupModal).toHaveCount(0);
 
         expect(browserErrors).toEqual([]);
     });
