@@ -9,7 +9,8 @@ const MERCHANT_CSV = [
     'Posted Date,Payee / Memo,Debit,Credit,Category Name,Account Name,User Note',
     '2026-06-01,STARBUCKS STORE #1234,5.75,,Coffee,Checking,coffee',
     '2026-06-02,AMZN MKTP US*AB123,27.99,,Shopping,Checking,order',
-    '2026-06-03,ABC ENTERPRISES 99821,74.32,,Entertainment,Checking,ambiguous'
+    '2026-06-03,KING SOOPERS STORE 0045,86.42,,Grocery,Checking,seeded merchant',
+    '2026-06-04,ABC ENTERPRISES 99821,74.32,,Entertainment,Checking,ambiguous'
 ].join('\n');
 
 async function seedMerchantHarness(page) {
@@ -69,7 +70,7 @@ async function importMerchantCsv(page) {
         await window.importTransactionsFromCSV({ target: { files: [file], value: '' } });
     }, { text: MERCHANT_CSV, name: 'zam_merchant_recognition_lite.csv' });
     await expect(page.locator('#csvImportReviewModal')).toBeVisible();
-    await expect(page.locator('#csvImportConfirmBtn')).toHaveText('Import 3 Transactions');
+    await expect(page.locator('#csvImportConfirmBtn')).toHaveText('Import 4 Transactions');
     await page.locator('#csvImportConfirmBtn').click();
 }
 
@@ -90,8 +91,8 @@ test.describe('Smart Merchant Cleanup', () => {
         await importMerchantCsv(page);
 
         await expect(page.locator('#csvImportCompleteModal')).toBeVisible();
-        await expect(page.locator('#csvImportCompleteModal')).toContainText('3 transactions imported');
-        await expect(page.locator('#csvImportCompleteModal')).toContainText('2 Smart Merchant Cleanup suggestions found');
+        await expect(page.locator('#csvImportCompleteModal')).toContainText('4 transactions imported');
+        await expect(page.locator('#csvImportCompleteModal')).toContainText('3 Smart Merchant Cleanup suggestions found');
 
         await page.locator('#csvImportCompleteModal button', { hasText: 'Review Suggestions' }).click();
         const cleanupModal = page.locator('#smartMerchantCleanupModal');
@@ -101,12 +102,15 @@ test.describe('Smart Merchant Cleanup', () => {
         await expect(cleanupModal).toContainText('Starbucks');
         await expect(cleanupModal).toContainText('AMZN MKTP US*AB123');
         await expect(cleanupModal).toContainText('Amazon');
+        await expect(cleanupModal).toContainText('KING SOOPERS STORE 0045');
+        await expect(cleanupModal).toContainText('King Soopers');
 
         await cleanupModal.locator('.smart-merchant-cleanup-row-select').nth(1).uncheck();
-        await expect(cleanupModal.locator('#smartMerchantCleanupSelectedCount')).toContainText('1 of 2 selected');
+        await cleanupModal.locator('.smart-merchant-cleanup-row-select').nth(2).uncheck();
+        await expect(cleanupModal.locator('#smartMerchantCleanupSelectedCount')).toContainText('1 of 3 selected');
         await cleanupModal.locator('#smartMerchantCleanupAcceptSelectedBtn').click();
         await expect(cleanupModal).toBeVisible();
-        await expect(cleanupModal.locator('#smartMerchantCleanupProgress')).toContainText('1 of 2 reviewed');
+        await expect(cleanupModal.locator('#smartMerchantCleanupProgress')).toContainText('1 of 3 reviewed');
         await expect(cleanupModal).not.toContainText('STARBUCKS STORE #1234');
         await expect(cleanupModal).toContainText('AMZN MKTP US*AB123');
 
@@ -114,11 +118,13 @@ test.describe('Smart Merchant Cleanup', () => {
             const txs = window.getTransactions();
             const starbucks = txs.find(tx => tx.raw_description === 'STARBUCKS STORE #1234');
             const amazon = txs.find(tx => tx.raw_description === 'AMZN MKTP US*AB123');
+            const kingSoopers = txs.find(tx => tx.raw_description === 'KING SOOPERS STORE 0045');
             const ambiguous = txs.find(tx => tx.raw_description === 'ABC ENTERPRISES 99821');
             const aliases = JSON.parse(localStorage.getItem('bb_merchant_aliases_v1') || '[]');
             return {
                 starbucks,
                 amazon,
+                kingSoopers,
                 ambiguous,
                 aliases
             };
@@ -129,13 +135,14 @@ test.describe('Smart Merchant Cleanup', () => {
         expect(afterAccept.starbucks.raw_description).toBe('STARBUCKS STORE #1234');
         expect(afterAccept.starbucks.merchant_cleanup_status).toBe('accepted');
         expect(afterAccept.aliases.some(alias => alias.cleaned_name === 'Starbucks')).toBe(true);
+        expect(afterAccept.kingSoopers.merchantSuggestion.cleanedName).toBe('King Soopers');
         expect(afterAccept.ambiguous.merchant_cleanup_status).toBe('none');
 
         await cleanupModal.locator('#smartMerchantCleanupIgnoreSelectedBtn').click();
         await expect(cleanupModal).toBeVisible();
         await expect(cleanupModal).toContainText('Cleanup review complete');
         await expect(cleanupModal).toContainText('1 accepted');
-        await expect(cleanupModal).toContainText('1 ignored');
+        await expect(cleanupModal).toContainText('2 ignored');
 
         const afterIgnore = await page.evaluate(() => {
             const amazon = window.getTransactions().find(tx => tx.raw_description === 'AMZN MKTP US*AB123');
@@ -175,7 +182,7 @@ test.describe('Smart Merchant Cleanup', () => {
 
         await page.locator('#csvImportConfirmBtn').click();
         await expect(page.locator('#csvImportCompleteNotice')).toBeVisible();
-        await expect(page.locator('#csvImportCompleteNotice')).toContainText('3 transactions imported');
+        await expect(page.locator('#csvImportCompleteNotice')).toContainText('4 transactions imported');
         await expect(page.locator('#csvImportCompleteModal')).toHaveCount(0);
 
         const imported = await page.evaluate(() => window.getTransactions()
@@ -187,7 +194,7 @@ test.describe('Smart Merchant Cleanup', () => {
                 hasSuggestion: Boolean(tx.merchantSuggestion)
             })));
 
-        expect(imported).toHaveLength(3);
+        expect(imported).toHaveLength(4);
         expect(imported.every(tx => tx.cleanupStatus === 'none')).toBe(true);
         expect(imported.every(tx => tx.hasSuggestion === false)).toBe(true);
     });

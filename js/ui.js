@@ -16958,6 +16958,7 @@ const MERCHANT_CLEANUP_STATUS_SUGGESTED = 'suggested';
 const MERCHANT_CLEANUP_STATUS_ACCEPTED = 'accepted';
 const MERCHANT_CLEANUP_STATUS_IGNORED = 'ignored';
 const MERCHANT_RECOGNITION_FEATURE_NAME = 'Smart Merchant Cleanup';
+const MERCHANT_CLEANUP_SEED_URL = 'data/merchant-cleanup-seeds.v1.json';
 const MERCHANT_RECOGNITION_RULES = [
     { canonical: 'Starbucks', confidence: 'High confidence', reason: 'Obvious Starbucks merchant pattern.', patterns: [/starbucks?/i, /starbuc?k+s?/i, /\bsbux\b/i] },
     { canonical: 'Amazon', confidence: 'High confidence', reason: 'Amazon marketplace bank descriptor.', patterns: [/amzn/i, /amazon/i] },
@@ -16971,6 +16972,8 @@ const MERCHANT_RECOGNITION_RULES = [
     { canonical: 'Venmo', confidence: 'High confidence', reason: 'Venmo transfer descriptor.', patterns: [/venmo/i] },
     { canonical: 'Topgolf', confidence: 'High confidence', reason: 'Topgolf merchant descriptor.', patterns: [/topgolf/i] }
 ];
+let merchantCleanupSeedData = null;
+let merchantCleanupSeedLoadPromise = null;
 
 function hasMerchantRecognitionPremiumAccess() {
     try {
@@ -17063,6 +17066,42 @@ function writeMerchantAliases(aliases = []) {
     }
 }
 
+function getMerchantCleanupSeedData() {
+    return merchantCleanupSeedData
+        && merchantCleanupSeedData.kind === 'zam_smart_merchant_cleanup_seed'
+        && Array.isArray(merchantCleanupSeedData.aliasPatterns)
+        ? merchantCleanupSeedData
+        : null;
+}
+
+async function ensureMerchantCleanupSeedData() {
+    if (getMerchantCleanupSeedData()) return merchantCleanupSeedData;
+    if (merchantCleanupSeedLoadPromise) return merchantCleanupSeedLoadPromise;
+
+    merchantCleanupSeedLoadPromise = fetch(MERCHANT_CLEANUP_SEED_URL, { cache: 'force-cache' })
+        .then((response) => {
+            if (!response.ok) throw new Error(`Smart Merchant Cleanup seed unavailable (${response.status})`);
+            return response.json();
+        })
+        .then((payload) => {
+            if (!payload || payload.kind !== 'zam_smart_merchant_cleanup_seed' || !Array.isArray(payload.aliasPatterns)) {
+                throw new Error('Smart Merchant Cleanup seed is invalid.');
+            }
+            merchantCleanupSeedData = payload;
+            return merchantCleanupSeedData;
+        })
+        .catch((error) => {
+            merchantCleanupSeedData = null;
+            console.warn('[Smart Merchant Cleanup] Could not load merchant seed bundle', error);
+            return null;
+        })
+        .finally(() => {
+            merchantCleanupSeedLoadPromise = null;
+        });
+
+    return merchantCleanupSeedLoadPromise;
+}
+
 function saveMerchantAlias(rawDescription = '', cleanedName = '') {
     const rawPattern = normalizeMerchantAliasPattern(rawDescription);
     const safeCleanedName = String(cleanedName || '').trim();
@@ -17089,6 +17128,48 @@ function saveMerchantAlias(rawDescription = '', cleanedName = '') {
     if (existingIndex >= 0) aliases[existingIndex] = { ...aliases[existingIndex], ...nextAlias };
     else aliases.push(nextAlias);
     return writeMerchantAliases(aliases);
+}
+
+function merchantCleanupPatternMatches(rawNormalized = '', patternNormalized = '') {
+    const raw = String(rawNormalized || '').trim();
+    const pattern = String(patternNormalized || '').trim();
+    if (!raw || !pattern) return false;
+    if (raw === pattern) return true;
+    return raw.startsWith(`${pattern} `)
+        || raw.endsWith(` ${pattern}`)
+        || raw.includes(` ${pattern} `);
+}
+
+function findSeedMerchantCleanupSuggestion(rawDescription = '') {
+    const seedData = getMerchantCleanupSeedData();
+    const raw = String(rawDescription || '').trim();
+    const normalized = normalizeMerchantAliasPattern(raw);
+    if (!seedData || !raw || !normalized) return null;
+
+    for (const alias of seedData.aliasPatterns) {
+        const cleanedName = String(alias?.canonicalName || '').trim();
+        const pattern = String(alias?.normalizedPattern || normalizeMerchantAliasPattern(alias?.pattern || '')).trim();
+        if (!cleanedName || !pattern) continue;
+        if (cleanedName.toLowerCase() === raw.toLowerCase()) continue;
+        if ((alias.falsePositiveGuards || []).some(guard => guard && merchantCleanupPatternMatches(normalized, guard))) continue;
+        if (!merchantCleanupPatternMatches(normalized, pattern)) continue;
+
+        const confidence = String(alias.confidence || 'Medium').trim();
+        const confidenceLabel = /confidence$/i.test(confidence) ? confidence : `${confidence} confidence`;
+        return {
+            id: getMerchantSuggestionId(raw, cleanedName),
+            rawDescription: raw,
+            cleanedName,
+            confidence: confidenceLabel,
+            reason: alias.defaultCategory
+                ? `Seeded local merchant cleanup pattern in ${alias.defaultCategory}.`
+                : 'Seeded local merchant cleanup pattern.',
+            source: 'seed_bundle',
+            defaultCategory: alias.defaultCategory || ''
+        };
+    }
+
+    return null;
 }
 
 function isCsvImportedTransaction(tx = {}) {
@@ -17134,6 +17215,9 @@ function buildMerchantCleanupSuggestion(rawDescription = '') {
             };
         }
     }
+
+    const seedSuggestion = findSeedMerchantCleanupSuggestion(raw);
+    if (seedSuggestion) return seedSuggestion;
 
     for (const rule of MERCHANT_RECOGNITION_RULES) {
         const cleanedName = String(rule.canonical || '').trim();
@@ -20024,6 +20108,7 @@ window.importTransactionsFromCSV = async function(event) {
         }
 
         if (!filePayloads.length) throw new Error('No readable CSV rows found.');
+        if (hasMerchantRecognitionPremiumAccess()) await ensureMerchantCleanupSeedData();
 
         window.openCsvImportReviewModal(filePayloads);
     } catch (error) {

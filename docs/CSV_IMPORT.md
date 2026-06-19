@@ -72,7 +72,7 @@ Rules:
 - CSV import, manual transaction editing, and viewing original import details are not Premium-gated.
 - Free users can keep raw descriptions as-is and edit descriptions manually.
 - Premium users can review Smart Merchant Cleanup suggestions after import, or skip suggestions for a specific import from Advanced Options.
-- Suggestions are generated locally in the browser.
+- Suggestions are generated locally in the browser using built-in rules, accepted local aliases, and the full static `data/merchant-cleanup-seeds.v1.json` seed bundle.
 - Zam does not send merchant descriptions to a third-party recognition API.
 - Zam does not auto-apply cleanup.
 - The user must click Accept before the visible description changes.
