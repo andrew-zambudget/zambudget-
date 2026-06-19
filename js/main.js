@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         // --- SUPABASE INITIALIZATION START ---
         try {
-            const res = await fetch('./config.json');
+            const res = await fetch('/config.json');
             if (!res.ok) throw new Error('Config file not found or inaccessible.');
             const config = await res.json();
             window.bbConfig = config;
