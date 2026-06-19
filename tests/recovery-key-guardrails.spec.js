@@ -197,8 +197,9 @@ test.describe('recovery key setup guardrails', () => {
 
         const nudge = page.locator('.sync-cloud-nudge');
         await expect(nudge).toContainText('Recovery key reminder');
-        await expect(nudge).toContainText('Recovery key backup is not verified');
-        await expect(nudge).toContainText('If you did not save it, open Recovery Help');
+        await expect(nudge).toContainText('Recovery key not verified');
+        await expect(nudge).toContainText('This browser can sync, but the key cannot be viewed after refresh');
+        await expect(nudge).toContainText('reset Cloud Sync before relying on this backup');
     });
 
     test('fresh setup validates pasted recovery key before marking it saved', async ({ page }) => {

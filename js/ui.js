@@ -1429,9 +1429,7 @@ function getRecoveryKeyReminderDetail(status = window.BuddyCloud?.getStatus?.() 
             : `Save your recovery key within ${remaining}. Clearing this browser or losing this device can remove trusted key access.`;
     }
 
-    return grace.expired
-        ? 'Recovery key backup is not verified. This trusted browser can sync, but the key text is no longer viewable. If you did not save it, open Recovery Help and reset Cloud Sync before relying on it as your backup. If you did save it, import it to verify.'
-        : `Recovery key backup is not verified. This trusted browser can sync, but the key text is no longer viewable after refresh. If you did not save it, open Recovery Help and reset Cloud Sync before relying on it as your backup. If you did save it, import it to verify within ${remaining}.`;
+    return `Recovery key not verified. This browser can sync, but the key cannot be viewed after refresh. Save or verify your key within ${remaining}, or reset Cloud Sync before relying on this backup.`;
 }
 
 function getRecoveryKeyRecommendedStep(status = window.BuddyCloud?.getStatus?.() || {}, grace = getRecoveryKeyGraceState()) {
@@ -22568,8 +22566,8 @@ async function showUnverifiedRecoveryKeyLogoutModal() {
         eyebrow: 'Recovery Key',
         title: 'Recovery Key Not Verified',
         compact: true,
-        body: 'This trusted browser can sync, but the recovery-key text is no longer viewable after refresh.',
-        assurance: 'If you saved the key, Recovery Help can import it to verify your backup. If you did not save it, reset Cloud Sync to create a new key before relying on Cloud Sync as your backup.',
+        body: 'Recovery key not verified. This browser can sync, but the key cannot be viewed after refresh.',
+        assurance: `Save or verify your key within ${formatGraceHours(getRecoveryKeyGraceState().remainingMs)}, or reset Cloud Sync before relying on this backup.`,
         warning: 'Signing out is allowed, but Zam! cannot recover the encrypted cloud budget if this browser is lost or cleared and no saved recovery key exists.',
         actions: [
             { id: 'back', label: 'Back', className: 'btn-cancel' },
