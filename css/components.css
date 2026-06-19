@@ -8829,6 +8829,64 @@ input.error, select.error {
     cursor: pointer;
 }
 
+.add-date-native::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.86;
+}
+
+#view-add .hidden-details-drawer {
+    border: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 86%, transparent);
+    border-radius: 14px;
+    padding: 0.9rem;
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--accent, #14b8a6) 5%, transparent), transparent 58%),
+        color-mix(in srgb, var(--surface, #ffffff) 86%, var(--bg, #f8fafc));
+}
+
+#view-add .hidden-details-drawer.open {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 0.82rem;
+}
+
+#view-add .hidden-details-drawer > .add-form-group {
+    min-width: 0;
+}
+
+#view-add .hidden-details-drawer > .add-form-group:has(#txNotes),
+#view-add .hidden-details-drawer > .add-form-group:has(#giftCardTrackerPanel:not([hidden])) {
+    grid-column: 1 / -1;
+}
+
+#view-add .hidden-details-drawer .add-form-group > label {
+    color: var(--text-dim, #64748b);
+    font-size: 0.72rem;
+    font-weight: 850;
+    letter-spacing: 0.07em;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+#view-add .hidden-details-drawer .add-date-shell {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+#view-add .hidden-details-drawer .add-date-native,
+#view-add .hidden-details-drawer .payment-method-select {
+    height: 48px;
+    min-height: 48px;
+    line-height: 1.2;
+}
+
+#view-add .hidden-details-drawer .notes-textarea {
+    min-height: 72px;
+    resize: vertical;
+}
+
 /* Sticky Save */
 .sticky-save-wrapper {
     position: absolute;
@@ -8838,7 +8896,40 @@ input.error, select.error {
     background: linear-gradient(to bottom, transparent, var(--surface, #ffffff) 20%);
     padding-top: 1rem;
 }
-.hero-save-btn { width: 100%; padding: 1rem; font-size: 1.1rem; border-radius: 12px; touch-action: manipulation; }
+.hero-save-btn {
+    width: 100%;
+    min-height: 52px;
+    padding: 0.95rem 1rem;
+    border: 1px solid color-mix(in srgb, var(--accent, #14b8a6) 74%, transparent);
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent, #14b8a6), var(--accent-strong, #0f766e));
+    color: #ffffff;
+    font-size: 1.04rem;
+    font-weight: 850;
+    letter-spacing: 0;
+    box-shadow: 0 12px 26px color-mix(in srgb, var(--accent, #14b8a6) 28%, transparent);
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+}
+
+.hero-save-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 30px color-mix(in srgb, var(--accent, #14b8a6) 34%, transparent);
+    filter: saturate(1.06);
+}
+
+.hero-save-btn:active {
+    transform: translateY(0) scale(0.99);
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--accent, #14b8a6) 22%, transparent);
+}
+
+.hero-save-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.72;
+    transform: none;
+    filter: grayscale(0.2);
+}
 
 @media (max-width: 640px) {
     #view-add.cmd-view {
@@ -8911,6 +9002,10 @@ input.error, select.error {
     .sticky-save-wrapper {
         padding: 0.75rem 1rem 1rem;
         background: linear-gradient(to bottom, transparent, var(--surface, #ffffff) 32%);
+    }
+
+    #view-add .hidden-details-drawer.open {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -9753,7 +9848,7 @@ input.error, select.error {
         min-height: 0;
         margin: 0 auto;
         padding: 0.9rem;
-        padding-bottom: 0;
+        padding-bottom: 5.75rem;
         gap: 0.85rem;
         border: 0;
         border-radius: 0;
@@ -9950,6 +10045,10 @@ input.error, select.error {
         background: color-mix(in srgb, var(--surface, #ffffff) 74%, var(--bg, #f8fafc));
     }
 
+    #view-add .hidden-details-drawer.open {
+        grid-template-columns: 1fr;
+    }
+
     #view-add .gift-card-tracker-panel {
         gap: 0.62rem;
         margin-top: 0.48rem;
@@ -10002,6 +10101,15 @@ input.error, select.error {
         border-top: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 72%, transparent);
         background: linear-gradient(to bottom, transparent, var(--surface, #ffffff) 22%, var(--surface, #ffffff));
         backdrop-filter: blur(12px);
+    }
+
+    #view-add .add-transaction-form:has(#txHiddenDetails.open) .sticky-save-wrapper {
+        position: static;
+        margin: 0;
+        padding: 0.2rem 0 0;
+        border-top: 0;
+        background: transparent;
+        backdrop-filter: none;
     }
 
     #view-add .hero-save-btn {

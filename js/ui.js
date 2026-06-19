@@ -9122,6 +9122,12 @@ function bindAddDatePickerEvents() {
 
     if (!dateInput.dataset.nativePickerBound) {
         dateInput.dataset.nativePickerBound = 'true';
+        dateInput.addEventListener('click', () => {
+            const now = Date.now();
+            if (now - addDatePickerRequestAt < 300) return;
+            addDatePickerRequestAt = now;
+            openAddDatePicker();
+        });
         dateInput.addEventListener('pointerup', (event) => {
             if (event.pointerType === 'mouse') return;
             if (typeof dateInput.showPicker !== 'function') return;
