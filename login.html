@@ -385,6 +385,7 @@
     var magicLinkCooldownTimer = null;
     var magicLinkRequestInFlight = false;
     var MAGIC_LINK_RATE_LIMIT_SECONDS = 60;
+    var MAGIC_LINK_COOLDOWN_STORAGE_KEY = 'zam_magic_link_cooldown_until';
     var PRODUCTION_APP_ORIGIN = 'https://app.zambudget.com';
     var LOCAL_AUTH_HOSTS = ['localhost', '127.0.0.1', ''];
 
@@ -465,7 +466,49 @@
         var text = String(error && error.message ? error.message : '').toLowerCase();
         return text.indexOf('rate limit') !== -1
             || text.indexOf('too many') !== -1
-            || text.indexOf('429') !== -1;
+            || text.indexOf('429') !== -1
+            || text.indexOf('for security purposes') !== -1
+            || text.indexOf('request this after') !== -1
+            || text.indexOf('only request this after') !== -1;
+    }
+
+    function getAuthRateLimitSeconds(error) {
+        var text = String(error && error.message ? error.message : '');
+        var match = text.match(/after\s+(\d+)\s+seconds?/i);
+        if (match && match[1]) {
+            return Math.max(1, Number(match[1]));
+        }
+        return MAGIC_LINK_RATE_LIMIT_SECONDS;
+    }
+
+    function readMagicLinkCooldownUntil() {
+        try {
+            return Number(sessionStorage.getItem(MAGIC_LINK_COOLDOWN_STORAGE_KEY) || 0);
+        } catch (err) {
+            return 0;
+        }
+    }
+
+    function writeMagicLinkCooldownUntil(timestamp) {
+        try {
+            sessionStorage.setItem(MAGIC_LINK_COOLDOWN_STORAGE_KEY, String(timestamp));
+        } catch (err) {
+            // Session storage can be blocked; the visible in-memory timer still protects this tab.
+        }
+    }
+
+    function clearMagicLinkCooldownUntil() {
+        try {
+            sessionStorage.removeItem(MAGIC_LINK_COOLDOWN_STORAGE_KEY);
+        } catch (err) {
+            // No-op when session storage is unavailable.
+        }
+    }
+
+    function getMagicLinkCooldownRemainingSeconds() {
+        var cooldownUntil = readMagicLinkCooldownUntil();
+        if (!cooldownUntil) return 0;
+        return Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000));
     }
 
     function isMissingAccountSignInError(error) {
@@ -508,17 +551,21 @@
             }
             setMagicLinkButtonState(false, 'Email me a sign-in link');
         }
+
+        resumeMagicLinkCooldownIfActive();
     }
 
     function startMagicLinkCooldown(seconds) {
         var remaining = Number(seconds) || MAGIC_LINK_RATE_LIMIT_SECONDS;
+        writeMagicLinkCooldownUntil(Date.now() + (remaining * 1000));
         window.clearInterval(magicLinkCooldownTimer);
 
         function renderCooldown() {
             if (remaining <= 0) {
                 window.clearInterval(magicLinkCooldownTimer);
                 magicLinkCooldownTimer = null;
-                setMagicLinkButtonState(false, 'Email me a sign-in link');
+                clearMagicLinkCooldownUntil();
+                setMagicLinkButtonState(false);
                 return;
             }
             setMagicLinkButtonState(true, 'Try email again in ' + remaining + 's');
@@ -527,6 +574,16 @@
 
         renderCooldown();
         magicLinkCooldownTimer = window.setInterval(renderCooldown, 1000);
+    }
+
+    function resumeMagicLinkCooldownIfActive() {
+        var remaining = getMagicLinkCooldownRemainingSeconds();
+        if (remaining > 0) {
+            startMagicLinkCooldown(remaining);
+            return true;
+        }
+        clearMagicLinkCooldownUntil();
+        return false;
     }
 
     function showInitialAuthMessage() {
@@ -553,6 +610,7 @@
 
     (async function init() {
         var initialMessage = showInitialAuthMessage();
+        resumeMagicLinkCooldownIfActive();
         await loadCredentials();
 
         if (!SUPABASE_URL || !SUPABASE_KEY || typeof window.supabase === 'undefined') {
@@ -635,6 +693,13 @@
             return;
         }
 
+        var cooldownRemaining = getMagicLinkCooldownRemainingSeconds();
+        if (cooldownRemaining > 0) {
+            showAuthMessage('Please wait ' + cooldownRemaining + ' seconds before requesting another email link.', 'error');
+            startMagicLinkCooldown(cooldownRemaining);
+            return;
+        }
+
         if (!sb) {
             showAuthMessage('Connection not available. Please reload.', 'error');
             return;
@@ -656,8 +721,9 @@
 
             if (error) {
                 if (isAuthRateLimitError(error)) {
-                    showAuthMessage('Email sign-in is cooling down. Wait about a minute before requesting another link, or continue with Google if this email was recently used.', 'error');
-                    startMagicLinkCooldown(MAGIC_LINK_RATE_LIMIT_SECONDS);
+                    var waitSeconds = getAuthRateLimitSeconds(error);
+                    showAuthMessage('Please wait ' + waitSeconds + ' seconds before requesting another email link.', 'error');
+                    startMagicLinkCooldown(waitSeconds);
                 } else if (authMode === 'signin' && isMissingAccountSignInError(error)) {
                     showAuthMessage('If this email belongs to a Zam! account, check your inbox for a secure sign-in link. If you are new, choose Create one.', 'success');
                     startMagicLinkCooldown(MAGIC_LINK_RATE_LIMIT_SECONDS);
