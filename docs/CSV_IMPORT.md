@@ -58,9 +58,9 @@ Manual transactions do not show Import Details.
 
 Imported transactions show Import Details when `source_type === "csv_import"`.
 
-## Merchant Recognition Lite
+## Smart Merchant Cleanup
 
-Merchant Recognition Lite is Premium cleanup assistance. When Premium is active, Zam can suggest local merchant cleanup for imported CSV rows when the bank description is noisy.
+Smart Merchant Cleanup is Premium cleanup assistance. When Premium is active, Zam can suggest local merchant cleanup for imported CSV rows when the bank description is noisy.
 
 Example:
 
@@ -71,7 +71,7 @@ Rules:
 
 - CSV import, manual transaction editing, and viewing original import details are not Premium-gated.
 - Free users can keep raw descriptions as-is and edit descriptions manually.
-- Premium users can run merchant cleanup suggestions, or skip suggestions for a specific import from Advanced Options.
+- Premium users can review Smart Merchant Cleanup suggestions after import, or skip suggestions for a specific import from Advanced Options.
 - Suggestions are generated locally in the browser.
 - Zam does not send merchant descriptions to a third-party recognition API.
 - Zam does not auto-apply cleanup.

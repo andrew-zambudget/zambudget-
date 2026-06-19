@@ -73,7 +73,7 @@ async function importMerchantCsv(page) {
     await page.locator('#csvImportConfirmBtn').click();
 }
 
-test.describe('Merchant Recognition Lite', () => {
+test.describe('Smart Merchant Cleanup', () => {
     test.beforeEach(async ({ page }) => {
         await installSignedOutSupabaseStub(page);
         await resetBrowserStorage(page);
@@ -91,16 +91,21 @@ test.describe('Merchant Recognition Lite', () => {
 
         await expect(page.locator('#csvImportCompleteModal')).toBeVisible();
         await expect(page.locator('#csvImportCompleteModal')).toContainText('3 transactions imported');
-        await expect(page.locator('#csvImportCompleteModal')).toContainText('2 merchant cleanup suggestions found');
+        await expect(page.locator('#csvImportCompleteModal')).toContainText('2 Smart Merchant Cleanup suggestions found');
 
         await page.locator('#csvImportCompleteModal button', { hasText: 'Review Suggestions' }).click();
-        await expect(page.locator('#recentEditTransactionModal')).toBeVisible();
-        await expect(page.locator('#recentEditTransactionModal .transaction-merchant-suggestion')).toBeVisible();
-        await expect(page.locator('#recentEditTransactionModal .transaction-merchant-suggestion')).toContainText('STARBUCKS STORE #1234');
-        await expect(page.locator('#recentEditTransactionModal .transaction-merchant-suggestion')).toContainText('Starbucks');
+        const cleanupModal = page.locator('#smartMerchantCleanupModal');
+        await expect(cleanupModal).toBeVisible();
+        await expect(cleanupModal).toContainText('Smart Merchant Cleanup');
+        await expect(cleanupModal).toContainText('STARBUCKS STORE #1234');
+        await expect(cleanupModal).toContainText('Starbucks');
+        await expect(cleanupModal).toContainText('AMZN MKTP US*AB123');
+        await expect(cleanupModal).toContainText('Amazon');
 
-        await page.locator('#recentEditTransactionModal .transaction-merchant-btn-accept').click();
-        await expect(page.locator('#recentEditTransactionModal .transaction-merchant-suggestion')).toHaveCount(0);
+        await cleanupModal.locator('.smart-merchant-cleanup-row-select').nth(1).uncheck();
+        await expect(cleanupModal.locator('#smartMerchantCleanupSelectedCount')).toContainText('1 of 2 selected');
+        await cleanupModal.locator('#smartMerchantCleanupAcceptSelectedBtn').click();
+        await expect(cleanupModal).toHaveCount(0);
 
         const afterAccept = await page.evaluate(() => {
             const txs = window.getTransactions();
@@ -159,7 +164,7 @@ test.describe('Merchant Recognition Lite', () => {
         await expect(skipSuggestions).toBeChecked();
         await expect(skipSuggestions).toBeDisabled();
         await expect(page.locator('#csvImportMerchantSuggestionsPremiumPill')).toBeVisible();
-        await expect(page.locator('#csvImportMerchantSuggestionsHint')).toContainText('Premium unlocks merchant cleanup suggestions');
+        await expect(page.locator('#csvImportMerchantSuggestionsHint')).toContainText('Smart Merchant Cleanup is Premium');
 
         await page.locator('#csvImportConfirmBtn').click();
         await expect(page.locator('#csvImportCompleteNotice')).toBeVisible();

@@ -15701,16 +15701,11 @@ function updateMerchantSuggestionTransaction(txId, updates = {}, fallbackMutator
         : { success: false, error: 'Could not update transaction.' };
 }
 
-window.acceptMerchantSuggestion = function(event, txId) {
-    event?.preventDefault?.();
-    event?.stopPropagation?.();
-    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('accept merchant suggestion')) return;
-
+function acceptMerchantSuggestionById(txId) {
     const tx = getTransactionById(txId);
     const suggestion = getMerchantCleanupSuggestion(tx);
     if (!tx || !suggestion?.cleanedName) {
-        if (window.showToast) window.showToast('Merchant suggestion is no longer available.');
-        return;
+        return { success: false, error: 'Merchant suggestion is no longer available.' };
     }
 
     const rawDescription = suggestion.rawDescription || getRawMerchantDescription(tx);
@@ -15738,12 +15733,53 @@ window.acceptMerchantSuggestion = function(event, txId) {
         merchantSuggestion: storedSuggestion
     };
     const result = updateMerchantSuggestionTransaction(txId, updates);
+    if (!result?.success) return { success: false, error: result?.error || 'Could not accept merchant suggestion.' };
+
+    saveMerchantAlias(rawDescription, suggestion.cleanedName);
+    return { success: true, txId, rawDescription, cleanedName: suggestion.cleanedName };
+}
+
+function ignoreMerchantSuggestionById(txId) {
+    const tx = getTransactionById(txId);
+    const suggestion = getMerchantCleanupSuggestion(tx);
+    if (!tx || !suggestion) {
+        return { success: false, error: 'Merchant suggestion is no longer available.' };
+    }
+
+    const rawDescription = suggestion.rawDescription || getRawMerchantDescription(tx);
+    const now = new Date().toISOString();
+    const cleanedName = suggestion.cleanedName || suggestion.cleaned_name || '';
+    const updates = {
+        rawDescription,
+        raw_description: rawDescription,
+        merchant_cleanup_status: MERCHANT_CLEANUP_STATUS_IGNORED,
+        merchant_suggestion_id: suggestion.id || tx.merchant_suggestion_id || getMerchantSuggestionId(rawDescription, cleanedName),
+        merchantSuggestion: {
+            ...suggestion,
+            rawDescription,
+            raw_description: rawDescription,
+            cleaned_name: cleanedName,
+            status: MERCHANT_CLEANUP_STATUS_IGNORED,
+            ignoredAt: now
+        }
+    };
+    const result = updateMerchantSuggestionTransaction(txId, updates);
+    if (!result?.success) return { success: false, error: result?.error || 'Could not ignore merchant suggestion.' };
+
+    return { success: true, txId, rawDescription };
+}
+
+window.acceptMerchantSuggestion = function(event, txId) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('accept merchant suggestion')) return;
+
+    const result = acceptMerchantSuggestionById(txId);
     if (!result?.success) {
         if (window.showToast) window.showToast(result?.error || 'Could not accept merchant suggestion.');
         return;
     }
 
-    saveMerchantAlias(rawDescription, suggestion.cleanedName);
     if (window.showToast) window.showToast('Merchant cleanup accepted.');
     refreshRecentDependents();
     openTransactionEditModal(txId);
@@ -15754,30 +15790,7 @@ window.ignoreMerchantSuggestion = function(event, txId) {
     event?.stopPropagation?.();
     if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('ignore merchant suggestion')) return;
 
-    const tx = getTransactionById(txId);
-    const suggestion = getMerchantCleanupSuggestion(tx);
-    if (!tx || !suggestion) {
-        if (window.showToast) window.showToast('Merchant suggestion is no longer available.');
-        return;
-    }
-
-    const rawDescription = suggestion.rawDescription || getRawMerchantDescription(tx);
-    const now = new Date().toISOString();
-    const updates = {
-        rawDescription,
-        raw_description: rawDescription,
-        merchant_cleanup_status: MERCHANT_CLEANUP_STATUS_IGNORED,
-        merchant_suggestion_id: suggestion.id || tx.merchant_suggestion_id || getMerchantSuggestionId(rawDescription, suggestion.cleanedName),
-        merchantSuggestion: {
-            ...suggestion,
-            rawDescription,
-            raw_description: rawDescription,
-            cleaned_name: suggestion.cleanedName,
-            status: MERCHANT_CLEANUP_STATUS_IGNORED,
-            ignoredAt: now
-        }
-    };
-    const result = updateMerchantSuggestionTransaction(txId, updates);
+    const result = ignoreMerchantSuggestionById(txId);
     if (!result?.success) {
         if (window.showToast) window.showToast(result?.error || 'Could not ignore merchant suggestion.');
         return;
@@ -16944,7 +16957,7 @@ const MERCHANT_CLEANUP_STATUS_NONE = 'none';
 const MERCHANT_CLEANUP_STATUS_SUGGESTED = 'suggested';
 const MERCHANT_CLEANUP_STATUS_ACCEPTED = 'accepted';
 const MERCHANT_CLEANUP_STATUS_IGNORED = 'ignored';
-const MERCHANT_RECOGNITION_FEATURE_NAME = 'Merchant cleanup suggestions';
+const MERCHANT_RECOGNITION_FEATURE_NAME = 'Smart Merchant Cleanup';
 const MERCHANT_RECOGNITION_RULES = [
     { canonical: 'Starbucks', confidence: 'High confidence', reason: 'Obvious Starbucks merchant pattern.', patterns: [/starbucks?/i, /starbuc?k+s?/i, /\bsbux\b/i] },
     { canonical: 'Amazon', confidence: 'High confidence', reason: 'Amazon marketplace bank descriptor.', patterns: [/amzn/i, /amazon/i] },
@@ -16998,11 +17011,11 @@ function syncCsvImportMerchantSuggestionOption(options = {}) {
     if (pill) pill.hidden = hasAccess;
     if (hint) {
         if (!hasAccess) {
-            hint.innerHTML = `Premium unlocks merchant cleanup suggestions after import. <button type="button" class="csv-import-inline-link" onclick="window.openCsvImportMerchantSuggestionPremiumInfo(event)">Learn more</button>`;
+            hint.innerHTML = `Smart Merchant Cleanup is Premium. Free users can still edit transactions manually. <button type="button" class="csv-import-inline-link" onclick="window.openCsvImportMerchantSuggestionPremiumInfo(event)">Learn more</button>`;
         } else if (input.checked) {
-            hint.textContent = 'Merchant cleanup suggestions will be skipped for this import.';
+            hint.textContent = 'Smart Merchant Cleanup will be skipped for this import.';
         } else {
-            hint.textContent = 'Zam will look for local merchant cleanup suggestions after this import.';
+            hint.textContent = 'Zam will look for Smart Merchant Cleanup suggestions after this import.';
         }
     }
 }
@@ -19169,7 +19182,7 @@ window.openCsvImportMerchantSuggestionPremiumInfo = function(event) {
     if (typeof window.openUpgradeModal === 'function') {
         window.openUpgradeModal(MERCHANT_RECOGNITION_FEATURE_NAME);
     } else if (window.showToast) {
-        window.showToast('Merchant cleanup suggestions are a Premium feature.');
+        window.showToast('Smart Merchant Cleanup is Premium. You can still edit transactions manually.');
     }
 };
 
@@ -19457,6 +19470,197 @@ function getCsvImportCompleteSummaryLabels() {
     };
 }
 
+function getPendingMerchantCleanupSuggestionRows(preferredIds = []) {
+    const txs = State.getTransactions ? State.getTransactions() : [];
+    const preferredSet = new Set((Array.isArray(preferredIds) ? preferredIds : []).map(value => String(value)));
+    const preferred = [];
+    const rest = [];
+
+    txs.forEach((tx) => {
+        const suggestion = getMerchantCleanupSuggestion(tx);
+        if (!suggestion) return;
+        const row = { tx, suggestion };
+        if (preferredSet.has(String(tx.id))) preferred.push(row);
+        else rest.push(row);
+    });
+
+    return [...preferred, ...rest];
+}
+
+function renderSmartMerchantCleanupRows(rows = []) {
+    if (!rows.length) {
+        return '<div class="smart-merchant-cleanup-empty">No Smart Merchant Cleanup suggestions are currently available.</div>';
+    }
+
+    return `
+        <div class="smart-merchant-cleanup-table-wrap">
+            <table class="smart-merchant-cleanup-table">
+                <thead>
+                    <tr>
+                        <th class="smart-merchant-cleanup-select-col">
+                            <input type="checkbox" id="smartMerchantCleanupSelectAll" checked onchange="window.toggleSmartMerchantCleanupSelectAll(event)" aria-label="Select all Smart Merchant Cleanup suggestions">
+                        </th>
+                        <th>Original</th>
+                        <th>Suggested</th>
+                        <th>Confidence</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows.map(({ tx, suggestion }) => `
+                        <tr>
+                            <td class="smart-merchant-cleanup-select-col">
+                                <input type="checkbox" class="smart-merchant-cleanup-row-select" data-tx-id="${esc(tx.id)}" checked onchange="window.updateSmartMerchantCleanupSelectedCount()" aria-label="Select cleanup suggestion for ${esc(suggestion.rawDescription || getRawMerchantDescription(tx) || 'transaction')}">
+                            </td>
+                            <td>
+                                <span class="smart-merchant-cleanup-original">${esc(suggestion.rawDescription || getRawMerchantDescription(tx) || 'Unavailable')}</span>
+                                <span class="smart-merchant-cleanup-meta">${esc(tx.date || 'No date')} - ${esc(tx.category || 'Uncategorized')}</span>
+                            </td>
+                            <td><strong>${esc(suggestion.cleanedName || '')}</strong></td>
+                            <td>
+                                <span class="smart-merchant-cleanup-confidence">${esc(suggestion.confidence || 'Medium confidence')}</span>
+                                <span class="smart-merchant-cleanup-reason">${esc(suggestion.reason || 'Likely merchant cleanup.')}</span>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+function getSelectedSmartMerchantCleanupIds() {
+    return Array.from(document.querySelectorAll('#smartMerchantCleanupModal .smart-merchant-cleanup-row-select:checked'))
+        .map(input => input.dataset.txId)
+        .filter(Boolean);
+}
+
+window.updateSmartMerchantCleanupSelectedCount = function() {
+    const modal = document.getElementById('smartMerchantCleanupModal');
+    if (!modal) return;
+
+    const selectedCount = getSelectedSmartMerchantCleanupIds().length;
+    const totalCount = modal.querySelectorAll('.smart-merchant-cleanup-row-select').length;
+    const countEl = document.getElementById('smartMerchantCleanupSelectedCount');
+    const selectAll = document.getElementById('smartMerchantCleanupSelectAll');
+    const acceptBtn = document.getElementById('smartMerchantCleanupAcceptSelectedBtn');
+    const ignoreBtn = document.getElementById('smartMerchantCleanupIgnoreSelectedBtn');
+
+    if (countEl) countEl.textContent = `${selectedCount} of ${totalCount} selected`;
+    if (selectAll) {
+        selectAll.checked = selectedCount > 0 && selectedCount === totalCount;
+        selectAll.indeterminate = selectedCount > 0 && selectedCount < totalCount;
+    }
+    if (acceptBtn) acceptBtn.disabled = selectedCount === 0;
+    if (ignoreBtn) ignoreBtn.disabled = selectedCount === 0;
+};
+
+window.toggleSmartMerchantCleanupSelectAll = function(event) {
+    const checked = Boolean(event?.target?.checked);
+    document.querySelectorAll('#smartMerchantCleanupModal .smart-merchant-cleanup-row-select').forEach((input) => {
+        input.checked = checked;
+    });
+    window.updateSmartMerchantCleanupSelectedCount();
+};
+
+window.closeSmartMerchantCleanupModal = function({ clearContext = false } = {}) {
+    const modal = document.getElementById('smartMerchantCleanupModal');
+    if (modal) {
+        modal.classList.add('closing');
+        window.setTimeout(() => modal.remove(), 180);
+    }
+    if (clearContext) csvImportFeedbackContext = null;
+};
+
+window.openSmartMerchantCleanupModal = function(options = {}) {
+    if (!hasMerchantRecognitionPremiumAccess()) {
+        window.openCsvImportMerchantSuggestionPremiumInfo();
+        return;
+    }
+
+    const preferredIds = Array.isArray(options.preferredIds) ? options.preferredIds : [];
+    const rows = getPendingMerchantCleanupSuggestionRows(preferredIds);
+    if (!rows.length) {
+        if (window.showToast) window.showToast('No Smart Merchant Cleanup suggestions to review.');
+        return;
+    }
+
+    document.getElementById('smartMerchantCleanupModal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'smartMerchantCleanupModal';
+    modal.className = 'modal-overlay active smart-merchant-cleanup-overlay';
+    modal.onclick = (event) => {
+        if (event.target === modal) window.closeSmartMerchantCleanupModal({ clearContext: false });
+    };
+
+    modal.innerHTML = `
+        <div class="modal-box modal-box-large smart-merchant-cleanup-modal" role="dialog" aria-modal="true" aria-labelledby="smartMerchantCleanupTitle" onclick="event.stopPropagation()">
+            <button type="button" class="modal-close" onclick="window.closeSmartMerchantCleanupModal({ clearContext: false })" aria-label="Close Smart Merchant Cleanup">&times;</button>
+            <div class="smart-merchant-cleanup-head">
+                <div>
+                    <h3 id="smartMerchantCleanupTitle" class="modal-title">Smart Merchant Cleanup</h3>
+                    <p>Zam found ${rows.length} possible merchant cleanup suggestion${rows.length === 1 ? '' : 's'}. Original CSV descriptions stay preserved.</p>
+                </div>
+                <span id="smartMerchantCleanupSelectedCount" class="smart-merchant-cleanup-selected">${rows.length} of ${rows.length} selected</span>
+            </div>
+            ${renderSmartMerchantCleanupRows(rows)}
+            <div class="modal-actions smart-merchant-cleanup-actions">
+                <button type="button" id="smartMerchantCleanupAcceptSelectedBtn" class="btn-create" onclick="window.acceptSelectedMerchantSuggestions(event)">Accept Selected</button>
+                <button type="button" id="smartMerchantCleanupIgnoreSelectedBtn" class="btn-cancel" onclick="window.ignoreSelectedMerchantSuggestions(event)">Ignore Selected</button>
+                <button type="button" class="btn-cancel" onclick="window.closeSmartMerchantCleanupModal({ clearContext: true })">Skip for now</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    window.updateSmartMerchantCleanupSelectedCount();
+};
+
+window.acceptSelectedMerchantSuggestions = function(event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('accept merchant suggestions')) return;
+
+    const selectedIds = getSelectedSmartMerchantCleanupIds();
+    if (!selectedIds.length) {
+        if (window.showToast) window.showToast('Select at least one suggestion to accept.');
+        return;
+    }
+
+    const results = selectedIds.map(id => acceptMerchantSuggestionById(id));
+    const accepted = results.filter(result => result?.success).length;
+    const failed = results.length - accepted;
+    refreshRecentDependents();
+    window.closeSmartMerchantCleanupModal({ clearContext: true });
+    if (window.showToast) {
+        window.showToast(failed
+            ? `${accepted} suggestion${accepted === 1 ? '' : 's'} accepted, ${failed} failed.`
+            : `${accepted} suggestion${accepted === 1 ? '' : 's'} accepted.`);
+    }
+};
+
+window.ignoreSelectedMerchantSuggestions = function(event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('ignore merchant suggestions')) return;
+
+    const selectedIds = getSelectedSmartMerchantCleanupIds();
+    if (!selectedIds.length) {
+        if (window.showToast) window.showToast('Select at least one suggestion to ignore.');
+        return;
+    }
+
+    const results = selectedIds.map(id => ignoreMerchantSuggestionById(id));
+    const ignored = results.filter(result => result?.success).length;
+    const failed = results.length - ignored;
+    refreshRecentDependents();
+    window.closeSmartMerchantCleanupModal({ clearContext: true });
+    if (window.showToast) {
+        window.showToast(failed
+            ? `${ignored} suggestion${ignored === 1 ? '' : 's'} ignored, ${failed} failed.`
+            : `${ignored} suggestion${ignored === 1 ? '' : 's'} ignored.`);
+    }
+};
+
 window.showCsvImportCompleteModal = function() {
     if (!csvImportFeedbackContext) return;
     document.getElementById('csvImportCompleteModal')?.remove();
@@ -19482,7 +19686,7 @@ window.showCsvImportCompleteModal = function() {
                 <div class="csv-import-complete-modal-icon" aria-hidden="true">OK</div>
                 <div>
                     <h3 id="csvImportCompleteTitle" class="modal-title">Import Complete</h3>
-                    <p>Review the import result and decide whether to clean up noisy merchant names.</p>
+                    <p>Review the import result. Smart Merchant Cleanup is optional and does not block imported transactions.</p>
                 </div>
             </div>
             <div class="csv-import-complete-modal-summary" aria-label="Import summary">
@@ -19492,14 +19696,16 @@ window.showCsvImportCompleteModal = function() {
             </div>
             <div class="csv-import-complete-merchant-panel">
                 <div>
-                    <strong>${merchantSuggestionCount} merchant cleanup suggestion${merchantSuggestionCount === 1 ? '' : 's'} found</strong>
-                    <span>Premium cleanup suggestions can make imported bank descriptions easier to read. Original CSV values stay preserved.</span>
+                    <strong>${merchantSuggestionCount} Smart Merchant Cleanup suggestion${merchantSuggestionCount === 1 ? '' : 's'} found</strong>
+                    <span>Premium cleanup suggestions can make noisy imported bank descriptions easier to read. Original CSV values stay preserved.</span>
                 </div>
             </div>
             <div class="modal-actions csv-import-complete-modal-actions">
                 <button type="button" class="btn-create" onclick="window.openMerchantCleanupSuggestionsFromNotice()">Review Suggestions</button>
-                <button type="button" class="btn-cancel" onclick="window.openCsvImportFeedbackFromNotice()">Feedback</button>
-                <button type="button" class="btn-cancel" onclick="window.closeCsvImportCompleteModal()">Close</button>
+                <button type="button" class="btn-cancel" onclick="window.closeCsvImportCompleteModal()">Skip for now</button>
+            </div>
+            <div class="csv-import-complete-feedback-row">
+                <button type="button" class="csv-import-complete-feedback-link" onclick="window.openCsvImportFeedbackFromNotice()">Import feedback</button>
             </div>
         </div>
     `;
@@ -19559,16 +19765,7 @@ window.openMerchantCleanupSuggestionsFromNotice = function() {
     const preferredIds = Array.isArray(context.merchantSuggestionTransactionIds)
         ? context.merchantSuggestionTransactionIds
         : [];
-    const txs = State.getTransactions ? State.getTransactions() : [];
-    const pending = txs.find(tx => preferredIds.includes(tx.id) && getMerchantCleanupSuggestion(tx))
-        || txs.find(tx => getMerchantCleanupSuggestion(tx));
-
-    if (!pending) {
-        if (window.showToast) window.showToast('No merchant cleanup suggestions to review.');
-        return;
-    }
-
-    openTransactionEditModal(pending.id);
+    window.openSmartMerchantCleanupModal({ preferredIds });
 };
 
 window.openCsvImportFeedbackModal = function() {
