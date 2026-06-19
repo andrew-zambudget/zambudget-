@@ -497,7 +497,7 @@ function injectStyles() {
     style.id = STYLE_ID;
     style.textContent = `
         body.bb-demo-active {
-            padding-bottom: 82px;
+            padding-bottom: 118px;
         }
 
         body.bb-demo-active.bb-demo-banner-minimized {
@@ -514,10 +514,10 @@ function injectStyles() {
             bottom: 16px;
             z-index: 2500;
             display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 12px;
-            align-items: center;
-            width: min(780px, calc(100vw - 32px));
+            grid-template-columns: minmax(0, 1fr);
+            gap: 8px;
+            align-items: stretch;
+            width: min(760px, calc(100vw - 32px));
             padding: 10px 12px;
             color: #f8fafc;
             background:
@@ -546,11 +546,19 @@ function injectStyles() {
             z-index: 1;
         }
 
+        .bb-demo-banner-content {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            min-width: 0;
+        }
+
         .bb-demo-label {
             display: flex;
             gap: 8px;
             align-items: center;
-            margin: 0 0 2px;
+            flex: 0 0 auto;
+            margin: 0;
             font-size: 0.7rem;
             font-weight: 800;
             letter-spacing: 0;
@@ -567,6 +575,7 @@ function injectStyles() {
         }
 
         .bb-demo-copy {
+            min-width: 0;
             margin: 0;
             color: rgba(248, 250, 252, 0.84);
             font-size: 0.86rem;
