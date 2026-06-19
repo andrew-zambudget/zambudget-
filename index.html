@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" class="auth-route-pending">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,follow">
     <title>Zam! — Manage Your Budget</title>
@@ -243,7 +243,7 @@
                     </label>
                 </div>
 
-                <div class="category-list" id="categoryList" role="list"></div>
+                <div class="category-list" id="categoryList"></div>
             </div>
 
             <div class="command-center-card">
@@ -1010,7 +1010,7 @@
                                 </button>
                                 <button type="button" class="account-action-tile account-action-devices" onclick="window.openBuddyCloudDeviceManagement(event)">
                                     <span class="account-action-icon" aria-hidden="true">
-                                        <svg viewBox="0 0 24 24" focusable="false"><rect x="4" y="5" width="16" height="11" rx="2"></rect><path d="M8 21h8"></path><path d="M12 16v5"></path><path d="M9 9h6"></path><path d="M9 12h4"></path></svg>
+                                        <svg viewBox="0 0 24 24" focusable="false"><rect x="4" y="5" width="16" height="11"></rect><path d="M8 21h8"></path><path d="M12 16v5"></path><path d="M9 9h6"></path><path d="M9 12h4"></path></svg>
                                     </span>
                                     <span class="account-action-label">Devices</span>
                                 </button>
@@ -1353,7 +1353,7 @@
                                 </div>
 
                                 <!-- Source Code Posture Modal -->
-                                <div class="modal-overlay" id="licenseModal" role="dialog" aria-modal="true" aria-labelledby="licenseModalTitle" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:2000;display:none;justify-content:center;align-items:center" onclick="if(event.target===this)window.closeLicenseModal()">
+                                <div class="modal-overlay" id="licenseModal" role="dialog" aria-modal="true" aria-labelledby="licenseModalTitle" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);z-index:2000;display:none;justify-content:center;align-items:center" onclick="if(event.target===this)window.closeLicenseModal()">
                                     <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;width:90%;max-width:600px;box-shadow:0 20px 40px rgba(0,0,0,0.4);position:relative;max-height:80vh;overflow-y:auto">
                                         <button id="licenseCloseBtn" aria-label="Close license dialog" onclick="window.closeLicenseModal()" style="position:absolute;top:1rem;right:1rem;background:transparent;border:none;color:var(--text-dim);font-size:1.5rem;cursor:pointer;line-height:1" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text-dim)'">&times;</button>
                                         <h3 id="licenseModalTitle" style="font-size:1.25rem;font-weight:700;margin-bottom:1.5rem;color:var(--text)">Source Code Posture</h3>

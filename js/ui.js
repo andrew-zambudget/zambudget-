@@ -622,7 +622,7 @@ function syncCloudActionButtons() {
             nudge.innerHTML = `
                 <span class="sync-cloud-lock" role="img" tabindex="0" aria-label="Encrypted with AES-GCM-256">
                     <svg viewBox="0 0 24 24" focusable="false">
-                        <rect x="5" y="10" width="14" height="10" rx="2"></rect>
+                        <rect x="5" y="10" width="14" height="10"></rect>
                         <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
                     </svg>
                 </span>
@@ -2801,7 +2801,7 @@ function buildBrowserAccessRows(context = {}) {
 }
 
 function getBrowserAccessIconSvg() {
-    return '<svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"></rect><path d="M7 20h10"></path><path d="M12 18v2"></path></svg>';
+    return '<svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><rect x="3" y="4" width="18" height="14"></rect><path d="M7 20h10"></path><path d="M12 18v2"></path></svg>';
 }
 
 function getCurrentBrowserSyncDeviceStatusLabel() {
@@ -5148,7 +5148,7 @@ export function executeBulkDelete() {
     overlay.id = 'bulkDeleteOverlay';
     overlay.style.cssText = `
         position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(3px);
+        background: rgba(0, 0, 0, 0.6); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
         display: flex; align-items: center; justify-content: center;
         z-index: 2000; border-radius: inherit;
         opacity: 0; transition: opacity 0.2s ease;
@@ -5220,7 +5220,7 @@ export function openBatchIconPicker() {
     overlay.id = 'batchIconOverlay';
     overlay.style.cssText = `
         position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(3px);
+        background: rgba(0, 0, 0, 0.6); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
         display: flex; align-items: center; justify-content: center;
         z-index: 2000; border-radius: inherit;
         opacity: 0; transition: opacity 0.2s ease;
@@ -14187,7 +14187,7 @@ window.openUpgradeModal = function(featureName = 'this premium feature') {
     modal.id = 'upgradeModal';
     modal.className = 'modal-overlay active';
     // Centered fade-in modal per standard UI guidelines
-    modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 1rem; backdrop-filter: blur(4px);';
+    modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 1rem; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);';
 
     modal.innerHTML = `
         <div class="modal-content" style="width: 100%; max-width: 380px; background: var(--surface); border-radius: 24px; padding: 2rem; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.3); animation: popIn 0.3s ease-out;">

@@ -35,6 +35,7 @@ function injectStyles() {
             place-items: center;
             padding: 20px;
             background: rgba(15, 23, 42, 0.56);
+            -webkit-backdrop-filter: blur(10px);
             backdrop-filter: blur(10px);
             opacity: 0;
             pointer-events: none;

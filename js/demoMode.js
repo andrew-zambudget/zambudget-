@@ -701,6 +701,7 @@ function injectStyles() {
             border: 1px solid rgba(148, 163, 184, 0.24);
             border-radius: 18px;
             box-shadow: 0 18px 50px rgba(15, 23, 42, 0.32);
+            -webkit-backdrop-filter: blur(16px);
             backdrop-filter: blur(16px);
             transform: translateX(-50%);
             animation: bbDemoSlideUp 260ms ease-out;
@@ -737,6 +738,7 @@ function injectStyles() {
             place-items: center;
             padding: 18px;
             background: rgba(15, 23, 42, 0.58);
+            -webkit-backdrop-filter: blur(8px);
             backdrop-filter: blur(8px);
             animation: bbDemoFadeIn 180ms ease-out;
         }
