@@ -3382,6 +3382,8 @@ input.error, select.error {
 }
 
 .transaction-edit-money .form-input {
+  min-height: 64px;
+  height: 64px;
   padding-left: 2rem;
   font-variant-numeric: tabular-nums;
 }
@@ -3392,12 +3394,13 @@ input.error, select.error {
 
 .transaction-edit-date-trigger {
   width: 100%;
-  min-height: 48px;
+  min-height: 64px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.64rem 0.72rem;
+  padding: 0.58rem 0.72rem;
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 12px;
   background:
@@ -3421,7 +3424,8 @@ input.error, select.error {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: 0.16rem;
+  justify-content: center;
 }
 
 .transaction-edit-date-copy strong {
@@ -3429,6 +3433,7 @@ input.error, select.error {
   color: var(--text, #0f172a);
   font-size: 0.94rem;
   font-weight: 900;
+  line-height: 1.18;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -3439,6 +3444,7 @@ input.error, select.error {
   font-size: 0.72rem;
   font-style: normal;
   font-weight: 750;
+  line-height: 1.22;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -3451,6 +3457,7 @@ input.error, select.error {
   color: var(--accent, #14b8a6);
   font-size: 0.7rem;
   font-weight: 900;
+  white-space: nowrap;
 }
 
 .transaction-edit-date-picker {
