@@ -1190,9 +1190,19 @@ export const setEmergencyFundInteracted = (val = true) => { state.settings.emerg
 export const getOverrideDebtEmergencyFundLock = () => Boolean(state.settings.overrideDebtEmergencyFundLock);
 export const setOverrideDebtEmergencyFundLock = (val) => { state.settings.overrideDebtEmergencyFundLock = Boolean(val); save(); };
 export const setEmergencyFundGoal = (val, hasOverride = false) => {
+    if (!requireBudgetWriteAccess('change emergency fund target')) return false;
+
+    const previousGoal = state.settings.savingsGoal;
+    const previousOverride = state.settings.emergencyFundGoalOverride;
     state.settings.savingsGoal = Math.max(1000, parseFloat(val) || 1000);
     state.settings.emergencyFundGoalOverride = Boolean(hasOverride);
-    save();
+
+    const saved = save({ action: 'change emergency fund target' });
+    if (!saved) {
+        state.settings.savingsGoal = previousGoal;
+        state.settings.emergencyFundGoalOverride = previousOverride;
+    }
+    return saved;
 };
 export const getEmergencyFundMonths = () => Math.min(6, Math.max(3, parseInt(state.settings.emergencyFundMonths, 10) || 3));
 export const setEmergencyFundMonths = (val) => { state.settings.emergencyFundMonths = Math.min(6, Math.max(3, parseInt(val, 10) || 3)); save(); };

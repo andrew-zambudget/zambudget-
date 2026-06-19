@@ -5626,12 +5626,12 @@ function hasEmergencyFundGoalOverride() {
 
 function setEmergencyFundGoalState(amount, hasOverride = false) {
     if (State.setEmergencyFundGoal) {
-        State.setEmergencyFundGoal(amount, hasOverride);
-        return;
+        return State.setEmergencyFundGoal(amount, hasOverride) !== false;
     }
 
     if (State.setSavingsGoal) State.setSavingsGoal(amount);
     if (State.setEmergencyFundGoalOverride) State.setEmergencyFundGoalOverride(hasOverride);
+    return true;
 }
 
 function getRecommendedEmergencyFundGoal(fundStage = getSavingsFundStage(getTotalSavingsAmount())) {
@@ -6150,7 +6150,7 @@ function closeEmergencyFundRecommendationModal() {
 
 function saveRecommendedEmergencyFundGoal(recommendedAmount, message = 'Emergency fund target reset to Zam! recommendation.') {
     const symbol = State.getSymbol ? State.getSymbol() : '$';
-    setEmergencyFundGoalState(recommendedAmount, false);
+    if (!setEmergencyFundGoalState(recommendedAmount, false)) return;
     observeLocalSave('Emergency fund recommendation saved partially.');
     setEmergencyFundGoalDisplay(recommendedAmount, { forceInput: true });
     setEmergencyFundGoalEditMode(false);
@@ -6160,7 +6160,7 @@ function saveRecommendedEmergencyFundGoal(recommendedAmount, message = 'Emergenc
 
 function saveEmergencyFundGoalOverride(amount) {
     const symbol = State.getSymbol ? State.getSymbol() : '$';
-    setEmergencyFundGoalState(amount, true);
+    if (!setEmergencyFundGoalState(amount, true)) return;
     observeLocalSave('Emergency fund target override saved partially.');
     setEmergencyFundGoalDisplay(amount, { forceInput: true });
     setEmergencyFundGoalEditMode(false);
@@ -6618,11 +6618,16 @@ window.saveEmergencyFundGoal = function(options = {}) {
         return;
     }
 
-    setEmergencyFundGoalState(amount, false);
-    observeLocalSave('Emergency fund target saved partially.');
+    const saveAsOverride = !isRecommendation;
+    if (!setEmergencyFundGoalState(amount, saveAsOverride)) return;
+    observeLocalSave(saveAsOverride ? 'Emergency fund target override saved partially.' : 'Emergency fund target saved partially.');
     setEmergencyFundGoalDisplay(amount, { forceInput: shouldCloseEditor });
     if (shouldCloseEditor) setEmergencyFundGoalEditMode(false);
-    if (window.showToast) window.showToast(`Emergency fund target set to ${symbol}${formatMoney(amount)}.`);
+    if (window.showToast) {
+        window.showToast(saveAsOverride
+            ? `Emergency fund override set to ${symbol}${formatMoney(amount)}.`
+            : `Emergency fund target set to ${symbol}${formatMoney(amount)}.`);
+    }
     renderSavingsTab();
 };
 

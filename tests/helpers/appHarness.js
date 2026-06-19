@@ -49,6 +49,11 @@ async function installSignedOutSupabaseStub(page) {
         contentType: 'application/javascript',
         body: SUPABASE_SIGNED_OUT_STUB
     }));
+    await page.route('**/js/vendor/supabase.js', route => route.fulfill({
+        status: 200,
+        contentType: 'application/javascript',
+        body: SUPABASE_SIGNED_OUT_STUB
+    }));
 }
 
 async function resetBrowserStorage(page) {
