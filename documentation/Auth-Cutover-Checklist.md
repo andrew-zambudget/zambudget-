@@ -98,3 +98,10 @@ After changing auth settings:
 - Confirm the auth link redirects to `https://app.zambudget.com/...`.
 - Confirm no `budget-buddy.io`, `BudgetBuddy`, `localhost`, or `127.0.0.1` remains.
 - Confirm login and demo smoke tests still pass.
+- If `AUTH_SMOKE_LINK_COMMAND` is configured, run the production magic-link canary:
+
+```powershell
+npm run auth:smoke
+```
+
+Read `documentation/Auth-Magic-Link-Monitoring.md` before enabling scheduled canary runs or alert webhooks.

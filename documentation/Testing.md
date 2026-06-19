@@ -13,7 +13,7 @@ npm run build
 
 `npm test` runs the Playwright workbench. The authenticated smoke test is included, but it skips automatically until a dedicated test account is configured.
 
-GitLab separates the always-on storage lifecycle suite from the optional authenticated smoke suite. The authenticated job appears only when both test-account variables exist.
+GitLab separates the always-on storage lifecycle suite from the optional authenticated smoke suite. The authenticated job appears only when both test-account variables exist. A separate magic-link production canary can run after deploys or on a schedule when its mailbox hook is configured.
 
 ## Authenticated smoke account
 
@@ -36,7 +36,21 @@ BUDGETBUDDY_TEST_EMAIL
 BUDGETBUDDY_TEST_PASSWORD
 ```
 
-If Supabase password sign-in is disabled for the project, leave these variables unset until a disposable automated auth path exists. Magic-link and OAuth sign-in are still the right human-facing login paths, but they are not reliable CI smoke-test mechanisms.
+If Supabase password sign-in is disabled for the project, leave these variables unset and use the magic-link canary instead.
+
+## Magic-link canary
+
+Use the production canary when auth templates, Supabase redirect URLs, SMTP routing, or production deploy behavior changes:
+
+```powershell
+$env:AUTH_SMOKE_EMAIL='auth-smoke@zambudget.com'
+$env:AUTH_SMOKE_MAGIC_LINK_FILE='C:\temp\zam-auth-link.txt'
+npm run auth:smoke
+```
+
+For automated GitLab runs, configure `AUTH_SMOKE_LINK_COMMAND` as a masked/protected CI/CD variable so the canary can retrieve the latest magic-link email without committing mailbox credentials.
+
+Read `documentation/Auth-Magic-Link-Monitoring.md` before enabling scheduled runs or alert webhooks.
 
 ## CSV import/export hardening
 

@@ -4,6 +4,7 @@
   "scripts": {
     "build": "node scripts/build-cloudflare.js",
     "deploy": "wrangler deploy",
+    "auth:smoke": "node scripts/auth-magic-link-canary.mjs",
     "test": "npm run test:e2e",
     "test:e2e": "playwright test",
     "test:e2e:auth": "playwright test tests/authenticated-smoke.spec.js",

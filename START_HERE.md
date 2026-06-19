@@ -54,6 +54,7 @@ npm test
 - `README.md`
 - `documentation/App-Rebuild-Runbook.md`
 - `documentation/Infrastructure-Inventory.md`
+- `documentation/Auth-Magic-Link-Monitoring.md`
 - `documentation/Cloud-Sync-v1-Production-Checklist.md`
 - `documentation/Billing-Setup.md`
 - `documentation/Major-Change-Release-Gate.md`
@@ -95,5 +96,5 @@ If the change affects storage, Cloud Sync, billing, account deletion, login, pro
 Use this when starting a fresh chat:
 
 ```text
-We are working in the private Zam! app repo. App domain is https://app.zambudget.com. Marketing/public docs are in the zambudget-website repo at https://zambudget.com. Start by reading START_HERE.md, README.md, documentation/App-Rebuild-Runbook.md, documentation/Infrastructure-Inventory.md, documentation/Cloud-Sync-v1-Production-Checklist.md, and documentation/Major-Change-Release-Gate.md. Check git status first. Do not commit secrets. For app changes, run npm run build and the relevant Playwright tests, then commit, push, and pull.
+We are working in the private Zam! app repo. App domain is https://app.zambudget.com. Marketing/public docs are in the zambudget-website repo at https://zambudget.com. Start by reading START_HERE.md, README.md, documentation/App-Rebuild-Runbook.md, documentation/Infrastructure-Inventory.md, documentation/Auth-Magic-Link-Monitoring.md, documentation/Cloud-Sync-v1-Production-Checklist.md, and documentation/Major-Change-Release-Gate.md. Check git status first. Do not commit secrets. For app changes, run npm run build and the relevant Playwright tests, then commit, push, and pull.
 ```

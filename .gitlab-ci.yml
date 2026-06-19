@@ -2,6 +2,7 @@ stages:
   - test
   - build
   - deploy
+  - monitor
 
 cache:
   key:
@@ -71,3 +72,25 @@ pages:
       - public
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+auth_magic_link_canary:
+  image: mcr.microsoft.com/playwright:v1.60.0-noble
+  stage: monitor
+  extends: .npm_ci
+  needs:
+    - job: pages
+      artifacts: false
+      optional: true
+  script:
+    - npx playwright install chromium
+    - npm run auth:smoke
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths:
+      - test-results/
+  rules:
+    - if: '$AUTH_SMOKE_LINK_COMMAND && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$AUTH_SMOKE_LINK_COMMAND && $CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$RUN_AUTH_MAGIC_LINK_CANARY == "1"'
+    - when: never

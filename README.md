@@ -59,6 +59,7 @@ New maintainers and new Codex chats should begin with `START_HERE.md`, then read
 
 - `documentation/App-Rebuild-Runbook.md`
 - `documentation/Infrastructure-Inventory.md`
+- `documentation/Auth-Magic-Link-Monitoring.md`
 - `documentation/Cloud-Sync-v1-Production-Checklist.md`
 - `documentation/Major-Change-Release-Gate.md`
 - `documentation/Testing.md`
