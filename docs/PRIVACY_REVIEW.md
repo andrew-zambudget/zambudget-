@@ -56,7 +56,7 @@ Current behavior:
 
 - Zam uses required first-party site data on `app.zambudget.com`.
 - `zam_site_data_notice=required` is a first-party, host-only cookie set by `app.zambudget.com`.
-- The cookie keeps required app site data visible in browser cookie controls and is not used for advertising, analytics, retargeting, or cross-site tracking.
+- The cookie remembers that the required site-data notice was shown, keeps required app site data visible in browser cookie controls, and is not used for advertising, analytics, retargeting, cross-site tracking, account data, financial data, or budget data.
 - Privacy and Cookie Policy disclosures, footer/login links, and the storage-blocked guard are the disclosure surfaces.
 - LocalStorage, sessionStorage, and IndexedDB remain required for browser budgets, preferences, sign-in state, Cloud Sync trusted browser unlocks, and security-related flows.
 - Smart Merchant Cleanup uses a full static merchant seed bundle from `data/merchant-cleanup-seeds.v1.json` plus accepted local aliases in `bb_merchant_aliases_v1`. Matching runs locally in the browser, future CSV imports can suggest the same cleanup for the same browser/user, and merchant descriptions are not sent to a third-party recognition API.
