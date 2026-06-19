@@ -16949,6 +16949,7 @@ const MERCHANT_CLEANUP_STATUS_ACCEPTED = 'accepted';
 const MERCHANT_CLEANUP_STATUS_IGNORED = 'ignored';
 const MERCHANT_RECOGNITION_FEATURE_NAME = 'Smart Merchant Cleanup';
 const MERCHANT_CLEANUP_SEED_URL = 'data/merchant-cleanup-seeds.v1.json';
+const SMART_MERCHANT_CLEANUP_SORT_FIELDS = new Set(['original', 'suggested', 'confidence']);
 const MERCHANT_RECOGNITION_RULES = [
     { canonical: 'Starbucks', confidence: 'High confidence', reason: 'Obvious Starbucks merchant pattern.', patterns: [/starbucks?/i, /starbuc?k+s?/i, /\bsbux\b/i] },
     { canonical: 'Amazon', confidence: 'High confidence', reason: 'Amazon marketplace bank descriptor.', patterns: [/amzn/i, /amazon/i] },
@@ -16964,6 +16965,8 @@ const MERCHANT_RECOGNITION_RULES = [
 ];
 let merchantCleanupSeedData = null;
 let merchantCleanupSeedLoadPromise = null;
+let smartMerchantCleanupSortField = '';
+let smartMerchantCleanupSortDirection = CSV_IMPORT_SORT_DIRECTION_ASC;
 
 function hasMerchantRecognitionPremiumAccess() {
     try {
@@ -19562,10 +19565,90 @@ function getPendingMerchantCleanupSuggestionRows(preferredIds = []) {
     return [...preferred, ...rest];
 }
 
+function getSmartMerchantCleanupConfidenceRank(value = '') {
+    const text = String(value || '').toLowerCase();
+    if (text.includes('high')) return 3;
+    if (text.includes('medium')) return 2;
+    if (text.includes('low')) return 1;
+    return 0;
+}
+
+function getSmartMerchantCleanupSortValue(row = {}, field = '') {
+    const tx = row.tx || {};
+    const suggestion = row.suggestion || {};
+    if (field === 'original') {
+        return String(suggestion.rawDescription || getRawMerchantDescription(tx) || '').toLowerCase();
+    }
+    if (field === 'suggested') {
+        return String(suggestion.cleanedName || '').toLowerCase();
+    }
+    if (field === 'confidence') {
+        return getSmartMerchantCleanupConfidenceRank(suggestion.confidence || '');
+    }
+    return '';
+}
+
+function compareSmartMerchantCleanupSortValues(left, right) {
+    if (typeof left === 'number' || typeof right === 'number') {
+        return (Number(left) || 0) - (Number(right) || 0);
+    }
+    return String(left || '').localeCompare(String(right || ''), undefined, {
+        numeric: true,
+        sensitivity: 'base'
+    });
+}
+
+function sortSmartMerchantCleanupRows(rows = []) {
+    if (!SMART_MERCHANT_CLEANUP_SORT_FIELDS.has(smartMerchantCleanupSortField)) {
+        return rows;
+    }
+
+    const directionMultiplier = smartMerchantCleanupSortDirection === CSV_IMPORT_SORT_DIRECTION_DESC ? -1 : 1;
+    return rows
+        .map((row, index) => ({ ...row, _smartMerchantCleanupSortIndex: index }))
+        .sort((left, right) => {
+            const leftValue = getSmartMerchantCleanupSortValue(left, smartMerchantCleanupSortField);
+            const rightValue = getSmartMerchantCleanupSortValue(right, smartMerchantCleanupSortField);
+            const diff = compareSmartMerchantCleanupSortValues(leftValue, rightValue) * directionMultiplier;
+            if (diff !== 0) return diff;
+            return (left._smartMerchantCleanupSortIndex || 0) - (right._smartMerchantCleanupSortIndex || 0);
+        });
+}
+
+function getSmartMerchantCleanupSortArrow(field = '') {
+    if (field !== smartMerchantCleanupSortField) return '\u2195';
+    return smartMerchantCleanupSortDirection === CSV_IMPORT_SORT_DIRECTION_ASC ? '\u2191' : '\u2193';
+}
+
+function renderSmartMerchantCleanupSortableHeader(field = '', label = '') {
+    const isActive = field === smartMerchantCleanupSortField;
+    const nextDirection = isActive && smartMerchantCleanupSortDirection === CSV_IMPORT_SORT_DIRECTION_ASC
+        ? CSV_IMPORT_SORT_DIRECTION_DESC
+        : CSV_IMPORT_SORT_DIRECTION_ASC;
+    const ariaSort = isActive
+        ? (smartMerchantCleanupSortDirection === CSV_IMPORT_SORT_DIRECTION_ASC ? 'ascending' : 'descending')
+        : 'none';
+    const title = `Sort ${label} ${nextDirection === CSV_IMPORT_SORT_DIRECTION_ASC ? 'ascending' : 'descending'}`;
+
+    return `
+        <th class="smart-merchant-cleanup-sortable${isActive ? ' is-active' : ''}" data-sort="${esc(field)}" aria-sort="${ariaSort}">
+            <button type="button" class="smart-merchant-cleanup-sort-button" onclick="window.setSmartMerchantCleanupSort(${jsArg(field)})" title="${esc(title)}">
+                <span>${esc(label)}</span>
+                <span class="smart-merchant-cleanup-sort-arrow" aria-hidden="true">${getSmartMerchantCleanupSortArrow(field)}</span>
+            </button>
+        </th>
+    `;
+}
+
 function renderSmartMerchantCleanupRows(rows = []) {
     if (!rows.length) {
         return '<div class="smart-merchant-cleanup-empty">No Smart Merchant Cleanup suggestions are currently available.</div>';
     }
+
+    const selectedIds = smartMerchantCleanupReviewState?.selectedIds instanceof Set
+        ? smartMerchantCleanupReviewState.selectedIds
+        : null;
+    const sortedRows = sortSmartMerchantCleanupRows(rows);
 
     return `
         <div class="smart-merchant-cleanup-table-wrap">
@@ -19575,16 +19658,18 @@ function renderSmartMerchantCleanupRows(rows = []) {
                         <th class="smart-merchant-cleanup-select-col">
                             <input type="checkbox" id="smartMerchantCleanupSelectAll" checked onchange="window.toggleSmartMerchantCleanupSelectAll(event)" aria-label="Select all Smart Merchant Cleanup suggestions">
                         </th>
-                        <th>Original</th>
-                        <th>Suggested</th>
-                        <th>Confidence</th>
+                        ${renderSmartMerchantCleanupSortableHeader('original', 'Original')}
+                        ${renderSmartMerchantCleanupSortableHeader('suggested', 'Suggested')}
+                        ${renderSmartMerchantCleanupSortableHeader('confidence', 'Confidence')}
                     </tr>
                 </thead>
                 <tbody>
-                    ${rows.map(({ tx, suggestion }) => `
+                    ${sortedRows.map(({ tx, suggestion }) => {
+                        const isChecked = !selectedIds || selectedIds.has(String(tx.id));
+                        return `
                         <tr>
                             <td class="smart-merchant-cleanup-select-col">
-                                <input type="checkbox" class="smart-merchant-cleanup-row-select" data-tx-id="${esc(tx.id)}" checked onchange="window.updateSmartMerchantCleanupSelectedCount()" aria-label="Select cleanup suggestion for ${esc(suggestion.rawDescription || getRawMerchantDescription(tx) || 'transaction')}">
+                                <input type="checkbox" class="smart-merchant-cleanup-row-select" data-tx-id="${esc(tx.id)}" ${isChecked ? 'checked' : ''} onchange="window.updateSmartMerchantCleanupSelectedCount()" aria-label="Select cleanup suggestion for ${esc(suggestion.rawDescription || getRawMerchantDescription(tx) || 'transaction')}">
                             </td>
                             <td>
                                 <span class="smart-merchant-cleanup-original">${esc(suggestion.rawDescription || getRawMerchantDescription(tx) || 'Unavailable')}</span>
@@ -19596,7 +19681,7 @@ function renderSmartMerchantCleanupRows(rows = []) {
                                 <span class="smart-merchant-cleanup-reason">${esc(suggestion.reason || 'Likely merchant cleanup.')}</span>
                             </td>
                         </tr>
-                    `).join('')}
+                    `; }).join('')}
                 </tbody>
             </table>
         </div>
@@ -19656,13 +19741,17 @@ window.updateSmartMerchantCleanupSelectedCount = function() {
     const modal = document.getElementById('smartMerchantCleanupModal');
     if (!modal) return;
 
-    const selectedCount = getSelectedSmartMerchantCleanupIds().length;
+    const selectedIds = getSelectedSmartMerchantCleanupIds();
+    const selectedCount = selectedIds.length;
     const totalCount = modal.querySelectorAll('.smart-merchant-cleanup-row-select').length;
     const countEl = document.getElementById('smartMerchantCleanupSelectedCount');
     const selectAll = document.getElementById('smartMerchantCleanupSelectAll');
     const acceptBtn = document.getElementById('smartMerchantCleanupAcceptSelectedBtn');
     const ignoreBtn = document.getElementById('smartMerchantCleanupIgnoreSelectedBtn');
 
+    if (smartMerchantCleanupReviewState) {
+        smartMerchantCleanupReviewState.selectedIds = new Set(selectedIds.map(String));
+    }
     if (countEl) countEl.textContent = `${selectedCount} of ${totalCount} selected`;
     if (selectAll) {
         selectAll.checked = selectedCount > 0 && selectedCount === totalCount;
@@ -19678,6 +19767,27 @@ window.toggleSmartMerchantCleanupSelectAll = function(event) {
         input.checked = checked;
     });
     window.updateSmartMerchantCleanupSelectedCount();
+};
+
+window.setSmartMerchantCleanupSort = function(field = '') {
+    const safeField = String(field || '').trim();
+    if (!SMART_MERCHANT_CLEANUP_SORT_FIELDS.has(safeField)) return;
+
+    if (smartMerchantCleanupReviewState) {
+        smartMerchantCleanupReviewState.selectedIds = new Set(getSelectedSmartMerchantCleanupIds().map(String));
+    }
+    if (safeField === smartMerchantCleanupSortField) {
+        smartMerchantCleanupSortDirection = smartMerchantCleanupSortDirection === CSV_IMPORT_SORT_DIRECTION_ASC
+            ? CSV_IMPORT_SORT_DIRECTION_DESC
+            : CSV_IMPORT_SORT_DIRECTION_ASC;
+    } else {
+        smartMerchantCleanupSortField = safeField;
+        smartMerchantCleanupSortDirection = safeField === 'confidence'
+            ? CSV_IMPORT_SORT_DIRECTION_DESC
+            : CSV_IMPORT_SORT_DIRECTION_ASC;
+    }
+
+    refreshSmartMerchantCleanupModal();
 };
 
 window.closeSmartMerchantCleanupModal = function({ clearContext = false } = {}) {
@@ -19706,8 +19816,11 @@ window.openSmartMerchantCleanupModal = function(options = {}) {
         preferredIds: [...preferredIds],
         total: rows.length,
         accepted: 0,
-        ignored: 0
+        ignored: 0,
+        selectedIds: null
     };
+    smartMerchantCleanupSortField = '';
+    smartMerchantCleanupSortDirection = CSV_IMPORT_SORT_DIRECTION_ASC;
 
     document.getElementById('smartMerchantCleanupModal')?.remove();
     const modal = document.createElement('div');
@@ -19760,6 +19873,7 @@ window.acceptSelectedMerchantSuggestions = function(event) {
     const accepted = results.filter(result => result?.success).length;
     const failed = results.length - accepted;
     if (smartMerchantCleanupReviewState) smartMerchantCleanupReviewState.accepted += accepted;
+    if (smartMerchantCleanupReviewState) smartMerchantCleanupReviewState.selectedIds = null;
     refreshRecentDependents();
     refreshSmartMerchantCleanupModal();
     if (window.showToast) {
@@ -19784,6 +19898,7 @@ window.ignoreSelectedMerchantSuggestions = function(event) {
     const ignored = results.filter(result => result?.success).length;
     const failed = results.length - ignored;
     if (smartMerchantCleanupReviewState) smartMerchantCleanupReviewState.ignored += ignored;
+    if (smartMerchantCleanupReviewState) smartMerchantCleanupReviewState.selectedIds = null;
     refreshRecentDependents();
     refreshSmartMerchantCleanupModal();
     if (window.showToast) {
@@ -22307,5 +22422,3 @@ window.toggleBulkMode = toggleBulkMode;
 window.handleCardClick = handleCardClick;
 window.bulkDeleteTransactions = bulkDeleteTransactions;
 window.bulkMoveTransactions = bulkMoveTransactions;
-
-

@@ -162,6 +162,34 @@ test.describe('Smart Merchant Cleanup', () => {
         expect(browserErrors).toEqual([]);
     });
 
+    test('sorts merchant cleanup suggestions by visible columns', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+        await seedMerchantHarness(page);
+        await enablePremium(page);
+        await importMerchantCsv(page);
+
+        await page.locator('#csvImportCompleteModal button', { hasText: 'Review Suggestions' }).click();
+        const cleanupModal = page.locator('#smartMerchantCleanupModal');
+        await expect(cleanupModal).toBeVisible();
+
+        const suggestedNames = cleanupModal.locator('.smart-merchant-cleanup-table tbody tr td:nth-child(3) strong');
+        await expect(suggestedNames).toHaveText(['Starbucks', 'Amazon', 'King Soopers']);
+
+        await cleanupModal.locator('th[data-sort="suggested"] .smart-merchant-cleanup-sort-button').click();
+        await expect(cleanupModal.locator('th[data-sort="suggested"]')).toHaveAttribute('aria-sort', 'ascending');
+        await expect(suggestedNames).toHaveText(['Amazon', 'King Soopers', 'Starbucks']);
+        await expect(cleanupModal.locator('#smartMerchantCleanupSelectedCount')).toContainText('3 of 3 selected');
+
+        await cleanupModal.locator('th[data-sort="suggested"] .smart-merchant-cleanup-sort-button').click();
+        await expect(cleanupModal.locator('th[data-sort="suggested"]')).toHaveAttribute('aria-sort', 'descending');
+        await expect(suggestedNames).toHaveText(['Starbucks', 'King Soopers', 'Amazon']);
+
+        await cleanupModal.locator('th[data-sort="confidence"] .smart-merchant-cleanup-sort-button').click();
+        await expect(cleanupModal.locator('th[data-sort="confidence"]')).toHaveAttribute('aria-sort', 'descending');
+        await expect(cleanupModal.locator('#smartMerchantCleanupSelectedCount')).toContainText('3 of 3 selected');
+    });
+
     test('gates merchant cleanup suggestions for Free imports', async ({ page }) => {
         await page.goto('/index.html');
         await waitForAppReady(page);
