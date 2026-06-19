@@ -505,6 +505,27 @@
         msg.style.display = 'block';
     }
 
+    function getAuthCallbackParams() {
+        var params = new URLSearchParams(window.location.search);
+        var hash = String(window.location.hash || '').replace(/^#/, '');
+        if (hash) {
+            new URLSearchParams(hash).forEach(function(value, key) {
+                if (!params.has(key)) params.set(key, value);
+            });
+        }
+        return params;
+    }
+
+    function cleanAuthCallbackErrorUrl() {
+        try {
+            if (window.location.pathname.replace(/\/+$/, '') === '/auth/callback') {
+                window.history.replaceState(null, '', '/login?auth=expired');
+            }
+        } catch (error) {
+            // URL cleanup is best-effort only.
+        }
+    }
+
     function setMagicLinkButtonState(disabled, label) {
         var btn = document.getElementById('magicLinkBtn');
         if (!btn) return;
@@ -637,9 +658,24 @@
     }
 
     function showInitialAuthMessage() {
-        var params = new URLSearchParams(window.location.search);
+        var params = getAuthCallbackParams();
         var msg = document.getElementById('authMessage');
         if (!msg) return '';
+
+        var authErrorCode = String(params.get('error_code') || '').toLowerCase();
+        var authError = String(params.get('error') || '').toLowerCase();
+        var authErrorDescription = String(params.get('error_description') || '');
+        if (params.get('auth') === 'expired'
+            || authErrorCode === 'otp_expired'
+            || authErrorDescription.toLowerCase().indexOf('expired') !== -1
+            || authErrorDescription.toLowerCase().indexOf('invalid') !== -1
+            || authError === 'access_denied') {
+            msg.textContent = 'That email link is invalid or expired. Request a fresh magic link and use the newest email. If this keeps happening, clear site data for app.zambudget.com or try incognito.';
+            msg.className = 'message error';
+            msg.style.display = 'block';
+            cleanAuthCallbackErrorUrl();
+            return 'authLinkExpired';
+        }
 
         if (params.get('accountDeleted') === 'true') {
             msg.textContent = 'Your Zam! account has been deleted. Encrypted Cloud Sync data and the account identity cannot be recovered.';

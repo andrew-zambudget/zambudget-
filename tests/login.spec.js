@@ -6,6 +6,35 @@ test.describe('login page safeguards', () => {
         await resetBrowserStorage(page);
     });
 
+    test('expired magic link callback shows request-new-link guidance', async ({ page }) => {
+        await page.route('**/js/vendor/supabase.js', route => route.fulfill({
+            status: 200,
+            contentType: 'application/javascript',
+            body: `
+                window.supabase = {
+                    createClient() {
+                        return {
+                            auth: {
+                                getSession: async () => ({ data: { session: null }, error: null }),
+                                signInWithOtp: async () => ({ data: {}, error: null }),
+                                signInWithOAuth: async () => ({ error: null })
+                            }
+                        };
+                    }
+                };
+            `
+        }));
+
+        await page.goto('/auth/callback/#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired&sb=');
+
+        const message = page.locator('#authMessage');
+        await expect(message).toBeVisible();
+        await expect(message).toContainText('That email link is invalid or expired.');
+        await expect(message).toContainText('Request a fresh magic link');
+        await expect(message).toContainText('clear site data for app.zambudget.com or try incognito');
+        await expect(page).toHaveURL(/\/login\?auth=expired$/);
+    });
+
     test('magic link rate limit shows clear cooldown guidance', async ({ page }) => {
         await page.route('**/js/vendor/supabase.js', route => route.fulfill({
             status: 200,
