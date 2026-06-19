@@ -3,14 +3,20 @@
 const DEMO_DURATION_MS = 5 * 60 * 1000;
 const DEMO_QUERY_PARAM = 'demo';
 const BB_DATA_KEY = 'bb_data';
-const BB_LOCAL_UPDATED_AT_KEY = 'bb_local_updated_at';
-const ACTIVE_KEY = 'bb_demo_active';
-const STARTED_AT_KEY = 'bb_demo_started_at';
-const EXPIRES_AT_KEY = 'bb_demo_expires_at';
-const BACKUP_HAS_DATA_KEY = 'bb_demo_backup_has_data';
-const BACKUP_DATA_KEY = 'bb_demo_backup_bb_data';
-const BACKUP_UPDATED_AT_KEY = 'bb_demo_backup_local_updated_at';
-const BACKUP_CREATED_AT_KEY = 'bb_demo_backup_created_at';
+const DEMO_DATA_KEY = 'zam_demo_data';
+const DEMO_LOCAL_UPDATED_AT_KEY = 'zam_demo_local_updated_at';
+const ACTIVE_KEY = 'zam_demo_active';
+const STARTED_AT_KEY = 'zam_demo_started_at';
+const EXPIRES_AT_KEY = 'zam_demo_expires_at';
+const STALE_DEMO_KEYS = Object.freeze([
+    'bb_demo_active',
+    'bb_demo_started_at',
+    'bb_demo_expires_at',
+    'bb_demo_backup_has_data',
+    'bb_demo_backup_bb_data',
+    'bb_demo_backup_local_updated_at',
+    'bb_demo_backup_created_at'
+]);
 const ENDED_NOTICE_KEY = 'bb_demo_ended_notice';
 const ACCOUNT_PROMPT_DISMISSED_KEY = 'bb_demo_account_prompt_dismissed';
 const TUTORIAL_SKIPPED_KEY = 'bb_demo_tutorial_skipped';
@@ -152,8 +158,10 @@ function sessionGet(key) {
 function sessionSet(key, value) {
     try {
         sessionStorage.setItem(key, value);
+        return true;
     } catch {
         // Ignore notice failures.
+        return false;
     }
 }
 
@@ -178,7 +186,7 @@ function demoRequested() {
 }
 
 function getDemoExpiresAt() {
-    const value = Number.parseInt(storageGet(EXPIRES_AT_KEY) || '', 10);
+    const value = Number.parseInt(sessionGet(EXPIRES_AT_KEY) || '', 10);
     return Number.isFinite(value) ? value : 0;
 }
 
@@ -188,110 +196,36 @@ function demoExpired() {
 }
 
 export function isDemoModeActive() {
-    return storageGet(ACTIVE_KEY) === 'true';
+    return sessionGet(ACTIVE_KEY) === 'true';
 }
 
-function clearDemoBackup() {
-    [
-        BACKUP_HAS_DATA_KEY,
-        BACKUP_DATA_KEY,
-        BACKUP_UPDATED_AT_KEY,
-        BACKUP_CREATED_AT_KEY
-    ].forEach(storageRemove);
+export function cleanupStaleDemoKeys() {
+    STALE_DEMO_KEYS.forEach(storageRemove);
 }
 
 function clearDemoSessionKeys() {
     [
         ACTIVE_KEY,
         STARTED_AT_KEY,
-        EXPIRES_AT_KEY
-    ].forEach(storageRemove);
+        EXPIRES_AT_KEY,
+        DEMO_DATA_KEY,
+        DEMO_LOCAL_UPDATED_AT_KEY
+    ].forEach(sessionRemove);
     sessionRemove(BANNER_MINIMIZED_KEY);
 }
 
 function clearDemoKeys() {
     clearDemoSessionKeys();
-    clearDemoBackup();
+    cleanupStaleDemoKeys();
 }
 
 function clearBudgetScreenBeforeDemo() {
-    [
-        BB_DATA_KEY,
-        BB_LOCAL_UPDATED_AT_KEY
-    ].forEach(storageRemove);
-    clearDemoBackup();
-}
-
-function backupCurrentBudget() {
-    if (isDemoModeActive()) return true;
-
-    clearDemoBackup();
-
-    if (!hasMeaningfulLocalBudget()) {
-        storageSet(BACKUP_HAS_DATA_KEY, 'false');
-        storageSet(BACKUP_CREATED_AT_KEY, String(Date.now()));
-        return true;
-    }
-
-    const currentData = storageGet(BB_DATA_KEY);
-    const currentUpdatedAt = storageGet(BB_LOCAL_UPDATED_AT_KEY);
-    if (!currentData) {
-        storageSet(BACKUP_HAS_DATA_KEY, 'false');
-        storageSet(BACKUP_CREATED_AT_KEY, String(Date.now()));
-        return true;
-    }
-
-    const wroteBackup = storageSet(BACKUP_DATA_KEY, currentData);
-    const wroteFlag = storageSet(BACKUP_HAS_DATA_KEY, 'true');
-    const wroteCreatedAt = storageSet(BACKUP_CREATED_AT_KEY, String(Date.now()));
-
-    if (!wroteBackup || !wroteFlag || !wroteCreatedAt) {
-        clearDemoBackup();
-        return false;
-    }
-
-    if (currentUpdatedAt) {
-        storageSet(BACKUP_UPDATED_AT_KEY, currentUpdatedAt);
-    }
-    else storageRemove(BACKUP_UPDATED_AT_KEY);
-
-    return true;
-}
-
-function restorePreviousBudget() {
-    const hadData = storageGet(BACKUP_HAS_DATA_KEY) === 'true';
-    const backupData = storageGet(BACKUP_DATA_KEY);
-    const backupUpdatedAt = storageGet(BACKUP_UPDATED_AT_KEY);
-
-    if (hadData && backupData) {
-        storageRemove(BB_DATA_KEY);
-        if (!storageSet(BB_DATA_KEY, backupData)) {
-            console.warn('[Demo Mode] Could not restore the pre-demo budget. Keeping demo backup for retry.');
-            return false;
-        }
-    } else {
-        storageRemove(BB_DATA_KEY);
-    }
-
-    if (backupUpdatedAt) {
-        storageSet(BB_LOCAL_UPDATED_AT_KEY, backupUpdatedAt);
-    } else {
-        storageRemove(BB_LOCAL_UPDATED_AT_KEY);
-    }
-
-    clearDemoBackup();
-    return true;
+    clearDemoKeys();
 }
 
 function restoreAndClearDemo(reason = 'ended') {
-    const restored = restorePreviousBudget();
-    if (restored) {
-        clearDemoKeys();
-        return true;
-    }
-
-    console.warn(`[Demo Mode] Cleanup paused after ${reason}; pre-demo backup is still available for retry.`);
-    return false;
+    clearDemoKeys();
+    return true;
 }
 
 function dateFor(dayOffset = 0) {
@@ -385,15 +319,15 @@ function hasMeaningfulLocalBudget() {
 function seedDemoBudget() {
     const payload = getSampleBudget();
     const stampedAt = new Date().toISOString();
-    const wroteData = storageSet(BB_DATA_KEY, JSON.stringify(payload));
-    const wroteTimestamp = storageSet(BB_LOCAL_UPDATED_AT_KEY, stampedAt);
+    const wroteData = sessionSet(DEMO_DATA_KEY, JSON.stringify(payload));
+    const wroteTimestamp = sessionSet(DEMO_LOCAL_UPDATED_AT_KEY, stampedAt);
     return wroteData && wroteTimestamp;
 }
 
 function markDemoSessionActive(now = Date.now()) {
-    const wroteActive = storageSet(ACTIVE_KEY, 'true');
-    const wroteStartedAt = storageSet(STARTED_AT_KEY, String(now));
-    const wroteExpiresAt = storageSet(EXPIRES_AT_KEY, String(now + DEMO_DURATION_MS));
+    const wroteActive = sessionSet(ACTIVE_KEY, 'true');
+    const wroteStartedAt = sessionSet(STARTED_AT_KEY, String(now));
+    const wroteExpiresAt = sessionSet(EXPIRES_AT_KEY, String(now + DEMO_DURATION_MS));
     return wroteActive && wroteStartedAt && wroteExpiresAt;
 }
 
@@ -410,10 +344,9 @@ function abortDemoStart(reason = 'startup_failed') {
 }
 
 function startDemo() {
-    if (!backupCurrentBudget()) {
-        markDemoEnded('startup_failed');
-        return { active: false, startupFailed: true };
-    }
+    cleanupStaleDemoKeys();
+    sessionRemove(DEMO_DATA_KEY);
+    sessionRemove(DEMO_LOCAL_UPDATED_AT_KEY);
 
     const now = Date.now();
     if (!markDemoSessionActive(now)) {
@@ -511,14 +444,12 @@ export function prepareDemoMode({ user } = {}) {
     const active = isDemoModeActive();
 
     if (!requested && !active) {
-        clearDemoBackup();
+        cleanupStaleDemoKeys();
     }
 
     if (user && (requested || active)) {
-        if (active && !restoreAndClearDemo('signed_in')) {
-            return { active: true, restoreFailed: true };
-        }
-        if (!active) clearDemoKeys();
+        if (active) clearDemoKeys();
+        else cleanupStaleDemoKeys();
         return {
             active: false,
             disabledForSignedInUser: true,
@@ -529,17 +460,13 @@ export function prepareDemoMode({ user } = {}) {
     }
 
     if (active && demoExpired()) {
-        if (!restoreAndClearDemo('expired')) {
-            return { active: true, restoreFailed: true };
-        }
+        restoreAndClearDemo('expired');
         markDemoEnded('expired');
         return { active: false, expired: true };
     }
 
     if (active && !requested) {
-        if (!restoreAndClearDemo('left_demo')) {
-            return { active: true, restoreFailed: true };
-        }
+        restoreAndClearDemo('left_demo');
         return { active: false, leftDemo: true };
     }
 
@@ -547,7 +474,7 @@ export function prepareDemoMode({ user } = {}) {
         return startDemo();
     }
 
-    if (isDemoModeActive() && !storageGet(BB_DATA_KEY)) {
+    if (isDemoModeActive() && !sessionGet(DEMO_DATA_KEY)) {
         if (!seedDemoBudget()) {
             return abortDemoStart('startup_failed');
         }
@@ -1120,13 +1047,14 @@ function renderBanner() {
     banner.innerHTML = `
         <div class="bb-demo-banner-content">
             <p class="bb-demo-label"><span class="bb-demo-pulse" aria-hidden="true"></span>Demo Mode</p>
-            <p class="bb-demo-copy">Sample data resets in <span class="bb-demo-timer" data-demo-countdown>5:00</span>. Sign in when you are ready to protect a real budget.</p>
+            <p class="bb-demo-copy">You're using sample data. Changes stay in this demo and are not synced. Do not enter real financial information. Resets in <span class="bb-demo-timer" data-demo-countdown>5:00</span>.</p>
             <p class="bb-demo-compact"><span class="bb-demo-pulse" aria-hidden="true"></span>Demo <span class="bb-demo-timer" data-demo-countdown>5:00</span></p>
         </div>
         <div class="bb-demo-banner-actions">
-            <button type="button" class="bb-demo-action" data-demo-action="create-account">Log In / Create Account</button>
+            <button type="button" class="bb-demo-action" data-demo-action="create-account">Create Free Account</button>
+            <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="login">Sign In</button>
             <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="tour">Tour</button>
-            <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="restart">Restart Demo</button>
+            <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="restart">Reset Demo</button>
             <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="end">End Demo</button>
             <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="website">Back to Website</button>
             <button type="button" class="bb-demo-action bb-demo-action-secondary bb-demo-toggle" data-demo-action="toggle-banner" aria-expanded="true" aria-label="Minimize demo banner">Minimize</button>
@@ -1138,7 +1066,7 @@ function renderBanner() {
         if (!button) return;
 
         const action = button.getAttribute('data-demo-action');
-        if (action === 'create-account') {
+        if (action === 'create-account' || action === 'login') {
             completeDemo({ reason: 'account', navigateTo: loginUrl(), showNotice: false });
         } else if (action === 'tour') {
             startTutorial({ force: true });
@@ -1272,36 +1200,29 @@ function setSignedInPromptBusy(overlay, busy = true) {
 }
 
 async function backupSignedInBudgetBeforeDemo() {
-    const status = window.BuddyCloud?.getStatus?.() || {};
-    const canPush = Boolean(status.enabled && status.hasKey && window.BuddyCloud?.forcePush);
-    if (!canPush) {
-        throw new Error('Zam! could not confirm encrypted Cloud Sync protection yet.');
-    }
-    await window.BuddyCloud.forcePush();
+    return true;
 }
 
 async function signOutAndStartDemo(overlay) {
     setSignedInPromptBusy(overlay, true);
     setSignedInPromptContent({
-        title: 'Preparing demo safely...',
-        body: 'Zam! is checking Cloud Sync before it clears this browser budget screen.',
-        note: 'No sample data gets loaded until this sign-out step finishes.'
+        title: 'Signing out for demo mode...',
+        body: 'Zam! will open the public sample sandbox after sign-out.',
+        note: 'Demo data stays separate from your signed-in budget.'
     });
 
     try {
-        await backupSignedInBudgetBeforeDemo();
         if (!window.sb?.auth?.signOut) throw new Error('Sign out is not available.');
         await window.sb.auth.signOut();
         clearDemoKeys();
-        clearBudgetScreenBeforeDemo();
-        window.location.href = cleanAppUrl({ [DEMO_QUERY_PARAM]: '1' });
+        window.location.href = new URL('/demo', window.location.origin).toString();
     } catch (error) {
         console.warn('[Demo Mode] Could not safely switch signed-in user to demo mode:', error);
         setSignedInPromptBusy(overlay, false);
         setSignedInPromptContent({
             title: 'Demo start paused',
-            body: 'Zam! could not confirm the encrypted Cloud Sync backup, so it did not sign you out or clear this browser.',
-            note: 'Try again in a moment, or stay in your real budget.'
+            body: 'Zam! could not sign out, so it did not open the public demo.',
+            note: 'Try again in a moment, or go back to your app.'
         });
     }
 }
@@ -1318,12 +1239,12 @@ function showSignedInDemoPrompt({ accountTier = '', user } = {}) {
     overlay.className = 'bb-demo-modal-overlay';
     overlay.innerHTML = `
         <div class="bb-demo-modal" role="dialog" aria-modal="true" aria-labelledby="${SIGNED_IN_PROMPT_TITLE_ID}">
-            <h2 id="${SIGNED_IN_PROMPT_TITLE_ID}">You are already signed in</h2>
-            <p id="${SIGNED_IN_PROMPT_BODY_ID}">You are already logged in with a ${accountLabel}. Demo mode uses temporary sample data, so Zam! needs to sign out first before opening the demo.</p>
+            <h2 id="${SIGNED_IN_PROMPT_TITLE_ID}">Demo mode is available while signed out</h2>
+            <p id="${SIGNED_IN_PROMPT_BODY_ID}">You are already logged in with a ${accountLabel}. Go to your app, or sign out to view the public demo with sample data.</p>
             <p class="bb-demo-modal-note" data-demo-signed-in-note>${escapeHtml(emailNote)}</p>
             <div class="bb-demo-modal-actions">
-                <button type="button" class="bb-demo-action" data-demo-signed-in-action="stay">Stay in My Budget</button>
-                <button type="button" class="bb-demo-action bb-demo-action-danger" data-demo-signed-in-action="demo">Sign Out and Try Demo</button>
+                <button type="button" class="bb-demo-action" data-demo-signed-in-action="stay">Go to My App</button>
+                <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-signed-in-action="demo">Sign Out and View Demo</button>
                 <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-signed-in-action="website">Back to Website</button>
             </div>
         </div>

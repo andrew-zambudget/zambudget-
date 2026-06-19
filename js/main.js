@@ -80,7 +80,8 @@ bridgeAll();
  */
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('[main.js] Initializing Application...');
-    const privacyCleanup = runPrivacyStorageCleanup();
+    const isDemoRequestAtBoot = AuthRouteGuard.isDemoRequest?.() === true;
+    const privacyCleanup = runPrivacyStorageCleanup({ skipBudgetMigration: isDemoRequestAtBoot });
     if (privacyCleanup?.blocked) return;
 
     if (State.isBrowserStorageAvailable?.({ refresh: true }) === false) {
@@ -117,6 +118,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 window.sb.auth.onAuthStateChange(async (event, session) => {
                     window.currentUser = session ? session.user : null;
                     if (!appStateInitialized) return;
+
+                    if (DemoMode.isDemoModeActive?.()) {
+                        if (typeof window.updateAuthUI === 'function') window.updateAuthUI();
+                        return;
+                    }
 
                     if (!window.currentUser && AuthRouteGuard.isProtectedAppRoute()) {
                         try {
@@ -208,6 +214,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         // --- SUPABASE INITIALIZATION END ---
 
         const demoModeState = DemoMode.prepareDemoMode?.({ user: window.currentUser });
+        if (demoModeState?.signedInDemoBlocked) {
+            DemoMode.initDemoMode?.({
+                demoModeState,
+                user: window.currentUser,
+                accountTier: 'free'
+            });
+            BudgetPrep.hidePreparingBudget?.();
+            return;
+        }
+
         if (window.currentUser) {
             const ownerGuard = guardSignedInLocalOwner(window.currentUser.id);
             if (ownerGuard.changed) {
@@ -222,39 +238,42 @@ document.addEventListener('DOMContentLoaded', async () => {
         BudgetPrep.updatePreparingBudget?.({ detail: 'Loading this browser budget before cloud checks.' });
         if (State.initState) State.initState();
         appStateInitialized = true;
+        const isDemoSession = DemoMode.isDemoModeActive?.() === true;
 
-        if (window.currentUser && typeof UI.refreshPremiumAccess === 'function') {
+        if (!isDemoSession && window.currentUser && typeof UI.refreshPremiumAccess === 'function') {
             BudgetPrep.updatePreparingBudget?.({ detail: 'Checking Premium status and account access.' });
             await UI.refreshPremiumAccess({ silent: true });
-        } else {
+        } else if (!isDemoSession) {
             State.setIsPro?.(false, { source: 'billing_status_unavailable' });
         }
 
-        BudgetPrep.updatePreparingBudget?.({ detail: 'Checking whether this browser is still trusted.' });
-        const browserAccessOk = await UI.refreshBrowserAccessRegistry?.({ silent: true });
-        if (browserAccessOk === false) {
-            BudgetPrep.updatePreparingBudget?.({
-                title: 'Clearing this browser...',
-                detail: 'This browser was signed out from Account > Devices.'
-            });
-            return;
-        }
-
-        BudgetPrep.updatePreparingBudget?.({ detail: 'Opening Cloud Sync without reading your budget.' });
-        await BuddyCloud.init({
-            supabaseClient: window.sb,
-            user: window.currentUser,
-            getSnapshot: State.getSnapshot,
-            replaceSnapshot: State.replaceSnapshot,
-            isPremiumAccount: () => Boolean(State.getIsPro?.()),
-            afterRemoteApply: () => {
-                UI.render?.();
-                UI.renderCategoryList?.();
-                UI.renderDebtTab?.();
-                UI.initSettingsUI?.();
-                UI.initCategoryUI?.();
+        if (!isDemoSession) {
+            BudgetPrep.updatePreparingBudget?.({ detail: 'Checking whether this browser is still trusted.' });
+            const browserAccessOk = await UI.refreshBrowserAccessRegistry?.({ silent: true });
+            if (browserAccessOk === false) {
+                BudgetPrep.updatePreparingBudget?.({
+                    title: 'Clearing this browser...',
+                    detail: 'This browser was signed out from Account > Devices.'
+                });
+                return;
             }
-        });
+
+            BudgetPrep.updatePreparingBudget?.({ detail: 'Opening Cloud Sync without reading your budget.' });
+            await BuddyCloud.init({
+                supabaseClient: window.sb,
+                user: window.currentUser,
+                getSnapshot: State.getSnapshot,
+                replaceSnapshot: State.replaceSnapshot,
+                isPremiumAccount: () => Boolean(State.getIsPro?.()),
+                afterRemoteApply: () => {
+                    UI.render?.();
+                    UI.renderCategoryList?.();
+                    UI.renderDebtTab?.();
+                    UI.initSettingsUI?.();
+                    UI.initCategoryUI?.();
+                }
+            });
+        }
 
         // Wire up events
         BudgetPrep.updatePreparingBudget?.({ detail: 'Wiring up budget controls.' });
@@ -295,7 +314,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (UI.applyTheme) UI.applyTheme(savedTheme);
         UI.applyAccentTheme?.(readLocalStorageValue('bb_accent_color', 'teal'));
 
-        if (!DemoMode.isDemoModeActive?.()) {
+        if (!isDemoSession) {
             BudgetPrep.updatePreparingBudget?.({ detail: 'Confirming encrypted Cloud Sync protection.' });
             await UI.ensureBuddyCloudDefaultProtection?.();
         }

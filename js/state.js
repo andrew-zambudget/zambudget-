@@ -34,7 +34,11 @@ let state = {
 };
 
 let suppressCloudQueue = false;
-const DEMO_ACTIVE_KEY = 'bb_demo_active';
+const APP_BUDGET_DATA_KEY = 'bb_data';
+const APP_LOCAL_UPDATED_AT_KEY = 'bb_local_updated_at';
+const DEMO_BUDGET_DATA_KEY = 'zam_demo_data';
+const DEMO_LOCAL_UPDATED_AT_KEY = 'zam_demo_local_updated_at';
+const DEMO_ACTIVE_KEY = 'zam_demo_active';
 const STORAGE_TEST_KEY = 'bb_storage_available_test';
 const SIGNED_OUT_WRITE_MESSAGE = 'Sign in or start the demo before adding real budget data.';
 const BROWSER_STORAGE_BLOCKED_MESSAGE = 'Zam needs required browser site data to save and load your budget on this device. Enable site data for app.zambudget.com or use your browser settings to clear/reset it.';
@@ -97,13 +101,33 @@ function storageSet(key, value) {
     }
 }
 
+function readStorageValue(storage, key, fallback = '') {
+    try {
+        return storage.getItem(key) ?? fallback;
+    } catch (error) {
+        markBrowserStorageBlocked(error);
+        return fallback;
+    }
+}
+
+function writeStorageValue(storage, key, value) {
+    try {
+        storage.setItem(key, value);
+        browserStorageAvailable = true;
+        return true;
+    } catch (error) {
+        markBrowserStorageBlocked(error);
+        return false;
+    }
+}
+
 function isSignedInForBudgetWrites() {
     return Boolean(typeof window !== 'undefined' && window.currentUser?.id);
 }
 
 function isDemoModeActiveForBudgetWrites() {
     try {
-        return typeof localStorage !== 'undefined' && localStorage.getItem(DEMO_ACTIVE_KEY) === 'true';
+        return typeof sessionStorage !== 'undefined' && sessionStorage.getItem(DEMO_ACTIVE_KEY) === 'true';
     } catch {
         return false;
     }
@@ -111,6 +135,42 @@ function isDemoModeActiveForBudgetWrites() {
 
 export function canWriteBudgetData() {
     return isSignedInForBudgetWrites() || isDemoModeActiveForBudgetWrites();
+}
+
+export function getBudgetStorage() {
+    if (isDemoModeActiveForBudgetWrites()) {
+        return {
+            storage: sessionStorage,
+            key: DEMO_BUDGET_DATA_KEY,
+            localUpdatedAtKey: DEMO_LOCAL_UPDATED_AT_KEY,
+            mode: 'demo'
+        };
+    }
+
+    return {
+        storage: localStorage,
+        key: APP_BUDGET_DATA_KEY,
+        localUpdatedAtKey: APP_LOCAL_UPDATED_AT_KEY,
+        mode: 'app'
+    };
+}
+
+export function assertDemoDoesNotTouchRealBudgetStorage(action = 'access', key = '') {
+    if (isDemoModeActiveForBudgetWrites() && key === APP_BUDGET_DATA_KEY) {
+        throw new Error(`Blocked demo ${action} on real app storage key bb_data`);
+    }
+}
+
+function readBudgetData() {
+    const target = getBudgetStorage();
+    assertDemoDoesNotTouchRealBudgetStorage('read', target.key);
+    return readStorageValue(target.storage, target.key, '');
+}
+
+function writeBudgetData(value) {
+    const target = getBudgetStorage();
+    assertDemoDoesNotTouchRealBudgetStorage('write', target.key);
+    return writeStorageValue(target.storage, target.key, value);
 }
 
 function notifySignedOutBudgetWriteBlocked(action = '', options = {}) {
@@ -157,11 +217,15 @@ function secureRemoveSession(key) {
 }
 
 function getLocalUpdatedAt() {
-    return storageGet('bb_local_updated_at', '');
+    const target = getBudgetStorage();
+    assertDemoDoesNotTouchRealBudgetStorage('read timestamp', target.key);
+    return readStorageValue(target.storage, target.localUpdatedAtKey, '');
 }
 
 function setLocalUpdatedAt(value = new Date().toISOString()) {
-    if (!storageSet('bb_local_updated_at', value)) {
+    const target = getBudgetStorage();
+    assertDemoDoesNotTouchRealBudgetStorage('write timestamp', target.key);
+    if (!writeStorageValue(target.storage, target.localUpdatedAtKey, value)) {
         throw new Error('Browser storage is unavailable.');
     }
     return value;
@@ -367,7 +431,7 @@ function applyLoadedPayload(parsed = {}) {
 // ==========================================
 export function initState() {
     isBrowserStorageAvailable({ refresh: true });
-    const saved = storageGet('bb_data', '');
+    const saved = readBudgetData();
     let loadedSavedPayload = false;
     let loadedPayloadChanged = false;
     if (saved) {
@@ -382,7 +446,7 @@ export function initState() {
     if (loadedSavedPayload) {
         if (loadedPayloadChanged) {
             try {
-                if (!storageSet('bb_data', JSON.stringify(getDurablePayload()))) {
+                if (!writeBudgetData(JSON.stringify(getDurablePayload()))) {
                     throw new Error('Browser storage is unavailable.');
                 }
                 setLocalUpdatedAt();
@@ -409,12 +473,12 @@ export function save(options = {}) {
 
     try {
         const payload = JSON.stringify(getDurablePayload());
-        if (!storageSet('bb_data', payload)) {
+        if (!writeBudgetData(payload)) {
             throw new Error('Browser storage is unavailable.');
         }
         const localUpdatedAt = setLocalUpdatedAt();
 
-        if (!suppressCloudQueue && window.BuddyCloud?.queuePush) {
+        if (!suppressCloudQueue && getBudgetStorage().mode !== 'demo' && window.BuddyCloud?.queuePush) {
             window.BuddyCloud.queuePush('Budget synced to Cloud Sync.', { localUpdatedAt });
         }
         return true;
@@ -471,7 +535,7 @@ export function replaceSnapshot(snapshot = {}, options = {}) {
     }
 
     try {
-        if (!storageSet('bb_data', JSON.stringify(getDurablePayload()))) {
+        if (!writeBudgetData(JSON.stringify(getDurablePayload()))) {
             throw new Error('Browser storage is unavailable.');
         }
     } catch (e) {
@@ -1272,7 +1336,7 @@ export const setCurrentDrilldownCat = (c) => state.currentDrilldownCat = c;
 export const factoryReset = () => {
     try {
         Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('bb_')) secureRemove(key);
+            if (key.startsWith('bb_') || key.startsWith('zam_')) secureRemove(key);
         });
     } catch (error) {
         markBrowserStorageBlocked(error);
@@ -1280,7 +1344,7 @@ export const factoryReset = () => {
 
     try {
         Object.keys(sessionStorage).forEach(key => {
-            if (key.startsWith('bb_')) secureRemoveSession(key);
+            if (key.startsWith('bb_') || key.startsWith('zam_')) secureRemoveSession(key);
         });
     } catch {
         // If session storage is blocked, there is nothing else to clear.

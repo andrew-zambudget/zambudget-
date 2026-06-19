@@ -7,7 +7,7 @@ const {
 
 async function createExpenseFromAddTab(page, description = 'Local status smoke') {
     await page.evaluate(() => {
-        localStorage.setItem('bb_demo_active', 'true');
+        sessionStorage.setItem('zam_demo_active', 'true');
         window.switchTab?.('add');
         window.setType?.('expense');
     });

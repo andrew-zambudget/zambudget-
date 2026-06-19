@@ -259,6 +259,11 @@
                                 <span class="release-summary-label">Control</span>
                                 <span class="release-summary-copy">Users can accept or ignore each suggestion from a post-import review modal. Zam does not silently rewrite imported merchant names.</span>
                             </div>
+                            <div class="release-summary-row summary-fix">
+                                <span class="release-summary-dot" aria-hidden="true"></span>
+                                <span class="release-summary-label">Demo</span>
+                                <span class="release-summary-copy">Public demo data now stays in an isolated session sandbox, with CSV import, account, billing, and Cloud Sync actions blocked while demo mode is active.</span>
+                            </div>
                         </div>
                     </div>
 
@@ -303,6 +308,14 @@
                                 <div>
                                     <div class="tag-text">Merchant cleanup false positives reduced</div>
                                     <span class="tag-detail">Weak abbreviation-style matches such as TG ENTERTAINMENT LLC to Topgolf now show as low confidence, require review, and are not selected by default.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">DEMO</span>
+                                <div>
+                                    <div class="tag-text">Public demo sandbox hardened</div>
+                                    <span class="tag-detail">Demo mode now stores sample changes in session-only demo storage, leaves real browser budgets untouched, removes stale legacy demo backup keys, and avoids Cloud Sync writes while the demo is running.</span>
                                 </div>
                             </div>
                         </div>

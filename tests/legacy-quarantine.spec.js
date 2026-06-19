@@ -20,7 +20,7 @@ test.describe('legacy quarantine warnings', () => {
         await waitForAppReady(page);
 
         await page.evaluate(() => {
-            localStorage.setItem('bb_demo_active', 'true');
+            sessionStorage.setItem('zam_demo_active', 'true');
             window.switchTab('income');
             window.switchTab('savings');
             window.switchTab('debt');

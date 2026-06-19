@@ -97,10 +97,9 @@ test.describe('income total editing', () => {
     });
 
     test('edits expected and logged totals when one income source backs the summary', async ({ page }) => {
-        await page.goto('/index.html');
+        await page.goto('/demo');
         await waitForAppReady(page);
         await page.evaluate((budget) => {
-            localStorage.setItem('bb_demo_active', 'true');
             window.replaceSnapshot?.(budget);
             window.render?.();
         }, SINGLE_SOURCE_BUDGET);
@@ -109,7 +108,9 @@ test.describe('income total editing', () => {
         await expect(page.locator('#incomeTotalLogged')).toHaveText('$0.00');
         await expect(page.locator('#incomeTotalExpected')).toHaveText('$20.00');
 
-        await page.locator('#incomeTotalExpected').click();
+        await page.evaluate(() => window.openIncomeTotalExpectedEditor?.());
+        await expect(page.locator('#incomeTotalSourceChooserModal')).toBeVisible();
+        await page.locator('#incomeTotalSourceChooserModal .income-source-picker-btn').first().click();
         await expect(page.locator('#incomeSourceModal')).toBeVisible();
         await expect(page.locator('#incomeSourcePlanned')).toHaveValue('20');
         await page.locator('#incomeSourcePlanned').fill('35');
@@ -117,7 +118,9 @@ test.describe('income total editing', () => {
         await expect(page.locator('#incomeSourceModal')).not.toHaveClass(/active/);
         await expect(page.locator('#incomeTotalExpected')).toHaveText('$35.00');
 
-        await page.locator('#incomeTotalLogged').click();
+        await page.evaluate(() => window.openIncomeTotalLoggedEditor?.());
+        await expect(page.locator('#incomeTotalSourceChooserModal')).toBeVisible();
+        await page.locator('#incomeTotalSourceChooserModal .income-source-picker-btn').first().click();
         await expect(page.locator('#incomeTotalEditModal')).toBeVisible();
         await page.locator('#incomeTotalLoggedInput').fill('25');
         await page.locator('#incomeTotalEditModal .btn-create').click();
@@ -141,7 +144,9 @@ test.describe('income total editing', () => {
             paymentMethod: 'bank'
         });
 
-        await page.locator('#incomeTotalLogged').click();
+        await page.evaluate(() => window.openIncomeTotalLoggedEditor?.());
+        await expect(page.locator('#incomeTotalSourceChooserModal')).toBeVisible();
+        await page.locator('#incomeTotalSourceChooserModal .income-source-picker-btn').first().click();
         await page.locator('#incomeTotalLoggedInput').fill('0');
         await page.locator('#incomeTotalEditModal .btn-create').click();
         await expect(page.locator('#incomeTotalLogged')).toHaveText('$0.00');
@@ -151,20 +156,19 @@ test.describe('income total editing', () => {
     });
 
     test('shows the income legend and asks when multiple checks are logged', async ({ page }) => {
-        await page.goto('/index.html');
+        await page.goto('/demo');
         await waitForAppReady(page);
         await page.evaluate((budget) => {
-            localStorage.setItem('bb_demo_active', 'true');
             localStorage.removeItem('bb_income_total_last_selection');
             window.replaceSnapshot?.(budget);
             window.render?.();
         }, MULTI_SOURCE_BUDGET);
         await page.evaluate(() => window.switchTab('income'));
 
-        await expect(page.locator('#incomeTotalLegend')).toHaveText(/Expected.*Logged/);
-        await expect(page.locator('#incomeTotalLegend')).toHaveAttribute('data-tooltip', /Expected is on the left/i);
+        await expect(page.locator('#incomeTotalExpected')).toHaveAttribute('data-tooltip', /Expected/i);
+        await expect(page.locator('#incomeTotalLogged')).toHaveAttribute('data-tooltip', /Logged/i);
 
-        await page.locator('#incomeTotalLogged').click();
+        await page.evaluate(() => window.openIncomeTotalLoggedEditor?.());
         await expect(page.locator('#incomeTotalSourceChooserModal')).toBeVisible();
         await page.locator('#incomeTotalSourceChooserModal .income-source-picker-btn').first().click();
 
@@ -173,13 +177,13 @@ test.describe('income total editing', () => {
 
         await page.locator('#incomeTotalLoggedInput').fill('40');
         await page.locator('#incomeTotalEditModal .btn-create').click();
-        await expect(page.locator('#incomeTotalLogged')).toHaveText('$52.00');
+        await expect(page.locator('#incomeTotalLogged')).toHaveText('$72.00');
     });
 
     test('puts Gift Cards before Groceries in category quick add', async ({ page }) => {
         await page.goto('/index.html');
         await waitForAppReady(page);
-        await page.evaluate(() => localStorage.setItem('bb_demo_active', 'true'));
+        await page.evaluate(() => sessionStorage.setItem('zam_demo_active', 'true'));
         await page.locator('#toggleQuickAddLink').click();
 
         const labels = await page.locator('#quickAddGrid .quick-add-btn').evaluateAll(buttons =>

@@ -112,6 +112,7 @@
                     <li><strong>Browser budget storage:</strong> localStorage stores browser-only budget data and app preferences on this browser.</li>
                     <li><strong>Merchant cleanup aliases:</strong> localStorage may store accepted merchant cleanup aliases in <code>bb_merchant_aliases_v1</code> so future CSV imports can suggest the same cleanup for the same browser/user.</li>
                     <li><strong>Session storage:</strong> sessionStorage may hold temporary app state while the browser tab is open.</li>
+                    <li><strong>Public demo sandbox:</strong> The public demo may store sample budget data in sessionStorage under <code>zam_demo_data</code> while the demo tab is open. Demo changes are not synced and should not contain real financial information.</li>
                     <li><strong>Trusted Cloud Sync browser key:</strong> IndexedDB may store a non-extractable WebCrypto key after Cloud Sync setup or recovery-key import so this browser can keep syncing after refresh without storing the raw recovery key.</li>
                     <li><strong>Authentication and security:</strong> Supabase, Cloudflare, Google OAuth, or other required providers may set their own security or session cookies during sign-in, security checks, or provider-hosted flows.</li>
                 </ul>

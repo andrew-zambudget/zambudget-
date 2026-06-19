@@ -247,9 +247,8 @@ function cleanupSyncHistory() {
 }
 
 function cleanupInactiveDemoBackup() {
-    if (storageGet(DEMO_ACTIVE_KEY) === 'true') return;
-    if (storageGet(DEMO_BACKUP_HAS_DATA_KEY) === 'true' && storageGet(DEMO_BACKUP_DATA_KEY)) return;
     DEMO_BACKUP_KEYS.forEach(storageRemove);
+    storageRemove(DEMO_ACTIVE_KEY);
 }
 
 function cleanupPersistedCloudKeys() {
@@ -366,22 +365,6 @@ function setRecoveryError(modal, message = '') {
 }
 
 function retryDemoBackupRestore(modal) {
-    const backupData = storageGet(DEMO_BACKUP_DATA_KEY);
-    const backupUpdatedAt = storageGet(DEMO_BACKUP_UPDATED_AT_KEY);
-    if (!backupData) {
-        setRecoveryError(modal, 'The protected demo backup is missing. Please contact support before clearing this browser.');
-        return false;
-    }
-
-    storageRemove(BB_DATA_KEY);
-    if (!storageSet(BB_DATA_KEY, backupData)) {
-        setRecoveryError(modal, 'Restore is still blocked by browser storage. Clear some browser storage space, then click Restore My Budget again.');
-        return false;
-    }
-
-    if (backupUpdatedAt) storageSet(BB_LOCAL_UPDATED_AT_KEY, backupUpdatedAt);
-    else storageRemove(BB_LOCAL_UPDATED_AT_KEY);
-
     storageRemove(DEMO_ACTIVE_KEY);
     clearDemoBackupKeys();
     return true;
@@ -426,17 +409,17 @@ function mountDemoBackupRecoveryModal() {
     overlay.querySelector('[data-demo-recovery-restore]')?.focus({ preventScroll: true });
 }
 
-export function runPrivacyStorageCleanup() {
+export function runPrivacyStorageCleanup(options = {}) {
+    const { skipBudgetMigration = false } = options || {};
     cleanupSyncHistory();
     cleanupPersistedCloudKeys();
     cleanupLegacyDescriptionBuffer();
+    cleanupInactiveDemoBackup();
 
-    if (hasStrandedDemoBackup()) {
-        mountDemoBackupRecoveryModal();
-        return { blocked: true, reason: 'demo_backup_restore_required' };
+    if (skipBudgetMigration) {
+        return { blocked: false, legacyMigration: { migrated: false, reason: 'demo_request' } };
     }
 
     const legacyMigration = migrateLegacyBudgetStorage();
-    cleanupInactiveDemoBackup();
     return { blocked: false, legacyMigration };
 }

@@ -43,6 +43,10 @@ const BUDDY_CLOUD_RECENT_RESTORE_PREFIX = 'bb_cloud_recent_restore_';
 const BUDDY_CLOUD_FORCE_PULL_AFTER_SIGN_IN_PREFIX = 'bb_cloud_force_pull_after_sign_in_';
 const BUDDY_CLOUD_MANUAL_SYNC_PREFIX = 'bb_cloud_manual_sync_at_';
 const BUDDY_CLOUD_MANUAL_SYNC_COOLDOWN_MS = 60 * 1000;
+const DEMO_DISABLED_MESSAGE = 'This feature is not available in demo mode. Create a free account to use it with your own budget.';
+const DEMO_CSV_DISABLED_MESSAGE = 'CSV import is disabled in demo mode. Create a free account to import your own files.';
+const DEMO_CLOUD_SYNC_DISABLED_MESSAGE = 'Cloud Sync is disabled in demo mode. Create a free account to save and sync your own budget.';
+const DEMO_ACCOUNT_DISABLED_MESSAGE = 'Account and recovery settings are available after signing in.';
 let viewportRepairTimer = null;
 let calendarCursorDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let selectedCalendarDateKey = '';
@@ -2672,6 +2676,7 @@ async function handleCurrentBrowserAccessRevoked() {
 
 export async function refreshBrowserAccessRegistry(options = {}) {
     const { silent = true } = options;
+    if (isDemoModeActive()) return true;
     if (browserAccessGlobalSignOutInProgress) return true;
     ensureBrowserAccessRealtimeSubscription();
     if (!window.currentUser?.id || !window.sb?.from || !crypto?.subtle) return true;
@@ -4049,6 +4054,7 @@ function getBuddyCloudErrorMessage(error) {
 async function runCloudAction(event, action) {
     event?.preventDefault?.();
     event?.stopPropagation?.();
+    if (blockDemoFeature(DEMO_CLOUD_SYNC_DISABLED_MESSAGE)) return;
     const button = event?.currentTarget;
     if (button) {
         button.disabled = true;
@@ -4200,6 +4206,7 @@ window.manualBuddyCloudSync = function(event) {
 };
 
 export async function ensureBuddyCloudDefaultProtection() {
+    if (isDemoModeActive()) return null;
     if (!window.currentUser || !window.BuddyCloud?.getStatus || !window.BuddyCloud?.enableSync) return null;
 
     const status = window.BuddyCloud.getStatus();
@@ -12115,6 +12122,7 @@ export function initSettingsUI() {
 }
 
 export function openSettingsModal() {
+    if (blockDemoFeature(DEMO_ACCOUNT_DISABLED_MESSAGE)) return;
     const currentCurrency = State.getSymbol ? State.getSymbol() : '$';
     const defType = State.getDefaultType ? State.getDefaultType() : 'expense';
     const defPayment = State.getDefaultPayment ? State.getDefaultPayment() : '';
@@ -13908,6 +13916,10 @@ export function setPremiumAccess(active = true, metadata = {}) {
 
 export async function refreshPremiumAccess(options = {}) {
     const { silent = false, checkoutSessionId = '', throwOnError = false } = options;
+    if (isDemoModeActive()) {
+        setPremiumAccess(false, { source: 'demo_mode' });
+        return false;
+    }
 
     if (!isBillingEnabled() || !window.currentUser || !window.sb?.functions?.invoke) {
         setPremiumAccess(false, { source: 'billing_status_unavailable' });
@@ -13936,6 +13948,7 @@ export async function refreshPremiumAccess(options = {}) {
 
 export async function startStripeCheckout(event) {
     event?.preventDefault?.();
+    if (blockDemoFeature(DEMO_DISABLED_MESSAGE)) return;
 
     const button = event?.currentTarget
         || document.getElementById('upgrade-btn')
@@ -14042,6 +14055,7 @@ function openBillingPortalPage(url, portalWindow = null) {
 
 export async function handleManageSubscription(event) {
     event?.preventDefault?.();
+    if (blockDemoFeature(DEMO_DISABLED_MESSAGE)) return;
 
     const button = event?.currentTarget || document.getElementById('accountUpgradeBtn');
     setUpgradeButtonLoading(button, true);
@@ -17127,6 +17141,30 @@ const MERCHANT_CLEANUP_EXCLUDED_DESCRIPTION_PATTERNS = [
     /\bcash\s*out\b/i,
     /\bvenmo\s+cash\s*out\b/i
 ];
+
+function isDemoModeActive() {
+    try {
+        if (State.getBudgetStorage?.().mode === 'demo') return true;
+    } catch {
+        // Fall back to the session marker below.
+    }
+    try {
+        return sessionStorage.getItem('zam_demo_active') === 'true';
+    } catch {
+        return false;
+    }
+}
+
+function showDemoDisabledMessage(message = DEMO_DISABLED_MESSAGE) {
+    if (window.showToast) window.showToast(message);
+    else console.warn(message);
+}
+
+function blockDemoFeature(message = DEMO_DISABLED_MESSAGE) {
+    if (!isDemoModeActive()) return false;
+    showDemoDisabledMessage(message);
+    return true;
+}
 const MERCHANT_RECOGNITION_RULES = [
     { canonical: 'Starbucks', confidence: 'High confidence', reason: 'Obvious Starbucks merchant pattern.', patterns: [/starbucks?/i, /starbuc?k+s?/i, /\bsbux\b/i] },
     { canonical: 'Amazon', confidence: 'High confidence', reason: 'Amazon marketplace bank descriptor.', patterns: [/amzn/i, /amazon/i] },
@@ -20820,6 +20858,12 @@ window.handleCsvImportMappingChange = function() {
 
 window.importTransactionsFromCSV = async function(event) {
     const input = event?.target;
+    if (isDemoModeActive()) {
+        if (input) input.value = '';
+        showDemoDisabledMessage(DEMO_CSV_DISABLED_MESSAGE);
+        return;
+    }
+
     const files = Array.from(input?.files || []);
     if (!files.length) return;
 
@@ -22141,6 +22185,7 @@ export function updateAuthUI() {
 
 export function openAccountModal(e) {
     if (e) e.preventDefault();
+    if (blockDemoFeature(DEMO_ACCOUNT_DISABLED_MESSAGE)) return;
 
     const email = window.currentUser?.email || 'Signed in';
     const avatarUrl = getCurrentUserAvatarUrl();

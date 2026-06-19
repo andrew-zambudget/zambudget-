@@ -16,7 +16,7 @@ test.describe('signed-out budget write guard', () => {
         await waitForAppReady(page);
 
         const result = await page.evaluate(() => {
-            localStorage.removeItem('bb_demo_active');
+            sessionStorage.removeItem('zam_demo_active');
             window.currentUser = null;
 
             const categoryResult = window.addCategory?.('Leak Test', 'LT', 'expense', 100);
@@ -51,7 +51,7 @@ test.describe('signed-out budget write guard', () => {
         await waitForAppReady(page);
 
         const result = await page.evaluate(() => {
-            localStorage.setItem('bb_demo_active', 'true');
+            sessionStorage.setItem('zam_demo_active', 'true');
             window.currentUser = null;
 
             const categoryResult = window.addCategory?.('Demo Test', 'DT', 'expense', 100);
@@ -69,6 +69,7 @@ test.describe('signed-out budget write guard', () => {
                 categoryResult,
                 transactionResult,
                 persisted: localStorage.getItem('bb_data'),
+                demoPersisted: sessionStorage.getItem('zam_demo_data'),
                 categories: window.getCategories?.() || [],
                 transactions: window.getTransactions?.() || []
             };
@@ -76,7 +77,8 @@ test.describe('signed-out budget write guard', () => {
 
         expect(result.categoryResult?.success).toBe(true);
         expect(result.transactionResult).toBe(true);
-        expect(result.persisted).not.toBeNull();
+        expect(result.persisted).toBeNull();
+        expect(result.demoPersisted).not.toBeNull();
         expect(result.categories).toHaveLength(1);
         expect(result.transactions).toHaveLength(1);
     });

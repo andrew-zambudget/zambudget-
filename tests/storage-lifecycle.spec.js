@@ -19,16 +19,16 @@ test.describe('Zam! storage lifecycle', () => {
         await resetStorage(page);
     });
 
-    test('save() does not advance bb_local_updated_at when bb_data write fails', async ({ page }) => {
+    test('demo save() does not advance demo timestamp when zam_demo_data write fails', async ({ page }) => {
         const result = await page.evaluate(async (stateModulePath) => {
             const State = await import(stateModulePath);
-            localStorage.setItem('bb_demo_active', 'true');
+            sessionStorage.setItem('zam_demo_active', 'true');
             const originalSetItem = Storage.prototype.setItem;
             let timestampAttempted = false;
 
             Storage.prototype.setItem = function patchedSetItem(key, value) {
-                if (key === 'bb_data') throw new DOMException('Quota exceeded', 'QuotaExceededError');
-                if (key === 'bb_local_updated_at') timestampAttempted = true;
+                if (key === 'zam_demo_data') throw new DOMException('Quota exceeded', 'QuotaExceededError');
+                if (key === 'zam_demo_local_updated_at') timestampAttempted = true;
                 return originalSetItem.call(this, key, value);
             };
 
@@ -45,8 +45,9 @@ test.describe('Zam! storage lifecycle', () => {
 
             return {
                 timestampAttempted,
-                timestamp: localStorage.getItem('bb_local_updated_at'),
-                savedData: localStorage.getItem('bb_data'),
+                timestamp: sessionStorage.getItem('zam_demo_local_updated_at'),
+                savedData: sessionStorage.getItem('zam_demo_data'),
+                realData: localStorage.getItem('bb_data'),
                 memoryCount: State.getTransactions().length
             };
         }, modulePath('/js/state.js'));
@@ -54,6 +55,7 @@ test.describe('Zam! storage lifecycle', () => {
         expect(result.timestampAttempted).toBe(false);
         expect(result.timestamp).toBeNull();
         expect(result.savedData).toBeNull();
+        expect(result.realData).toBeNull();
         expect(result.memoryCount).toBe(1);
     });
 
@@ -139,7 +141,8 @@ test.describe('Zam! storage lifecycle', () => {
     test('factoryReset() removes only Zam! namespace keys', async ({ page }) => {
         await page.evaluate(() => {
             localStorage.setItem('bb_data', '{"transactions":[]}');
-            localStorage.setItem('bb_demo_active', 'true');
+            sessionStorage.setItem('zam_demo_active', 'true');
+            sessionStorage.setItem('zam_demo_data', '{"transactions":[{"id":"demo"}]}');
             localStorage.setItem('keep_this_key', 'safe');
             sessionStorage.setItem('bb_temp_session', 'active');
             sessionStorage.setItem('keep_this_session_key', 'safe');
@@ -157,7 +160,8 @@ test.describe('Zam! storage lifecycle', () => {
 
         const keys = await page.evaluate(() => ({
             data: localStorage.getItem('bb_data'),
-            demo: localStorage.getItem('bb_demo_active'),
+            demo: sessionStorage.getItem('zam_demo_active'),
+            demoData: sessionStorage.getItem('zam_demo_data'),
             kept: localStorage.getItem('keep_this_key'),
             session: sessionStorage.getItem('bb_temp_session'),
             keptSession: sessionStorage.getItem('keep_this_session_key')
@@ -165,12 +169,13 @@ test.describe('Zam! storage lifecycle', () => {
 
         expect(keys.data).toBeNull();
         expect(keys.demo).toBeNull();
+        expect(keys.demoData).toBeNull();
         expect(keys.session).toBeNull();
         expect(keys.kept).toBe('safe');
         expect(keys.keptSession).toBe('safe');
     });
 
-    test('privacy cleanup blocks startup and restores stranded demo backup', async ({ page }) => {
+    test('privacy cleanup removes stranded legacy demo backup without restore', async ({ page }) => {
         await page.evaluate(() => {
             localStorage.setItem('bb_demo_backup_has_data', 'true');
             localStorage.setItem('bb_demo_backup_bb_data', JSON.stringify({
@@ -187,18 +192,7 @@ test.describe('Zam! storage lifecycle', () => {
             return Cleanup.runPrivacyStorageCleanup();
         }, modulePath('/js/privacyStorageCleanup.js'));
 
-        expect(cleanupResult).toEqual({ blocked: true, reason: 'demo_backup_restore_required' });
-        await expect(page.locator('#bbDemoRecoveryTitle')).toHaveText('Budget restore paused');
-
-        await page.evaluate(() => {
-            const originalSetTimeout = window.setTimeout;
-            window.setTimeout = (callback, delay, ...args) => {
-                if (delay === 350) return 0;
-                return originalSetTimeout(callback, delay, ...args);
-            };
-        });
-        await page.getByRole('button', { name: 'Restore My Budget' }).click();
-
+        expect(cleanupResult.blocked).toBe(false);
         const restored = await page.evaluate(() => ({
             data: localStorage.getItem('bb_data'),
             updatedAt: localStorage.getItem('bb_local_updated_at'),
@@ -206,8 +200,8 @@ test.describe('Zam! storage lifecycle', () => {
             backupData: localStorage.getItem('bb_demo_backup_bb_data')
         }));
 
-        expect(restored.data).toContain('restore-me');
-        expect(restored.updatedAt).toBe('2026-06-13T01:00:00.000Z');
+        expect(restored.data).toBeNull();
+        expect(restored.updatedAt).toBeNull();
         expect(restored.backupFlag).toBeNull();
         expect(restored.backupData).toBeNull();
     });
@@ -360,7 +354,7 @@ test.describe('Zam! storage lifecycle', () => {
         expect(result.owner).toBe('existing-user-id');
     });
 
-    test('demo mode restores the pre-demo budget when the user exits', async ({ page }) => {
+    test('demo mode keeps real budget untouched when the user exits', async ({ page }) => {
         await resetStorage(page, `${BLANK_PAGE}?setup=real-budget`);
         await page.evaluate(() => {
             localStorage.setItem('bb_data', JSON.stringify({
@@ -381,14 +375,17 @@ test.describe('Zam! storage lifecycle', () => {
             return {
                 active: Demo.isDemoModeActive(),
                 data: localStorage.getItem('bb_data'),
+                demoData: sessionStorage.getItem('zam_demo_data'),
                 backup: localStorage.getItem('bb_demo_backup_bb_data'),
                 bannerVisible: Boolean(document.getElementById('bbDemoModeBanner'))
             };
         }, modulePath('/js/demoMode.js'));
 
         expect(demoState.active).toBe(true);
-        expect(demoState.data).toContain('demo-income-1');
-        expect(demoState.backup).toContain('RealRent');
+        expect(demoState.data).toContain('RealRent');
+        expect(demoState.data).not.toContain('demo-income-1');
+        expect(demoState.demoData).toContain('demo-income-1');
+        expect(demoState.backup).toBeNull();
         expect(demoState.bannerVisible).toBe(true);
 
         await Promise.all([
@@ -398,13 +395,15 @@ test.describe('Zam! storage lifecycle', () => {
 
         const restored = await page.evaluate(() => ({
             data: localStorage.getItem('bb_data'),
-            active: localStorage.getItem('bb_demo_active'),
+            active: sessionStorage.getItem('zam_demo_active'),
+            demoData: sessionStorage.getItem('zam_demo_data'),
             backup: localStorage.getItem('bb_demo_backup_bb_data')
         }));
 
         expect(restored.data).toContain('RealRent');
         expect(restored.data).not.toContain('demo-income-1');
         expect(restored.active).toBeNull();
+        expect(restored.demoData).toBeNull();
         expect(restored.backup).toBeNull();
     });
 });

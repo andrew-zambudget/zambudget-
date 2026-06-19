@@ -106,7 +106,7 @@ test.describe('auth route guard', () => {
         await expect(page.locator('#bbDemoModeBanner')).toBeVisible();
 
         const state = await page.evaluate(() => ({
-            demoActive: localStorage.getItem('bb_demo_active'),
+            demoActive: sessionStorage.getItem('zam_demo_active'),
             currentUser: window.currentUser
         }));
 
@@ -122,7 +122,7 @@ test.describe('auth route guard', () => {
         await expect(page.locator('#bbDemoModeBanner')).toBeVisible();
 
         const state = await page.evaluate(() => ({
-            demoActive: localStorage.getItem('bb_demo_active'),
+            demoActive: sessionStorage.getItem('zam_demo_active'),
             currentUser: window.currentUser
         }));
 
@@ -138,11 +138,34 @@ test.describe('auth route guard', () => {
         await expect(page.locator('#bbDemoModeBanner')).toBeVisible();
 
         const state = await page.evaluate(() => ({
-            demoActive: localStorage.getItem('bb_demo_active'),
+            demoActive: sessionStorage.getItem('zam_demo_active'),
             currentUser: window.currentUser
         }));
 
         expect(state.demoActive).toBe('true');
         expect(state.currentUser).toBeNull();
+    });
+
+    test('shows temporary signed-in demo prompt without starting sandbox data', async ({ page }) => {
+        await installSupabaseStub(page, `{
+            access_token: 'test-token',
+            refresh_token: 'test-refresh',
+            user: { id: 'route-user-demo', email: 'route-demo@example.com' }
+        }`);
+
+        await page.goto('/demo');
+        await expect(page.locator('#bbDemoSignedInPrompt')).toBeVisible();
+
+        const state = await page.evaluate(() => ({
+            demoActive: sessionStorage.getItem('zam_demo_active'),
+            demoData: sessionStorage.getItem('zam_demo_data'),
+            appData: localStorage.getItem('bb_data'),
+            currentUser: window.currentUser?.email || ''
+        }));
+
+        expect(state.demoActive).toBeNull();
+        expect(state.demoData).toBeNull();
+        expect(state.appData).toBeNull();
+        expect(state.currentUser).toBe('route-demo@example.com');
     });
 });

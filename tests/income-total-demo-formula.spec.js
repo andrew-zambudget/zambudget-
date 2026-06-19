@@ -111,7 +111,7 @@ test.describe('income total formula in demo-like data', () => {
         await page.goto('/index.html');
         await waitForAppReady(page);
         await page.evaluate((budget) => {
-            localStorage.setItem('bb_demo_active', 'true');
+            sessionStorage.setItem('zam_demo_active', 'true');
             window.replaceSnapshot?.(budget);
             window.render?.();
         }, DEMO_TOTAL_MISMATCH_CASE);
@@ -127,7 +127,7 @@ test.describe('income total formula in demo-like data', () => {
         await page.goto('/index.html');
         await waitForAppReady(page);
         await page.evaluate((budget) => {
-            localStorage.setItem('bb_demo_active', 'true');
+            sessionStorage.setItem('zam_demo_active', 'true');
             window.replaceSnapshot?.(budget);
             window.render?.();
         }, DEMO_TOTAL_LEGACY_SAVINGS_WHITESPACE_CASE);
