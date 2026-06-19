@@ -100,4 +100,45 @@ test.describe('logout safety', () => {
         await expect(modal.getByRole('button', { name: 'I saved my Recovery Key' })).toBeVisible();
         await expect(modal.getByRole('button', { name: 'Sign Out Anyway' })).toBeVisible();
     });
+
+    test('trusted key without verified backup shows recovery warning before sign out', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await page.evaluate(() => {
+            window.currentUser = {
+                id: 'logout-recovery-key-trusted-only-user',
+                email: 'logout-trusted-only@example.com'
+            };
+            window.sb = {
+                auth: {
+                    signOut: async () => ({ error: null })
+                }
+            };
+            window.BuddyCloud = {
+                getStatus: () => ({
+                    signedIn: true,
+                    enabled: true,
+                    hasKey: true,
+                    canUseCloud: true,
+                    hasExportableKey: false
+                })
+            };
+            localStorage.setItem('bb_cloud_recovery_key_grace_started_logout-recovery-key-trusted-only-user', '2026-06-13T01:00:00.000Z');
+
+            window.handleLogout();
+        });
+
+        await expect(page.locator('#accountConfirmTitle')).toHaveText('Log out?');
+        await page.getByRole('button', { name: 'Secure Sign Out' }).click();
+
+        const modal = page.locator('#buddyCloudModal');
+        await expect(modal).toBeVisible();
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Recovery Key Not Verified');
+        await expect(modal).toContainText('This trusted browser can sync, but the recovery-key text is no longer viewable after refresh.');
+        await expect(modal).toContainText('If you did not save it, reset Cloud Sync to create a new key');
+        await expect(modal.getByRole('button', { name: 'Recovery Help' })).toBeVisible();
+        await expect(modal.getByRole('button', { name: 'Sign Out Anyway' })).toBeVisible();
+        await expect(modal.getByRole('button', { name: 'Import Key' })).toHaveCount(0);
+    });
 });

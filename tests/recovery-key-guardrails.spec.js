@@ -197,7 +197,8 @@ test.describe('recovery key setup guardrails', () => {
 
         const nudge = page.locator('.sync-cloud-nudge');
         await expect(nudge).toContainText('Recovery key reminder');
-        await expect(nudge).toContainText('Import and verify your saved recovery key within');
+        await expect(nudge).toContainText('Recovery key backup is not verified');
+        await expect(nudge).toContainText('If you did not save it, open Recovery Help');
     });
 
     test('fresh setup validates pasted recovery key before marking it saved', async ({ page }) => {

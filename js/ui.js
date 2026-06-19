@@ -562,7 +562,7 @@ function syncCloudActionButtons() {
             : !status.hasKey
             ? 'Import Key'
             : !hasExportableKey
-            ? hasRecoveryKeyBackedUpFlag() ? 'Import to View' : 'Save Key'
+            ? hasRecoveryKeyBackedUpFlag() ? 'Import to View' : 'Recovery Help'
             : !hasRecoveryKeyBackedUpFlag()
             ? 'Save Key'
             : isRecoveryKeyDisplayUnlocked()
@@ -609,15 +609,9 @@ function syncCloudActionButtons() {
                 ? 'warning'
                 : humanStatus.severity;
             const reminderTitle = showKeyReminder
-                ? (grace.expired ? 'Recovery key not saved' : 'Recovery key reminder')
+                ? getRecoveryKeyReminderTitle(grace)
                 : humanStatus.title;
-            const reminderDetail = status.hasExportableKey
-                ? grace.expired
-                    ? 'Save your recovery key before relying on Cloud Sync as your backup. If this browser is lost or cleared, we cannot recover your encrypted cloud budget.'
-                    : `Save your recovery key within ${formatGraceHours(grace.remainingMs)}. Clearing this browser or losing this device can remove trusted key access.`
-                : grace.expired
-                ? 'Import and verify your saved recovery key before relying on Cloud Sync as your backup. If this browser is lost or cleared, we cannot recover your encrypted cloud budget.'
-                : `Import and verify your saved recovery key within ${formatGraceHours(grace.remainingMs)}. This trusted browser can sync, but the key text is no longer viewable after refresh.`;
+            const reminderDetail = getRecoveryKeyReminderDetail(status, grace);
             nudge.classList.toggle('is-synced', nudgeSeverity === 'synced');
             nudge.classList.toggle('is-warning', nudgeSeverity === 'warning');
             nudge.classList.toggle('is-error', nudgeSeverity === 'error');
@@ -1417,11 +1411,35 @@ function needsRecoveryKeySaveReminder() {
         status.signedIn
         && status.enabled
         && status.hasKey
-        && !hasRecoveryKeySavedFlag()
-        && (status.hasExportableKey || hasActiveGrace)
+        && !hasRecoveryKeyBackedUpFlag()
     );
-    if (needsReminder && status.hasExportableKey && !hasActiveGrace) startRecoveryKeyGracePeriod();
+    if (needsReminder && !hasActiveGrace) startRecoveryKeyGracePeriod();
     return needsReminder;
+}
+
+function getRecoveryKeyReminderTitle(grace = getRecoveryKeyGraceState()) {
+    return grace.expired ? 'Recovery key not saved' : 'Recovery key reminder';
+}
+
+function getRecoveryKeyReminderDetail(status = window.BuddyCloud?.getStatus?.() || {}, grace = getRecoveryKeyGraceState()) {
+    const remaining = formatGraceHours(grace.remainingMs);
+    if (status.hasExportableKey) {
+        return grace.expired
+            ? 'Save your recovery key before relying on Cloud Sync as your backup. If this browser is lost or cleared, we cannot recover your encrypted cloud budget.'
+            : `Save your recovery key within ${remaining}. Clearing this browser or losing this device can remove trusted key access.`;
+    }
+
+    return grace.expired
+        ? 'Recovery key backup is not verified. This trusted browser can sync, but the key text is no longer viewable. If you did not save it, open Recovery Help and reset Cloud Sync before relying on it as your backup. If you did save it, import it to verify.'
+        : `Recovery key backup is not verified. This trusted browser can sync, but the key text is no longer viewable after refresh. If you did not save it, open Recovery Help and reset Cloud Sync before relying on it as your backup. If you did save it, import it to verify within ${remaining}.`;
+}
+
+function getRecoveryKeyRecommendedStep(status = window.BuddyCloud?.getStatus?.() || {}, grace = getRecoveryKeyGraceState()) {
+    if (hasRecoveryKeyBackedUpFlag()) return 'No action needed.';
+    if (status.hasExportableKey) return 'Save and verify your recovery key.';
+    return grace.expired
+        ? 'Open Recovery Help. Import a saved key to verify it, or reset Cloud Sync to create a new key.'
+        : 'Open Recovery Help. If you saved the key, import it to verify; if not, reset Cloud Sync to create a new key.';
 }
 
 function resetRecoveryKeyCopyButtonLabels() {
@@ -1867,11 +1885,12 @@ function getBuddyCloudHumanStatus(status = window.BuddyCloud?.getStatus?.() || {
     }
 
     if (status.hasKey && !status.hasExportableKey && !hasRecoveryKeyBackedUpFlag()) {
+        const grace = getRecoveryKeyGraceState();
         return {
             severity: 'warning',
-            title: 'Recovery key backup needed',
-            detail: 'This trusted browser can sync, but the recovery-key text is not viewable after refresh. Import the saved key to verify your backup.',
-            recommendedNextStep: 'Import your recovery key to save a backup.'
+            title: getRecoveryKeyReminderTitle(grace),
+            detail: getRecoveryKeyReminderDetail(status, grace),
+            recommendedNextStep: getRecoveryKeyRecommendedStep(status, grace)
         };
     }
 
@@ -1882,7 +1901,7 @@ function getBuddyCloudHumanStatus(status = window.BuddyCloud?.getStatus?.() || {
             ? `Encrypted backup verified.\nLast verified sync: ${lastVerifiedText}.`
             : 'Encrypted backup is active. Keep your recovery key somewhere safe for another trusted device.',
         recommendedNextStep: needsRecoveryKeySaveReminder()
-            ? 'Save your recovery key.'
+            ? getRecoveryKeyRecommendedStep(status)
             : 'No action needed.'
     };
 }
@@ -4211,6 +4230,11 @@ window.showBuddyCloudRecoveryKey = function(event) {
 
         if (!status.hasKey) {
             await runRecoveryKeyImportFlow();
+            return;
+        }
+
+        if (status.hasKey && !status.hasExportableKey && !hasRecoveryKeyBackedUpFlag()) {
+            await handleBuddyCloudRecoveryHelp(event);
             return;
         }
 
@@ -13728,15 +13752,12 @@ function syncAccountRecoveryUi() {
 
     const grace = getRecoveryKeyGraceState();
     const hasExportableKey = Boolean(status.hasExportableKey);
-    const title = grace.expired ? 'Recovery key not saved' : 'Recovery key reminder';
-    const message = hasExportableKey
-        ? grace.expired
-            ? 'Save it before relying on Cloud Sync as your backup.'
-            : `Save it within ${formatGraceHours(grace.remainingMs)}. Cloud Sync stays active during this grace period.`
-        : grace.expired
-        ? 'Import and verify your saved key before relying on Cloud Sync as your backup.'
-        : `Import and verify your saved key within ${formatGraceHours(grace.remainingMs)}. Cloud Sync stays active during this grace period.`;
-    const actionLabel = hasExportableKey ? 'Save Key' : 'Import Key';
+    const title = getRecoveryKeyReminderTitle(grace);
+    const message = getRecoveryKeyReminderDetail(status, grace);
+    const actionLabel = hasExportableKey ? 'Save Key' : 'Recovery Help';
+    const actionHandler = hasExportableKey
+        ? 'window.showBuddyCloudRecoveryKey(event)'
+        : 'window.handleBuddyCloudRecoveryHelp(event)';
 
     el.hidden = false;
     el.classList.remove('is-required');
@@ -13746,7 +13767,7 @@ function syncAccountRecoveryUi() {
             <div class="account-recovery-title">${esc(title)}</div>
             <div class="account-recovery-message">${esc(message)}</div>
         </div>
-        <button type="button" class="account-recovery-action" onclick="event.stopPropagation(); window.closeAccountModal(); window.showBuddyCloudRecoveryKey(event)">${esc(actionLabel)}</button>
+        <button type="button" class="account-recovery-action" onclick="event.stopPropagation(); window.closeAccountModal(); ${actionHandler}">${esc(actionLabel)}</button>
     `;
 }
 
@@ -22525,6 +22546,7 @@ async function requireRecoveryKeySavedBeforeLocalClear(options = {}) {
     if (!status.enabled || !status.hasKey) return true;
     if (hasRecoveryKeyBackedUpFlag()) return true;
     if (!status.hasExportableKey) {
+        if (allowSignOutAnyway) return showUnverifiedRecoveryKeyLogoutModal();
         const imported = await runRecoveryKeyImportFlow();
         return Boolean(imported && hasRecoveryKeyBackedUpFlag());
     }
@@ -22538,6 +22560,30 @@ async function requireRecoveryKeySavedBeforeLocalClear(options = {}) {
         requireDownload: true,
         allowSignOutAnyway
     });
+}
+
+async function showUnverifiedRecoveryKeyLogoutModal() {
+    if (!getRecoveryKeyGraceState().startedAt) startRecoveryKeyGracePeriod();
+    const result = await showBuddyCloudModal({
+        eyebrow: 'Recovery Key',
+        title: 'Recovery Key Not Verified',
+        compact: true,
+        body: 'This trusted browser can sync, but the recovery-key text is no longer viewable after refresh.',
+        assurance: 'If you saved the key, Recovery Help can import it to verify your backup. If you did not save it, reset Cloud Sync to create a new key before relying on Cloud Sync as your backup.',
+        warning: 'Signing out is allowed, but Zam! cannot recover the encrypted cloud budget if this browser is lost or cleared and no saved recovery key exists.',
+        actions: [
+            { id: 'back', label: 'Back', className: 'btn-cancel' },
+            { id: 'recovery-help', label: 'Recovery Help', className: 'btn-cancel' },
+            { id: 'sign-out-anyway', label: 'Sign Out Anyway', className: 'btn-danger buddy-cloud-action-nowrap' }
+        ]
+    });
+
+    if (result.action === 'recovery-help') {
+        await handleBuddyCloudRecoveryHelp();
+        return false;
+    }
+
+    return result.action === 'sign-out-anyway' ? 'sign-out-anyway' : false;
 }
 
 async function showLogoutBackupBlockedModal(error) {
