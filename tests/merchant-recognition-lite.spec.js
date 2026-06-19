@@ -57,6 +57,12 @@ async function seedMerchantHarness(page) {
     });
 }
 
+async function enablePremium(page) {
+    await page.evaluate(() => {
+        window.setPremiumAccess?.(true, { source: 'merchant_recognition_test' });
+    });
+}
+
 async function importMerchantCsv(page) {
     await page.evaluate(async ({ text, name }) => {
         const file = new File([text], name, { type: 'text/csv' });
@@ -73,20 +79,21 @@ test.describe('Merchant Recognition Lite', () => {
         await resetBrowserStorage(page);
     });
 
-    test('suggests merchant cleanup after CSV import and preserves raw descriptions', async ({ page }) => {
+    test('suggests merchant cleanup for Premium imports and preserves raw descriptions', async ({ page }) => {
         const browserErrors = [];
         page.on('pageerror', error => browserErrors.push(error.message));
 
         await page.goto('/index.html');
         await waitForAppReady(page);
         await seedMerchantHarness(page);
+        await enablePremium(page);
         await importMerchantCsv(page);
 
-        await expect(page.locator('#csvImportCompleteNotice')).toBeVisible();
-        await expect(page.locator('#csvImportCompleteNotice')).toContainText('3 transactions imported');
-        await expect(page.locator('#csvImportCompleteNotice')).toContainText('2 merchant cleanup suggestions found');
+        await expect(page.locator('#csvImportCompleteModal')).toBeVisible();
+        await expect(page.locator('#csvImportCompleteModal')).toContainText('3 transactions imported');
+        await expect(page.locator('#csvImportCompleteModal')).toContainText('2 merchant cleanup suggestions found');
 
-        await page.locator('#csvImportCompleteNotice .csv-import-complete-review-btn').click();
+        await page.locator('#csvImportCompleteModal button', { hasText: 'Review Suggestions' }).click();
         await expect(page.locator('#recentEditTransactionModal')).toBeVisible();
         await expect(page.locator('#recentEditTransactionModal .transaction-merchant-suggestion')).toBeVisible();
         await expect(page.locator('#recentEditTransactionModal .transaction-merchant-suggestion')).toContainText('STARBUCKS STORE #1234');
@@ -134,5 +141,42 @@ test.describe('Merchant Recognition Lite', () => {
         expect(afterIgnore.status).toBe('ignored');
 
         expect(browserErrors).toEqual([]);
+    });
+
+    test('gates merchant cleanup suggestions for Free imports', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+        await seedMerchantHarness(page);
+
+        await page.evaluate(async ({ text, name }) => {
+            const file = new File([text], name, { type: 'text/csv' });
+            await window.importTransactionsFromCSV({ target: { files: [file], value: '' } });
+        }, { text: MERCHANT_CSV, name: 'zam_merchant_recognition_free.csv' });
+
+        await expect(page.locator('#csvImportReviewModal')).toBeVisible();
+        await page.locator('#csvImportToggleAdvancedOptionsBtn').click();
+        const skipSuggestions = page.locator('#csvImportSkipMerchantSuggestions');
+        await expect(skipSuggestions).toBeChecked();
+        await expect(skipSuggestions).toBeDisabled();
+        await expect(page.locator('#csvImportMerchantSuggestionsPremiumPill')).toBeVisible();
+        await expect(page.locator('#csvImportMerchantSuggestionsHint')).toContainText('Premium unlocks merchant cleanup suggestions');
+
+        await page.locator('#csvImportConfirmBtn').click();
+        await expect(page.locator('#csvImportCompleteNotice')).toBeVisible();
+        await expect(page.locator('#csvImportCompleteNotice')).toContainText('3 transactions imported');
+        await expect(page.locator('#csvImportCompleteModal')).toHaveCount(0);
+
+        const imported = await page.evaluate(() => window.getTransactions()
+            .filter(tx => tx.source_type === 'csv_import')
+            .map(tx => ({
+                description: tx.description,
+                rawDescription: tx.raw_description,
+                cleanupStatus: tx.merchant_cleanup_status,
+                hasSuggestion: Boolean(tx.merchantSuggestion)
+            })));
+
+        expect(imported).toHaveLength(3);
+        expect(imported.every(tx => tx.cleanupStatus === 'none')).toBe(true);
+        expect(imported.every(tx => tx.hasSuggestion === false)).toBe(true);
     });
 });

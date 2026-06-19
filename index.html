@@ -1427,6 +1427,13 @@
                                                     <input type="checkbox" id="csvImportSkipDuplicates" checked disabled onchange="window.handleCsvImportSkipDuplicatesChange()">
                                                     Skip exact duplicate rows
                                                 </label>
+                                                <div class="csv-import-premium-option">
+                                                    <label class="settings-checkbox-label csv-import-skip-checkbox">
+                                                        <input type="checkbox" id="csvImportSkipMerchantSuggestions" onchange="window.handleCsvImportSkipMerchantSuggestionsChange(event)">
+                                                        <span>Skip merchant cleanup suggestions <em id="csvImportMerchantSuggestionsPremiumPill" class="csv-import-premium-pill" hidden>Premium feature</em></span>
+                                                    </label>
+                                                    <div id="csvImportMerchantSuggestionsHint" class="csv-import-optional-hint" aria-live="polite"></div>
+                                                </div>
                                                 <div id="csvImportRememberMappingRow" class="csv-import-remember-mapping" hidden>
                                                     <div class="csv-import-remember-title">Save mapping for future imports?</div>
                                                     <label class="settings-checkbox-label">

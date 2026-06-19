@@ -16944,6 +16944,7 @@ const MERCHANT_CLEANUP_STATUS_NONE = 'none';
 const MERCHANT_CLEANUP_STATUS_SUGGESTED = 'suggested';
 const MERCHANT_CLEANUP_STATUS_ACCEPTED = 'accepted';
 const MERCHANT_CLEANUP_STATUS_IGNORED = 'ignored';
+const MERCHANT_RECOGNITION_FEATURE_NAME = 'Merchant cleanup suggestions';
 const MERCHANT_RECOGNITION_RULES = [
     { canonical: 'Starbucks', confidence: 'High confidence', reason: 'Obvious Starbucks merchant pattern.', patterns: [/starbucks?/i, /starbuc?k+s?/i, /\bsbux\b/i] },
     { canonical: 'Amazon', confidence: 'High confidence', reason: 'Amazon marketplace bank descriptor.', patterns: [/amzn/i, /amazon/i] },
@@ -16957,6 +16958,54 @@ const MERCHANT_RECOGNITION_RULES = [
     { canonical: 'Venmo', confidence: 'High confidence', reason: 'Venmo transfer descriptor.', patterns: [/venmo/i] },
     { canonical: 'Topgolf', confidence: 'High confidence', reason: 'Topgolf merchant descriptor.', patterns: [/topgolf/i] }
 ];
+
+function hasMerchantRecognitionPremiumAccess() {
+    try {
+        return Boolean(
+            State.getIsPro?.()
+            || localStorage.getItem(PREMIUM_ACTIVE_KEY) === 'true'
+            || localStorage.getItem(PRO_STATUS_KEY) === 'true'
+        );
+    } catch {
+        return Boolean(State.getIsPro?.());
+    }
+}
+
+function isCsvImportMerchantSuggestionSkipped() {
+    const input = document.getElementById('csvImportSkipMerchantSuggestions');
+    return Boolean(input?.checked);
+}
+
+function shouldGenerateCsvMerchantSuggestions() {
+    return hasMerchantRecognitionPremiumAccess() && !isCsvImportMerchantSuggestionSkipped();
+}
+
+function syncCsvImportMerchantSuggestionOption(options = {}) {
+    const { reset = false } = options;
+    const input = document.getElementById('csvImportSkipMerchantSuggestions');
+    const pill = document.getElementById('csvImportMerchantSuggestionsPremiumPill');
+    const hint = document.getElementById('csvImportMerchantSuggestionsHint');
+    if (!input) return;
+
+    const hasAccess = hasMerchantRecognitionPremiumAccess();
+    input.disabled = !hasAccess;
+    if (!hasAccess) {
+        input.checked = true;
+    } else if (reset || !csvImportState?.merchantSuggestionOptionTouched) {
+        input.checked = false;
+    }
+
+    if (pill) pill.hidden = hasAccess;
+    if (hint) {
+        if (!hasAccess) {
+            hint.innerHTML = `Premium unlocks merchant cleanup suggestions after import. <button type="button" class="csv-import-inline-link" onclick="window.openCsvImportMerchantSuggestionPremiumInfo(event)">Learn more</button>`;
+        } else if (input.checked) {
+            hint.textContent = 'Merchant cleanup suggestions will be skipped for this import.';
+        } else {
+            hint.textContent = 'Zam will look for local merchant cleanup suggestions after this import.';
+        }
+    }
+}
 
 function normalizeMerchantAliasPattern(value = '') {
     return String(value || '')
@@ -17712,7 +17761,7 @@ function buildCsvImportMappedValueDetails(row = [], mapping = {}, amountResult =
     };
 }
 
-function buildCsvImportRow(fileName, sourceRow, row, mapping, now, rawHeaders = []) {
+function buildCsvImportRow(fileName, sourceRow, row, mapping, now, rawHeaders = [], options = {}) {
     const safeRawValues = Array.isArray(row) ? row.map((value) => String(value || '')) : [];
     const safeRawHeaders = Array.isArray(rawHeaders) ? rawHeaders.map((value) => String(value || '')) : [];
     const amountResult = getCsvAmountFromColumns(row, mapping, sourceRow);
@@ -17785,7 +17834,9 @@ function buildCsvImportRow(fileName, sourceRow, row, mapping, now, rawHeaders = 
     const notes = mapValueFromRow(row, mapping, 'notes');
     const importId = `csv-${now}`;
     const importRowId = `${importId}-${sourceRow}`;
-    const merchantSuggestion = buildMerchantCleanupSuggestion(rawDescription);
+    const merchantSuggestion = options.generateMerchantSuggestions === false
+        ? null
+        : buildMerchantCleanupSuggestion(rawDescription);
 
     const tx = {
         id: generateId(),
@@ -18542,6 +18593,7 @@ function buildCsvImportPreviewState(mapping, skipDuplicates = false) {
     let needsAttention = 0;
     let duplicate = 0;
     let changed = 0;
+    const generateMerchantSuggestions = shouldGenerateCsvMerchantSuggestions();
 
     const existing = (State.getTransactions ? State.getTransactions() : []) || [];
     const existingSet = new Set((existing || []).map((tx) => csvImportFingerprint(tx)));
@@ -18558,7 +18610,8 @@ function buildCsvImportPreviewState(mapping, skipDuplicates = false) {
                 row,
                 mapping,
                 now,
-                payload.headers || []
+                payload.headers || [],
+                { generateMerchantSuggestions }
             );
             parsed._csvImportSortIndex = sortIndex;
             sortIndex += 1;
@@ -18800,6 +18853,7 @@ function refreshCsvImportReview(skipDuplicates = false) {
     }
 
     updateCsvImportFilterButtons(csvImportFilterMode);
+    syncCsvImportMerchantSuggestionOption();
     updateCsvImportRememberMappingPrompt();
 
     if (previewCountEl) {
@@ -19093,6 +19147,32 @@ window.toggleCsvImportAdvancedOptions = function() {
     refreshCsvImportReview(Boolean(document.getElementById('csvImportSkipDuplicates')?.checked));
 };
 
+window.handleCsvImportSkipMerchantSuggestionsChange = function(event) {
+    if (!csvImportState) return;
+    if (!hasMerchantRecognitionPremiumAccess()) {
+        if (event?.target) event.target.checked = true;
+        syncCsvImportMerchantSuggestionOption();
+        window.openCsvImportMerchantSuggestionPremiumInfo(event);
+        return;
+    }
+
+    csvImportState.merchantSuggestionOptionTouched = true;
+    csvImportPreviewExpanded = false;
+    syncCsvImportMerchantSuggestionOption();
+    refreshCsvImportReview(Boolean(document.getElementById('csvImportSkipDuplicates')?.checked));
+};
+
+window.openCsvImportMerchantSuggestionPremiumInfo = function(event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    if (hasMerchantRecognitionPremiumAccess()) return;
+    if (typeof window.openUpgradeModal === 'function') {
+        window.openUpgradeModal(MERCHANT_RECOGNITION_FEATURE_NAME);
+    } else if (window.showToast) {
+        window.showToast('Merchant cleanup suggestions are a Premium feature.');
+    }
+};
+
 function parseCsvRows(text) {
     const rows = [];
     let row = [];
@@ -19145,7 +19225,8 @@ window.openCsvImportReviewModal = function(filePayloads) {
         allEntries: [],
         selectedEntries: [],
         selectedRowKeys: new Set(),
-        selectionInitialized: false
+        selectionInitialized: false,
+        merchantSuggestionOptionTouched: false
     };
 
     CSV_IMPORT_FIELD_MAP.forEach((field) => {
@@ -19201,6 +19282,7 @@ window.openCsvImportReviewModal = function(filePayloads) {
     }
     const rememberMappingInput = document.getElementById('csvImportRememberMapping');
     if (rememberMappingInput) rememberMappingInput.checked = false;
+    syncCsvImportMerchantSuggestionOption({ reset: true });
     csvImportFilterMode = 'all';
     csvImportPreviewMode = CSV_IMPORT_PREVIEW_MODE_PARSED;
     csvImportPreviewExpanded = false;
@@ -19356,10 +19438,85 @@ window.dismissCsvImportCompleteNotice = function({ clearContext = true } = {}) {
     if (clearContext) csvImportFeedbackContext = null;
 };
 
+window.closeCsvImportCompleteModal = function({ clearContext = true } = {}) {
+    const modal = document.getElementById('csvImportCompleteModal');
+    if (modal) {
+        modal.classList.add('closing');
+        window.setTimeout(() => modal.remove(), 180);
+    }
+    if (clearContext) csvImportFeedbackContext = null;
+};
+
+function getCsvImportCompleteSummaryLabels() {
+    const context = csvImportFeedbackContext || {};
+    return {
+        importedLabel: `${context.rowsImported || 0} transaction${context.rowsImported === 1 ? '' : 's'} imported`,
+        duplicateLabel: `${context.duplicatesSkipped || 0} duplicate${context.duplicatesSkipped === 1 ? '' : 's'} skipped`,
+        notImportedLabel: `${context.rowsNotImported || 0} row${context.rowsNotImported === 1 ? '' : 's'} not imported`,
+        merchantSuggestionCount: context.merchantSuggestionsFound || 0
+    };
+}
+
+window.showCsvImportCompleteModal = function() {
+    if (!csvImportFeedbackContext) return;
+    document.getElementById('csvImportCompleteModal')?.remove();
+
+    const {
+        importedLabel,
+        duplicateLabel,
+        notImportedLabel,
+        merchantSuggestionCount
+    } = getCsvImportCompleteSummaryLabels();
+
+    const modal = document.createElement('div');
+    modal.id = 'csvImportCompleteModal';
+    modal.className = 'modal-overlay active csv-import-complete-modal-overlay';
+    modal.onclick = (event) => {
+        if (event.target === modal) window.closeCsvImportCompleteModal();
+    };
+
+    modal.innerHTML = `
+        <div class="modal-box modal-box-medium csv-import-complete-modal" role="dialog" aria-modal="true" aria-labelledby="csvImportCompleteTitle" onclick="event.stopPropagation()">
+            <button type="button" class="modal-close" onclick="window.closeCsvImportCompleteModal()" aria-label="Close import complete">&times;</button>
+            <div class="csv-import-complete-modal-head">
+                <div class="csv-import-complete-modal-icon" aria-hidden="true">OK</div>
+                <div>
+                    <h3 id="csvImportCompleteTitle" class="modal-title">Import Complete</h3>
+                    <p>Review the import result and decide whether to clean up noisy merchant names.</p>
+                </div>
+            </div>
+            <div class="csv-import-complete-modal-summary" aria-label="Import summary">
+                <div><strong>${esc(importedLabel)}</strong><span>Ready in Zam</span></div>
+                <div><strong>${esc(duplicateLabel)}</strong><span>Skipped safely</span></div>
+                <div><strong>${esc(notImportedLabel)}</strong><span>Not imported</span></div>
+            </div>
+            <div class="csv-import-complete-merchant-panel">
+                <div>
+                    <strong>${merchantSuggestionCount} merchant cleanup suggestion${merchantSuggestionCount === 1 ? '' : 's'} found</strong>
+                    <span>Premium cleanup suggestions can make imported bank descriptions easier to read. Original CSV values stay preserved.</span>
+                </div>
+            </div>
+            <div class="modal-actions csv-import-complete-modal-actions">
+                <button type="button" class="btn-create" onclick="window.openMerchantCleanupSuggestionsFromNotice()">Review Suggestions</button>
+                <button type="button" class="btn-cancel" onclick="window.openCsvImportFeedbackFromNotice()">Feedback</button>
+                <button type="button" class="btn-cancel" onclick="window.closeCsvImportCompleteModal()">Close</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+};
+
 window.showCsvImportCompleteNotice = function() {
     if (!csvImportFeedbackContext) return;
 
     window.dismissCsvImportCompleteNotice({ clearContext: false });
+    window.closeCsvImportCompleteModal({ clearContext: false });
+
+    if ((csvImportFeedbackContext.merchantSuggestionsFound || 0) > 0) {
+        window.showCsvImportCompleteModal();
+        return;
+    }
 
     const notice = document.createElement('div');
     notice.id = 'csvImportCompleteNotice';
@@ -19367,25 +19524,14 @@ window.showCsvImportCompleteNotice = function() {
     notice.setAttribute('role', 'status');
     notice.setAttribute('aria-live', 'polite');
 
-    const importedLabel = `${csvImportFeedbackContext.rowsImported} transaction${csvImportFeedbackContext.rowsImported === 1 ? '' : 's'} imported`;
-    const duplicateLabel = `${csvImportFeedbackContext.duplicatesSkipped || 0} duplicate${csvImportFeedbackContext.duplicatesSkipped === 1 ? '' : 's'} skipped`;
-    const notImportedLabel = `${csvImportFeedbackContext.rowsNotImported || 0} row${csvImportFeedbackContext.rowsNotImported === 1 ? '' : 's'} not imported`;
-    const merchantSuggestionCount = csvImportFeedbackContext.merchantSuggestionsFound || 0;
-    const merchantSuggestionLabel = merchantSuggestionCount > 0
-        ? `<span>${merchantSuggestionCount} merchant cleanup suggestion${merchantSuggestionCount === 1 ? '' : 's'} found</span>`
-        : '';
-    const merchantSuggestionAction = merchantSuggestionCount > 0
-        ? '<button type="button" class="csv-import-complete-review-btn" onclick="window.openMerchantCleanupSuggestionsFromNotice()">Review Suggestions</button>'
-        : '';
+    const { importedLabel, duplicateLabel, notImportedLabel } = getCsvImportCompleteSummaryLabels();
 
     notice.innerHTML = `
         <div class="csv-import-complete-notice-copy">
             <strong>Import complete</strong>
             <span>${importedLabel}, ${duplicateLabel}, ${notImportedLabel}</span>
-            ${merchantSuggestionLabel}
         </div>
         <div class="csv-import-complete-notice-actions">
-            ${merchantSuggestionAction}
             <button type="button" class="csv-import-complete-feedback-btn" onclick="window.openCsvImportFeedbackFromNotice()">Feedback</button>
             <button type="button" class="csv-import-complete-dismiss-btn" onclick="window.dismissCsvImportCompleteNotice()" aria-label="Dismiss import complete notice">&times;</button>
         </div>
@@ -19402,12 +19548,14 @@ window.showCsvImportCompleteNotice = function() {
 
 window.openCsvImportFeedbackFromNotice = function() {
     window.dismissCsvImportCompleteNotice({ clearContext: false });
+    window.closeCsvImportCompleteModal({ clearContext: false });
     window.openCsvImportFeedbackModal();
 };
 
 window.openMerchantCleanupSuggestionsFromNotice = function() {
     const context = csvImportFeedbackContext || {};
     window.dismissCsvImportCompleteNotice({ clearContext: false });
+    window.closeCsvImportCompleteModal({ clearContext: false });
     const preferredIds = Array.isArray(context.merchantSuggestionTransactionIds)
         ? context.merchantSuggestionTransactionIds
         : [];
