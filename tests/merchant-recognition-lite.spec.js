@@ -13,6 +13,17 @@ const MERCHANT_CSV = [
     '2026-06-04,ABC ENTERPRISES 99821,74.32,,Entertainment,Checking,ambiguous'
 ].join('\n');
 
+const MERCHANT_FALSE_POSITIVE_CSV = [
+    'Posted Date,Payee / Memo,Debit,Credit,Category Name,Account Name,User Note',
+    '2026-06-01,Amazon,12.00,,Shopping,Checking,already clean',
+    '2026-06-02,APPLE CARD PAYMENT,100.00,,Credit Card,Checking,payment',
+    '2026-06-03,TRANSFER TO SAVINGS,200.00,,Transfer,Checking,transfer',
+    '2026-06-04,APPLE.COM/BILL,9.99,,Subscriptions,Checking,apple bill',
+    '2026-06-05,SQ *LOCAL COFFEE SHOP,6.25,,Coffee,Checking,square processor',
+    '2026-06-06,PAYPAL *JSMITH,15.00,,Misc,Checking,paypal processor',
+    '2026-06-07,DOORDASH*BURGER PLACE,22.34,,Dining,Checking,food delivery'
+].join('\n');
+
 async function seedMerchantHarness(page) {
     await page.evaluate(() => {
         window.currentUser = { id: 'merchant-recognition-test-user' };
@@ -64,13 +75,13 @@ async function enablePremium(page) {
     });
 }
 
-async function importMerchantCsv(page) {
+async function importMerchantCsv(page, text = MERCHANT_CSV, name = 'zam_merchant_recognition_lite.csv') {
     await page.evaluate(async ({ text, name }) => {
         const file = new File([text], name, { type: 'text/csv' });
         await window.importTransactionsFromCSV({ target: { files: [file], value: '' } });
-    }, { text: MERCHANT_CSV, name: 'zam_merchant_recognition_lite.csv' });
+    }, { text, name });
     await expect(page.locator('#csvImportReviewModal')).toBeVisible();
-    await expect(page.locator('#csvImportConfirmBtn')).toHaveText('Import 4 Transactions');
+    await expect(page.locator('#csvImportConfirmBtn')).toContainText(/^Import \d+ Transactions$/);
     await page.locator('#csvImportConfirmBtn').click();
 }
 
@@ -188,6 +199,41 @@ test.describe('Smart Merchant Cleanup', () => {
         await cleanupModal.locator('th[data-sort="confidence"] .smart-merchant-cleanup-sort-button').click();
         await expect(cleanupModal.locator('th[data-sort="confidence"]')).toHaveAttribute('aria-sort', 'descending');
         await expect(cleanupModal.locator('#smartMerchantCleanupSelectedCount')).toContainText('3 of 3 selected');
+    });
+
+    test('suppresses clean and payment rows while lowering processor confidence', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+        await seedMerchantHarness(page);
+        await enablePremium(page);
+        await importMerchantCsv(page, MERCHANT_FALSE_POSITIVE_CSV, 'zam_merchant_recognition_false_positive.csv');
+
+        await expect(page.locator('#csvImportCompleteModal')).toBeVisible();
+        await expect(page.locator('#csvImportCompleteModal')).toContainText('7 transactions imported');
+        await expect(page.locator('#csvImportCompleteModal')).toContainText('4 Smart Merchant Cleanup suggestions found');
+
+        await page.locator('#csvImportCompleteModal button', { hasText: 'Review Suggestions' }).click();
+        const cleanupModal = page.locator('#smartMerchantCleanupModal');
+        await expect(cleanupModal).toBeVisible();
+
+        await expect(cleanupModal).not.toContainText('Amazon Marketplace');
+        await expect(cleanupModal).not.toContainText('APPLE CARD PAYMENT');
+        await expect(cleanupModal).not.toContainText('TRANSFER TO SAVINGS');
+
+        await expect(cleanupModal).toContainText('APPLE.COM/BILL');
+        await expect(cleanupModal).toContainText('Apple Services');
+        await expect(cleanupModal).toContainText('SQ *LOCAL COFFEE SHOP');
+        await expect(cleanupModal).toContainText('Local Coffee Shop');
+        await expect(cleanupModal).toContainText('Payment processor prefix removed; merchant name inferred from remaining text.');
+        await expect(cleanupModal).toContainText('PAYPAL *JSMITH');
+        await expect(cleanupModal).toContainText('Low confidence');
+        await expect(cleanupModal).toContainText('underlying merchant or person may differ');
+        await expect(cleanupModal).toContainText('DOORDASH*BURGER PLACE');
+        await expect(cleanupModal).toContainText('Restaurants / Food Delivery');
+        await expect(cleanupModal.locator('#smartMerchantCleanupSelectedCount')).toContainText('3 of 4 selected');
+
+        const paypalRow = cleanupModal.locator('tr', { hasText: 'PAYPAL *JSMITH' });
+        await expect(paypalRow.locator('.smart-merchant-cleanup-row-select')).not.toBeChecked();
     });
 
     test('gates merchant cleanup suggestions for Free imports', async ({ page }) => {

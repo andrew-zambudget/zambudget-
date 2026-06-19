@@ -16950,6 +16950,14 @@ const MERCHANT_CLEANUP_STATUS_IGNORED = 'ignored';
 const MERCHANT_RECOGNITION_FEATURE_NAME = 'Smart Merchant Cleanup';
 const MERCHANT_CLEANUP_SEED_URL = 'data/merchant-cleanup-seeds.v1.json';
 const SMART_MERCHANT_CLEANUP_SORT_FIELDS = new Set(['original', 'suggested', 'confidence']);
+const MERCHANT_CLEANUP_EXCLUDED_DESCRIPTION_PATTERNS = [
+    /\btransfer\s+(?:to|from)\b/i,
+    /\binternal\s+transfer\b/i,
+    /\b(?:credit\s+card|debit\s+card|apple\s+card|card|loan|mortgage|auto)\s+payment\b/i,
+    /\bpayment\s+received\b/i,
+    /\bcash\s*out\b/i,
+    /\bvenmo\s+cash\s*out\b/i
+];
 const MERCHANT_RECOGNITION_RULES = [
     { canonical: 'Starbucks', confidence: 'High confidence', reason: 'Obvious Starbucks merchant pattern.', patterns: [/starbucks?/i, /starbuc?k+s?/i, /\bsbux\b/i] },
     { canonical: 'Amazon', confidence: 'High confidence', reason: 'Amazon marketplace bank descriptor.', patterns: [/amzn/i, /amazon/i] },
@@ -17025,6 +17033,105 @@ function normalizeMerchantAliasPattern(value = '') {
         .replace(/[^a-z0-9 ]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
+}
+
+function isMerchantCleanupExcludedDescription(rawDescription = '') {
+    const raw = String(rawDescription || '').trim();
+    if (!raw) return true;
+    return MERCHANT_CLEANUP_EXCLUDED_DESCRIPTION_PATTERNS.some(pattern => pattern.test(raw));
+}
+
+function isPlainMerchantName(rawDescription = '') {
+    const raw = String(rawDescription || '').trim();
+    if (!raw) return false;
+    if (/[#*\/\\.]|\d/.test(raw)) return false;
+    return !/\b(?:store|mktp|marketplace|supercenter|bill|usa|llc|inc|purchase|pos|debit|credit|card|auth|online|payment|transfer|cashout)\b/i.test(raw);
+}
+
+function isMerchantCleanupAlreadyClean(rawDescription = '', cleanedName = '') {
+    const raw = String(rawDescription || '').trim();
+    const cleaned = String(cleanedName || '').trim();
+    if (!raw || !cleaned) return false;
+    if (raw.toLowerCase() === cleaned.toLowerCase()) return true;
+    if (!isPlainMerchantName(raw)) return false;
+
+    const rawNormalized = normalizeMerchantAliasPattern(raw);
+    const cleanedNormalized = normalizeMerchantAliasPattern(cleaned);
+    return Boolean(rawNormalized && cleanedNormalized && rawNormalized === cleanedNormalized);
+}
+
+function toMerchantCleanupTitleCase(value = '') {
+    return String(value || '')
+        .toLowerCase()
+        .replace(/\b([a-z])/g, match => match.toUpperCase())
+        .replace(/\bUs\b/g, 'US')
+        .replace(/\bUsa\b/g, 'USA')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function buildPaymentProcessorMerchantSuggestion(rawDescription = '') {
+    const raw = String(rawDescription || '').trim();
+    const squareMatch = raw.match(/^SQ\s*\*\s*(.+)$/i);
+    if (!squareMatch) return null;
+
+    const inferredName = toMerchantCleanupTitleCase(squareMatch[1]
+        .replace(/\s+#?\d+$/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim());
+    if (!inferredName || isMerchantCleanupAlreadyClean(raw, inferredName)) return null;
+
+    return {
+        id: getMerchantSuggestionId(raw, inferredName),
+        rawDescription: raw,
+        cleanedName: inferredName,
+        confidence: 'Medium confidence',
+        reason: 'Payment processor prefix removed; merchant name inferred from remaining text.',
+        source: 'payment_processor_prefix'
+    };
+}
+
+function normalizeMerchantCleanupSuggestion(rawDescription = '', suggestion = null) {
+    if (!suggestion || typeof suggestion !== 'object') return null;
+    const raw = String(rawDescription || suggestion.rawDescription || suggestion.raw_description || '').trim();
+    let cleanedName = String(suggestion.cleanedName || suggestion.cleaned_name || '').trim();
+    if (!raw || !cleanedName) return null;
+    if (isMerchantCleanupExcludedDescription(raw)) return null;
+
+    let confidence = String(suggestion.confidence || 'Medium confidence').trim() || 'Medium confidence';
+    if (!/confidence$/i.test(confidence)) confidence = `${confidence} confidence`;
+    let reason = String(suggestion.reason || 'Likely merchant cleanup.').trim() || 'Likely merchant cleanup.';
+    let defaultCategory = suggestion.defaultCategory || suggestion.default_category || '';
+
+    if (/apple(?:\.com| com)?\/?bill/i.test(raw)) {
+        cleanedName = 'Apple Services';
+        confidence = 'Medium confidence';
+        reason = 'Apple billing descriptor, often subscriptions or services.';
+        defaultCategory = 'Subscriptions / Services';
+    }
+
+    if (/^paypal\b/i.test(raw) && /^paypal$/i.test(cleanedName)) {
+        confidence = 'Low confidence';
+        reason = 'Payment processor descriptor; underlying merchant or person may differ.';
+    }
+
+    if (/doordash/i.test(raw) && /^doordash$/i.test(cleanedName)) {
+        confidence = 'High confidence';
+        reason = 'Food delivery merchant descriptor in Restaurants / Food Delivery.';
+        defaultCategory = 'Restaurants / Food Delivery';
+    }
+
+    if (isMerchantCleanupAlreadyClean(raw, cleanedName)) return null;
+
+    return {
+        ...suggestion,
+        id: suggestion.id || getMerchantSuggestionId(raw, cleanedName),
+        rawDescription: raw,
+        cleanedName,
+        confidence,
+        reason,
+        defaultCategory
+    };
 }
 
 function getMerchantSuggestionId(rawDescription = '', cleanedName = '') {
@@ -17138,18 +17245,19 @@ function findSeedMerchantCleanupSuggestion(rawDescription = '') {
     const raw = String(rawDescription || '').trim();
     const normalized = normalizeMerchantAliasPattern(raw);
     if (!seedData || !raw || !normalized) return null;
+    if (isMerchantCleanupExcludedDescription(raw)) return null;
 
     for (const alias of seedData.aliasPatterns) {
         const cleanedName = String(alias?.canonicalName || '').trim();
         const pattern = String(alias?.normalizedPattern || normalizeMerchantAliasPattern(alias?.pattern || '')).trim();
         if (!cleanedName || !pattern) continue;
-        if (cleanedName.toLowerCase() === raw.toLowerCase()) continue;
+        if (isMerchantCleanupAlreadyClean(raw, cleanedName)) continue;
         if ((alias.falsePositiveGuards || []).some(guard => guard && merchantCleanupPatternMatches(normalized, guard))) continue;
         if (!merchantCleanupPatternMatches(normalized, pattern)) continue;
 
         const confidence = String(alias.confidence || 'Medium').trim();
         const confidenceLabel = /confidence$/i.test(confidence) ? confidence : `${confidence} confidence`;
-        return {
+        return normalizeMerchantCleanupSuggestion(raw, {
             id: getMerchantSuggestionId(raw, cleanedName),
             rawDescription: raw,
             cleanedName,
@@ -17159,7 +17267,7 @@ function findSeedMerchantCleanupSuggestion(rawDescription = '') {
                 : 'Seeded local merchant cleanup pattern.',
             source: 'seed_bundle',
             defaultCategory: alias.defaultCategory || ''
-        };
+        });
     }
 
     return null;
@@ -17186,6 +17294,7 @@ function buildMerchantCleanupSuggestion(rawDescription = '') {
     const raw = String(rawDescription || '').trim();
     const normalized = normalizeMerchantAliasPattern(raw);
     if (!raw || !normalized) return null;
+    if (isMerchantCleanupExcludedDescription(raw)) return null;
 
     const userId = window.currentUser?.id || 'local_browser';
     const alias = readMerchantAliases()
@@ -17197,17 +17306,20 @@ function buildMerchantCleanupSuggestion(rawDescription = '') {
         ));
     if (alias) {
         const cleanedName = String(alias.cleaned_name || '').trim();
-        if (cleanedName && cleanedName.toLowerCase() !== raw.toLowerCase()) {
-            return {
+        if (cleanedName && !isMerchantCleanupAlreadyClean(raw, cleanedName)) {
+            return normalizeMerchantCleanupSuggestion(raw, {
                 id: alias.id || getMerchantSuggestionId(raw, cleanedName),
                 rawDescription: raw,
                 cleanedName,
                 confidence: 'High confidence',
                 reason: 'Previously approved cleanup on this browser.',
                 source: 'user_approved'
-            };
+            });
         }
     }
+
+    const processorSuggestion = buildPaymentProcessorMerchantSuggestion(raw);
+    if (processorSuggestion) return processorSuggestion;
 
     const seedSuggestion = findSeedMerchantCleanupSuggestion(raw);
     if (seedSuggestion) return seedSuggestion;
@@ -17215,16 +17327,16 @@ function buildMerchantCleanupSuggestion(rawDescription = '') {
     for (const rule of MERCHANT_RECOGNITION_RULES) {
         const cleanedName = String(rule.canonical || '').trim();
         if (!cleanedName) continue;
-        if (cleanedName.toLowerCase() === raw.toLowerCase()) continue;
+        if (isMerchantCleanupAlreadyClean(raw, cleanedName)) continue;
         if ((rule.patterns || []).some(pattern => pattern.test(raw))) {
-            return {
+            return normalizeMerchantCleanupSuggestion(raw, {
                 id: getMerchantSuggestionId(raw, cleanedName),
                 rawDescription: raw,
                 cleanedName,
                 confidence: rule.confidence || 'Medium confidence',
                 reason: rule.reason || 'Likely merchant cleanup.',
                 source: 'local_rule'
-            };
+            });
         }
     }
 
@@ -17242,15 +17354,15 @@ function getMerchantCleanupSuggestion(tx = {}) {
     if (existing?.cleanedName || existing?.cleaned_name) {
         const raw = String(existing.rawDescription || existing.raw_description || getRawMerchantDescription(tx)).trim();
         const cleaned = String(existing.cleanedName || existing.cleaned_name || '').trim();
-        if (raw && cleaned && raw.toLowerCase() !== cleaned.toLowerCase()) {
-            return {
+        if (raw && cleaned) {
+            return normalizeMerchantCleanupSuggestion(raw, {
                 id: existing.id || tx.merchant_suggestion_id || getMerchantSuggestionId(raw, cleaned),
                 rawDescription: raw,
                 cleanedName: cleaned,
                 confidence: existing.confidence || 'Medium confidence',
                 reason: existing.reason || 'Likely merchant cleanup.',
                 source: existing.source || 'stored'
-            };
+            });
         }
     }
 
@@ -19573,6 +19685,10 @@ function getSmartMerchantCleanupConfidenceRank(value = '') {
     return 0;
 }
 
+function isSmartMerchantCleanupSelectedByDefault(suggestion = {}) {
+    return getSmartMerchantCleanupConfidenceRank(suggestion.confidence || '') >= 2;
+}
+
 function getSmartMerchantCleanupSortValue(row = {}, field = '') {
     const tx = row.tx || {};
     const suggestion = row.suggestion || {};
@@ -19665,7 +19781,9 @@ function renderSmartMerchantCleanupRows(rows = []) {
                 </thead>
                 <tbody>
                     ${sortedRows.map(({ tx, suggestion }) => {
-                        const isChecked = !selectedIds || selectedIds.has(String(tx.id));
+                        const isChecked = selectedIds
+                            ? selectedIds.has(String(tx.id))
+                            : isSmartMerchantCleanupSelectedByDefault(suggestion);
                         return `
                         <tr>
                             <td class="smart-merchant-cleanup-select-col">
