@@ -18,7 +18,7 @@ test.describe('login page safeguards', () => {
                                 getSession: async () => ({ data: { session: null }, error: null }),
                                 signInWithOtp: async () => ({
                                     data: null,
-                                    error: { message: 'email rate limit exceeded' }
+                                    error: { message: 'For security purposes, you can only request this after 12 seconds.' }
                                 }),
                                 signInWithOAuth: async () => ({ error: null })
                             }
@@ -38,11 +38,10 @@ test.describe('login page safeguards', () => {
         const button = page.locator('#magicLinkBtn');
 
         await expect(message).toBeVisible();
-        await expect(message).toContainText('Email sign-in is cooling down.');
-        await expect(message).toContainText('continue with Google');
-        await expect(message).not.toHaveText('email rate limit exceeded');
+        await expect(message).toContainText('Please wait 12 seconds before requesting another email link.');
+        await expect(message).not.toHaveText('For security purposes');
         await expect(button).toBeDisabled();
-        await expect(button).toHaveText(/Try email again in (59|60)s/);
+        await expect(button).toHaveText(/Try email again in (11|12)s/);
         await expect(page.locator('#googleSignInBtn')).toBeEnabled();
     });
 
