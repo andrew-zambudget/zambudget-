@@ -1563,6 +1563,7 @@ body.budget-restore-active {
   flex: 0 0 auto;
 }
 
+.csv-import-complete-review-btn,
 .csv-import-complete-feedback-btn,
 .csv-import-complete-dismiss-btn {
   border: 1px solid var(--border);
@@ -1576,9 +1577,16 @@ body.budget-restore-active {
   transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
 }
 
+.csv-import-complete-review-btn,
 .csv-import-complete-feedback-btn {
   min-height: 32px;
   padding: 0 0.75rem;
+}
+
+.csv-import-complete-review-btn {
+  border-color: color-mix(in srgb, #2563eb 42%, var(--border));
+  background: color-mix(in srgb, #dbeafe 64%, var(--bg));
+  color: #1d4ed8;
 }
 
 .csv-import-complete-dismiss-btn {
@@ -1589,15 +1597,23 @@ body.budget-restore-active {
   line-height: 1;
 }
 
+.csv-import-complete-review-btn:hover,
 .csv-import-complete-feedback-btn:hover,
 .csv-import-complete-dismiss-btn:hover {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 10%, var(--surface));
 }
 
+.csv-import-complete-review-btn:active,
 .csv-import-complete-feedback-btn:active,
 .csv-import-complete-dismiss-btn:active {
   transform: scale(0.96);
+}
+
+[data-theme="dark"] .csv-import-complete-review-btn {
+  border-color: color-mix(in srgb, #93c5fd 44%, var(--border));
+  background: color-mix(in srgb, #1d4ed8 24%, var(--bg));
+  color: #bfdbfe;
 }
 
 @media (max-width: 600px) {

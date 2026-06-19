@@ -110,6 +110,7 @@
                     <li><strong>Optional analytics or advertising cookies:</strong> not used.</li>
                     <li><strong>Browser storage:</strong> localStorage, sessionStorage, IndexedDB, and other required app/site data may store or access information on this device for app function.</li>
                     <li><strong>Browser budget storage:</strong> localStorage stores browser-only budget data and app preferences on this browser.</li>
+                    <li><strong>Merchant cleanup aliases:</strong> localStorage may store accepted merchant cleanup aliases in <code>bb_merchant_aliases_v1</code> so future CSV imports can suggest the same cleanup for the same browser/user.</li>
                     <li><strong>Session storage:</strong> sessionStorage may hold temporary app state while the browser tab is open.</li>
                     <li><strong>Trusted Cloud Sync browser key:</strong> IndexedDB may store a non-extractable WebCrypto key after Cloud Sync setup or recovery-key import so this browser can keep syncing after refresh without storing the raw recovery key.</li>
                     <li><strong>Authentication and security:</strong> Supabase, Cloudflare, Google OAuth, or other required providers may set their own security or session cookies during sign-in, security checks, or provider-hosted flows.</li>
@@ -127,6 +128,7 @@
                     <li><strong>Browser-only:</strong> If you use Zam! without signing in, budget data stays only in that browser's localStorage.</li>
                     <li><strong>Trusted browser key:</strong> After Cloud Sync setup or recovery-key import, this browser may store a non-extractable WebCrypto key in IndexedDB so refreshes can keep syncing without asking for the recovery key again. The raw recovery key is not stored in localStorage and cannot be displayed from this trusted key. Zam! does not upload this trusted key or include it in device-management records, but app code running in this browser can use it locally to encrypt and decrypt your Cloud Sync vault while you are signed in.</li>
                     <li><strong>Gift card merchant metadata cache:</strong> If you use gift-card merchant hints, Zam! downloads one full merchant metadata bundle to this browser. Merchant searches, suggestion filtering, and selections happen locally; Zam! does not send individual merchant search terms or suggestion choices to a server. You can clear this cache in Global Settings.</li>
+                    <li><strong>Merchant Recognition Lite:</strong> CSV merchant cleanup suggestions run locally in the browser. If you accept a cleanup, Zam! may remember that alias for the same browser/user only. Zam! does not send merchant descriptions to a third-party merchant-recognition API.</li>
                     <li><strong>CSV import feedback:</strong> After a CSV import, Zam! may offer an optional feedback email. If you choose to send it, the email can include your comment and safe import metadata such as file name, rows found, rows imported, duplicates skipped, error count, browser/device hints, timestamp, and user ID. Zam! does not include transaction amounts, transaction descriptions, full CSV contents, account names, recovery keys, or budget exports unless you type or attach them yourself.</li>
                     <li>No servers store readable financial information, transactions, balances, budgets, categories, descriptions, notes, gift-card card numbers, gift-card balances, gift-card expiration dates, or amounts.</li>
                 </ul>
@@ -254,7 +256,7 @@
     </main>
     <footer>
         <div class="footer-main">
-            <a href="https://zambudget.com/changelog" class="footer-btn-pill" target="_blank" rel="noopener noreferrer">v1.3 RC</a>
+            <a href="https://zambudget.com/changelog" class="footer-btn-pill" target="_blank" rel="noopener noreferrer">v1.5 Dev</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>
             <a href="https://zambudget.com/contact" class="footer-link" target="_blank" rel="noopener noreferrer">Contact Us</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>

@@ -59,6 +59,7 @@ Current behavior:
 - The cookie keeps required app site data visible in browser cookie controls and is not used for advertising, analytics, retargeting, or cross-site tracking.
 - Privacy and Cookie Policy disclosures, footer/login links, and the storage-blocked guard are the disclosure surfaces.
 - LocalStorage, sessionStorage, and IndexedDB remain required for browser budgets, preferences, sign-in state, Cloud Sync trusted browser unlocks, and security-related flows.
+- Merchant Recognition Lite stores accepted merchant aliases locally in `bb_merchant_aliases_v1` so future CSV imports can suggest the same cleanup for the same browser/user. Merchant descriptions are not sent to a third-party recognition API.
 
 Privacy/legal requirement:
 

@@ -58,6 +58,26 @@ Manual transactions do not show Import Details.
 
 Imported transactions show Import Details when `source_type === "csv_import"`.
 
+## Merchant Recognition Lite
+
+Zam can suggest local merchant cleanup for imported CSV rows when the bank description is noisy.
+
+Example:
+
+- Original CSV description: `STARBUCKS STORE #1234`
+- Suggested display name: `Starbucks`
+
+Rules:
+
+- Suggestions are generated locally in the browser.
+- Zam does not send merchant descriptions to a third-party recognition API.
+- Zam does not auto-apply cleanup.
+- The user must click Accept before the visible description changes.
+- Ignore keeps the current description and suppresses that suggestion.
+- The original CSV description is preserved in `raw_description` / Import Details.
+- Accepted aliases are remembered for the same browser/user only in `bb_merchant_aliases_v1`.
+- One user's accepted aliases are not used for another user.
+
 ## Optional Feedback
 
 After import, Zam shows a small Import complete notification. Feedback is optional.

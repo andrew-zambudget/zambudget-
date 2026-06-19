@@ -14842,7 +14842,7 @@ function getTransactionDisplay(tx) {
     const signedAmount = getSignedTransactionAmount(tx);
     const isPositive = signedAmount >= 0;
     const symbol = State.getSymbol ? State.getSymbol() : '$';
-    const description = tx.description || tx.name || 'Unnamed Transaction';
+    const description = tx.display_name || tx.displayName || tx.description || tx.name || 'Unnamed Transaction';
     const category = tx.category || (kind === 'income' ? 'Uncategorized Income' : 'Uncategorized');
     const icon = getIconFromName(tx.category || tx.tag || kind) || '📁';
     const color = isPositive ? 'var(--positive)' : (kind === 'debt' ? 'var(--red)' : 'var(--text)');
@@ -14875,8 +14875,12 @@ function getFilteredRecentTransactions(options = {}) {
         .filter(tx => {
             if (!searchTerm) return true;
             const fields = [
+                tx.display_name,
+                tx.displayName,
                 tx.description,
                 tx.name,
+                tx.raw_description,
+                tx.rawDescription,
                 tx.category,
                 tx.tag,
                 tx.type,
@@ -15524,6 +15528,40 @@ function renderTransactionImportAuditSection(tx = {}) {
     `;
 }
 
+function renderTransactionMerchantSuggestionSection(tx = {}, suggestion = null) {
+    if (!suggestion) return '';
+
+    return `
+        <div class="transaction-merchant-suggestion transaction-edit-full">
+            <div class="transaction-merchant-suggestion-head">
+                <div>
+                    <div class="transaction-merchant-suggestion-title">Merchant Suggestion</div>
+                    <p>Zam can clean up this imported merchant name. Original CSV data stays preserved.</p>
+                </div>
+                <span class="transaction-merchant-confidence">${esc(suggestion.confidence || 'Medium confidence')}</span>
+            </div>
+            <dl class="transaction-merchant-grid">
+                <div class="transaction-merchant-kv">
+                    <dt>Original</dt>
+                    <dd>${esc(suggestion.rawDescription || getRawMerchantDescription(tx) || 'Unavailable')}</dd>
+                </div>
+                <div class="transaction-merchant-kv">
+                    <dt>Suggested</dt>
+                    <dd>${esc(suggestion.cleanedName || '')}</dd>
+                </div>
+                <div class="transaction-merchant-kv transaction-merchant-kv-full">
+                    <dt>Reason</dt>
+                    <dd>${esc(suggestion.reason || 'Likely merchant cleanup.')}</dd>
+                </div>
+            </dl>
+            <div class="transaction-merchant-actions">
+                <button type="button" class="transaction-merchant-btn transaction-merchant-btn-accept" onclick="window.acceptMerchantSuggestion(event, ${jsArg(tx.id)})">Accept</button>
+                <button type="button" class="transaction-merchant-btn transaction-merchant-btn-ignore" onclick="window.ignoreMerchantSuggestion(event, ${jsArg(tx.id)})">Ignore</button>
+            </div>
+        </div>
+    `;
+}
+
 function openTransactionEditModal(txId) {
     const tx = getTransactionById(txId);
     if (!tx) return false;
@@ -15545,6 +15583,8 @@ function openTransactionEditModal(txId) {
     const showImportAudit = Boolean(isDevImportAuditEnabled() && getTransactionImportDetails(tx));
     const importAuditBadge = showImportAudit ? '<span class="transaction-import-badge">Imported from CSV</span>' : '';
     const importAuditSection = showImportAudit ? renderTransactionImportAuditSection(tx) : '';
+    const merchantSuggestion = getMerchantCleanupSuggestion(tx);
+    const merchantSuggestionSection = merchantSuggestion ? renderTransactionMerchantSuggestionSection(tx, merchantSuggestion) : '';
 
     const modal = document.createElement('div');
     modal.id = 'recentEditTransactionModal';
@@ -15563,6 +15603,7 @@ function openTransactionEditModal(txId) {
                     <label for="editTxDescription">Description</label>
                     <input type="text" id="editTxDescription" class="form-input" maxlength="${ADD_TX_DESCRIPTION_MAX_LENGTH}" value="${esc(tx.description || tx.name || '')}" autocomplete="off" required>
                 </div>
+                ${merchantSuggestionSection}
                 <div class="add-form-group">
                     <label for="editTxAmount">Amount</label>
                     <div class="transaction-edit-money">
@@ -15644,6 +15685,109 @@ window.closeRecentEditTransactionModal = function() {
     }, 220);
 };
 
+function updateMerchantSuggestionTransaction(txId, updates = {}, fallbackMutator = null) {
+    const txs = State.getTransactions ? State.getTransactions() : [];
+    const tx = txs.find(item => String(item.id) === String(txId));
+    if (!tx) return { success: false, error: 'Transaction not found.' };
+
+    if (State.updateTransaction) {
+        return State.updateTransaction(txId, updates);
+    }
+
+    Object.assign(tx, updates, { updatedAt: new Date().toISOString() });
+    if (typeof fallbackMutator === 'function') fallbackMutator(tx);
+    return saveTransactionArray(txs)
+        ? { success: true }
+        : { success: false, error: 'Could not update transaction.' };
+}
+
+window.acceptMerchantSuggestion = function(event, txId) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('accept merchant suggestion')) return;
+
+    const tx = getTransactionById(txId);
+    const suggestion = getMerchantCleanupSuggestion(tx);
+    if (!tx || !suggestion?.cleanedName) {
+        if (window.showToast) window.showToast('Merchant suggestion is no longer available.');
+        return;
+    }
+
+    const rawDescription = suggestion.rawDescription || getRawMerchantDescription(tx);
+    const now = new Date().toISOString();
+    const storedSuggestion = {
+        id: suggestion.id || getMerchantSuggestionId(rawDescription, suggestion.cleanedName),
+        rawDescription,
+        raw_description: rawDescription,
+        cleanedName: suggestion.cleanedName,
+        cleaned_name: suggestion.cleanedName,
+        confidence: suggestion.confidence || 'Medium confidence',
+        reason: suggestion.reason || 'Likely merchant cleanup.',
+        source: suggestion.source || 'local_rule',
+        status: MERCHANT_CLEANUP_STATUS_ACCEPTED,
+        acceptedAt: now
+    };
+    const updates = {
+        description: suggestion.cleanedName,
+        display_name: suggestion.cleanedName,
+        displayName: suggestion.cleanedName,
+        rawDescription,
+        raw_description: rawDescription,
+        merchant_cleanup_status: MERCHANT_CLEANUP_STATUS_ACCEPTED,
+        merchant_suggestion_id: storedSuggestion.id,
+        merchantSuggestion: storedSuggestion
+    };
+    const result = updateMerchantSuggestionTransaction(txId, updates);
+    if (!result?.success) {
+        if (window.showToast) window.showToast(result?.error || 'Could not accept merchant suggestion.');
+        return;
+    }
+
+    saveMerchantAlias(rawDescription, suggestion.cleanedName);
+    if (window.showToast) window.showToast('Merchant cleanup accepted.');
+    refreshRecentDependents();
+    openTransactionEditModal(txId);
+};
+
+window.ignoreMerchantSuggestion = function(event, txId) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('ignore merchant suggestion')) return;
+
+    const tx = getTransactionById(txId);
+    const suggestion = getMerchantCleanupSuggestion(tx);
+    if (!tx || !suggestion) {
+        if (window.showToast) window.showToast('Merchant suggestion is no longer available.');
+        return;
+    }
+
+    const rawDescription = suggestion.rawDescription || getRawMerchantDescription(tx);
+    const now = new Date().toISOString();
+    const updates = {
+        rawDescription,
+        raw_description: rawDescription,
+        merchant_cleanup_status: MERCHANT_CLEANUP_STATUS_IGNORED,
+        merchant_suggestion_id: suggestion.id || tx.merchant_suggestion_id || getMerchantSuggestionId(rawDescription, suggestion.cleanedName),
+        merchantSuggestion: {
+            ...suggestion,
+            rawDescription,
+            raw_description: rawDescription,
+            cleaned_name: suggestion.cleanedName,
+            status: MERCHANT_CLEANUP_STATUS_IGNORED,
+            ignoredAt: now
+        }
+    };
+    const result = updateMerchantSuggestionTransaction(txId, updates);
+    if (!result?.success) {
+        if (window.showToast) window.showToast(result?.error || 'Could not ignore merchant suggestion.');
+        return;
+    }
+
+    if (window.showToast) window.showToast('Merchant suggestion ignored.');
+    refreshRecentDependents();
+    openTransactionEditModal(txId);
+};
+
 window.confirmRecentEditTransaction = function(event, txId) {
     event?.preventDefault?.();
     event?.stopPropagation?.();
@@ -15693,7 +15837,7 @@ window.confirmRecentEditTransaction = function(event, txId) {
         return;
     }
 
-    const updates = { description, amount, date, category, paymentMethod, notes };
+    const updates = { description, display_name: description, displayName: description, amount, date, category, paymentMethod, notes };
     if (State.updateTransaction) {
         const result = State.updateTransaction(txId, updates);
         if (!result?.success) {
@@ -16795,6 +16939,184 @@ const CSV_IMPORT_SORT_DIRECTION_ASC = 'asc';
 const CSV_IMPORT_SORT_DIRECTION_DESC = 'desc';
 const CSV_IMPORT_SORT_FIELD_PARSED_DEFAULT = 'line';
 const CSV_IMPORT_SORT_FIELD_RAW_DEFAULT = 'line';
+const MERCHANT_ALIAS_STORAGE_KEY = 'bb_merchant_aliases_v1';
+const MERCHANT_CLEANUP_STATUS_NONE = 'none';
+const MERCHANT_CLEANUP_STATUS_SUGGESTED = 'suggested';
+const MERCHANT_CLEANUP_STATUS_ACCEPTED = 'accepted';
+const MERCHANT_CLEANUP_STATUS_IGNORED = 'ignored';
+const MERCHANT_RECOGNITION_RULES = [
+    { canonical: 'Starbucks', confidence: 'High confidence', reason: 'Obvious Starbucks merchant pattern.', patterns: [/starbucks?/i, /starbuc?k+s?/i, /\bsbux\b/i] },
+    { canonical: 'Amazon', confidence: 'High confidence', reason: 'Amazon marketplace bank descriptor.', patterns: [/amzn/i, /amazon/i] },
+    { canonical: 'Walmart', confidence: 'High confidence', reason: 'Walmart store descriptor.', patterns: [/wal[\s-]*mart/i, /\bwm\s+supercenter\b/i] },
+    { canonical: 'Target', confidence: 'High confidence', reason: 'Target store descriptor.', patterns: [/\btarget\b/i, /\bt-\d{3,}\b/i] },
+    { canonical: 'Netflix', confidence: 'High confidence', reason: 'Netflix billing descriptor.', patterns: [/netflix/i] },
+    { canonical: 'Shell', confidence: 'High confidence', reason: 'Shell fuel descriptor.', patterns: [/\bshell\b/i, /shell oil/i] },
+    { canonical: 'Whole Foods Market', confidence: 'High confidence', reason: 'Whole Foods merchant descriptor.', patterns: [/whole foods/i] },
+    { canonical: 'DoorDash', confidence: 'High confidence', reason: 'DoorDash merchant descriptor.', patterns: [/doordash/i] },
+    { canonical: 'Chipotle', confidence: 'High confidence', reason: 'Chipotle dining descriptor.', patterns: [/chipotle/i] },
+    { canonical: 'Venmo', confidence: 'High confidence', reason: 'Venmo transfer descriptor.', patterns: [/venmo/i] },
+    { canonical: 'Topgolf', confidence: 'High confidence', reason: 'Topgolf merchant descriptor.', patterns: [/topgolf/i] }
+];
+
+function normalizeMerchantAliasPattern(value = '') {
+    return String(value || '')
+        .toLowerCase()
+        .replace(/\b(?:pos|purchase|debit|credit|card|auth|online|store|marketplace|mktp|usa|llc|inc|co)\b/g, ' ')
+        .replace(/[#*]\s*\d+/g, ' ')
+        .replace(/\b\d{3,}\b/g, ' ')
+        .replace(/[^a-z0-9 ]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function getMerchantSuggestionId(rawDescription = '', cleanedName = '') {
+    const value = `${normalizeMerchantAliasPattern(rawDescription)}|${String(cleanedName || '').toLowerCase().trim()}`;
+    let hash = 0;
+    for (let index = 0; index < value.length; index += 1) {
+        hash = ((hash << 5) - hash) + value.charCodeAt(index);
+        hash |= 0;
+    }
+    return `merchant-${Math.abs(hash).toString(36) || 'suggestion'}`;
+}
+
+function readMerchantAliases() {
+    try {
+        const raw = localStorage.getItem(MERCHANT_ALIAS_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed.filter(item => item && typeof item === 'object') : [];
+    } catch (error) {
+        console.warn('[Merchant Recognition] Could not read merchant aliases', error);
+        return [];
+    }
+}
+
+function writeMerchantAliases(aliases = []) {
+    try {
+        localStorage.setItem(MERCHANT_ALIAS_STORAGE_KEY, JSON.stringify(aliases));
+        return true;
+    } catch (error) {
+        console.warn('[Merchant Recognition] Could not save merchant alias', error);
+        if (window.showToast) window.showToast('Merchant alias could not be saved in this browser.');
+        return false;
+    }
+}
+
+function saveMerchantAlias(rawDescription = '', cleanedName = '') {
+    const rawPattern = normalizeMerchantAliasPattern(rawDescription);
+    const safeCleanedName = String(cleanedName || '').trim();
+    if (!rawPattern || !safeCleanedName) return false;
+
+    const now = new Date().toISOString();
+    const userId = window.currentUser?.id || 'local_browser';
+    const aliases = readMerchantAliases();
+    const existingIndex = aliases.findIndex(item => (
+        String(item.user_id || '') === String(userId)
+        && String(item.raw_pattern || '') === rawPattern
+    ));
+    const nextAlias = {
+        id: getMerchantSuggestionId(rawPattern, safeCleanedName),
+        user_id: userId,
+        raw_pattern: rawPattern,
+        cleaned_name: safeCleanedName,
+        source: 'user_approved',
+        active: true,
+        created_at: existingIndex >= 0 ? aliases[existingIndex].created_at || now : now,
+        updated_at: now
+    };
+
+    if (existingIndex >= 0) aliases[existingIndex] = { ...aliases[existingIndex], ...nextAlias };
+    else aliases.push(nextAlias);
+    return writeMerchantAliases(aliases);
+}
+
+function isCsvImportedTransaction(tx = {}) {
+    return tx?.source_type === 'csv_import'
+        || tx?.sourceType === 'csv_import'
+        || tx?.importDetails?.sourceType === 'csv_import';
+}
+
+function getRawMerchantDescription(tx = {}) {
+    return String(
+        tx.raw_description
+        || tx.rawDescription
+        || tx.importDetails?.mappedImportValues?.description
+        || tx.description
+        || tx.name
+        || ''
+    ).trim();
+}
+
+function buildMerchantCleanupSuggestion(rawDescription = '') {
+    const raw = String(rawDescription || '').trim();
+    const normalized = normalizeMerchantAliasPattern(raw);
+    if (!raw || !normalized) return null;
+
+    const userId = window.currentUser?.id || 'local_browser';
+    const alias = readMerchantAliases()
+        .find(item => (
+            item?.active !== false
+            && String(item.user_id || '') === String(userId)
+            && String(item.raw_pattern || '') === normalized
+            && String(item.cleaned_name || '').trim()
+        ));
+    if (alias) {
+        const cleanedName = String(alias.cleaned_name || '').trim();
+        if (cleanedName && cleanedName.toLowerCase() !== raw.toLowerCase()) {
+            return {
+                id: alias.id || getMerchantSuggestionId(raw, cleanedName),
+                rawDescription: raw,
+                cleanedName,
+                confidence: 'High confidence',
+                reason: 'Previously approved cleanup on this browser.',
+                source: 'user_approved'
+            };
+        }
+    }
+
+    for (const rule of MERCHANT_RECOGNITION_RULES) {
+        const cleanedName = String(rule.canonical || '').trim();
+        if (!cleanedName) continue;
+        if (cleanedName.toLowerCase() === raw.toLowerCase()) continue;
+        if ((rule.patterns || []).some(pattern => pattern.test(raw))) {
+            return {
+                id: getMerchantSuggestionId(raw, cleanedName),
+                rawDescription: raw,
+                cleanedName,
+                confidence: rule.confidence || 'Medium confidence',
+                reason: rule.reason || 'Likely merchant cleanup.',
+                source: 'local_rule'
+            };
+        }
+    }
+
+    return null;
+}
+
+function getMerchantCleanupSuggestion(tx = {}) {
+    if (!isCsvImportedTransaction(tx)) return null;
+    const status = tx.merchant_cleanup_status || tx.merchantCleanupStatus || MERCHANT_CLEANUP_STATUS_NONE;
+    if (status === MERCHANT_CLEANUP_STATUS_ACCEPTED || status === MERCHANT_CLEANUP_STATUS_IGNORED) return null;
+
+    const existing = tx.merchantSuggestion && typeof tx.merchantSuggestion === 'object'
+        ? tx.merchantSuggestion
+        : null;
+    if (existing?.cleanedName || existing?.cleaned_name) {
+        const raw = String(existing.rawDescription || existing.raw_description || getRawMerchantDescription(tx)).trim();
+        const cleaned = String(existing.cleanedName || existing.cleaned_name || '').trim();
+        if (raw && cleaned && raw.toLowerCase() !== cleaned.toLowerCase()) {
+            return {
+                id: existing.id || tx.merchant_suggestion_id || getMerchantSuggestionId(raw, cleaned),
+                rawDescription: raw,
+                cleanedName: cleaned,
+                confidence: existing.confidence || 'Medium confidence',
+                reason: existing.reason || 'Likely merchant cleanup.',
+                source: existing.source || 'stored'
+            };
+        }
+    }
+
+    return buildMerchantCleanupSuggestion(getRawMerchantDescription(tx));
+}
 const CSV_IMPORT_FIELD_MAP = [
     { key: 'date', label: 'Date', aliases: ['date', 'transaction date', 'posted date', 'booking date', 'value date', 'date posted', 'txn date'], optional: true },
     { key: 'description', label: 'Description', aliases: ['description', 'memo', 'merchant', 'payee', 'name'], optional: true },
@@ -17461,25 +17783,36 @@ function buildCsvImportRow(fileName, sourceRow, row, mapping, now, rawHeaders = 
     const tag = mapValueFromRow(row, mapping, 'tag') || (typeGuess === 'savings' || typeGuess === 'debt' ? typeGuess : 'transaction');
     const paymentMethod = mapValueFromRow(row, mapping, 'paymentMethod');
     const notes = mapValueFromRow(row, mapping, 'notes');
+    const importId = `csv-${now}`;
+    const importRowId = `${importId}-${sourceRow}`;
+    const merchantSuggestion = buildMerchantCleanupSuggestion(rawDescription);
 
     const tx = {
         id: generateId(),
         type: typeGuess,
         description,
+        display_name: '',
+        displayName: '',
         category,
         amount: Math.abs(Math.round(amountResult.amount * 100) / 100),
         date,
         paymentMethod,
         notes,
         tag,
-        rawDescription: description,
+        rawDescription,
+        raw_description: rawDescription,
         rawAmount: amountResult.amount,
         createdAt: now,
         createdAtUTC: now,
         serverLoggedAtUTC: now,
         source_type: 'csv_import',
         sourceFile: fileName,
-        sourceRow
+        sourceRow,
+        import_id: importId,
+        import_row_id: importRowId,
+        merchant_cleanup_status: merchantSuggestion ? MERCHANT_CLEANUP_STATUS_SUGGESTED : MERCHANT_CLEANUP_STATUS_NONE,
+        merchant_suggestion_id: merchantSuggestion?.id || '',
+        merchantSuggestion: merchantSuggestion || null
     };
 
     tx.importDetails = {
@@ -17487,7 +17820,7 @@ function buildCsvImportRow(fileName, sourceRow, row, mapping, now, rawHeaders = 
         sourceFileName: fileName,
         sourceLineNumber: sourceRow,
         importedAt: now,
-        importId: `csv-${now}-${sourceRow}`,
+        importId,
         rawCsvValues: buildCsvImportRawValueDetails(safeRawHeaders, safeRawValues),
         mappedImportValues: buildCsvImportMappedValueDetails(row, mapping, amountResult, tx)
     };
@@ -18967,6 +19300,11 @@ window.confirmCsvImportReview = function() {
     const rowsImported = toImport.length;
     const duplicatesSkipped = duplicateCount;
     const rowsNotImported = Math.max(0, rowCount - rowsImported);
+    const merchantSuggestionTransactionIds = toImport
+        .filter(tx => (tx?.merchant_cleanup_status || '') === MERCHANT_CLEANUP_STATUS_SUGGESTED && getMerchantCleanupSuggestion(tx))
+        .map(tx => tx.id)
+        .filter(Boolean);
+    const merchantSuggestionsFound = merchantSuggestionTransactionIds.length;
     if (!toImport.length) {
         if (window.showToast) window.showToast('No rows selected for import.');
         return;
@@ -18991,6 +19329,8 @@ window.confirmCsvImportReview = function() {
         duplicateCount,
         changedRows,
         errorCount,
+        merchantSuggestionsFound,
+        merchantSuggestionTransactionIds,
         skipDuplicatesChecked,
         fileNames: (csvImportState.fileSummaries || []).join(', '),
         userId: window.currentUser?.id || 'Not signed in',
@@ -19030,13 +19370,22 @@ window.showCsvImportCompleteNotice = function() {
     const importedLabel = `${csvImportFeedbackContext.rowsImported} transaction${csvImportFeedbackContext.rowsImported === 1 ? '' : 's'} imported`;
     const duplicateLabel = `${csvImportFeedbackContext.duplicatesSkipped || 0} duplicate${csvImportFeedbackContext.duplicatesSkipped === 1 ? '' : 's'} skipped`;
     const notImportedLabel = `${csvImportFeedbackContext.rowsNotImported || 0} row${csvImportFeedbackContext.rowsNotImported === 1 ? '' : 's'} not imported`;
+    const merchantSuggestionCount = csvImportFeedbackContext.merchantSuggestionsFound || 0;
+    const merchantSuggestionLabel = merchantSuggestionCount > 0
+        ? `<span>${merchantSuggestionCount} merchant cleanup suggestion${merchantSuggestionCount === 1 ? '' : 's'} found</span>`
+        : '';
+    const merchantSuggestionAction = merchantSuggestionCount > 0
+        ? '<button type="button" class="csv-import-complete-review-btn" onclick="window.openMerchantCleanupSuggestionsFromNotice()">Review Suggestions</button>'
+        : '';
 
     notice.innerHTML = `
         <div class="csv-import-complete-notice-copy">
             <strong>Import complete</strong>
             <span>${importedLabel}, ${duplicateLabel}, ${notImportedLabel}</span>
+            ${merchantSuggestionLabel}
         </div>
         <div class="csv-import-complete-notice-actions">
+            ${merchantSuggestionAction}
             <button type="button" class="csv-import-complete-feedback-btn" onclick="window.openCsvImportFeedbackFromNotice()">Feedback</button>
             <button type="button" class="csv-import-complete-dismiss-btn" onclick="window.dismissCsvImportCompleteNotice()" aria-label="Dismiss import complete notice">&times;</button>
         </div>
@@ -19056,6 +19405,24 @@ window.openCsvImportFeedbackFromNotice = function() {
     window.openCsvImportFeedbackModal();
 };
 
+window.openMerchantCleanupSuggestionsFromNotice = function() {
+    const context = csvImportFeedbackContext || {};
+    window.dismissCsvImportCompleteNotice({ clearContext: false });
+    const preferredIds = Array.isArray(context.merchantSuggestionTransactionIds)
+        ? context.merchantSuggestionTransactionIds
+        : [];
+    const txs = State.getTransactions ? State.getTransactions() : [];
+    const pending = txs.find(tx => preferredIds.includes(tx.id) && getMerchantCleanupSuggestion(tx))
+        || txs.find(tx => getMerchantCleanupSuggestion(tx));
+
+    if (!pending) {
+        if (window.showToast) window.showToast('No merchant cleanup suggestions to review.');
+        return;
+    }
+
+    openTransactionEditModal(pending.id);
+};
+
 window.openCsvImportFeedbackModal = function() {
     if (!csvImportFeedbackContext) {
         csvImportFeedbackContext = {
@@ -19066,6 +19433,8 @@ window.openCsvImportFeedbackModal = function() {
             duplicateCount: 0,
             changedRows: 0,
             errorCount: 0,
+            merchantSuggestionsFound: 0,
+            merchantSuggestionTransactionIds: [],
             skipDuplicatesChecked: false,
             fileNames: '',
             userId: window.currentUser?.id || 'Not signed in',

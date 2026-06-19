@@ -222,11 +222,84 @@
             </div>
         </div>
 
-        <!-- ===== VERSION 1.3 ===== -->
-        <div class="release-card active" data-version="1.3">
-            <div class="card-header" role="button" tabindex="0" aria-expanded="true" aria-controls="release-v13-body" onclick="toggleCard(this.closest('.release-card'))" onkeydown="handleCardHeaderKeydown(event, this.closest('.release-card'))">
+        <!-- ===== VERSION 1.5 ===== -->
+        <div class="release-card active" data-version="1.5">
+            <div class="card-header" role="button" tabindex="0" aria-expanded="true" aria-controls="release-v15-body" onclick="toggleCard(this.closest('.release-card'))" onkeydown="handleCardHeaderKeydown(event, this.closest('.release-card'))">
                 <div class="version-meta">
                     <div class="version-dot live" aria-hidden="true"></div>
+                    <div>
+                        <div class="version-title">Zam 1.5 Dev</div>
+                        <div class="version-date">In development - June 18, 2026</div>
+                    </div>
+                </div>
+                <div class="expand-icon" aria-hidden="true">&#9660;</div>
+            </div>
+
+            <div class="card-body" id="release-v15-body">
+                <div class="card-content">
+                    <p class="intro-text">
+                        Merchant Recognition Lite has started for Zam! 1.5. This pass suggests cleaner merchant names for CSV-imported transactions while preserving the original CSV description and requiring user approval before any cleanup is applied.
+                    </p>
+
+                    <div class="release-summary" aria-label="Zam 1.5 development summary by category">
+                        <div class="release-summary-title">At a glance</div>
+                        <div class="release-summary-list">
+                            <div class="release-summary-row summary-feature">
+                                <span class="release-summary-dot" aria-hidden="true"></span>
+                                <span class="release-summary-label">New</span>
+                                <span class="release-summary-copy">Local merchant cleanup suggestions for imported CSV rows, starting with obvious noisy bank descriptors.</span>
+                            </div>
+                            <div class="release-summary-row summary-security">
+                                <span class="release-summary-dot" aria-hidden="true"></span>
+                                <span class="release-summary-label">Privacy</span>
+                                <span class="release-summary-copy">Suggestions run in the browser. Accepted aliases are remembered for the same browser/user only and are not shared across users.</span>
+                            </div>
+                            <div class="release-summary-row summary-ui">
+                                <span class="release-summary-dot" aria-hidden="true"></span>
+                                <span class="release-summary-label">Control</span>
+                                <span class="release-summary-copy">Users can accept or ignore each suggestion. Zam does not silently rewrite imported merchant names.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tag-container">
+                        <div class="tag-group">
+                            <div class="tag-label">New</div>
+
+                            <div class="tag-item tag-feature">
+                                <span class="tag-icon" aria-hidden="true">MERCHANT</span>
+                                <div>
+                                    <div class="tag-text">Merchant Recognition Lite</div>
+                                    <span class="tag-detail">CSV imports can surface cleanup suggestions such as STARBUCKS STORE #1234 to Starbucks after import completes.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-ui">
+                                <span class="tag-icon" aria-hidden="true">REVIEW</span>
+                                <div>
+                                    <div class="tag-text">Accept or ignore suggestions</div>
+                                    <span class="tag-detail">Imported transactions with suggestions show a Merchant Suggestion section in Edit Transaction so the user stays in control.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">LOCAL</span>
+                                <div>
+                                    <div class="tag-text">Original CSV value preserved</div>
+                                    <span class="tag-detail">Accepting a cleanup updates the visible description but keeps the original raw CSV description for auditability.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== VERSION 1.3 ===== -->
+        <div class="release-card" data-version="1.3">
+            <div class="card-header" role="button" tabindex="0" aria-expanded="false" aria-controls="release-v13-body" onclick="toggleCard(this.closest('.release-card'))" onkeydown="handleCardHeaderKeydown(event, this.closest('.release-card'))">
+                <div class="version-meta">
+                    <div class="version-dot archived" aria-hidden="true"></div>
                     <div>
                         <div class="version-title">Zam 1.3 RC</div>
                         <div class="version-date">Release candidate - June 18, 2026</div>
@@ -235,7 +308,7 @@
                 <div class="expand-icon" aria-hidden="true">&#9660;</div>
             </div>
 
-            <div class="card-body" id="release-v13-body">
+            <div class="card-body" id="release-v13-body" hidden>
                 <div class="card-content">
                     <p class="intro-text">
                         CSV export is now in release-candidate testing for Zam! 1.3. This release adds the outbound half of data portability so users can download plain CSV transaction backups and re-import Zam exports without data-shape surprises.
@@ -1210,7 +1283,7 @@
     </main>
     <footer>
         <div class="footer-main">
-            <a href="https://zambudget.com/changelog" class="footer-btn-pill" target="_blank" rel="noopener noreferrer">v1.3 RC</a>
+            <a href="https://zambudget.com/changelog" class="footer-btn-pill" target="_blank" rel="noopener noreferrer">v1.5 Dev</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>
             <a href="https://zambudget.com/contact" class="footer-link" target="_blank" rel="noopener noreferrer">Contact Us</a>
             <span class="footer-dot" aria-hidden="true">&middot;</span>

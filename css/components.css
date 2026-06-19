@@ -3181,6 +3181,181 @@ input.error, select.error {
   color: #fbbf24;
 }
 
+.transaction-merchant-suggestion {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.8rem;
+  border: 1px solid color-mix(in srgb, #60a5fa 44%, var(--border, #e2e8f0));
+  border-left: 4px solid #2563eb;
+  border-radius: 12px;
+  background: color-mix(in srgb, #eff6ff 82%, var(--surface, #ffffff));
+  color: var(--text, #0f172a);
+}
+
+.transaction-merchant-suggestion-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.transaction-merchant-suggestion-title {
+  color: var(--text, #0f172a);
+  font-size: 0.84rem;
+  font-weight: 950;
+}
+
+.transaction-merchant-suggestion-head p {
+  margin: 0.16rem 0 0;
+  color: color-mix(in srgb, var(--text-dim, #64748b) 92%, #1d4ed8);
+  font-size: 0.74rem;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.transaction-merchant-confidence {
+  flex: 0 0 auto;
+  min-height: 1.45rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.16rem 0.5rem;
+  border: 1px solid color-mix(in srgb, #2563eb 34%, var(--border, #e2e8f0));
+  border-radius: 999px;
+  background: color-mix(in srgb, #dbeafe 72%, var(--surface, #ffffff));
+  color: #1d4ed8;
+  font-size: 0.68rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.transaction-merchant-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.48rem;
+  margin: 0;
+}
+
+.transaction-merchant-kv {
+  min-width: 0;
+  padding: 0.55rem 0.62rem;
+  border: 1px solid color-mix(in srgb, #bfdbfe 58%, var(--border, #e2e8f0));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface, #ffffff) 72%, #eff6ff);
+}
+
+.transaction-merchant-kv-full {
+  grid-column: 1 / -1;
+}
+
+.transaction-merchant-kv dt {
+  margin: 0 0 0.18rem;
+  color: color-mix(in srgb, var(--text-dim, #64748b) 86%, #1d4ed8);
+  font-size: 0.62rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.transaction-merchant-kv dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text, #0f172a);
+  font-size: 0.8rem;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.transaction-merchant-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.transaction-merchant-btn {
+  min-height: 34px;
+  padding: 0 0.78rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 999px;
+  background: var(--surface, #ffffff);
+  color: var(--text, #0f172a);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+
+.transaction-merchant-btn-accept {
+  border-color: color-mix(in srgb, #22c55e 44%, var(--border, #e2e8f0));
+  background: color-mix(in srgb, #dcfce7 74%, var(--surface, #ffffff));
+  color: #166534;
+}
+
+.transaction-merchant-btn-ignore {
+  color: var(--text-dim, #64748b);
+}
+
+.transaction-merchant-btn:hover,
+.transaction-merchant-btn:focus-visible {
+  border-color: color-mix(in srgb, var(--accent, #14b8a6) 52%, var(--border, #e2e8f0));
+  background: color-mix(in srgb, var(--accent, #14b8a6) 9%, var(--surface, #ffffff));
+  outline: none;
+}
+
+.transaction-merchant-btn:active {
+  transform: scale(0.97);
+}
+
+[data-theme="dark"] .transaction-merchant-suggestion {
+  border-color: color-mix(in srgb, #60a5fa 52%, var(--border, #334155));
+  border-left-color: #60a5fa;
+  background: color-mix(in srgb, #1e3a8a 24%, var(--surface, #111827));
+}
+
+[data-theme="dark"] .transaction-merchant-confidence {
+  border-color: color-mix(in srgb, #93c5fd 42%, var(--border, #334155));
+  background: color-mix(in srgb, #1d4ed8 26%, var(--surface, #111827));
+  color: #bfdbfe;
+}
+
+[data-theme="dark"] .transaction-merchant-kv {
+  border-color: color-mix(in srgb, #60a5fa 26%, var(--border, #334155));
+  background: color-mix(in srgb, #0f172a 62%, var(--surface, #111827));
+}
+
+[data-theme="dark"] .transaction-merchant-kv dt,
+[data-theme="dark"] .transaction-merchant-suggestion-head p {
+  color: #bfdbfe;
+}
+
+[data-theme="dark"] .transaction-merchant-btn {
+  background: color-mix(in srgb, var(--surface, #111827) 86%, #0f172a);
+}
+
+[data-theme="dark"] .transaction-merchant-btn-accept {
+  border-color: color-mix(in srgb, #86efac 44%, var(--border, #334155));
+  background: color-mix(in srgb, #14532d 42%, var(--surface, #111827));
+  color: #bbf7d0;
+}
+
+@media (max-width: 640px) {
+  .transaction-merchant-suggestion-head {
+    flex-direction: column;
+  }
+
+  .transaction-merchant-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .transaction-merchant-actions {
+    justify-content: stretch;
+  }
+
+  .transaction-merchant-btn {
+    flex: 1 1 8rem;
+  }
+}
+
 .transaction-edit-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
