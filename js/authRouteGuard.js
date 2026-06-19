@@ -105,6 +105,7 @@ export function getSafeReturnToPath() {
         const returnUrl = new URL(rawReturnTo, window.location.origin);
         if (returnUrl.origin !== window.location.origin) return '';
         if (!returnUrl.pathname.startsWith(`${APP_ROUTE}/`) && returnUrl.pathname !== APP_ROUTE) return '';
+        if (returnUrl.pathname === `${APP_ROUTE}/`) return `${APP_ROUTE}${returnUrl.search}`;
         return `${returnUrl.pathname}${returnUrl.search}`;
     } catch {
         return '';

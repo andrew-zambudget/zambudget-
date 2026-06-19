@@ -83,6 +83,9 @@ test.describe('auth route guard', () => {
         await page.goto('/login');
         await expect(page).toHaveURL(/\/app$/);
 
+        await page.goto('/login?returnTo=%2Fapp%2F');
+        await expect(page).toHaveURL(/\/app$/);
+
         await page.goto('/');
         await expect(page).toHaveURL(/\/app$/);
     });

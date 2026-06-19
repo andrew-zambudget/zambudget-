@@ -454,6 +454,7 @@
             var returnUrl = new URL(rawReturnTo, window.location.origin);
             if (returnUrl.origin !== window.location.origin) return '';
             if (returnUrl.pathname !== '/app' && !returnUrl.pathname.startsWith('/app/')) return '';
+            if (returnUrl.pathname === '/app/') return '/app' + returnUrl.search;
             return returnUrl.pathname + returnUrl.search;
         } catch (error) {
             return '';
