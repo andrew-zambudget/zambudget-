@@ -2130,7 +2130,7 @@ function startInitialRecoveryKeyAcknowledgementPause(modal, onComplete) {
     }, 1000);
 }
 
-async function showRecoveryKeyNotice(recoveryKey, { copied = false, initial = false, requireDownload = false } = {}) {
+async function showRecoveryKeyNotice(recoveryKey, { copied = false, initial = false, requireDownload = false, allowSignOutAnyway = false } = {}) {
     let keyCopied = copied;
     let keyDownloaded = hasRecoveryKeyBackedUpFlag();
     const requiresInitialAcknowledgement = Boolean(initial && !requireDownload);
@@ -2171,6 +2171,7 @@ async function showRecoveryKeyNotice(recoveryKey, { copied = false, initial = fa
             { id: 'copy', label: 'Copy Key', className: 'btn-cancel', persistent: true },
             ...(requiresInitialAcknowledgement ? [{ id: 'remind-later', label: initialAcknowledged ? 'I understand - remind me for 72 hours' : `Read first (${RECOVERY_KEY_ACK_SECONDS}s)`, className: 'btn-cancel buddy-cloud-action-nowrap', persistent: !initialAcknowledged, disabled: !initialAcknowledged }] : []),
             { id: 'done', label: 'I saved my Recovery Key', className: 'btn-create buddy-cloud-action-nowrap', persistent: requireDownload || requiresInitialAcknowledgement, disabled: requiresInitialAcknowledgement && !initialAcknowledged },
+            ...(requireDownload && allowSignOutAnyway ? [{ id: 'sign-out-anyway', label: 'Sign Out Anyway', className: 'btn-danger buddy-cloud-action-nowrap' }] : []),
             ...(!initial && !requireDownload ? [{ id: 'lock-key', label: 'Lock Key', className: 'btn-cancel', persistent: true }] : [])
         ],
         onAction: async ({ action, modal, button, setRecoveryKeyVisible }) => {
@@ -2254,6 +2255,7 @@ async function showRecoveryKeyNotice(recoveryKey, { copied = false, initial = fa
         if (confirmResult === 'back') continue;
         return confirmResult === 'confirmed';
     }
+    if (result.action === 'sign-out-anyway') return 'sign-out-anyway';
     if (result.action === 'remind-later') return false;
     return hasRecoveryKeyBackedUpFlag();
     }
@@ -22517,7 +22519,8 @@ async function verifyBuddyCloudBeforeLogout(options = {}) {
     return { backedUp: true, skipped: false, reason: '' };
 }
 
-async function requireRecoveryKeySavedBeforeLocalClear() {
+async function requireRecoveryKeySavedBeforeLocalClear(options = {}) {
+    const { allowSignOutAnyway = false } = options;
     const status = window.BuddyCloud?.getStatus?.() || {};
     if (!status.enabled || !status.hasKey) return true;
     if (hasRecoveryKeyBackedUpFlag()) return true;
@@ -22532,7 +22535,8 @@ async function requireRecoveryKeySavedBeforeLocalClear() {
     return showRecoveryKeyNotice(recoveryKey, {
         copied: false,
         initial: false,
-        requireDownload: true
+        requireDownload: true,
+        allowSignOutAnyway
     });
 }
 
@@ -22574,8 +22578,11 @@ async function executeLogout(options = {}) {
     const preservedLocalStorage = getTrustedBuddyCloudPreservedLocalStorage();
     closeAccountConfirmModal();
     closeAccountModal();
-    const keySafe = await requireRecoveryKeySavedBeforeLocalClear();
+    const keySafe = await requireRecoveryKeySavedBeforeLocalClear({ allowSignOutAnyway: true });
     if (!keySafe) throw new Error('Recovery key download is required before this browser can be cleared.');
+    if (keySafe === 'sign-out-anyway') {
+        recordSyncEvent('Sign-out continued without confirming the Recovery Key was saved.', 'local');
+    }
     showSessionClearingScreen('Clearing Session...', 'Signing out and clearing the budget screen.');
     try {
         await verifyBuddyCloudBeforeLogout({ allowBackupSkip });

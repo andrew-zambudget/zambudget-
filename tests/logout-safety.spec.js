@@ -56,4 +56,48 @@ test.describe('logout safety', () => {
         await expect(modal.getByRole('button', { name: 'Recovery Help' })).toBeVisible();
         await expect(modal.getByRole('button', { name: 'Sign Out Without Backup' })).toBeVisible();
     });
+
+    test('recovery key save prompt allows normal sign out anyway', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await page.evaluate(() => {
+            window.currentUser = {
+                id: 'logout-recovery-key-exportable-user',
+                email: 'logout-exportable@example.com'
+            };
+            window.sb = {
+                auth: {
+                    signOut: async () => ({ error: null })
+                }
+            };
+            window.BuddyCloud = {
+                getStatus: () => ({
+                    signedIn: true,
+                    enabled: true,
+                    hasKey: true,
+                    canUseCloud: true,
+                    hasExportableKey: true
+                }),
+                exportRecoveryKey: () => 'test-exportable-recovery-key',
+                forcePush: async () => {
+                    const updatedAt = localStorage.getItem('bb_local_updated_at') || new Date().toISOString();
+                    localStorage.setItem('bb_cloud_last_pushed_at', updatedAt);
+                    return true;
+                }
+            };
+
+            window.handleLogout();
+        });
+
+        await expect(page.locator('#accountConfirmTitle')).toHaveText('Log out?');
+        await page.getByRole('button', { name: 'Secure Sign Out' }).click();
+
+        const modal = page.locator('#buddyCloudModal');
+        await expect(modal).toBeVisible();
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Recovery Key');
+        await expect(modal).toContainText('Download this recovery key before continuing');
+        await expect(modal.getByRole('button', { name: 'I saved my Recovery Key' })).toBeVisible();
+        await expect(modal.getByRole('button', { name: 'Sign Out Anyway' })).toBeVisible();
+    });
 });
