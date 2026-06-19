@@ -87,4 +87,33 @@ test.describe('Zam! demo app flow', () => {
         expect(restoredState.data).not.toContain('demo-income-1');
         expect(quarantineWarnings).toEqual([]);
     });
+
+    test('demo banner can be minimized and restored without ending demo mode', async ({ page }) => {
+        await page.evaluate(() => {
+            sessionStorage.setItem('bb_demo_tutorial_skipped', 'true');
+        });
+
+        await page.goto('/index.html?demo=1');
+        await waitForAppReady(page);
+
+        const banner = page.locator('#bbDemoModeBanner');
+        const toggle = banner.locator('[data-demo-action="toggle-banner"]');
+        await expect(banner).toBeVisible();
+        await expect(toggle).toHaveText('Minimize');
+
+        await toggle.click();
+        await expect(banner).toHaveClass(/is-minimized/);
+        await expect(page.locator('body')).toHaveClass(/bb-demo-banner-minimized/);
+        await expect(toggle).toHaveText('Show');
+        await expect(page.locator('[data-demo-action="end"]')).toBeHidden();
+
+        await toggle.click();
+        await expect(banner).not.toHaveClass(/is-minimized/);
+        await expect(page.locator('body')).not.toHaveClass(/bb-demo-banner-minimized/);
+        await expect(toggle).toHaveText('Minimize');
+        await expect(page.locator('[data-demo-action="end"]')).toBeVisible();
+
+        const activeState = await page.evaluate(() => localStorage.getItem('bb_demo_active'));
+        expect(activeState).toBe('true');
+    });
 });

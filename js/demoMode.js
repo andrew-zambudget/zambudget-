@@ -14,6 +14,7 @@ const BACKUP_CREATED_AT_KEY = 'bb_demo_backup_created_at';
 const ENDED_NOTICE_KEY = 'bb_demo_ended_notice';
 const ACCOUNT_PROMPT_DISMISSED_KEY = 'bb_demo_account_prompt_dismissed';
 const TUTORIAL_SKIPPED_KEY = 'bb_demo_tutorial_skipped';
+const BANNER_MINIMIZED_KEY = 'bb_demo_banner_minimized';
 const BANNER_ID = 'bbDemoModeBanner';
 const MODAL_ID = 'bbDemoEndedModal';
 const ACCOUNT_PROMPT_BANNER_ID = 'bbAccountPromptBanner';
@@ -205,6 +206,7 @@ function clearDemoSessionKeys() {
         STARTED_AT_KEY,
         EXPIRES_AT_KEY
     ].forEach(storageRemove);
+    sessionRemove(BANNER_MINIMIZED_KEY);
 }
 
 function clearDemoKeys() {
@@ -571,6 +573,10 @@ function injectStyles() {
             padding-bottom: 96px;
         }
 
+        body.bb-demo-active.bb-demo-banner-minimized {
+            padding-bottom: 54px;
+        }
+
         body.bb-account-prompt-active {
             padding-bottom: 124px;
         }
@@ -654,6 +660,18 @@ function injectStyles() {
             flex-wrap: wrap;
         }
 
+        .bb-demo-compact {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+            color: rgba(248, 250, 252, 0.92);
+            font-size: 0.88rem;
+            font-weight: 800;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
         .bb-demo-action {
             display: inline-flex;
             align-items: center;
@@ -686,6 +704,42 @@ function injectStyles() {
 
         .bb-demo-action-secondary:hover {
             background: rgba(255, 255, 255, 0.18);
+        }
+
+        .bb-demo-toggle {
+            min-height: 34px;
+            padding: 0 12px;
+        }
+
+        .bb-demo-banner.is-minimized {
+            left: auto;
+            right: 16px;
+            bottom: 12px;
+            grid-template-columns: auto auto;
+            gap: 10px;
+            width: auto;
+            max-width: calc(100vw - 32px);
+            padding: 8px 10px;
+            border-radius: 999px;
+            transform: none;
+        }
+
+        .bb-demo-banner.is-minimized::before {
+            border-radius: 999px;
+        }
+
+        .bb-demo-banner.is-minimized .bb-demo-label,
+        .bb-demo-banner.is-minimized .bb-demo-copy,
+        .bb-demo-banner.is-minimized .bb-demo-banner-actions .bb-demo-action:not(.bb-demo-toggle) {
+            display: none;
+        }
+
+        .bb-demo-banner.is-minimized .bb-demo-compact {
+            display: inline-flex;
+        }
+
+        .bb-demo-banner.is-minimized .bb-demo-banner-actions {
+            flex-wrap: nowrap;
         }
 
         .bb-account-banner {
@@ -961,6 +1015,10 @@ function injectStyles() {
                 padding-bottom: 176px;
             }
 
+            body.bb-demo-active.bb-demo-banner-minimized {
+                padding-bottom: 58px;
+            }
+
             body.bb-account-prompt-active {
                 padding-bottom: 212px;
             }
@@ -971,6 +1029,17 @@ function injectStyles() {
                 bottom: 10px;
                 width: min(370px, calc(100vw - 20px));
                 padding: 14px;
+            }
+
+            .bb-demo-banner.is-minimized {
+                left: auto;
+                right: 10px;
+                bottom: 10px;
+                grid-template-columns: auto auto;
+                align-items: center;
+                width: auto;
+                max-width: calc(100vw - 20px);
+                padding: 8px 10px;
             }
 
             .bb-demo-banner-actions {
@@ -1052,6 +1121,7 @@ function renderBanner() {
         <div class="bb-demo-banner-content">
             <p class="bb-demo-label"><span class="bb-demo-pulse" aria-hidden="true"></span>Demo Mode</p>
             <p class="bb-demo-copy">Sample data resets in <span class="bb-demo-timer" data-demo-countdown>5:00</span>. Sign in when you are ready to protect a real budget.</p>
+            <p class="bb-demo-compact"><span class="bb-demo-pulse" aria-hidden="true"></span>Demo <span class="bb-demo-timer" data-demo-countdown>5:00</span></p>
         </div>
         <div class="bb-demo-banner-actions">
             <button type="button" class="bb-demo-action" data-demo-action="create-account">Log In / Create Account</button>
@@ -1059,6 +1129,7 @@ function renderBanner() {
             <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="restart">Restart Demo</button>
             <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="end">End Demo</button>
             <button type="button" class="bb-demo-action bb-demo-action-secondary" data-demo-action="website">Back to Website</button>
+            <button type="button" class="bb-demo-action bb-demo-action-secondary bb-demo-toggle" data-demo-action="toggle-banner" aria-expanded="true" aria-label="Minimize demo banner">Minimize</button>
         </div>
     `;
 
@@ -1077,17 +1148,46 @@ function renderBanner() {
             completeDemo({ reason: 'ended' });
         } else if (action === 'website') {
             completeDemo({ reason: 'website', navigateTo: mainSiteUrl(), showNotice: false });
+        } else if (action === 'toggle-banner') {
+            setDemoBannerMinimized(!isDemoBannerMinimized());
         }
     });
 
     document.body.appendChild(banner);
     document.body.classList.add('bb-demo-active');
+    setDemoBannerMinimized(isDemoBannerMinimized());
+}
+
+function isDemoBannerMinimized() {
+    return sessionGet(BANNER_MINIMIZED_KEY) === 'true';
+}
+
+function setDemoBannerMinimized(minimized) {
+    const nextValue = Boolean(minimized);
+    const banner = document.getElementById(BANNER_ID);
+    const toggle = banner?.querySelector('[data-demo-action="toggle-banner"]');
+
+    if (nextValue) {
+        sessionSet(BANNER_MINIMIZED_KEY, 'true');
+    } else {
+        sessionRemove(BANNER_MINIMIZED_KEY);
+    }
+
+    document.body.classList.toggle('bb-demo-banner-minimized', nextValue);
+    banner?.classList.toggle('is-minimized', nextValue);
+
+    if (toggle) {
+        toggle.textContent = nextValue ? 'Show' : 'Minimize';
+        toggle.setAttribute('aria-expanded', String(!nextValue));
+        toggle.setAttribute('aria-label', nextValue ? 'Show demo banner' : 'Minimize demo banner');
+    }
 }
 
 function updateCountdown() {
     const remaining = getDemoExpiresAt() - Date.now();
-    const timer = document.querySelector('[data-demo-countdown]');
-    if (timer) timer.textContent = formatCountdown(remaining);
+    document.querySelectorAll('[data-demo-countdown]').forEach(timer => {
+        timer.textContent = formatCountdown(remaining);
+    });
 
     if (remaining <= 0) {
         completeDemo({ reason: 'expired' });
