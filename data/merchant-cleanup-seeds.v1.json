@@ -5472,8 +5472,7 @@
       "defaultConfidence": "Medium",
       "highConfidenceAliases": [
         "TOPGOLF",
-        "TOPGOLF USA",
-        "TG ENTERTAINMENT"
+        "TOPGOLF USA"
       ],
       "mediumAliases": [
         "TG ENTERTAINMENT",
@@ -7594,9 +7593,9 @@
       "canonicalName": "Topgolf",
       "pattern": "TG ENTERTAINMENT",
       "normalizedPattern": "tg entertainment",
-      "confidence": "Medium",
+      "confidence": "Low",
       "defaultCategory": "Entertainment / Events",
-      "notes": "Seed high-confidence pattern; still suggest-only.",
+      "notes": "Weak abbreviation-style match; review required. Suggest only if the user confirms.",
       "falsePositiveGuards": [
         "abc enterprises should stay low confidence unless user approves alias"
       ]
@@ -7606,9 +7605,9 @@
       "canonicalName": "Topgolf",
       "pattern": "TG ENTERTAINMENT",
       "normalizedPattern": "tg entertainment",
-      "confidence": "Medium",
+      "confidence": "Low",
       "defaultCategory": "Entertainment / Events",
-      "notes": "Typo/abbreviation; require user approval.",
+      "notes": "Weak abbreviation-style match; review required. Suggest only if the user confirms.",
       "falsePositiveGuards": [
         "abc enterprises should stay low confidence unless user approves alias"
       ]

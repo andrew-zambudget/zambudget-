@@ -17143,6 +17143,11 @@ function normalizeMerchantCleanupSuggestion(rawDescription = '', suggestion = nu
         defaultCategory = 'Restaurants / Food Delivery';
     }
 
+    if (/^tg\s+entertainment(?:\s+llc)?$/i.test(raw) && /^topgolf$/i.test(cleanedName)) {
+        confidence = 'Low confidence';
+        reason = 'Weak abbreviation-style match; review required.';
+    }
+
     if (isMerchantCleanupAlreadyClean(raw, cleanedName)) return null;
 
     return {

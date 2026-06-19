@@ -21,7 +21,8 @@ const MERCHANT_FALSE_POSITIVE_CSV = [
     '2026-06-04,APPLE.COM/BILL,9.99,,Subscriptions,Checking,apple bill',
     '2026-06-05,SQ *LOCAL COFFEE SHOP,6.25,,Coffee,Checking,square processor',
     '2026-06-06,PAYPAL *JSMITH,15.00,,Misc,Checking,paypal processor',
-    '2026-06-07,DOORDASH*BURGER PLACE,22.34,,Dining,Checking,food delivery'
+    '2026-06-07,DOORDASH*BURGER PLACE,22.34,,Dining,Checking,food delivery',
+    '2026-06-08,TG ENTERTAINMENT LLC,84.00,,Entertainment,Checking,weak topgolf abbreviation'
 ].join('\n');
 
 async function seedMerchantHarness(page) {
@@ -209,8 +210,8 @@ test.describe('Smart Merchant Cleanup', () => {
         await importMerchantCsv(page, MERCHANT_FALSE_POSITIVE_CSV, 'zam_merchant_recognition_false_positive.csv');
 
         await expect(page.locator('#csvImportCompleteModal')).toBeVisible();
-        await expect(page.locator('#csvImportCompleteModal')).toContainText('7 transactions imported');
-        await expect(page.locator('#csvImportCompleteModal')).toContainText('4 Smart Merchant Cleanup suggestions found');
+        await expect(page.locator('#csvImportCompleteModal')).toContainText('8 transactions imported');
+        await expect(page.locator('#csvImportCompleteModal')).toContainText('5 Smart Merchant Cleanup suggestions found');
 
         await page.locator('#csvImportCompleteModal button', { hasText: 'Review Suggestions' }).click();
         const cleanupModal = page.locator('#smartMerchantCleanupModal');
@@ -230,10 +231,14 @@ test.describe('Smart Merchant Cleanup', () => {
         await expect(cleanupModal).toContainText('underlying merchant or person may differ');
         await expect(cleanupModal).toContainText('DOORDASH*BURGER PLACE');
         await expect(cleanupModal).toContainText('Restaurants / Food Delivery');
-        await expect(cleanupModal.locator('#smartMerchantCleanupSelectedCount')).toContainText('3 of 4 selected');
+        await expect(cleanupModal).toContainText('TG ENTERTAINMENT LLC');
+        await expect(cleanupModal).toContainText('Weak abbreviation-style match; review required.');
+        await expect(cleanupModal.locator('#smartMerchantCleanupSelectedCount')).toContainText('3 of 5 selected');
 
         const paypalRow = cleanupModal.locator('tr', { hasText: 'PAYPAL *JSMITH' });
         await expect(paypalRow.locator('.smart-merchant-cleanup-row-select')).not.toBeChecked();
+        const topgolfRow = cleanupModal.locator('tr', { hasText: 'TG ENTERTAINMENT LLC' });
+        await expect(topgolfRow.locator('.smart-merchant-cleanup-row-select')).not.toBeChecked();
     });
 
     test('gates merchant cleanup suggestions for Free imports', async ({ page }) => {
