@@ -394,9 +394,17 @@
                                                 <!-- 6. Hidden Details (Date, Payment, Notes) -->
                                                 <div id="txHiddenDetails" class="hidden-details-drawer">
                                                     <div class="add-form-group add-date-group">
-                                                        <label for="txDateNative">Date</label>
-                                                        <div class="add-date-shell">
-                                                            <input type="date" id="txDateNative" class="form-input add-date-native" onchange="window.handleDateChange(event)" aria-describedby="txDateError">
+                                                        <label for="txDateTrigger">Date</label>
+                                                        <div class="add-date-shell transaction-edit-date-shell">
+                                                            <input type="hidden" id="txDateNative" value="" aria-hidden="true">
+                                                            <button type="button" id="txDateTrigger" class="transaction-edit-date-trigger add-date-trigger" onclick="window.toggleAddDatePicker(event)" aria-haspopup="dialog" aria-expanded="false" aria-controls="addDatePicker" aria-describedby="txDateError">
+                                                                <span class="transaction-edit-date-copy">
+                                                                    <strong id="txDateLabel">Today</strong>
+                                                                    <em id="txDateSubLabel">Select a date</em>
+                                                                </span>
+                                                                <span class="transaction-edit-date-action">Change</span>
+                                                            </button>
+                                                            <div id="addDatePicker" class="transaction-edit-date-picker" role="dialog" aria-label="Choose transaction date" hidden onclick="event.stopPropagation()"></div>
                                                         </div>
                                                         <div id="txDateError" class="add-field-error" role="alert"></div>
                                                         <input type="hidden" id="txDateHidden" name="date" value="">

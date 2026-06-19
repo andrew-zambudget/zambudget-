@@ -10,7 +10,7 @@ let lastSavedTxId = null;
 let addLastSavedPreview = null;
 let lastMobileCommandTab = 'income';
 let mobileCommandNavInitialized = false;
-let addDatePickerRequestAt = 0;
+let addDatePickerCursor = null;
 const privacyTimers = new Map();
 const privacyScrambleTimers = new Map();
 const PRIVACY_SCRAMBLE_INTERVAL_MS = 900;
@@ -8816,9 +8816,10 @@ function getAddFieldElements(field) {
             group: document.getElementById('txDescription')?.closest('.add-form-group')
         },
         date: {
-            input: document.getElementById('txDateNative'),
+            input: document.getElementById('txDateTrigger') || document.getElementById('txDateNative'),
             error: document.getElementById('txDateError'),
-            group: document.getElementById('txDateNative')?.closest('.add-form-group')
+            group: document.getElementById('txDateTrigger')?.closest('.add-form-group')
+                || document.getElementById('txDateNative')?.closest('.add-form-group')
         }
     };
     return map[field] || {};
@@ -9079,11 +9080,13 @@ function updateAddTransactionDate(value) {
     const dateValue = isValidLocalISODate(value) ? value : getLocalISODate();
     const hiddenInput = document.getElementById('txDateHidden');
     const nativeInput = document.getElementById('txDateNative');
-    const display = document.getElementById('selectedDateText');
+    const label = document.getElementById('txDateLabel');
+    const subLabel = document.getElementById('txDateSubLabel');
 
     if (hiddenInput) hiddenInput.value = dateValue;
     if (nativeInput) nativeInput.value = dateValue;
-    if (display) display.textContent = dateValue === getLocalISODate() ? 'Today' : formatDate(dateValue);
+    if (label) label.textContent = getRelativeEditDateLabel(dateValue);
+    if (subLabel) subLabel.textContent = formatCalendarDateLabel(dateValue) || dateValue;
     setAddFieldError('date', '');
 }
 
@@ -9093,74 +9096,128 @@ export function setAddTransactionDate(offsetDays = 0) {
     updateAddTransactionDate(getLocalISODate(date));
 }
 
-export function openAddDatePicker() {
-    const dateInput = document.getElementById('txDateNative');
-    if (!dateInput) return;
+function getAddDateValue() {
+    const value = document.getElementById('txDateHidden')?.value
+        || document.getElementById('txDateNative')?.value
+        || '';
+    return isValidLocalISODate(value) ? value : getLocalISODate();
+}
 
-    try {
-        dateInput.focus({ preventScroll: true });
-    } catch {
-        dateInput.focus();
+function getAddDatePickerCursorDate() {
+    if (addDatePickerCursor instanceof Date && !Number.isNaN(addDatePickerCursor.getTime())) {
+        return new Date(addDatePickerCursor.getFullYear(), addDatePickerCursor.getMonth(), 1);
     }
 
-    if (typeof dateInput.showPicker === 'function') {
-        try {
-            dateInput.showPicker();
-            return;
-        } catch {
-            // Browser may block showPicker if not user-triggered.
-        }
+    const selected = parseDateKeyLocal(getAddDateValue()) || new Date();
+    return new Date(selected.getFullYear(), selected.getMonth(), 1);
+}
+
+function renderAddDatePicker() {
+    const picker = document.getElementById('addDatePicker');
+    if (!picker) return;
+
+    const cursor = getAddDatePickerCursorDate();
+    addDatePickerCursor = cursor;
+    const selectedKey = getAddDateValue();
+    const todayKey = getLocalISODate();
+    const monthLabel = new Intl.DateTimeFormat('en-US', {
+        month: 'long',
+        year: 'numeric'
+    }).format(cursor);
+
+    const gridStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1 - cursor.getDay());
+    const days = [];
+    for (let i = 0; i < 42; i += 1) {
+        const day = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
+        const dayKey = getLocalISODate(day);
+        const isOutside = day.getMonth() !== cursor.getMonth();
+        const isSelected = dayKey === selectedKey;
+        const isToday = dayKey === todayKey;
+        days.push(`
+            <button type="button" class="transaction-edit-date-day${isOutside ? ' is-outside' : ''}${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}" onclick="window.selectAddDatePickerDate(${jsArg(dayKey)})" aria-label="${esc(formatCalendarDateLabel(dayKey) || dayKey)}" aria-pressed="${isSelected ? 'true' : 'false'}">
+                ${day.getDate()}
+            </button>
+        `);
     }
 
-    dateInput.focus();
+    picker.innerHTML = `
+        <div class="transaction-edit-date-picker-head">
+            <button type="button" onclick="window.moveAddDatePickerMonth(-1)" aria-label="Previous month">&lsaquo;</button>
+            <strong>${esc(monthLabel)}</strong>
+            <button type="button" onclick="window.moveAddDatePickerMonth(1)" aria-label="Next month">&rsaquo;</button>
+        </div>
+        <div class="transaction-edit-date-weekdays" aria-hidden="true">
+            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+        </div>
+        <div class="transaction-edit-date-grid">
+            ${days.join('')}
+        </div>
+        <div class="transaction-edit-date-quick">
+            <button type="button" onclick="window.setAddDatePickerQuick(0)">Today</button>
+            <button type="button" onclick="window.setAddDatePickerQuick(-1)">Yesterday</button>
+        </div>
+    `;
 }
 
 function bindAddDatePickerEvents() {
-    const dateInput = document.getElementById('txDateNative');
-    const dateShell = dateInput?.closest('.add-date-shell');
-    if (!dateInput) return;
+    const trigger = document.getElementById('txDateTrigger');
+    if (!trigger || trigger.dataset.addDatePickerBound) return;
+    trigger.dataset.addDatePickerBound = 'true';
+}
 
-    if (!dateInput.dataset.nativePickerBound) {
-        dateInput.dataset.nativePickerBound = 'true';
-        dateInput.addEventListener('click', () => {
-            const now = Date.now();
-            if (now - addDatePickerRequestAt < 300) return;
-            addDatePickerRequestAt = now;
-            openAddDatePicker();
-        });
-        dateInput.addEventListener('pointerup', (event) => {
-            if (event.pointerType === 'mouse') return;
-            if (typeof dateInput.showPicker !== 'function') return;
+export function openAddDatePicker(event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
 
-            try {
-                dateInput.showPicker();
-            } catch {
-                // Some mobile browsers only allow the default input tap behavior.
-            }
-        });
-        dateInput.addEventListener('keydown', (event) => {
-            if (event.key !== 'Enter' && event.key !== ' ') return;
-            event.preventDefault();
-            openAddDatePicker();
-        });
+    const picker = document.getElementById('addDatePicker');
+    const trigger = document.getElementById('txDateTrigger');
+    if (!picker) return;
+
+    addDatePickerCursor = getAddDatePickerCursorDate();
+    renderAddDatePicker();
+    picker.hidden = false;
+    trigger?.setAttribute('aria-expanded', 'true');
+}
+
+export function closeAddDatePicker() {
+    const picker = document.getElementById('addDatePicker');
+    const trigger = document.getElementById('txDateTrigger');
+    if (!picker) return;
+
+    picker.hidden = true;
+    trigger?.setAttribute('aria-expanded', 'false');
+}
+
+export function toggleAddDatePicker(event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
+    const picker = document.getElementById('addDatePicker');
+    if (!picker || picker.hidden) {
+        openAddDatePicker(event);
+    } else {
+        closeAddDatePicker();
     }
+}
 
-    if (dateShell && !dateShell.dataset.nativePickerBound) {
-        dateShell.dataset.nativePickerBound = 'true';
-        dateShell.addEventListener('click', (event) => {
-            if (event.target === dateInput) return;
+export function moveAddDatePickerMonth(delta = 0) {
+    const cursor = getAddDatePickerCursorDate();
+    addDatePickerCursor = new Date(cursor.getFullYear(), cursor.getMonth() + Number(delta || 0), 1);
+    renderAddDatePicker();
+}
 
-            event.preventDefault();
-            const now = Date.now();
-            if (now - addDatePickerRequestAt < 300) return;
-            addDatePickerRequestAt = now;
+export function selectAddDatePickerDate(dateKey) {
+    if (!isValidLocalISODate(dateKey)) return;
+    updateAddTransactionDate(dateKey);
+    addDatePickerCursor = getAddDatePickerCursorDate();
+    closeAddDatePicker();
+    document.getElementById('txDateTrigger')?.focus();
+}
 
-            openAddDatePicker();
-            if (typeof dateInput.showPicker !== 'function') {
-                dateInput.click();
-            }
-        });
-    }
+export function setAddDatePickerQuick(offsetDays = 0) {
+    const date = new Date();
+    date.setDate(date.getDate() + Number(offsetDays || 0));
+    selectAddDatePickerDate(getLocalISODate(date));
 }
 
 function handleAddAmountInput(event) {
@@ -16220,6 +16277,12 @@ function bindRecentSwipeActions(listContainer) {
 
 document.addEventListener('pointerdown', (event) => {
     const target = event.target;
+    const addDatePicker = document.getElementById('addDatePicker');
+    if (addDatePicker && !addDatePicker.hidden) {
+        const dateShell = target instanceof Element ? target.closest('.add-date-shell') : null;
+        if (!dateShell) closeAddDatePicker();
+    }
+
     const editDatePicker = document.getElementById('recentEditDatePicker');
     if (editDatePicker && !editDatePicker.hidden) {
         const dateShell = target instanceof Element ? target.closest('.transaction-edit-date-shell') : null;
@@ -16240,6 +16303,14 @@ document.addEventListener('pointerdown', (event) => {
 }, true);
 
 document.addEventListener('keydown', (event) => {
+    const addDatePicker = document.getElementById('addDatePicker');
+    if (event.key === 'Escape' && addDatePicker && !addDatePicker.hidden) {
+        event.preventDefault();
+        closeAddDatePicker();
+        document.getElementById('txDateTrigger')?.focus();
+        return;
+    }
+
     const editDatePicker = document.getElementById('recentEditDatePicker');
     if (event.key === 'Escape' && editDatePicker && !editDatePicker.hidden) {
         event.preventDefault();
@@ -22556,6 +22627,11 @@ window.submitTransaction = submitTransaction;
 window.handleDateChange = handleDateChange;
 window.setAddTransactionDate = setAddTransactionDate;
 window.openAddDatePicker = openAddDatePicker;
+window.closeAddDatePicker = closeAddDatePicker;
+window.toggleAddDatePicker = toggleAddDatePicker;
+window.moveAddDatePickerMonth = moveAddDatePickerMonth;
+window.selectAddDatePickerDate = selectAddDatePickerDate;
+window.setAddDatePickerQuick = setAddDatePickerQuick;
 window.toggleAddCategoryPicker = toggleAddCategoryPicker;
 window.toggleGiftCardAddForm = toggleGiftCardAddForm;
 window.addGiftCardFromAddForm = addGiftCardFromAddForm;

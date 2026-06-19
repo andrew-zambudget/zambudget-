@@ -8829,11 +8829,6 @@ input.error, select.error {
     cursor: pointer;
 }
 
-.add-date-native::-webkit-calendar-picker-indicator {
-    cursor: pointer;
-    opacity: 0.86;
-}
-
 #view-add .hidden-details-drawer {
     border: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 86%, transparent);
     border-radius: 14px;
@@ -8875,11 +8870,29 @@ input.error, select.error {
     background: transparent;
 }
 
-#view-add .hidden-details-drawer .add-date-native,
+#view-add .hidden-details-drawer .transaction-edit-date-trigger,
 #view-add .hidden-details-drawer .payment-method-select {
-    height: 48px;
-    min-height: 48px;
+    height: 64px;
+    min-height: 64px;
     line-height: 1.2;
+}
+
+#view-add .hidden-details-drawer .transaction-edit-date-picker {
+    left: 50%;
+    right: auto;
+    width: min(21rem, calc(100vw - 2rem));
+    transform: translateX(-50%);
+}
+
+@media (max-width: 640px) {
+    #view-add .hidden-details-drawer .transaction-edit-date-picker {
+        position: fixed;
+        top: max(4.75rem, env(safe-area-inset-top));
+        bottom: auto;
+        max-height: calc(100dvh - 6rem);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
 }
 
 #view-add .hidden-details-drawer .notes-textarea {
