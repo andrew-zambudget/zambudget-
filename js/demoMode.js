@@ -168,7 +168,7 @@ function sessionRemove(key) {
 function demoRequested() {
     try {
         const path = window.location.pathname.replace(/\/+$/, '') || '/';
-        if (path === '/demo') return true;
+        if (path === '/demo' || path.startsWith('/demo/')) return true;
         const params = new URLSearchParams(window.location.search);
         const value = params.get(DEMO_QUERY_PARAM);
         return value === '1' || value === 'true';

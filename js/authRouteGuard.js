@@ -17,6 +17,14 @@ const PUBLIC_ROUTES = new Set([
 
 const PROTECTED_APP_ROUTES = new Set([
     APP_ROUTE,
+    '/settings',
+    '/import',
+    '/export',
+    '/cloud-sync',
+    '/billing',
+    '/account',
+    '/recovery',
+    '/premium',
     '/app/settings',
     '/app/import',
     '/app/export',
@@ -54,14 +62,26 @@ export function isLoginRoute(pathname = window.location.pathname) {
 }
 
 export function isDemoRoute(pathname = window.location.pathname) {
-    return getNormalizedPath(pathname) === DEMO_ROUTE;
+    const normalized = getNormalizedPath(pathname);
+    return normalized === DEMO_ROUTE || normalized.startsWith(`${DEMO_ROUTE}/`);
 }
 
-export function isPublicRoute(pathname = window.location.pathname) {
+export function isDemoRequest(pathname = window.location.pathname, search = window.location.search) {
+    if (isDemoRoute(pathname)) return true;
+    try {
+        return new URLSearchParams(String(search || '')).has('demo');
+    } catch {
+        return false;
+    }
+}
+
+export function isPublicRoute(pathname = window.location.pathname, search = window.location.search) {
+    if (isDemoRequest(pathname, search)) return true;
     return PUBLIC_ROUTES.has(getNormalizedPath(pathname));
 }
 
 export function isProtectedAppRoute(pathname = window.location.pathname) {
+    if (isDemoRequest(pathname)) return false;
     const normalized = getNormalizedPath(pathname);
     if (PROTECTED_APP_ROUTES.has(normalized)) return true;
     if (normalized.startsWith(`${APP_ROUTE}/`)) return true;
@@ -70,6 +90,7 @@ export function isProtectedAppRoute(pathname = window.location.pathname) {
 }
 
 export function shouldRedirectRoot(pathname = window.location.pathname) {
+    if (isDemoRequest(pathname)) return false;
     const normalized = getNormalizedPath(pathname);
     return normalized === '/' || (normalized === '/index.html' && !isLocalDevHost());
 }
@@ -147,12 +168,12 @@ export async function guardCurrentAppRoute({ supabaseClient } = {}) {
         return { redirected: true, session: null, user: null, route: normalized };
     }
 
-    if (!hasSession && !isPublicRoute() && isProtectedAppRoute()) {
-        redirectToLogin({ returnTo: true });
+    if (!hasSession && !isPublicRoute() && (isProtectedAppRoute() || !isLocalDevHost())) {
+        redirectToLogin({ returnTo: isProtectedAppRoute() });
         return { redirected: true, session: null, user: null, route: normalized };
     }
 
-    if (hasSession && (normalized === '/' || normalized === LOGIN_ROUTE || normalized === '/index.html')) {
+    if (hasSession && !isDemoRequest() && (normalized === '/' || normalized === LOGIN_ROUTE || normalized === '/index.html')) {
         redirectToApp({
             preferReturnTo: normalized === LOGIN_ROUTE,
             preserveSearch: normalized === '/index.html'
@@ -174,6 +195,7 @@ export default {
     getNormalizedPath,
     guardCurrentAppRoute,
     isAuthCallbackRoute,
+    isDemoRequest,
     isDemoRoute,
     isLoginRoute,
     isProtectedAppRoute,

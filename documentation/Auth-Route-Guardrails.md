@@ -11,6 +11,7 @@ Zam redirects unauthenticated visitors away from the protected app shell before 
 - `/login`
 - `/auth/callback`
 - `/demo`
+- `/demo/*`
 - `/privacy`
 - `/terms`
 - `/site-data`
@@ -18,6 +19,14 @@ Zam redirects unauthenticated visitors away from the protected app shell before 
 ## Protected Routes
 
 - `/app`
+- `/settings`
+- `/import`
+- `/export`
+- `/cloud-sync`
+- `/billing`
+- `/account`
+- `/recovery`
+- `/premium`
 - `/app/settings`
 - `/app/import`
 - `/app/export`
@@ -35,7 +44,7 @@ Zam redirects unauthenticated visitors away from the protected app shell before 
 3. `js/authRouteGuard.js` checks the current Supabase session before state or UI render.
 4. Logged-out protected routes redirect to `/login`.
 5. Signed-in `/` and `/login` routes redirect to `/app`.
-6. `/demo` remains public and uses local sample data only.
+6. `/demo` and `/demo/*` remain public and use local sample data only.
 7. Protected app UI renders only after the route guard allows it.
 
 ## Security Boundary

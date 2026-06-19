@@ -71,6 +71,14 @@ test.describe('auth route guard', () => {
         await page.goto('/app/cloud-sync');
         await expect(page).toHaveURL(/\/login\?returnTo=%2Fapp%2Fcloud-sync$/);
         await expect(page.locator('#loginView')).toBeVisible();
+
+        await page.goto('/billing');
+        await expect(page).toHaveURL(/\/login\?returnTo=%2Fbilling$/);
+        await expect(page.locator('#loginView')).toBeVisible();
+
+        await page.goto('/recovery');
+        await expect(page).toHaveURL(/\/login\?returnTo=%2Frecovery$/);
+        await expect(page.locator('#loginView')).toBeVisible();
     });
 
     test('redirects signed-in login and root routes to app', async ({ page }) => {
@@ -95,6 +103,38 @@ test.describe('auth route guard', () => {
 
         await page.goto('/demo');
         await expect(page).toHaveURL(/\/demo$/);
+        await expect(page.locator('#bbDemoModeBanner')).toBeVisible();
+
+        const state = await page.evaluate(() => ({
+            demoActive: localStorage.getItem('bb_demo_active'),
+            currentUser: window.currentUser
+        }));
+
+        expect(state.demoActive).toBe('true');
+        expect(state.currentUser).toBeNull();
+    });
+
+    test('keeps nested demo routes public without creating a real session', async ({ page }) => {
+        await installSupabaseStub(page);
+
+        await page.goto('/demo/sample');
+        await expect(page).toHaveURL(/\/demo\/sample$/);
+        await expect(page.locator('#bbDemoModeBanner')).toBeVisible();
+
+        const state = await page.evaluate(() => ({
+            demoActive: localStorage.getItem('bb_demo_active'),
+            currentUser: window.currentUser
+        }));
+
+        expect(state.demoActive).toBe('true');
+        expect(state.currentUser).toBeNull();
+    });
+
+    test('keeps legacy demo query links public without creating a real session', async ({ page }) => {
+        await installSupabaseStub(page);
+
+        await page.goto('/?demo=1');
+        await expect(page).toHaveURL(/\/\?demo=1$/);
         await expect(page.locator('#bbDemoModeBanner')).toBeVisible();
 
         const state = await page.evaluate(() => ({

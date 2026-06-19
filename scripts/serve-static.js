@@ -26,6 +26,14 @@ const routeAliases = new Map([
     ['/login', 'login.html'],
     ['/auth/callback', 'login.html'],
     ['/app', 'index.html'],
+    ['/settings', 'index.html'],
+    ['/import', 'index.html'],
+    ['/export', 'index.html'],
+    ['/cloud-sync', 'index.html'],
+    ['/billing', 'index.html'],
+    ['/account', 'index.html'],
+    ['/recovery', 'index.html'],
+    ['/premium', 'index.html'],
     ['/app/settings', 'index.html'],
     ['/app/import', 'index.html'],
     ['/app/export', 'index.html'],
@@ -44,7 +52,7 @@ function resolveRequestPath(requestUrl) {
     const url = new URL(requestUrl, `http://127.0.0.1:${port}`);
     const aliasPath = url.pathname.replace(/\/+$/, '') || '/';
     const aliasedFile = routeAliases.get(aliasPath)
-        || (aliasPath.startsWith('/app/') ? 'index.html' : '');
+        || (aliasPath.startsWith('/app/') || aliasPath.startsWith('/demo/') ? 'index.html' : '');
     const decodedPath = aliasedFile ? `/${aliasedFile}` : decodeURIComponent(url.pathname);
     const normalized = path.normalize(decodedPath).replace(/^(\.\.[/\\])+/, '');
     const filePath = path.join(root, normalized);
