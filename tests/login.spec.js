@@ -82,7 +82,7 @@ test.describe('login page safeguards', () => {
             expect.objectContaining({
                 email: 'existing@example.com',
                 options: expect.objectContaining({
-                    emailRedirectTo: 'https://app.zambudget.com/index.html',
+                    emailRedirectTo: 'https://app.zambudget.com/auth/callback',
                     shouldCreateUser: false
                 })
             })
@@ -126,7 +126,7 @@ test.describe('login page safeguards', () => {
             expect.objectContaining({
                 email: 'single-flight@example.com',
                 options: expect.objectContaining({
-                    emailRedirectTo: 'https://app.zambudget.com/index.html',
+                    emailRedirectTo: 'https://app.zambudget.com/auth/callback',
                     shouldCreateUser: false
                 })
             })
@@ -173,7 +173,7 @@ test.describe('login page safeguards', () => {
             expect.objectContaining({
                 email: 'unknown@example.com',
                 options: expect.objectContaining({
-                    emailRedirectTo: 'https://app.zambudget.com/index.html',
+                    emailRedirectTo: 'https://app.zambudget.com/auth/callback',
                     shouldCreateUser: false
                 })
             })
@@ -217,7 +217,7 @@ test.describe('login page safeguards', () => {
             expect.objectContaining({
                 email: 'new@example.com',
                 options: expect.objectContaining({
-                    emailRedirectTo: 'https://app.zambudget.com/index.html',
+                    emailRedirectTo: 'https://app.zambudget.com/auth/callback',
                     shouldCreateUser: true
                 })
             })

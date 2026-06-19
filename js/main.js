@@ -26,6 +26,7 @@ import * as UI from './ui.js';
 import * as BuddyCloud from './cloudSync.js';
 import * as DemoMode from './demoMode.js';
 import * as BudgetPrep from './budgetPrep.js';
+import * as AuthRouteGuard from './authRouteGuard.js';
 import { runPrivacyStorageCleanup } from './privacyStorageCleanup.js';
 import { guardSignedInLocalOwner } from './accountLocalState.js';
 
@@ -33,6 +34,7 @@ import { guardSignedInLocalOwner } from './accountLocalState.js';
 window.sb = null;
 window.currentUser = null;
 window.bbConfig = null;
+window.ZamAuthRouteGuard = AuthRouteGuard;
 let appStateInitialized = false;
 
 function readLocalStorageValue(key, fallback = '') {
@@ -100,12 +102,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (config.supabaseUrl && config.supabaseAnonKey && window.supabase) {
                 // Initialize Client
                 window.sb = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
-                
-                // Check for existing session securely
-                const { data: { session }, error } = await window.sb.auth.getSession();
-                if (error) throw error;
-                
-                window.currentUser = session ? session.user : null;
+                const routeGuard = await AuthRouteGuard.guardCurrentAppRoute({ supabaseClient: window.sb });
+                if (routeGuard.redirected) return;
+
+                window.currentUser = routeGuard.user || null;
                 if (window.currentUser) {
                     BudgetPrep.showPreparingBudget?.({
                         title: 'Preparing budget...',
@@ -117,6 +117,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 window.sb.auth.onAuthStateChange(async (event, session) => {
                     window.currentUser = session ? session.user : null;
                     if (!appStateInitialized) return;
+
+                    if (!window.currentUser && AuthRouteGuard.isProtectedAppRoute()) {
+                        try {
+                            await BuddyCloud.refreshUser(null);
+                        } catch (signOutRefreshError) {
+                            console.warn('[main.js] Signed-out Cloud Sync cleanup failed:', signOutRefreshError);
+                        }
+                        AuthRouteGuard.redirectToLogin();
+                        return;
+                    }
 
                     if (window.currentUser) {
                         const ownerGuard = guardSignedInLocalOwner(window.currentUser.id);
@@ -180,9 +190,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.log('[main.js] Supabase initialized successfully.');
             } else {
                 console.warn('[main.js] Supabase config missing or script not loaded. Running offline mode.');
+                const routeGuard = await AuthRouteGuard.guardCurrentAppRoute({ supabaseClient: null });
+                if (routeGuard.redirected) return;
             }
         } catch (e) {
             console.error("[main.js] Failed to initialize Supabase:", e);
+            if (AuthRouteGuard.isProtectedAppRoute()) {
+                AuthRouteGuard.redirectToLogin({ returnTo: true });
+                return;
+            }
+            if (AuthRouteGuard.shouldRedirectRoot()) {
+                AuthRouteGuard.redirectToLogin();
+                return;
+            }
+            AuthRouteGuard.clearAuthPendingState();
         }
         // --- SUPABASE INITIALIZATION END ---
 

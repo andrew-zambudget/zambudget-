@@ -1,19 +1,61 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="auth-route-pending">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,follow">
     <title>Zam! — Manage Your Budget</title>
 
-    <link rel="stylesheet" href="css/variables.css">
-    <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/components.css">
-    <link rel="stylesheet" href="css/category-items.css">
-    <link rel="stylesheet" href="css/modals.css">
-    <link rel="stylesheet" href="css/utilities.css">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/category-items.css">
+    <link rel="stylesheet" href="/css/modals.css">
+    <link rel="stylesheet" href="/css/utilities.css">
+    <style>
+        html.auth-route-pending .app-header,
+        html.auth-route-pending .beta-support-strip,
+        html.auth-route-pending main,
+        html.auth-route-pending footer,
+        html.auth-route-pending #scrollTopBtn {
+            visibility: hidden;
+        }
 
-    <script src="js/vendor/supabase.js"></script>
+        .auth-route-loading {
+            position: fixed;
+            inset: 0;
+            z-index: 3000;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background: var(--bg, #f8fafc);
+            color: var(--text, #0f172a);
+            font: 700 1rem/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        .auth-route-loading-card {
+            width: min(360px, 100%);
+            padding: 22px;
+            border: 1px solid var(--border, #cbd5e1);
+            border-radius: 16px;
+            background: var(--surface, #ffffff);
+            box-shadow: 0 16px 42px rgba(15, 23, 42, 0.14);
+            text-align: center;
+        }
+
+        .auth-route-loading-card p {
+            margin: 8px 0 0;
+            color: var(--text-dim, #475569);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        html:not(.auth-route-pending) .auth-route-loading {
+            display: none;
+        }
+    </style>
+
+    <script src="/js/vendor/supabase.js"></script>
 </head>
 <body>
     <a href="#main" class="skip-link">Skip to main content</a>
@@ -25,8 +67,14 @@
             <p><a href="https://zambudget.com/privacy">Privacy &amp; Site Data</a></p>
         </div>
     </noscript>
+    <div id="authRouteLoading" class="auth-route-loading" role="status" aria-live="polite">
+        <div class="auth-route-loading-card">
+            <strong>Checking sign-in...</strong>
+            <p>Zam is confirming whether this browser can open the app.</p>
+        </div>
+    </div>
     <header class="app-header">
-        <a href="index.html" class="logo" aria-label="Zam! home">Zam!</a>
+        <a href="/app" class="logo" aria-label="Zam! home">Zam!</a>
 
         <div class="header-controls">
             <button class="icon-btn" id="settingsBtn" onclick="window.openSettingsModal()" aria-label="Settings" data-tooltip="Settings">
@@ -76,7 +124,7 @@
             </div>
 
             <div class="auth-buttons">
-                <a href="login.html" class="btn-text login-cta" data-tooltip="Sign In">
+                <a href="/login" class="btn-text login-cta" data-tooltip="Sign In">
                     <span class="login-cta-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" focusable="false"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path></svg>
                     </span>
@@ -1786,8 +1834,8 @@
             });
         })();
     </script>
-    <script src="js/requiredSiteDataCookie.js"></script>
-    <script type="module" src="js/main.js"></script>
+    <script src="/js/requiredSiteDataCookie.js"></script>
+    <script type="module" src="/js/main.js"></script>
 </body>
 </html>
 

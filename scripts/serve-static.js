@@ -22,9 +22,30 @@ const mimeTypes = new Map([
     ['.webp', 'image/webp']
 ]);
 
+const routeAliases = new Map([
+    ['/login', 'login.html'],
+    ['/auth/callback', 'login.html'],
+    ['/app', 'index.html'],
+    ['/app/settings', 'index.html'],
+    ['/app/import', 'index.html'],
+    ['/app/export', 'index.html'],
+    ['/app/cloud-sync', 'index.html'],
+    ['/app/billing', 'index.html'],
+    ['/app/account', 'index.html'],
+    ['/app/recovery', 'index.html'],
+    ['/app/premium', 'index.html'],
+    ['/demo', 'index.html'],
+    ['/privacy', 'privacypolicy.html'],
+    ['/terms', 'terms.html'],
+    ['/site-data', 'privacypolicy.html']
+]);
+
 function resolveRequestPath(requestUrl) {
     const url = new URL(requestUrl, `http://127.0.0.1:${port}`);
-    const decodedPath = decodeURIComponent(url.pathname);
+    const aliasPath = url.pathname.replace(/\/+$/, '') || '/';
+    const aliasedFile = routeAliases.get(aliasPath)
+        || (aliasPath.startsWith('/app/') ? 'index.html' : '');
+    const decodedPath = aliasedFile ? `/${aliasedFile}` : decodeURIComponent(url.pathname);
     const normalized = path.normalize(decodedPath).replace(/^(\.\.[/\\])+/, '');
     const filePath = path.join(root, normalized);
     const relative = path.relative(root, filePath);

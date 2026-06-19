@@ -1,6 +1,6 @@
 # Auth Cutover Checklist
 
-Last updated: 2026-06-18
+Last updated: 2026-06-19
 
 Use this checklist whenever app auth, Supabase Auth, SMTP, Proton Mail, OAuth, or app-domain routing changes.
 
@@ -34,8 +34,9 @@ Supabase Auth URL configuration:
 - Redirect URLs must allow the production app:
   - `https://app.zambudget.com`
   - `https://app.zambudget.com/`
-  - `https://app.zambudget.com/index.html`
-  - `https://app.zambudget.com/login.html`
+  - `https://app.zambudget.com/login`
+  - `https://app.zambudget.com/auth/callback`
+  - `https://app.zambudget.com/app`
   - `https://app.zambudget.com/**` if using wildcard redirect rules
 - Remove old-brand URLs such as `https://app.budget-buddy.io/**` unless a deliberate temporary migration is active.
 - Do not leave `localhost` or `127.0.0.1` redirect URLs enabled for production unless local auth testing is intentionally in scope for that session.
@@ -75,6 +76,7 @@ Current guardrail:
 - `login.html` uses `getAuthRedirectUrl(...)`.
 - `js/ui.js` uses `getAuthRedirectUrl(...)` for password reset.
 - On `localhost` and `127.0.0.1`, auth redirects fall back to `https://app.zambudget.com`.
+- Login and OAuth callbacks should target `/auth/callback`, then redirect to `/app`.
 
 Do not replace these helpers with `new URL(..., window.location.href)` for Supabase auth emails unless local auth redirect testing is deliberately reintroduced and documented.
 
@@ -95,7 +97,7 @@ After changing auth settings:
 - Confirm `From` uses a `zambudget.com` sender.
 - Confirm subject/body say `Zam!`.
 - Confirm support address is `support@zambudget.com`.
-- Confirm the auth link redirects to `https://app.zambudget.com/...`.
+- Confirm the auth link redirects through `https://app.zambudget.com/auth/callback` and lands on `https://app.zambudget.com/app`.
 - Confirm no `budget-buddy.io`, `BudgetBuddy`, `localhost`, or `127.0.0.1` remains.
 - Confirm login and demo smoke tests still pass.
 - If `AUTH_SMOKE_LINK_COMMAND` is configured, run the production magic-link canary:

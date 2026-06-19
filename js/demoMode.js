@@ -166,6 +166,8 @@ function sessionRemove(key) {
 
 function demoRequested() {
     try {
+        const path = window.location.pathname.replace(/\/+$/, '') || '/';
+        if (path === '/demo') return true;
         const params = new URLSearchParams(window.location.search);
         const value = params.get(DEMO_QUERY_PARAM);
         return value === '1' || value === 'true';
@@ -437,22 +439,29 @@ function markDemoEnded(reason) {
 function cleanAppUrl(extraParams = {}) {
     try {
         const url = new URL(window.location.href);
+        const isDemoPath = url.pathname.replace(/\/+$/, '') === '/demo';
         url.searchParams.delete(DEMO_QUERY_PARAM);
         Object.entries(extraParams).forEach(([key, value]) => {
             if (value === null || value === undefined || value === '') url.searchParams.delete(key);
             else url.searchParams.set(key, value);
         });
+        if (isDemoPath && !url.searchParams.has(DEMO_QUERY_PARAM)) {
+            return new URL('/app', window.location.origin).toString();
+        }
+        if (isDemoPath && url.searchParams.get(DEMO_QUERY_PARAM)) {
+            url.searchParams.delete(DEMO_QUERY_PARAM);
+        }
         return url.toString();
     } catch {
-        return 'index.html';
+        return '/app';
     }
 }
 
 function loginUrl() {
     try {
-        return new URL('login.html', window.location.href).toString();
+        return new URL('/login', window.location.origin).toString();
     } catch {
-        return 'login.html';
+        return '/login';
     }
 }
 

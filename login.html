@@ -7,13 +7,13 @@
     <title>Sign In - Zam!</title>
 
     <!-- Shared CSS Framework -->
-    <link rel="stylesheet" href="css/variables.css">
-    <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/components.css">
-    <link rel="stylesheet" href="css/utilities.css">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/utilities.css">
 
   <!-- Supabase JS -->
-    <script src="js/vendor/supabase.js"></script>
+    <script src="/js/vendor/supabase.js"></script>
 
     <style>
         /* Local overrides if needed, but mostly using shared classes */
@@ -295,7 +295,7 @@
         </div>
     </noscript>
     <header class="app-header">
-        <a href="index.html" class="logo">Zam!</a>
+        <a href="/" class="logo">Zam!</a>
 
         <div class="header-controls">
             <div class="theme-toggle-group" role="group" aria-label="Theme selection">
@@ -305,7 +305,7 @@
             </div>
 
             <div class="auth-buttons">
-                <a href="index.html" class="btn-text footer-back-btn" data-tooltip="Back to App">Back to App</a>
+                <a href="/app" class="btn-text footer-back-btn" data-tooltip="Back to App">Back to App</a>
             </div>
         </div>
     </header>
@@ -386,6 +386,7 @@
     var magicLinkRequestInFlight = false;
     var MAGIC_LINK_RATE_LIMIT_SECONDS = 60;
     var MAGIC_LINK_COOLDOWN_STORAGE_KEY = 'zam_magic_link_cooldown_until';
+    var AUTH_RETURN_TO_STORAGE_KEY = 'zam_auth_return_to';
     var PRODUCTION_APP_ORIGIN = 'https://app.zambudget.com';
     var LOCAL_AUTH_HOSTS = ['localhost', '127.0.0.1', ''];
 
@@ -422,7 +423,7 @@
 
     async function loadCredentials() {
         try {
-            var res = await fetch('./config.json');
+            var res = await fetch('/config.json');
             if (!res.ok) throw new Error('Config not found');
             var config = await res.json();
             SUPABASE_URL = config.supabaseUrl || '';
@@ -443,8 +444,56 @@
     function getAuthRedirectUrl(path) {
         var base = isLocalAuthHost()
             ? PRODUCTION_APP_ORIGIN + '/'
-            : window.location.href;
+            : window.location.origin + '/';
         return new URL(path, base).href;
+    }
+
+    function sanitizeReturnToPath(rawReturnTo) {
+        try {
+            if (!rawReturnTo) return '';
+            var returnUrl = new URL(rawReturnTo, window.location.origin);
+            if (returnUrl.origin !== window.location.origin) return '';
+            if (returnUrl.pathname !== '/app' && !returnUrl.pathname.startsWith('/app/')) return '';
+            return returnUrl.pathname + returnUrl.search;
+        } catch (error) {
+            return '';
+        }
+    }
+
+    function getSafeReturnToPath() {
+        var params = new URLSearchParams(window.location.search);
+        return sanitizeReturnToPath(params.get('returnTo'));
+    }
+
+    function getStoredReturnToPath() {
+        try {
+            return sanitizeReturnToPath(sessionStorage.getItem(AUTH_RETURN_TO_STORAGE_KEY));
+        } catch (error) {
+            return '';
+        }
+    }
+
+    function rememberReturnToPath() {
+        try {
+            var returnTo = getSafeReturnToPath();
+            if (returnTo) sessionStorage.setItem(AUTH_RETURN_TO_STORAGE_KEY, returnTo);
+        } catch (error) {
+            // Storage failures should not block sign-in.
+        }
+    }
+
+    function getCallbackRedirectUrl() {
+        return getAuthRedirectUrl('auth/callback');
+    }
+
+    function redirectToApp() {
+        var returnTo = getSafeReturnToPath() || getStoredReturnToPath();
+        try {
+            sessionStorage.removeItem(AUTH_RETURN_TO_STORAGE_KEY);
+        } catch (error) {
+            // Best-effort cleanup only.
+        }
+        window.location.replace(returnTo || '/app');
     }
 
     function showAuthMessage(text, type) {
@@ -622,7 +671,7 @@
         // Check if already logged in
         var { data: { session } } = await sb.auth.getSession();
         if (session && initialMessage !== 'accountDeleted') {
-            window.location.href = 'index.html'; // Redirects active users away from login
+            redirectToApp(); // Redirects active users away from login
         }
     })();
 
@@ -639,11 +688,12 @@
 
         btn.disabled = true;
         msg.style.display = 'none';
+        rememberReturnToPath();
 
         var { error } = await sb.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: getAuthRedirectUrl('index.html')
+                redirectTo: getCallbackRedirectUrl()
             }
         });
 
@@ -668,11 +718,12 @@
 
         btn.disabled = true;
         msg.style.display = 'none';
+        rememberReturnToPath();
 
         var { error } = await sb.auth.signInWithOAuth({
             provider: 'apple',
             options: {
-                redirectTo: getAuthRedirectUrl('index.html')
+                redirectTo: getCallbackRedirectUrl()
             }
         });
 
@@ -707,6 +758,7 @@
 
         magicLinkRequestInFlight = true;
         setMagicLinkButtonState(true, 'Sending link...');
+        rememberReturnToPath();
         var msg = document.getElementById('authMessage');
         if (msg) msg.style.display = 'none';
 
@@ -714,7 +766,7 @@
             var { error } = await sb.auth.signInWithOtp({
                 email: email,
                 options: {
-                    emailRedirectTo: getAuthRedirectUrl('index.html'),
+                    emailRedirectTo: getCallbackRedirectUrl(),
                     shouldCreateUser: authMode === 'signup'
                 }
             });
@@ -774,7 +826,7 @@
         }
     }
     </script>
-    <script src="js/staticPageTheme.js"></script>
-    <script src="js/requiredSiteDataCookie.js"></script>
+    <script src="/js/staticPageTheme.js"></script>
+    <script src="/js/requiredSiteDataCookie.js"></script>
 </body>
 </html>

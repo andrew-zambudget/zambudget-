@@ -1,6 +1,6 @@
 # Auth Magic-Link Monitoring
 
-Last updated: 2026-06-18
+Last updated: 2026-06-19
 
 ## Purpose
 
@@ -132,7 +132,7 @@ The canary verifies:
 - mailbox hook can retrieve the link
 - magic-link callback starts
 - Supabase creates a browser session
-- `index.html` dashboard loads
+- `/app` dashboard loads
 - `window.currentUser` matches the test account
 - Cloud Sync status is readable
 - no auth/recovery/Cloud Sync critical console errors were observed
@@ -155,7 +155,7 @@ This monitor does not test:
 1. Confirm `auth-smoke@zambudget.com` exists in Supabase Auth.
 2. Confirm the account can receive Zam magic-link emails.
 3. Confirm Supabase Auth Site URL is `https://app.zambudget.com`.
-4. Confirm redirect URLs include `https://app.zambudget.com/index.html`.
+4. Confirm redirect URLs include `https://app.zambudget.com/auth/callback` and `https://app.zambudget.com/app`.
 5. Add `AUTH_SMOKE_LINK_COMMAND` as a masked/protected GitLab CI/CD variable.
 6. Add `AUTH_SMOKE_ALERT_WEBHOOK_URL` if alerting should leave GitLab.
 7. Run a manual pipeline with `RUN_AUTH_MAGIC_LINK_CANARY=1`.

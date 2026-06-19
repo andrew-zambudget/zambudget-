@@ -37,7 +37,7 @@ test.describe('Zam! authenticated smoke', () => {
     });
 
     test('dedicated test account can sign in and load the app shell', async ({ page }) => {
-        await page.goto('/login.html');
+        await page.goto('/login');
         await expect(page.locator('#magicEmail')).toBeVisible();
 
         const signInResult = await page.evaluate(async ({ email, password }) => {
@@ -70,7 +70,7 @@ test.describe('Zam! authenticated smoke', () => {
         }));
         expect(signInResult.email.toLowerCase()).toBe(TEST_EMAIL.toLowerCase());
 
-        await page.goto('/index.html');
+        await page.goto('/app');
         await expect(page.locator('.app-header')).toBeVisible();
         await expect(page.locator('.btn-avatar')).toBeVisible({ timeout: 15000 });
 

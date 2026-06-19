@@ -77,7 +77,7 @@ Account deletion also requires recent login verification. If the signed-in sessi
 
 1. Signed-in users click Upgrade.
 2. `billing-create-checkout` creates the Checkout Session server-side.
-3. Stripe redirects back to `index.html?payment=success&session_id=...`.
+3. Stripe redirects back to `/app?payment=success&session_id=...`.
 4. The app calls `billing-status` with that session ID.
 5. Premium turns on only after the server confirms an active subscription.
 6. Stripe webhooks keep `billing_profiles` current after future renewals, cancellation, or status changes.

@@ -195,7 +195,7 @@ function shouldTreatConsoleAsCritical(message) {
 }
 
 async function requestMagicLink(page) {
-    await page.goto(`${config.appUrl}/login.html`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.goto(`${config.appUrl}/login`, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForSelector('#magicEmail', { timeout: 15000 });
     await page.fill('#magicEmail', config.email);
     await page.click('#magicLinkBtn');
