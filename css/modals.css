@@ -1700,17 +1700,6 @@ body::before {
   z-index: 9999;
 }
 
-/* --- 6. NOSCRIPT FALLBACK --- */
-noscript div,
-.noscript-fallback {
-  padding: 2rem;
-  text-align: center;
-  background: var(--red-bg, #fee2e2);
-  color: var(--red);
-  margin: 2rem;
-  border-radius: 8px;
-}
-
 /* --- 7. SCROLLBAR (Webkit) --- */
 ::-webkit-scrollbar {
   width: 6px;

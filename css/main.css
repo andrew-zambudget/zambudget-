@@ -862,6 +862,36 @@ footer {
   main { padding: 1.5rem 1rem; }
 }
 
+/* Required browser capability fallback */
+.noscript-fallback {
+  width: min(680px, calc(100vw - 2rem));
+  margin: 1.25rem auto;
+  padding: 1.25rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 28px var(--shadow);
+  text-align: left;
+}
+
+.noscript-fallback h3 {
+  margin: 0 0 0.45rem;
+  font-size: 1rem;
+}
+
+.noscript-fallback p {
+  margin: 0.35rem 0 0;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.noscript-fallback a {
+  color: var(--accent);
+  font-weight: 800;
+}
+
 /* PRODUCTION UPGRADE: Fixed Touch Target Conflicts. 
    Safely excludes icon buttons and theme options from being stretched unnaturally. */
 @media (max-width: 1024px) {
