@@ -8878,20 +8878,20 @@ input.error, select.error {
 }
 
 #view-add .hidden-details-drawer .transaction-edit-date-picker {
-    left: 50%;
+    position: fixed;
+    top: var(--add-date-picker-top, max(4.75rem, env(safe-area-inset-top)));
+    left: var(--add-date-picker-left, 50%);
     right: auto;
     width: min(21rem, calc(100vw - 2rem));
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     transform: translateX(-50%);
 }
 
 @media (max-width: 640px) {
     #view-add .hidden-details-drawer .transaction-edit-date-picker {
-        position: fixed;
-        top: max(4.75rem, env(safe-area-inset-top));
         bottom: auto;
-        max-height: calc(100dvh - 6rem);
-        overflow-y: auto;
-        overscroll-behavior: contain;
     }
 }
 

@@ -9159,6 +9159,36 @@ function renderAddDatePicker() {
     `;
 }
 
+function positionAddDatePicker() {
+    const picker = document.getElementById('addDatePicker');
+    const trigger = document.getElementById('txDateTrigger');
+    if (!picker || !trigger || picker.hidden) return;
+
+    const margin = 16;
+    const viewportWidth = window.visualViewport?.width || window.innerWidth || document.documentElement.clientWidth || 0;
+    const viewportHeight = window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight || 0;
+    const triggerRect = trigger.getBoundingClientRect();
+    const pickerRect = picker.getBoundingClientRect();
+    const pickerWidth = pickerRect.width || Math.min(336, viewportWidth - (margin * 2));
+    const pickerHeight = pickerRect.height || 380;
+
+    let left = triggerRect.left + (triggerRect.width / 2);
+    left = Math.max(margin + (pickerWidth / 2), Math.min(left, viewportWidth - margin - (pickerWidth / 2)));
+
+    const maxTop = Math.max(margin, viewportHeight - margin - pickerHeight);
+    let top = triggerRect.bottom + 8;
+    if (top + pickerHeight > viewportHeight - margin) {
+        const aboveTop = triggerRect.top - pickerHeight - 8;
+        top = aboveTop >= margin && aboveTop <= maxTop
+            ? aboveTop
+            : maxTop;
+    }
+    top = Math.max(margin, Math.min(top, maxTop));
+
+    picker.style.setProperty('--add-date-picker-left', `${Math.round(left)}px`);
+    picker.style.setProperty('--add-date-picker-top', `${Math.round(top)}px`);
+}
+
 function bindAddDatePickerEvents() {
     const trigger = document.getElementById('txDateTrigger');
     if (!trigger || trigger.dataset.addDatePickerBound) return;
@@ -9177,6 +9207,8 @@ export function openAddDatePicker(event) {
     renderAddDatePicker();
     picker.hidden = false;
     trigger?.setAttribute('aria-expanded', 'true');
+    positionAddDatePicker();
+    window.requestAnimationFrame(positionAddDatePicker);
 }
 
 export function closeAddDatePicker() {
@@ -9185,6 +9217,8 @@ export function closeAddDatePicker() {
     if (!picker) return;
 
     picker.hidden = true;
+    picker.style.removeProperty('--add-date-picker-left');
+    picker.style.removeProperty('--add-date-picker-top');
     trigger?.setAttribute('aria-expanded', 'false');
 }
 
@@ -9204,6 +9238,7 @@ export function moveAddDatePickerMonth(delta = 0) {
     const cursor = getAddDatePickerCursorDate();
     addDatePickerCursor = new Date(cursor.getFullYear(), cursor.getMonth() + Number(delta || 0), 1);
     renderAddDatePicker();
+    positionAddDatePicker();
 }
 
 export function selectAddDatePickerDate(dateKey) {
