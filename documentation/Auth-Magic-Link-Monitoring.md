@@ -60,7 +60,7 @@ $env:AUTH_SMOKE_MAGIC_LINK_FILE='C:\temp\zam-auth-link.txt'
 npm run auth:smoke
 ```
 
-Paste the received magic link into that file while the script waits. Do not commit the file.
+Paste the received magic link into that file while the script waits. Save the file after the canary has requested the new link; stale file contents from an earlier run are ignored. Do not commit the file.
 
 ## Optional Variables
 

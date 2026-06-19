@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { chromium } from 'playwright';
-import { appendFile, mkdir, readFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, stat } from 'node:fs/promises';
 import { exec } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -149,6 +149,11 @@ function runLinkCommand(requestedAtIso) {
 async function readLinkSource(requestedAtIso) {
     if (config.linkFile) {
         try {
+            const fileStats = await stat(config.linkFile);
+            const requestedAtMs = Date.parse(requestedAtIso);
+            if (Number.isFinite(requestedAtMs) && fileStats.mtimeMs < requestedAtMs) {
+                return '';
+            }
             return await readFile(config.linkFile, 'utf8');
         } catch {
             return '';
