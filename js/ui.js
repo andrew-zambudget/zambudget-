@@ -11,6 +11,8 @@ let addLastSavedPreview = null;
 let lastMobileCommandTab = 'income';
 let mobileCommandNavInitialized = false;
 let addDatePickerCursor = null;
+let giftCardModalDatePickerCursor = null;
+let activeGiftCardModalDateField = '';
 const privacyTimers = new Map();
 const privacyScrambleTimers = new Map();
 const PRIVACY_SCRAMBLE_INTERVAL_MS = 900;
@@ -33,10 +35,30 @@ const GIFT_CARD_PAYMENT_METHOD = 'gift_card';
 const ADD_TX_PAYMENT_METHODS = new Set(['', 'card', 'cash', 'bank', GIFT_CARD_PAYMENT_METHOD]);
 const GIFT_CARD_NAME_MAX_LENGTH = 32;
 const GIFT_CARD_NUMBER_MAX_LENGTH = 80;
-const GIFT_CARD_MERCHANT_CACHE_KEY = 'bb_gift_card_merchant_metadata_v1';
+const GIFT_CARD_MERCHANT_CACHE_KEY = 'zam_gift_card_merchant_metadata_v1';
+const LEGACY_GIFT_CARD_MERCHANT_CACHE_KEY = 'bb_gift_card_merchant_metadata_v1';
 const GIFT_CARD_MERCHANT_BUNDLE_URL = 'data/gift-card-merchants.v1.json';
 const GIFT_CARD_MERCHANT_BUNDLE_VERSION = 1;
 const GIFT_CARD_MERCHANT_SUGGESTION_LIMIT = 8;
+const GIFT_CARD_FALLBACK_MERCHANTS = [
+    'Starbucks',
+    'Amazon',
+    'Target',
+    'Walmart',
+    'Apple',
+    'Google Play',
+    'Best Buy',
+    'Costco',
+    'Home Depot',
+    "Lowe's",
+    'Chipotle',
+    'DoorDash',
+    'Uber Eats',
+    'Steam',
+    'PlayStation',
+    'Xbox',
+    'Nintendo'
+];
 const COMMAND_TAB_NAMES = new Set(['income', 'savings', 'debt', 'add', 'calendar', 'recent']);
 const EMERGENCY_FUND_RECOMMENDATION_TOLERANCE = 0.005;
 const BUDDY_CLOUD_RECENT_RESTORE_PREFIX = 'bb_cloud_recent_restore_';
@@ -52,6 +74,27 @@ let calendarCursorDate = new Date(new Date().getFullYear(), new Date().getMonth(
 let selectedCalendarDateKey = '';
 let giftCardMerchantCache = null;
 let giftCardMerchantCachePromise = null;
+let lastGiftCardModalSavedId = '';
+
+function migrateGiftCardMerchantCacheKey() {
+    try {
+        const legacy = localStorage.getItem(LEGACY_GIFT_CARD_MERCHANT_CACHE_KEY);
+        if (!legacy) return;
+
+        if (!localStorage.getItem(GIFT_CARD_MERCHANT_CACHE_KEY)) {
+            const migrated = legacy.replace(
+                /"kind"\s*:\s*"budgetbuddy_gift_card_merchant_metadata"/,
+                '"kind":"zam_gift_card_merchant_metadata"'
+            );
+            localStorage.setItem(GIFT_CARD_MERCHANT_CACHE_KEY, migrated);
+        }
+        localStorage.removeItem(LEGACY_GIFT_CARD_MERCHANT_CACHE_KEY);
+    } catch {
+        // Cache migration is best-effort and must not block app startup.
+    }
+}
+
+migrateGiftCardMerchantCacheKey();
 const DESCRIPTION_ROLLOVER_SUGGESTIONS = [
     'Rent',
     'Mortgage',
@@ -4980,6 +5023,7 @@ export function renderCategoryList() {
     const listContainer = document.getElementById('categoryList');
     const countEl = document.getElementById('sortCatCount');
     if (!listContainer) return;
+    renderGiftCardManagerList();
     syncCategorySortSelect();
     syncCategoryCalendarMonthLabel();
 
@@ -7731,6 +7775,7 @@ export function closeModalOnOutsideClick(event) {
         else if (modalId === 'resetConfirmModal') closeResetModal();
         else if (modalId === 'incomeSourceModal') window.closeIncomeSourceModal();
         else if (modalId === 'categoryModal') closeCategoryModal();
+        else if (modalId === 'giftCardModal') closeGiftCardModal();
         else if (modalId === 'csvImportReviewModal') window.closeCsvImportReviewModal();
         else if (modalId === 'csvImportFeedbackModal') window.closeCsvImportFeedbackModal();
         else if (modalId === 'reassignCategoryModal') closeModal('reassignCategoryModal');
@@ -8245,13 +8290,13 @@ function getGiftCardsForAddForm() {
     return State.getGiftCards ? State.getGiftCards() : [];
 }
 
-function getGiftCardLast4(cardNumber = '') {
-    return String(cardNumber || '').replace(/\s+/g, '').slice(-4);
+function getGiftCardLast4(value = '') {
+    return String(value || '').replace(/\s+/g, '').slice(-4);
 }
 
 function formatGiftCardName(card = {}) {
-    const last4 = getGiftCardLast4(card.cardNumber);
-    return `${card.name || 'Gift Card'}${last4 ? ` - ${last4}` : ''}`;
+    const last4 = getGiftCardLast4(card.lastFour);
+    return `${card.displayName || card.nickname || card.merchantName || card.name || 'Gift Card'}${last4 ? ` - ${last4}` : ''}`;
 }
 
 function normalizeGiftCardMerchantText(value = '', maxLength = 80) {
@@ -8302,7 +8347,7 @@ function normalizeGiftCardMerchantBundle(bundle = {}) {
     if (!merchants.length) throw new Error('Gift card merchant bundle is empty.');
 
     return {
-        kind: 'budgetbuddy_gift_card_merchant_metadata',
+        kind: 'zam_gift_card_merchant_metadata',
         version: Number.parseInt(bundle.version, 10) || GIFT_CARD_MERCHANT_BUNDLE_VERSION,
         updatedAt: normalizeGiftCardMerchantText(bundle.updatedAt, 24),
         cachedAt: normalizeGiftCardMerchantText(bundle.cachedAt, 32) || new Date().toISOString(),
@@ -8314,12 +8359,16 @@ function readGiftCardMerchantCache() {
     if (giftCardMerchantCache) return giftCardMerchantCache;
 
     try {
-        const raw = localStorage.getItem(GIFT_CARD_MERCHANT_CACHE_KEY);
+        const raw = localStorage.getItem(GIFT_CARD_MERCHANT_CACHE_KEY)
+            || localStorage.getItem(LEGACY_GIFT_CARD_MERCHANT_CACHE_KEY);
         if (!raw) return null;
         giftCardMerchantCache = normalizeGiftCardMerchantBundle(JSON.parse(raw));
+        localStorage.setItem(GIFT_CARD_MERCHANT_CACHE_KEY, JSON.stringify(giftCardMerchantCache));
+        localStorage.removeItem(LEGACY_GIFT_CARD_MERCHANT_CACHE_KEY);
         return giftCardMerchantCache;
     } catch {
         localStorage.removeItem(GIFT_CARD_MERCHANT_CACHE_KEY);
+        localStorage.removeItem(LEGACY_GIFT_CARD_MERCHANT_CACHE_KEY);
         giftCardMerchantCache = null;
         return null;
     }
@@ -8394,6 +8443,7 @@ async function downloadGiftCardMerchantCache(options = {}) {
 function clearGiftCardMerchantCache() {
     try {
         localStorage.removeItem(GIFT_CARD_MERCHANT_CACHE_KEY);
+        localStorage.removeItem(LEGACY_GIFT_CARD_MERCHANT_CACHE_KEY);
     } catch {
         // Local cache cleanup is best-effort.
     }
@@ -8461,14 +8511,12 @@ function getGiftCardNumberLengthHint(lengths = []) {
 }
 
 function applyGiftCardMerchantHints(merchant = null) {
-    const numberInput = document.getElementById('giftCardNumber');
+    const lastFourInput = document.getElementById('giftCardLastFour');
     const totalInput = document.getElementById('giftCardTotalAmount');
     renderGiftCardDenominationOptions(merchant?.denominations || []);
 
-    if (numberInput) {
-        const lengthHint = getGiftCardNumberLengthHint(merchant?.cardNumberLengths || []);
-        const pinHint = merchant?.hasPin ? ' + PIN' : '';
-        numberInput.placeholder = lengthHint ? `${lengthHint}${pinHint}` : 'Card number or code';
+    if (lastFourInput) {
+        lastFourInput.placeholder = 'Last 4 only';
     }
     if (totalInput && merchant?.denominations?.length) {
         totalInput.placeholder = formatMoney(merchant.denominations[0]);
@@ -8536,6 +8584,598 @@ function getGiftCardExpirationLabel(expirationDate = '') {
     return `Expires ${formatDate(expirationDate)}`;
 }
 
+function getGiftCardById(cardId = '') {
+    const cards = State.getAllGiftCards?.() || State.getGiftCards?.() || [];
+    return cards.find(card => String(card.id) === String(cardId)) || null;
+}
+
+function renderGiftCardManagerList() {
+    const section = document.getElementById('giftCardManagerSection');
+    const list = document.getElementById('giftCardManagerList');
+    const count = document.getElementById('giftCardManagerCount');
+    const toggle = document.getElementById('giftCardManagerToggleBtn');
+    if (!section || !list) return;
+
+    const cards = State.getGiftCards?.() || [];
+    const isVisible = State.getShowGiftCardManager ? State.getShowGiftCardManager() : true;
+    section.classList.toggle('is-collapsed', !isVisible);
+    list.hidden = !isVisible;
+    if (toggle) {
+        toggle.textContent = isVisible ? 'Hide' : 'Show';
+        toggle.setAttribute('aria-expanded', isVisible ? 'true' : 'false');
+        toggle.setAttribute('aria-controls', 'giftCardManagerList');
+    }
+    if (count) {
+        count.textContent = isVisible
+            ? `${cards.length} ${cards.length === 1 ? 'tracked card' : 'tracked cards'}`
+            : 'Hidden';
+    }
+    if (!isVisible) {
+        list.innerHTML = '';
+        return;
+    }
+
+    if (!cards.length) {
+        list.innerHTML = `
+            <div class="gift-card-manager-empty">
+                No tracked gift cards yet. Add one here, then use it as a Pay With option when logging an expense.
+            </div>
+        `;
+        return;
+    }
+
+    const symbol = State.getSymbol ? State.getSymbol() : '$';
+    list.innerHTML = cards.map(card => {
+        const original = Math.max(0, Number(card.originalAmount ?? card.totalAmount) || 0);
+        const amountLeft = Math.max(0, Number(card.amountLeft ?? card.currentBalance) || 0);
+        const remainingPercent = original > 0 ? Math.max(0, Math.min(100, (amountLeft / original) * 100)) : 0;
+        const isEmpty = amountLeft <= 0.005;
+        const lastFour = getGiftCardLast4(card.lastFour);
+        const expiration = getGiftCardExpirationLabel(card.expirationDate);
+        const displayName = card.displayName || card.nickname || card.merchantName || card.name || 'Gift Card';
+        return `
+            <button type="button" class="gift-card-card${isEmpty ? ' is-empty' : ''}" onclick="window.openGiftCardModal('edit', ${jsArg(card.id)})" aria-label="Edit ${esc(displayName)}">
+                <div class="gift-card-card-head">
+                    <div class="gift-card-card-title">${esc(displayName)}</div>
+                    <div class="gift-card-card-balance">${symbol}${formatMoney(amountLeft)} left of ${symbol}${formatMoney(original)}</div>
+                </div>
+                <div class="gift-card-card-progress" aria-hidden="true">
+                    <span style="--gift-card-progress: ${remainingPercent.toFixed(1)}%;"></span>
+                </div>
+                <div class="gift-card-card-meta">
+                    <span>${isEmpty ? 'Empty' : `${remainingPercent.toFixed(0)}% remaining`}</span>
+                    ${lastFour ? `<span>&bull;&bull;&bull;&bull; ${esc(lastFour)}</span>` : ''}
+                    <span>${esc(expiration)}</span>
+                </div>
+            </button>
+        `;
+    }).join('');
+}
+
+export function toggleGiftCardManagerVisibility() {
+    const current = State.getShowGiftCardManager ? State.getShowGiftCardManager() : true;
+    State.setShowGiftCardManager?.(!current);
+    renderGiftCardManagerList();
+    observeLocalSave(current ? 'Gift card section hidden partially.' : 'Gift card section shown partially.');
+    showToast(current ? 'Gift card section hidden.' : 'Gift card section shown.');
+}
+
+function setGiftCardModalError(message = '') {
+    const error = document.getElementById('giftCardModalError');
+    if (error) error.textContent = message;
+}
+
+function setGiftCardModalSuccessVisible(isVisible) {
+    const success = document.getElementById('giftCardModalSuccess');
+    if (success) success.hidden = !isVisible;
+    const actions = document.querySelector('#giftCardModal .gift-card-modal-actions');
+    if (actions) actions.hidden = Boolean(isVisible);
+}
+
+function renderGiftCardModalMerchantOptions(query = '') {
+    const datalist = document.getElementById('giftCardModalMerchantOptions');
+    if (!datalist) return;
+
+    const cacheSuggestions = getGiftCardMerchantSuggestions(query);
+    const needle = normalizeGiftCardMerchantToken(query);
+    const fallback = GIFT_CARD_FALLBACK_MERCHANTS
+        .filter(name => !needle || normalizeGiftCardMerchantToken(name).includes(needle))
+        .map(canonicalName => ({ canonicalName }));
+    const seen = new Set();
+    const merged = [...cacheSuggestions, ...fallback]
+        .filter(merchant => {
+            const name = String(merchant.canonicalName || '').trim();
+            const key = name.toLowerCase();
+            if (!name || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        })
+        .slice(0, GIFT_CARD_MERCHANT_SUGGESTION_LIMIT);
+
+    datalist.innerHTML = merged
+        .map(merchant => `<option value="${esc(merchant.canonicalName)}"></option>`)
+        .join('');
+}
+
+function syncGiftCardModalMerchantHints() {
+    const merchantInput = document.getElementById('giftCardModalMerchant');
+    const originalInput = document.getElementById('giftCardModalOriginalAmount');
+    const query = merchantInput?.value || '';
+    const exact = findGiftCardMerchantByName(query);
+    renderGiftCardModalMerchantOptions(query);
+    if (originalInput && exact?.denominations?.length && !originalInput.value.trim()) {
+        originalInput.placeholder = formatMoney(exact.denominations[0]);
+    } else if (originalInput) {
+        originalInput.placeholder = '50.00';
+    }
+}
+
+function bindGiftCardModalEvents() {
+    const merchantInput = document.getElementById('giftCardModalMerchant');
+    if (merchantInput && !merchantInput.dataset.giftCardModalBound) {
+        merchantInput.dataset.giftCardModalBound = 'true';
+        merchantInput.addEventListener('input', (event) => {
+            syncGiftCardModalMerchantHints();
+            requestGiftCardMerchantCacheForInput(event);
+        });
+        merchantInput.addEventListener('change', syncGiftCardModalMerchantHints);
+    }
+
+    ['giftCardModalOriginalAmount', 'giftCardModalAmountLeft'].forEach(id => {
+        const input = document.getElementById(id);
+        if (!input || input.dataset.giftCardMoneyBound) return;
+        input.dataset.giftCardMoneyBound = 'true';
+        input.addEventListener('input', () => {
+            const sanitized = sanitizeMoneyValue(input.value).slice(0, 13);
+            if (input.value !== sanitized) input.value = sanitized;
+        });
+        input.addEventListener('blur', () => {
+            const amount = parseAddAmountInput(input.value);
+            if (Number.isFinite(amount) && amount >= 0) input.value = formatMoney(amount);
+        });
+    });
+
+    const originalInput = document.getElementById('giftCardModalOriginalAmount');
+    const amountLeftInput = document.getElementById('giftCardModalAmountLeft');
+    if (originalInput && amountLeftInput && !originalInput.dataset.giftCardMirrorBound) {
+        originalInput.dataset.giftCardMirrorBound = 'true';
+        amountLeftInput.addEventListener('input', () => {
+            amountLeftInput.dataset.giftCardTouched = 'true';
+        });
+        originalInput.addEventListener('blur', () => {
+            if (!amountLeftInput.dataset.giftCardTouched && !amountLeftInput.value.trim()) {
+                amountLeftInput.value = originalInput.value;
+            }
+        });
+    }
+
+    const lastFourInput = document.getElementById('giftCardModalLastFour');
+    if (lastFourInput && !lastFourInput.dataset.giftCardLastFourBound) {
+        lastFourInput.dataset.giftCardLastFourBound = 'true';
+        lastFourInput.addEventListener('input', () => {
+            lastFourInput.value = String(lastFourInput.value || '').replace(/\s+/g, '').slice(-4);
+        });
+    }
+}
+
+function getGiftCardModalDateConfig(field = '') {
+    if (field === 'issued') {
+        return {
+            field: 'issued',
+            inputId: 'giftCardModalIssuedDate',
+            triggerId: 'giftCardModalIssuedDateTrigger',
+            pickerId: 'giftCardModalIssuedDatePicker',
+            labelId: 'giftCardModalIssuedDateLabel',
+            subLabelId: 'giftCardModalIssuedDateSubLabel',
+            emptyLabel: 'Not set',
+            emptySubLabel: 'Optional issued date'
+        };
+    }
+    if (field === 'expiration') {
+        return {
+            field: 'expiration',
+            inputId: 'giftCardModalExpirationDate',
+            triggerId: 'giftCardModalExpirationDateTrigger',
+            pickerId: 'giftCardModalExpirationDatePicker',
+            labelId: 'giftCardModalExpirationDateLabel',
+            subLabelId: 'giftCardModalExpirationDateSubLabel',
+            emptyLabel: 'No expiration',
+            emptySubLabel: 'Optional expiration date'
+        };
+    }
+    return null;
+}
+
+function updateGiftCardModalDateDisplay(field = '', value = '') {
+    const config = getGiftCardModalDateConfig(field);
+    if (!config) return;
+    const dateValue = isValidLocalISODate(value) ? value : '';
+    const input = document.getElementById(config.inputId);
+    const label = document.getElementById(config.labelId);
+    const subLabel = document.getElementById(config.subLabelId);
+
+    if (input) input.value = dateValue;
+    if (label) label.textContent = dateValue ? getRelativeEditDateLabel(dateValue) : config.emptyLabel;
+    if (subLabel) subLabel.textContent = dateValue ? (formatCalendarDateLabel(dateValue) || dateValue) : config.emptySubLabel;
+}
+
+function getGiftCardModalDateValue(field = '') {
+    const config = getGiftCardModalDateConfig(field);
+    if (!config) return '';
+    const value = document.getElementById(config.inputId)?.value || '';
+    return isValidLocalISODate(value) ? value : '';
+}
+
+function getGiftCardModalDatePickerCursorDate(field = '') {
+    if (giftCardModalDatePickerCursor instanceof Date && !Number.isNaN(giftCardModalDatePickerCursor.getTime())) {
+        return new Date(giftCardModalDatePickerCursor.getFullYear(), giftCardModalDatePickerCursor.getMonth(), 1);
+    }
+
+    const selected = parseDateKeyLocal(getGiftCardModalDateValue(field)) || new Date();
+    return new Date(selected.getFullYear(), selected.getMonth(), 1);
+}
+
+function renderGiftCardModalDatePicker(field = '') {
+    const config = getGiftCardModalDateConfig(field);
+    if (!config) return;
+    const picker = document.getElementById(config.pickerId);
+    if (!picker) return;
+
+    const cursor = getGiftCardModalDatePickerCursorDate(field);
+    giftCardModalDatePickerCursor = cursor;
+    const selectedKey = getGiftCardModalDateValue(field);
+    const todayKey = getLocalISODate();
+    const monthLabel = new Intl.DateTimeFormat('en-US', {
+        month: 'long',
+        year: 'numeric'
+    }).format(cursor);
+
+    const gridStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1 - cursor.getDay());
+    const days = [];
+    for (let i = 0; i < 42; i += 1) {
+        const day = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
+        const dayKey = getLocalISODate(day);
+        const isOutside = day.getMonth() !== cursor.getMonth();
+        const isSelected = dayKey === selectedKey;
+        const isToday = dayKey === todayKey;
+        days.push(`
+            <button type="button" class="transaction-edit-date-day${isOutside ? ' is-outside' : ''}${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}" onclick="window.selectGiftCardModalDate(${jsArg(field)}, ${jsArg(dayKey)})" aria-label="${esc(formatCalendarDateLabel(dayKey) || dayKey)}" aria-pressed="${isSelected ? 'true' : 'false'}">
+                ${day.getDate()}
+            </button>
+        `);
+    }
+
+    picker.innerHTML = `
+        <div class="transaction-edit-date-picker-head">
+            <button type="button" onclick="window.moveGiftCardModalDatePickerMonth(${jsArg(field)}, -1)" aria-label="Previous month">&lsaquo;</button>
+            <strong>${esc(monthLabel)}</strong>
+            <button type="button" onclick="window.moveGiftCardModalDatePickerMonth(${jsArg(field)}, 1)" aria-label="Next month">&rsaquo;</button>
+        </div>
+        <div class="transaction-edit-date-weekdays" aria-hidden="true">
+            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+        </div>
+        <div class="transaction-edit-date-grid">
+            ${days.join('')}
+        </div>
+        <div class="transaction-edit-date-quick">
+            <button type="button" onclick="window.setGiftCardModalDateToday(${jsArg(field)})">Today</button>
+            <button type="button" onclick="window.clearGiftCardModalDate(${jsArg(field)})">Clear</button>
+        </div>
+    `;
+}
+
+function positionGiftCardModalDatePicker(field = '') {
+    const config = getGiftCardModalDateConfig(field);
+    if (!config) return;
+    const picker = document.getElementById(config.pickerId);
+    const trigger = document.getElementById(config.triggerId);
+    if (!picker || !trigger || picker.hidden) return;
+
+    const margin = 16;
+    const viewportWidth = window.visualViewport?.width || window.innerWidth || document.documentElement.clientWidth || 0;
+    const viewportHeight = window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight || 0;
+    const modalBox = picker.closest('.modal-box');
+    const containerRect = modalBox?.getBoundingClientRect?.() || null;
+    const triggerRect = trigger.getBoundingClientRect();
+    const pickerRect = picker.getBoundingClientRect();
+    const pickerWidth = pickerRect.width || Math.min(336, viewportWidth - (margin * 2));
+    const pickerHeight = pickerRect.height || 380;
+    const containerWidth = containerRect?.width || viewportWidth;
+    const containerHeight = containerRect?.height || viewportHeight;
+
+    let left = containerRect
+        ? (triggerRect.left - containerRect.left) + (triggerRect.width / 2)
+        : triggerRect.left + (triggerRect.width / 2);
+    left = Math.max(margin + (pickerWidth / 2), Math.min(left, containerWidth - margin - (pickerWidth / 2)));
+
+    const maxTop = Math.max(margin, containerHeight - margin - pickerHeight);
+    let top = containerRect
+        ? (triggerRect.bottom - containerRect.top) + 8
+        : triggerRect.bottom + 8;
+    if (top + pickerHeight > containerHeight - margin) {
+        const aboveTop = containerRect
+            ? (triggerRect.top - containerRect.top) - pickerHeight - 8
+            : triggerRect.top - pickerHeight - 8;
+        top = aboveTop >= margin && aboveTop <= maxTop
+            ? aboveTop
+            : maxTop;
+    }
+    top = Math.max(margin, Math.min(top, maxTop));
+
+    picker.style.setProperty('--gift-card-date-picker-left', `${Math.round(left)}px`);
+    picker.style.setProperty('--gift-card-date-picker-top', `${Math.round(top)}px`);
+}
+
+export function closeGiftCardModalDatePicker(field = activeGiftCardModalDateField) {
+    const config = getGiftCardModalDateConfig(field);
+    if (!config) return;
+    const picker = document.getElementById(config.pickerId);
+    const trigger = document.getElementById(config.triggerId);
+    if (!picker) return;
+
+    picker.hidden = true;
+    picker.style.removeProperty('--gift-card-date-picker-left');
+    picker.style.removeProperty('--gift-card-date-picker-top');
+    trigger?.setAttribute('aria-expanded', 'false');
+    if (activeGiftCardModalDateField === field) activeGiftCardModalDateField = '';
+}
+
+function closeAllGiftCardModalDatePickers() {
+    closeGiftCardModalDatePicker('issued');
+    closeGiftCardModalDatePicker('expiration');
+    giftCardModalDatePickerCursor = null;
+}
+
+export function openGiftCardModalDatePicker(event, field = '') {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    const config = getGiftCardModalDateConfig(field);
+    if (!config) return;
+
+    closeAllGiftCardModalDatePickers();
+    activeGiftCardModalDateField = field;
+    giftCardModalDatePickerCursor = getGiftCardModalDatePickerCursorDate(field);
+    renderGiftCardModalDatePicker(field);
+
+    const picker = document.getElementById(config.pickerId);
+    const trigger = document.getElementById(config.triggerId);
+    if (!picker) return;
+    picker.hidden = false;
+    trigger?.setAttribute('aria-expanded', 'true');
+    positionGiftCardModalDatePicker(field);
+    window.requestAnimationFrame(() => positionGiftCardModalDatePicker(field));
+}
+
+export function toggleGiftCardModalDatePicker(event, field = '') {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    const config = getGiftCardModalDateConfig(field);
+    const picker = config ? document.getElementById(config.pickerId) : null;
+    if (!picker || picker.hidden) {
+        openGiftCardModalDatePicker(event, field);
+    } else {
+        closeGiftCardModalDatePicker(field);
+    }
+}
+
+export function moveGiftCardModalDatePickerMonth(field = '', delta = 0) {
+    const cursor = getGiftCardModalDatePickerCursorDate(field);
+    giftCardModalDatePickerCursor = new Date(cursor.getFullYear(), cursor.getMonth() + Number(delta || 0), 1);
+    renderGiftCardModalDatePicker(field);
+    positionGiftCardModalDatePicker(field);
+}
+
+export function selectGiftCardModalDate(field = '', dateKey = '') {
+    if (!isValidLocalISODate(dateKey)) return;
+    updateGiftCardModalDateDisplay(field, dateKey);
+    giftCardModalDatePickerCursor = getGiftCardModalDatePickerCursorDate(field);
+    closeGiftCardModalDatePicker(field);
+    document.getElementById(getGiftCardModalDateConfig(field)?.triggerId)?.focus?.();
+}
+
+export function setGiftCardModalDateToday(field = '') {
+    selectGiftCardModalDate(field, getLocalISODate());
+}
+
+export function clearGiftCardModalDate(field = '') {
+    updateGiftCardModalDateDisplay(field, '');
+    closeGiftCardModalDatePicker(field);
+    document.getElementById(getGiftCardModalDateConfig(field)?.triggerId)?.focus?.();
+}
+
+export function openGiftCardModal(mode = 'create', cardId = '') {
+    if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess(mode === 'edit' ? 'edit gift card' : 'add gift card')) return;
+
+    const card = mode === 'edit' ? getGiftCardById(cardId) : null;
+    const modal = document.getElementById('giftCardModal');
+    if (!modal) return;
+
+    bindGiftCardModalEvents();
+    setGiftCardModalError('');
+    setGiftCardModalSuccessVisible(false);
+    lastGiftCardModalSavedId = '';
+
+    const title = document.getElementById('giftCardModalTitle');
+    const idInput = document.getElementById('giftCardModalId');
+    const modeInput = document.getElementById('giftCardModalMode');
+    const merchantInput = document.getElementById('giftCardModalMerchant');
+    const nicknameInput = document.getElementById('giftCardModalNickname');
+    const originalInput = document.getElementById('giftCardModalOriginalAmount');
+    const amountLeftInput = document.getElementById('giftCardModalAmountLeft');
+    const lastFourInput = document.getElementById('giftCardModalLastFour');
+    const reloadableInput = document.getElementById('giftCardModalReloadable');
+    const issuedInput = document.getElementById('giftCardModalIssuedDate');
+    const expirationInput = document.getElementById('giftCardModalExpirationDate');
+    const notesInput = document.getElementById('giftCardModalNotes');
+    const submitBtn = document.getElementById('giftCardModalSubmitBtn');
+    const archiveBtn = document.getElementById('giftCardModalArchiveBtn');
+    const deleteBtn = document.getElementById('giftCardModalDeleteBtn');
+
+    const isEdit = Boolean(card);
+    if (title) title.textContent = isEdit ? 'Edit Gift Card' : 'Add Gift Card';
+    if (idInput) idInput.value = isEdit ? card.id : '';
+    if (modeInput) modeInput.value = isEdit ? 'edit' : 'create';
+    if (merchantInput) merchantInput.value = isEdit ? (card.merchantName || '') : '';
+    if (nicknameInput) nicknameInput.value = isEdit ? (card.nickname || '') : '';
+    if (originalInput) originalInput.value = isEdit ? formatMoney(card.originalAmount ?? card.totalAmount ?? 0) : '';
+    if (amountLeftInput) {
+        amountLeftInput.value = isEdit ? formatMoney(card.amountLeft ?? card.currentBalance ?? 0) : '';
+        delete amountLeftInput.dataset.giftCardTouched;
+    }
+    if (lastFourInput) lastFourInput.value = isEdit ? (card.lastFour || '') : '';
+    if (reloadableInput) reloadableInput.checked = isEdit ? card.reloadable === true : false;
+    if (issuedInput) issuedInput.value = isEdit ? (card.issuedDate || '') : '';
+    if (expirationInput) expirationInput.value = isEdit ? (card.expirationDate || '') : '';
+    updateGiftCardModalDateDisplay('issued', issuedInput?.value || '');
+    updateGiftCardModalDateDisplay('expiration', expirationInput?.value || '');
+    if (notesInput) notesInput.value = isEdit ? (card.notes || '') : '';
+    if (submitBtn) submitBtn.textContent = isEdit ? 'Save Gift Card' : 'Save Gift Card';
+    if (archiveBtn) archiveBtn.hidden = !isEdit;
+    if (deleteBtn) deleteBtn.hidden = !isEdit;
+
+    syncGiftCardModalMerchantHints();
+    openModal('giftCardModal');
+    setTimeout(() => merchantInput?.focus?.(), 100);
+}
+
+export function closeGiftCardModal() {
+    closeAllGiftCardModalDatePickers();
+    setGiftCardModalError('');
+    setGiftCardModalSuccessVisible(false);
+    closeModal('giftCardModal');
+}
+
+function readGiftCardModalDraft() {
+    const merchantInput = document.getElementById('giftCardModalMerchant');
+    const nicknameInput = document.getElementById('giftCardModalNickname');
+    const originalInput = document.getElementById('giftCardModalOriginalAmount');
+    const amountLeftInput = document.getElementById('giftCardModalAmountLeft');
+    const lastFourInput = document.getElementById('giftCardModalLastFour');
+    const reloadableInput = document.getElementById('giftCardModalReloadable');
+    const issuedInput = document.getElementById('giftCardModalIssuedDate');
+    const expirationInput = document.getElementById('giftCardModalExpirationDate');
+    const notesInput = document.getElementById('giftCardModalNotes');
+
+    return {
+        merchantName: sanitizeAddText(merchantInput?.value, 64),
+        nickname: sanitizeAddText(nicknameInput?.value, GIFT_CARD_NAME_MAX_LENGTH),
+        originalAmount: parseAddAmountInput(originalInput?.value || '0'),
+        amountLeft: parseAddAmountInput(amountLeftInput?.value || '0'),
+        lastFour: getGiftCardLast4(sanitizeAddText(lastFourInput?.value, 16)),
+        reloadable: reloadableInput?.checked === true,
+        issuedDate: issuedInput?.value || '',
+        expirationDate: expirationInput?.value || '',
+        notes: sanitizeAddText(notesInput?.value, 240)
+    };
+}
+
+function validateGiftCardModalDraft(draft = {}) {
+    if (!draft.merchantName) return { ok: false, message: 'Merchant is required.', focusId: 'giftCardModalMerchant' };
+    if (!Number.isFinite(draft.originalAmount) || draft.originalAmount <= 0) {
+        return { ok: false, message: 'Original amount must be greater than 0.', focusId: 'giftCardModalOriginalAmount' };
+    }
+    if (!Number.isFinite(draft.amountLeft) || draft.amountLeft < 0) {
+        return { ok: false, message: 'Amount left must be 0 or greater.', focusId: 'giftCardModalAmountLeft' };
+    }
+    if (draft.amountLeft > draft.originalAmount && !draft.reloadable) {
+        return { ok: false, message: 'Amount left is greater than the original amount. Mark the card reloadable to save a higher balance.', focusId: 'giftCardModalReloadable' };
+    }
+    if (draft.issuedDate && !isValidLocalISODate(draft.issuedDate)) {
+        return { ok: false, message: 'Choose a valid issued date.', focusId: 'giftCardModalIssuedDate' };
+    }
+    if (draft.expirationDate && !isValidLocalISODate(draft.expirationDate)) {
+        return { ok: false, message: 'Choose a valid expiration date.', focusId: 'giftCardModalExpirationDate' };
+    }
+    return { ok: true };
+}
+
+export function saveGiftCardFromModal() {
+    const mode = document.getElementById('giftCardModalMode')?.value || 'create';
+    const cardId = document.getElementById('giftCardModalId')?.value || '';
+    const draft = readGiftCardModalDraft();
+    const validation = validateGiftCardModalDraft(draft);
+    if (!validation.ok) {
+        setGiftCardModalError(validation.message);
+        document.getElementById(validation.focusId)?.focus?.();
+        return;
+    }
+
+    const result = mode === 'edit' && cardId
+        ? State.updateGiftCard?.(cardId, draft)
+        : State.addGiftCard?.(draft);
+
+    if (!result?.success) {
+        setGiftCardModalError(result?.error || 'Could not save gift card.');
+        return;
+    }
+
+    const savedCard = result.card || getGiftCardById(cardId);
+    lastGiftCardModalSavedId = savedCard?.id || cardId || '';
+    setGiftCardModalError('');
+    renderGiftCardManagerList();
+    renderGiftCardSelect(lastGiftCardModalSavedId);
+    updateGiftCardPreview();
+    observeLocalSave('Gift card saved partially.');
+    showToast('Gift card saved.');
+
+    if (mode === 'edit') {
+        closeGiftCardModal();
+    } else {
+        setGiftCardModalSuccessVisible(true);
+    }
+}
+
+export function archiveGiftCardFromModal() {
+    const cardId = document.getElementById('giftCardModalId')?.value || '';
+    if (!cardId) return;
+    const result = State.archiveGiftCard?.(cardId);
+    if (!result?.success) {
+        setGiftCardModalError(result?.error || 'Could not archive gift card.');
+        return;
+    }
+    renderGiftCardManagerList();
+    syncGiftCardTrackerPanel();
+    observeLocalSave('Gift card archived partially.');
+    showToast('Gift card archived.');
+    closeGiftCardModal();
+}
+
+export function deleteGiftCardFromModal() {
+    const cardId = document.getElementById('giftCardModalId')?.value || '';
+    if (!cardId) return;
+    const result = State.deleteGiftCard?.(cardId);
+    if (!result?.success) {
+        setGiftCardModalError(result?.error || 'Could not delete gift card.');
+        return;
+    }
+    renderGiftCardManagerList();
+    syncGiftCardTrackerPanel();
+    observeLocalSave('Gift card removed partially.');
+    showToast('Gift card removed.');
+    closeGiftCardModal();
+}
+
+export function useSavedGiftCardForExpense(cardId = '') {
+    const selectedId = cardId || lastGiftCardModalSavedId || document.getElementById('giftCardModalId')?.value || '';
+    closeGiftCardModal();
+    switchTab('add');
+    setType('expense');
+
+    const drawer = document.getElementById('txHiddenDetails');
+    const detailsBtn = document.getElementById('toggleDetailsBtn');
+    const icon = document.getElementById('detailsToggleIcon');
+    if (drawer && !drawer.classList.contains('open')) drawer.classList.add('open');
+    if (detailsBtn) detailsBtn.setAttribute('aria-expanded', 'true');
+    if (icon) icon.textContent = '▲';
+
+    const methodSelect = document.getElementById('txPaymentMethod');
+    if (methodSelect) methodSelect.value = GIFT_CARD_PAYMENT_METHOD;
+    syncGiftCardTrackerPanel({ selectedId, showAddForm: false });
+    setAddCategoryPickerExpanded(true);
+    setAddFormStatus('Choose the expense category for this gift card purchase.');
+    document.querySelector('#addTxCategoryContainer .cat-pill-v2')?.focus?.({ preventScroll: true });
+}
+
 function setGiftCardError(message = '') {
     const errorEl = document.getElementById('giftCardTrackerError');
 	    if (errorEl) errorEl.textContent = message;
@@ -8562,10 +9202,7 @@ function setGiftCardAddFormVisible(isVisible) {
 }
 
 export function toggleGiftCardAddForm(forceVisible = null) {
-    const form = document.getElementById('giftCardAddForm');
-    const shouldShow = forceVisible === null ? Boolean(form?.hidden) : Boolean(forceVisible);
-    setGiftCardAddFormVisible(shouldShow);
-    if (shouldShow) document.getElementById('giftCardNumber')?.focus();
+    openGiftCardModal('create');
 }
 
 function renderGiftCardSelect(selectedId = '') {
@@ -8577,7 +9214,8 @@ function renderGiftCardSelect(selectedId = '') {
     const cards = getGiftCardsForAddForm();
     select.innerHTML = cards.length
         ? cards.map(card => {
-            const label = `${formatGiftCardName(card)} - ${symbol}${formatMoney(card.currentBalance)} left`;
+            const amountLeft = Number(card.amountLeft ?? card.currentBalance) || 0;
+            const label = `${formatGiftCardName(card)} - ${symbol}${formatMoney(amountLeft)} left`;
             return `<option value="${esc(card.id)}">${esc(label)}</option>`;
         }).join('')
         : '<option value="">Add a gift card to track spending</option>';
@@ -8605,13 +9243,13 @@ function updateGiftCardPreview() {
     if (!summary) return;
 
     if (!card) {
-        summary.innerHTML = '<span>Add a card number, total, current balance, and expiration to start tracking.</span>';
+        summary.innerHTML = '<span>No saved gift cards yet. Use Add Gift Card to create one first.</span>';
         return;
     }
 
     const amount = getAddAmountPreviewValue();
-    const total = Number(card.totalAmount) || 0;
-    const current = Number(card.currentBalance) || 0;
+    const total = Number(card.originalAmount ?? card.totalAmount) || 0;
+    const current = Number(card.amountLeft ?? card.currentBalance) || 0;
     const spent = Math.max(0, total - current);
     const after = Number.isFinite(amount) && amount > 0 ? current - amount : current;
     const over = after < -0.005;
@@ -8649,7 +9287,7 @@ function syncGiftCardTrackerPanel(options = {}) {
 	    }
 
     const selectedCard = renderGiftCardSelect(options.selectedId || document.getElementById('txGiftCardSelect')?.value || '');
-    setGiftCardAddFormVisible(options.showAddForm ?? !selectedCard);
+    setGiftCardAddFormVisible(false);
     updateGiftCardPreview();
 }
 
@@ -8715,9 +9353,9 @@ function bindGiftCardTrackerEvents() {
 	        nameInput.addEventListener('input', requestGiftCardMerchantCacheForInput);
 	        nameInput.addEventListener('change', syncGiftCardMerchantAutofill);
 	    }
-	    const numberInput = document.getElementById('giftCardNumber');
-	    if (numberInput) numberInput.maxLength = GIFT_CARD_NUMBER_MAX_LENGTH;
-	    ['giftCardNumber', 'giftCardTotalAmount', 'giftCardCurrentBalance', 'giftCardExpirationDate'].forEach(id => {
+	    const lastFourInput = document.getElementById('giftCardLastFour');
+	    if (lastFourInput) lastFourInput.maxLength = 4;
+	    ['giftCardLastFour', 'giftCardTotalAmount', 'giftCardCurrentBalance', 'giftCardExpirationDate'].forEach(id => {
 	        const input = document.getElementById(id);
 	        if (!input || input.dataset.giftCardMerchantPrimeBound) return;
 	        input.dataset.giftCardMerchantPrimeBound = 'true';
@@ -8734,31 +9372,26 @@ export function addGiftCardFromAddForm(event) {
     if (State.requireBudgetWriteAccess && !State.requireBudgetWriteAccess('add gift card')) return;
 
     const nameInput = document.getElementById('giftCardName');
-    const numberInput = document.getElementById('giftCardNumber');
+    const lastFourInput = document.getElementById('giftCardLastFour');
     const totalInput = document.getElementById('giftCardTotalAmount');
     const currentInput = document.getElementById('giftCardCurrentBalance');
     const expirationInput = document.getElementById('giftCardExpirationDate');
-    const cardNumber = sanitizeAddText(numberInput?.value, GIFT_CARD_NUMBER_MAX_LENGTH);
-    const totalAmount = parseAddAmountInput(totalInput?.value || '0');
-    const currentBalance = currentInput?.value.trim()
+    const lastFour = getGiftCardLast4(sanitizeAddText(lastFourInput?.value, 16));
+    const originalAmount = parseAddAmountInput(totalInput?.value || '0');
+    const amountLeft = currentInput?.value.trim()
         ? parseAddAmountInput(currentInput.value)
-        : totalAmount;
+        : originalAmount;
     const expirationDate = expirationInput?.value || '';
 
     setGiftCardError('');
 
-    if (!cardNumber) {
-        setGiftCardError('Card number is required.');
-        numberInput?.focus();
-        return;
-    }
-    if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
-        setGiftCardError('Total amount must be greater than 0.');
+    if (!Number.isFinite(originalAmount) || originalAmount <= 0) {
+        setGiftCardError('Original amount must be greater than 0.');
         totalInput?.focus();
         return;
     }
-    if (!Number.isFinite(currentBalance) || currentBalance < 0 || currentBalance > totalAmount) {
-        setGiftCardError('Current balance must be between 0 and the total amount.');
+    if (!Number.isFinite(amountLeft) || amountLeft < 0 || amountLeft > originalAmount) {
+        setGiftCardError('Amount left must be between 0 and the original amount.');
         currentInput?.focus();
         return;
     }
@@ -8769,10 +9402,10 @@ export function addGiftCardFromAddForm(event) {
     }
 
     const result = State.addGiftCard?.({
-        name: sanitizeAddText(nameInput?.value, GIFT_CARD_NAME_MAX_LENGTH),
-        cardNumber,
-        totalAmount,
-        currentBalance,
+        merchantName: sanitizeAddText(nameInput?.value, GIFT_CARD_NAME_MAX_LENGTH),
+        lastFour,
+        originalAmount,
+        amountLeft,
         expirationDate
     });
 
@@ -8782,7 +9415,7 @@ export function addGiftCardFromAddForm(event) {
     }
 
     if (nameInput) nameInput.value = '';
-	    if (numberInput) numberInput.value = '';
+	    if (lastFourInput) lastFourInput.value = '';
 	    if (totalInput) totalInput.value = '';
 	    if (currentInput) currentInput.value = '';
 	    if (expirationInput) expirationInput.value = '';
@@ -9591,13 +10224,14 @@ export function submitTransaction() {
                 setGiftCardError('Add or choose a gift card.');
                 setAddFormStatus('Choose a gift card.');
                 showToast('Choose a gift card.');
-                document.getElementById('giftCardNumber')?.focus();
+                document.getElementById('txGiftCardSelect')?.focus();
                 return;
             }
 
-            if (amount > (Number(giftCard.currentBalance) || 0) + 0.005) {
+            const giftCardAmountLeft = Number(giftCard.amountLeft ?? giftCard.currentBalance) || 0;
+            if (amount > giftCardAmountLeft + 0.005) {
                 const symbol = State.getSymbol ? State.getSymbol() : '$';
-                setGiftCardError(`Gift card only has ${symbol}${formatMoney(giftCard.currentBalance)} available.`);
+                setGiftCardError(`Gift card only has ${symbol}${formatMoney(giftCardAmountLeft)} available.`);
                 setAddFormStatus('Gift card balance is too low.');
                 showToast('Gift card balance is too low.');
                 document.getElementById('txAmount')?.focus();
@@ -9912,7 +10546,7 @@ export function initCategoryUI() {
     grid.style.display = 'none';
 
     const defaultCategories = [
-        { name: 'Gift Cards', icon: '🎁' },
+        { name: 'Add Gift Card', icon: '🎁', action: 'window.quickAddGiftCardFlow()' },
         { name: 'Groceries', icon: '🛒' },
         { name: 'Rent', icon: '🏠' },
         { name: 'Gas', icon: '⛽' },
@@ -9922,11 +10556,15 @@ export function initCategoryUI() {
     ];
 
     grid.innerHTML = defaultCategories.map(cat => `
-        <button type="button" class="quick-add-btn" onclick="window.quickAddCategory('${cat.name}', '${cat.icon}')">
+        <button type="button" class="quick-add-btn" onclick="${cat.action || `window.quickAddCategory('${cat.name}', '${cat.icon}')`}">
             <div class="quick-add-icon">${cat.icon}</div>
             <div>${cat.name}</div>
         </button>
     `).join('');
+}
+
+export function quickAddGiftCardFlow() {
+    openGiftCardModal('create');
 }
 
 export function quickAddCategory(name, icon) {
@@ -11991,6 +12629,7 @@ function getSettingsFormSignature() {
     const typeSelect = document.getElementById('defaultTypeSelect');
     const paymentSelect = document.getElementById('defaultPaymentSelect');
     const summarySelect = document.getElementById('summaryViewSelect');
+    const giftCardVisibilitySelect = document.getElementById('giftCardManagerVisibilitySelect');
     const savingsAsIncomeYes = document.getElementById('zbbSavingsAsIncomeYes');
     const overrideDebtLockYes = document.getElementById('overrideDebtSavingsLockYes');
     const accentSelect = document.querySelector('input[name="accentColor"]:checked');
@@ -12000,6 +12639,7 @@ function getSettingsFormSignature() {
         defaultType: typeSelect?.value || 'expense',
         defaultPayment: paymentSelect?.value || '',
         summaryView: summarySelect?.value || 'open',
+        giftCardVisibility: giftCardVisibilitySelect?.value || 'show',
         savingsAsIncome: Boolean(savingsAsIncomeYes?.checked),
         overrideDebtLock: Boolean(overrideDebtLockYes?.checked),
         accent: accentSelect?.value || 'teal'
@@ -12039,6 +12679,7 @@ function syncSettingsSegmentedControl(controlId) {
 function syncSettingsSegmentedControls() {
     syncSettingsSegmentedControl('defaultTypeSelect');
     syncSettingsSegmentedControl('summaryViewSelect');
+    syncSettingsSegmentedControl('giftCardManagerVisibilitySelect');
 }
 
 function setSettingsSegmentedValue(controlId, value) {
@@ -12134,6 +12775,7 @@ export function openSettingsModal() {
     const typeSelect = document.getElementById('defaultTypeSelect');
     const paymentSelect = document.getElementById('defaultPaymentSelect');
     const summarySelect = document.getElementById('summaryViewSelect');
+    const giftCardVisibilitySelect = document.getElementById('giftCardManagerVisibilitySelect');
     const savingsAsIncomeYes = document.getElementById('zbbSavingsAsIncomeYes');
     const savingsAsIncomeNo = document.getElementById('zbbSavingsAsIncomeNo');
     const overrideDebtLockYes = document.getElementById('overrideDebtSavingsLockYes');
@@ -12144,6 +12786,7 @@ export function openSettingsModal() {
     if (typeSelect) typeSelect.value = defType;
     if (paymentSelect) paymentSelect.value = defPayment;
     if (summarySelect) summarySelect.value = summaryView;
+    if (giftCardVisibilitySelect) giftCardVisibilitySelect.value = State.getShowGiftCardManager?.() === false ? 'hide' : 'show';
     if (savingsAsIncomeYes) savingsAsIncomeYes.checked = treatSavingsAsIncome;
     if (savingsAsIncomeNo) savingsAsIncomeNo.checked = !treatSavingsAsIncome;
     if (overrideDebtLockYes) overrideDebtLockYes.checked = overrideDebtLock;
@@ -12170,6 +12813,7 @@ export function saveSettings() {
     const typeSelect = document.getElementById('defaultTypeSelect');
     const paymentSelect = document.getElementById('defaultPaymentSelect');
     const summarySelect = document.getElementById('summaryViewSelect');
+    const giftCardVisibilitySelect = document.getElementById('giftCardManagerVisibilitySelect');
     const savingsAsIncomeYes = document.getElementById('zbbSavingsAsIncomeYes');
     const overrideDebtLockYes = document.getElementById('overrideDebtSavingsLockYes');
     const accentSelect = document.querySelector('input[name="accentColor"]:checked');
@@ -12177,6 +12821,10 @@ export function saveSettings() {
     if (currencySelect && State.setSymbol) State.setSymbol(currencySelect.value);
     if (typeSelect && State.setDefaultType) State.setDefaultType(typeSelect.value);
     if (paymentSelect && State.setDefaultPayment) State.setDefaultPayment(paymentSelect.value);
+    if (giftCardVisibilitySelect && State.setShowGiftCardManager) {
+        State.setShowGiftCardManager(giftCardVisibilitySelect.value !== 'hide');
+        renderGiftCardManagerList();
+    }
     if (savingsAsIncomeYes && State.setTreatSavingsAsIncomeInZbb) State.setTreatSavingsAsIncomeInZbb(savingsAsIncomeYes.checked);
     if (overrideDebtLockYes && State.setOverrideDebtEmergencyFundLock) State.setOverrideDebtEmergencyFundLock(overrideDebtLockYes.checked);
     if (accentSelect) setAccentTheme(accentSelect.value);
@@ -16372,6 +17020,14 @@ document.addEventListener('pointerdown', (event) => {
         if (!dateShell) window.closeRecentEditDatePicker();
     }
 
+    const openGiftCardDatePicker = activeGiftCardModalDateField
+        ? document.getElementById(getGiftCardModalDateConfig(activeGiftCardModalDateField)?.pickerId || '')
+        : null;
+    if (openGiftCardDatePicker && !openGiftCardDatePicker.hidden) {
+        const dateShell = target instanceof Element ? target.closest('.gift-card-modal-date-shell') : null;
+        if (!dateShell) closeGiftCardModalDatePicker(activeGiftCardModalDateField);
+    }
+
     if (window.openRecentSwipeDeleteTxId) {
         const openCard = target instanceof Element ? target.closest('.recent-tx-card') : null;
         if (!openCard || openCard.dataset.txId !== String(window.openRecentSwipeDeleteTxId)) {
@@ -16399,6 +17055,17 @@ document.addEventListener('keydown', (event) => {
         event.preventDefault();
         window.closeRecentEditDatePicker();
         document.getElementById('editTxDateTrigger')?.focus();
+        return;
+    }
+
+    const openGiftCardDatePicker = activeGiftCardModalDateField
+        ? document.getElementById(getGiftCardModalDateConfig(activeGiftCardModalDateField)?.pickerId || '')
+        : null;
+    if (event.key === 'Escape' && openGiftCardDatePicker && !openGiftCardDatePicker.hidden) {
+        const triggerId = getGiftCardModalDateConfig(activeGiftCardModalDateField)?.triggerId;
+        event.preventDefault();
+        closeGiftCardModalDatePicker(activeGiftCardModalDateField);
+        document.getElementById(triggerId)?.focus();
         return;
     }
 
@@ -23107,6 +23774,8 @@ window.openBatchIconPicker = openBatchIconPicker;
 window.confirmBatchIcon = confirmBatchIcon;
 window.cancelBatchIcon = cancelBatchIcon;
 window.quickAddCategory = quickAddCategory;
+window.quickAddGiftCardFlow = quickAddGiftCardFlow;
+window.toggleGiftCardManagerVisibility = toggleGiftCardManagerVisibility;
 window.quickAddSavings = quickAddSavings;
 window.openSavingsAddModal = openSavingsAddModal;
 window.applyCategorySort = applyCategorySort;
@@ -23131,6 +23800,17 @@ window.toggleAddCategoryPicker = toggleAddCategoryPicker;
 window.toggleGiftCardAddForm = toggleGiftCardAddForm;
 window.addGiftCardFromAddForm = addGiftCardFromAddForm;
 window.removeSelectedGiftCardFromAddForm = removeSelectedGiftCardFromAddForm;
+window.openGiftCardModal = openGiftCardModal;
+window.closeGiftCardModal = closeGiftCardModal;
+window.saveGiftCardFromModal = saveGiftCardFromModal;
+window.archiveGiftCardFromModal = archiveGiftCardFromModal;
+window.deleteGiftCardFromModal = deleteGiftCardFromModal;
+window.useSavedGiftCardForExpense = useSavedGiftCardForExpense;
+window.toggleGiftCardModalDatePicker = toggleGiftCardModalDatePicker;
+window.moveGiftCardModalDatePickerMonth = moveGiftCardModalDatePickerMonth;
+window.selectGiftCardModalDate = selectGiftCardModalDate;
+window.setGiftCardModalDateToday = setGiftCardModalDateToday;
+window.clearGiftCardModalDate = clearGiftCardModalDate;
 window.downloadGiftCardMerchantCacheFromSettings = downloadGiftCardMerchantCacheFromSettings;
 window.clearGiftCardMerchantCacheFromSettings = clearGiftCardMerchantCacheFromSettings;
 window.initAddTransactionForm = initAddTransactionForm;

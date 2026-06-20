@@ -244,6 +244,20 @@
                 </div>
 
                 <div class="category-list" id="categoryList"></div>
+
+                <section id="giftCardManagerSection" class="gift-card-manager-section" aria-labelledby="giftCardManagerTitle">
+                    <div class="gift-card-manager-header">
+                        <div>
+                            <div id="giftCardManagerTitle" class="gift-card-manager-title">Gift Cards</div>
+                            <div id="giftCardManagerCount" class="gift-card-manager-count">0 tracked</div>
+                        </div>
+                        <div class="gift-card-manager-actions">
+                            <button type="button" id="giftCardManagerToggleBtn" class="btn-small gift-card-manager-toggle" onclick="window.toggleGiftCardManagerVisibility()">Hide</button>
+                            <button type="button" class="btn-small gift-card-manager-add" onclick="window.openGiftCardModal('create')">Add Gift Card</button>
+                        </div>
+                    </div>
+                    <div id="giftCardManagerList" class="gift-card-manager-list" aria-live="polite"></div>
+                </section>
             </div>
 
             <div class="command-center-card">
@@ -459,7 +473,7 @@
                                                     </div>
 
                                                     <div class="add-form-group">
-                                                        <label for="txPaymentMethod">Payment Method</label>
+                                                        <label for="txPaymentMethod">Pay With</label>
                                                         <select id="txPaymentMethod" name="paymentMethod" class="payment-method-select">
                                                             <option value="card">💳 Credit/Debit Card</option>
                                                             <option value="cash">💵 Cash</option>
@@ -471,7 +485,7 @@
 	                                                                <label for="txGiftCardSelect">Gift Card</label>
 	                                                                <div class="gift-card-select-row">
 	                                                                    <select id="txGiftCardSelect" class="payment-method-select" aria-describedby="giftCardTrackerSummary giftCardTrackerError"></select>
-	                                                                    <button type="button" id="giftCardAddToggle" class="gift-card-add-toggle" onclick="window.toggleGiftCardAddForm()" aria-expanded="false" aria-controls="giftCardAddForm">Add</button>
+	                                                                    <button type="button" id="giftCardAddToggle" class="gift-card-add-toggle" onclick="window.openGiftCardModal('create')" aria-expanded="false" aria-controls="giftCardModal">Add Gift Card</button>
 	                                                                    <button type="button" id="giftCardRemoveBtn" class="gift-card-remove-btn" onclick="window.removeSelectedGiftCardFromAddForm(event)" hidden>Remove</button>
 	                                                                </div>
                                                                 <div id="giftCardTrackerSummary" class="gift-card-tracker-summary" aria-live="polite"></div>
@@ -481,21 +495,21 @@
                                                             <div id="giftCardAddForm" class="gift-card-add-form" hidden>
                                                                 <div class="gift-card-add-grid">
 	                                                                    <div class="add-form-group">
-	                                                                        <label for="giftCardName">Name</label>
-	                                                                        <input type="text" id="giftCardName" class="form-input" maxlength="32" placeholder="Coffee card" autocomplete="off" list="giftCardMerchantOptions">
+	                                                                        <label for="giftCardName">Merchant</label>
+	                                                                        <input type="text" id="giftCardName" class="form-input" maxlength="32" placeholder="Starbucks" autocomplete="off" list="giftCardMerchantOptions">
 	                                                                        <datalist id="giftCardMerchantOptions"></datalist>
 	                                                                    </div>
                                                                     <div class="add-form-group">
-                                                                        <label for="giftCardNumber">Card Number</label>
-                                                                        <input type="text" id="giftCardNumber" class="form-input" maxlength="80" placeholder="Card number or code" autocomplete="off">
+                                                                        <label for="giftCardLastFour">Last 4 (optional)</label>
+                                                                        <input type="text" id="giftCardLastFour" class="form-input" maxlength="4" placeholder="Last 4 only" autocomplete="off" inputmode="text">
                                                                     </div>
 	                                                                    <div class="add-form-group">
-	                                                                        <label for="giftCardTotalAmount">Total Amount</label>
+	                                                                        <label for="giftCardTotalAmount">Original Amount</label>
 	                                                                        <input type="text" id="giftCardTotalAmount" class="form-input" inputmode="decimal" placeholder="50.00" autocomplete="off" list="giftCardDenominationOptions">
 	                                                                        <datalist id="giftCardDenominationOptions"></datalist>
 	                                                                    </div>
                                                                     <div class="add-form-group">
-                                                                        <label for="giftCardCurrentBalance">Current Balance</label>
+                                                                        <label for="giftCardCurrentBalance">Amount Left</label>
                                                                         <input type="text" id="giftCardCurrentBalance" class="form-input" inputmode="decimal" placeholder="50.00" autocomplete="off">
                                                                     </div>
                                                                     <div class="add-form-group gift-card-expiration-group">
@@ -921,6 +935,19 @@
 	                                </div>
 
 	                                <div class="form-group settings-field settings-data-tools">
+	                                    <div class="settings-field-label">Gift Card Section</div>
+	                                    <select id="giftCardManagerVisibilitySelect" class="settings-hidden-select" aria-hidden="true" tabindex="-1">
+	                                        <option value="show">Always Show</option>
+	                                        <option value="hide">Always Hide</option>
+	                                    </select>
+	                                    <div class="settings-segmented" role="group" aria-label="Gift card section visibility">
+	                                        <button type="button" class="settings-segment-option" data-settings-control="giftCardManagerVisibilitySelect" data-settings-value="show">Always Show</button>
+	                                        <button type="button" class="settings-segment-option" data-settings-control="giftCardManagerVisibilitySelect" data-settings-value="hide">Always Hide</button>
+	                                    </div>
+	                                    <div class="help-text">Controls whether the Gift Cards manager is expanded by default in Manage Categories.</div>
+	                                </div>
+
+	                                <div class="form-group settings-field settings-data-tools">
 	                                    <div class="settings-field-label">Transaction Data</div>
                                     <div class="settings-csv-actions settings-action-grid">
                                         <button type="button" class="settings-action-tile" onclick="window.exportTransactions()">
@@ -1283,6 +1310,101 @@
                             <div class="modal-actions">
                                 <button type="button" class="btn-cancel" onclick="window.closeCategoryModal()">Cancel</button>
                                 <button type="submit" class="btn-create">Save</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="giftCardModal" class="modal-overlay" onclick="window.closeModalOnOutsideClick(event)">
+                    <div class="modal-box modal-box-medium gift-card-modal-box" role="dialog" aria-modal="true" aria-labelledby="giftCardModalTitle" aria-describedby="giftCardModalDescription" onclick="event.stopPropagation()">
+                        <button type="button" class="modal-close" onclick="window.closeGiftCardModal()" aria-label="Close gift card form">&times;</button>
+
+                        <h3 id="giftCardModalTitle" class="modal-title mb-sm">Add Gift Card</h3>
+                        <p id="giftCardModalDescription" class="gift-card-modal-description">Track a store balance as a payment source. Gift cards are not budget categories or income.</p>
+
+                        <form id="giftCardModalForm" onsubmit="event.preventDefault(); window.saveGiftCardFromModal();">
+                            <input type="hidden" id="giftCardModalId" value="">
+                            <input type="hidden" id="giftCardModalMode" value="create">
+
+                            <div class="gift-card-modal-grid">
+                                <div class="add-form-group">
+                                    <label for="giftCardModalMerchant">Merchant</label>
+                                    <input type="text" id="giftCardModalMerchant" class="form-input" maxlength="64" placeholder="Starbucks" autocomplete="off" list="giftCardModalMerchantOptions" required>
+                                    <datalist id="giftCardModalMerchantOptions"></datalist>
+                                </div>
+                                <div class="add-form-group">
+                                    <label for="giftCardModalNickname">Name / Nickname</label>
+                                    <input type="text" id="giftCardModalNickname" class="form-input" maxlength="32" placeholder="Coffee card" autocomplete="off">
+                                </div>
+                                <div class="add-form-group">
+                                    <label for="giftCardModalOriginalAmount">Original Amount</label>
+                                    <input type="text" id="giftCardModalOriginalAmount" class="form-input" inputmode="decimal" placeholder="50.00" autocomplete="off" required>
+                                </div>
+                                <div class="add-form-group">
+                                    <label for="giftCardModalAmountLeft">Amount Left</label>
+                                    <input type="text" id="giftCardModalAmountLeft" class="form-input" inputmode="decimal" placeholder="50.00" autocomplete="off" required>
+                                </div>
+                                <div class="add-form-group">
+                                    <label for="giftCardModalLastFour">Last 4 digits</label>
+                                    <input type="text" id="giftCardModalLastFour" class="form-input" maxlength="4" placeholder="Optional" autocomplete="off" inputmode="text" aria-describedby="giftCardLastFourHelp">
+                                    <div id="giftCardLastFourHelp" class="gift-card-field-help">Optional. Used only to help identify the gift card.</div>
+                                </div>
+                                <div class="add-form-group">
+                                    <label for="giftCardModalReloadable">Reloadable</label>
+                                    <label class="settings-checkbox-label gift-card-reloadable-row">
+                                        <input type="checkbox" id="giftCardModalReloadable">
+                                        <span>Can be reloaded</span>
+                                    </label>
+                                </div>
+                                <div class="add-form-group">
+                                    <label for="giftCardModalIssuedDateTrigger">Issued Date</label>
+                                    <div class="transaction-edit-date-shell gift-card-modal-date-shell">
+                                        <input type="hidden" id="giftCardModalIssuedDate" value="">
+                                        <button type="button" id="giftCardModalIssuedDateTrigger" class="transaction-edit-date-trigger gift-card-modal-date-trigger" onclick="window.toggleGiftCardModalDatePicker(event, 'issued')" aria-haspopup="dialog" aria-expanded="false" aria-controls="giftCardModalIssuedDatePicker">
+                                            <span class="transaction-edit-date-copy">
+                                                <strong id="giftCardModalIssuedDateLabel">Not set</strong>
+                                                <em id="giftCardModalIssuedDateSubLabel">Optional issued date</em>
+                                            </span>
+                                            <span class="transaction-edit-date-action">Change</span>
+                                        </button>
+                                        <div id="giftCardModalIssuedDatePicker" class="transaction-edit-date-picker gift-card-modal-date-picker" role="dialog" aria-label="Choose issued date" hidden onclick="event.stopPropagation()"></div>
+                                    </div>
+                                </div>
+                                <div class="add-form-group">
+                                    <label for="giftCardModalExpirationDateTrigger">Expiration Date</label>
+                                    <div class="transaction-edit-date-shell gift-card-modal-date-shell">
+                                        <input type="hidden" id="giftCardModalExpirationDate" value="">
+                                        <button type="button" id="giftCardModalExpirationDateTrigger" class="transaction-edit-date-trigger gift-card-modal-date-trigger" onclick="window.toggleGiftCardModalDatePicker(event, 'expiration')" aria-haspopup="dialog" aria-expanded="false" aria-controls="giftCardModalExpirationDatePicker">
+                                            <span class="transaction-edit-date-copy">
+                                                <strong id="giftCardModalExpirationDateLabel">No expiration</strong>
+                                                <em id="giftCardModalExpirationDateSubLabel">Optional expiration date</em>
+                                            </span>
+                                            <span class="transaction-edit-date-action">Change</span>
+                                        </button>
+                                        <div id="giftCardModalExpirationDatePicker" class="transaction-edit-date-picker gift-card-modal-date-picker" role="dialog" aria-label="Choose expiration date" hidden onclick="event.stopPropagation()"></div>
+                                    </div>
+                                </div>
+                                <div class="add-form-group gift-card-modal-notes">
+                                    <label for="giftCardModalNotes">Notes</label>
+                                    <textarea id="giftCardModalNotes" class="form-input" maxlength="240" rows="3" placeholder="Optional note"></textarea>
+                                </div>
+                            </div>
+
+                            <div id="giftCardModalError" class="add-field-error gift-card-modal-error" role="alert"></div>
+                            <div id="giftCardModalSuccess" class="gift-card-modal-success" hidden>
+                                <strong>Gift card saved.</strong>
+                                <span>Use it now or close this form.</span>
+                                <div class="gift-card-modal-success-actions">
+                                    <button type="button" class="btn-create" onclick="window.useSavedGiftCardForExpense()">Use for an Expense</button>
+                                    <button type="button" class="btn-cancel" onclick="window.closeGiftCardModal()">Done</button>
+                                </div>
+                            </div>
+
+                            <div class="modal-actions gift-card-modal-actions">
+                                <button type="button" id="giftCardModalArchiveBtn" class="btn-cancel gift-card-archive-btn" onclick="window.archiveGiftCardFromModal()" hidden>Archive</button>
+                                <button type="button" id="giftCardModalDeleteBtn" class="btn-cancel gift-card-delete-btn" onclick="window.deleteGiftCardFromModal()" hidden>Delete</button>
+                                <button type="button" class="btn-cancel" onclick="window.closeGiftCardModal()">Cancel</button>
+                                <button type="submit" id="giftCardModalSubmitBtn" class="btn-create">Save Gift Card</button>
                             </div>
                         </form>
                     </div>
