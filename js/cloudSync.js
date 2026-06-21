@@ -1244,7 +1244,7 @@ async function recoverLatestVersionSnapshot(keyMaterial, reason = 'Recovered Clo
     record('Recovering latest Cloud Sync saved version...', 'syncing');
     isApplyingRemote = true;
     try {
-        replaceSnapshot?.(recoverable.snapshot, {
+        await replaceSnapshot?.(recoverable.snapshot, {
             source: 'buddy_cloud_version_history_auto_recovery',
             remoteUpdatedAt: recoverable.row.client_updated_at || recoverable.row.created_at || ''
         });
@@ -1557,7 +1557,7 @@ export async function forcePull() {
     await createLocalVersionSafetySnapshot(keyMaterial);
     isApplyingRemote = true;
     try {
-        replaceSnapshot?.(snapshot, { source: 'buddy_cloud', remoteUpdatedAt: remote.client_updated_at });
+        await replaceSnapshot?.(snapshot, { source: 'buddy_cloud', remoteUpdatedAt: remote.client_updated_at });
     } finally {
         isApplyingRemote = false;
     }
@@ -1880,7 +1880,7 @@ export async function restoreVersion(snapshotId) {
 
     isApplyingRemote = true;
     try {
-        replaceSnapshot?.(restoredSnapshot, {
+        await replaceSnapshot?.(restoredSnapshot, {
             source: 'buddy_cloud_version_history',
             remoteUpdatedAt: data.client_updated_at || data.created_at || ''
         });

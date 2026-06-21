@@ -79,7 +79,8 @@ test.describe('emergency fund target editing', () => {
         await expect(page.locator('#emergencyGoalAmountText')).toHaveText('$5,000.00');
 
         const savedSettings = await page.evaluate(() => {
-            const payload = JSON.parse(localStorage.getItem('bb_data') || '{}');
+            const demoPayload = sessionStorage.getItem('zam_demo_data');
+            const payload = JSON.parse(demoPayload || localStorage.getItem('bb_data') || '{}');
             return {
                 savingsGoal: payload.settings?.savingsGoal,
                 emergencyFundGoalOverride: payload.settings?.emergencyFundGoalOverride
@@ -113,7 +114,8 @@ test.describe('emergency fund target editing', () => {
         await expect(page.locator('#emergencyGoalAmountText')).toHaveText('$8,000.00');
 
         const savedSettings = await page.evaluate(() => {
-            const payload = JSON.parse(localStorage.getItem('bb_data') || '{}');
+            const demoPayload = sessionStorage.getItem('zam_demo_data');
+            const payload = JSON.parse(demoPayload || localStorage.getItem('bb_data') || '{}');
             return {
                 savingsGoal: payload.settings?.savingsGoal,
                 emergencyFundGoalOverride: payload.settings?.emergencyFundGoalOverride

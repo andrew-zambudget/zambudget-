@@ -303,4 +303,47 @@ test.describe('local vault migration and encrypted persistence', () => {
         expect(result.stored).toContain(SENTINELS.merchant);
         expect(result.memoryTransactions[0].description).toBe(SENTINELS.merchant);
     });
+
+    test('flag-off initState fails safe when bb_data is already encrypted', async ({ page }) => {
+        const result = await page.evaluate(async ({ stateModulePath, vaultModulePath, sentinels }) => {
+            const State = await import(stateModulePath);
+            const Vault = await import(vaultModulePath);
+            window.currentUser = { id: 'phase3-rollback-user' };
+            window[State.LOCAL_VAULT_STORAGE_EXPERIMENT_FLAG] = true;
+            localStorage.setItem('bb_data', JSON.stringify({
+                transactions: [{ id: 'phase3-rollback-tx', description: sentinels.merchant }],
+                categories: [{ id: 'phase3-rollback-cat', name: sentinels.category }],
+                settings: {}
+            }));
+            await State.initStateAsync();
+            const encryptedBeforeRollback = localStorage.getItem('bb_data') || '';
+            window[State.LOCAL_VAULT_STORAGE_EXPERIMENT_FLAG] = false;
+
+            let errorMessage = '';
+            try {
+                State.initState();
+            } catch (error) {
+                errorMessage = error?.message || '';
+            }
+
+            const storedAfterRollbackAttempt = localStorage.getItem('bb_data') || '';
+
+            return {
+                errorMessage,
+                storedUnchanged: encryptedBeforeRollback === storedAfterRollbackAttempt,
+                classification: Vault.classifyLocalBudgetRecord(storedAfterRollbackAttempt),
+                storedAfterRollbackAttempt
+            };
+        }, {
+            stateModulePath: modulePath('/js/state.js'),
+            vaultModulePath: modulePath('/js/localVaultStorage.js'),
+            sentinels: SENTINELS
+        });
+
+        expect(result.errorMessage).toContain('Encrypted local budget storage is present');
+        expect(result.storedUnchanged).toBe(true);
+        expect(result.classification.kind).toBe('encrypted');
+        expect(result.storedAfterRollbackAttempt).not.toContain(SENTINELS.merchant);
+        expect(result.storedAfterRollbackAttempt).not.toContain(SENTINELS.category);
+    });
 });

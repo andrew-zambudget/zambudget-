@@ -6,11 +6,31 @@ Current status:
 
 ```text
 Automated production smoke is green with local vault disabled by default.
-Local vault encryption is staged behind a disabled feature flag.
+Local vault encryption is staged behind a disabled runtime/config flag.
 No production/runtime user data has been migrated to encrypted local vault storage.
 ```
 
 This is not a global user enablement yet.
+
+## Runtime Rollout Gate
+
+Current feature flag:
+
+```text
+Browser flag: window.__ZAM_ENABLE_LOCAL_VAULT_STORAGE_EXPERIMENT__
+Config flag: config.json -> localVaultStorageEnabled: true
+Default state: absent/false/off
+```
+
+Runtime behavior now covered by tests:
+
+```text
+- When the config flag is enabled, app startup awaits State.initStateAsync().
+- Existing plaintext bb_data migrates to a local vault envelope before render.
+- Fresh flag-on writes store an encrypted local vault envelope in bb_data.
+- Runtime save callers queue encrypted writes and can be flushed in tests with State.flushLocalVaultSaveQueue().
+- Cloud Sync/recovery/auth/session behavior is not redesigned by this rollout gate.
+```
 
 ## To Call Test Phase Complete With Flag Off
 
@@ -71,7 +91,7 @@ Required site data may include local app data needed to save and load budgets.
 Internal-only note:
 
 ```text
-Local vault encryption is staged behind a disabled feature flag.
+Local vault encryption is staged behind a disabled runtime/config flag.
 ```
 
 ## Jira Status
@@ -109,13 +129,20 @@ Do not manually enable local vault in production UI yet.
 Before controlled rollout, document:
 
 ```text
-- Feature flag name and location.
+- Feature flag name and location:
+  - window.__ZAM_ENABLE_LOCAL_VAULT_STORAGE_EXPERIMENT__
+  - config.json -> localVaultStorageEnabled
 - Confirmation that default is off.
 - How to verify bb_data before enabling.
 - How to verify bb_data after enabling.
 - How to confirm sensitive sentinel values are not visible.
 - How to verify refresh/decrypt/readback works.
-- Rollback plan: turn flag off; do not manually edit user storage unless a specific recovery runbook exists.
+- How to verify State.flushLocalVaultSaveQueue() completes after runtime saves.
+- Rollback plan:
+  - turn the config flag off for new sessions
+  - do not manually edit user storage unless a specific recovery runbook exists
+  - if bb_data is already encrypted and the flag is off, app startup must fail safe instead of blanking or overwriting the budget
+  - re-enable the flag or use Cloud Sync/recovery flow to recover access
 ```
 
 ## Test Evidence to Attach
@@ -126,7 +153,10 @@ Attach or reference:
 - Core app smoke: 15 passed
 - Auth route guard: 6 passed
 - Storage/recovery/local vault guardrails: 37 passed
+- Focused local vault rollout suite: 26 passed
+- Full automated test suite: 127 passed, 1 skipped
 - Production login/demo/magic-link request checks: passed
+- Authenticated password smoke: skipped unless BUDGETBUDDY_TEST_EMAIL and BUDGETBUDDY_TEST_PASSWORD are set
 - Authenticated magic-link callback/recovery verification: manual pending unless completed
 ```
 
@@ -148,4 +178,4 @@ not as a live user guarantee.
 
 Production smoke can be considered complete with the local vault flag off after the remaining manual Lane 4 checks pass.
 
-Feature readiness for global local-vault enablement requires a separate rollout ticket.
+Feature readiness for global local-vault enablement requires a separate rollout ticket and a controlled flag-on production smoke using a fresh account and an existing account.

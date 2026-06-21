@@ -41,12 +41,15 @@ const DEMO_BUDGET_DATA_KEY = 'zam_demo_data';
 const DEMO_LOCAL_UPDATED_AT_KEY = 'zam_demo_local_updated_at';
 const DEMO_ACTIVE_KEY = 'zam_demo_active';
 export const LOCAL_VAULT_STORAGE_EXPERIMENT_FLAG = '__ZAM_ENABLE_LOCAL_VAULT_STORAGE_EXPERIMENT__';
+const LOCAL_VAULT_ENVELOPE_KIND = 'zam_local_budget_vault';
 const STORAGE_TEST_KEY = 'bb_storage_available_test';
 const SIGNED_OUT_WRITE_MESSAGE = 'Sign in or start the demo before adding real budget data.';
 const BROWSER_STORAGE_BLOCKED_MESSAGE = 'Zam needs required browser site data to save and load your budget on this device. Enable site data for app.zambudget.com or use your browser settings to clear/reset it.';
 let lastSignedOutWriteNoticeAt = 0;
 let lastBrowserStorageNoticeAt = 0;
 let browserStorageAvailable = null;
+let localVaultWriteQueue = Promise.resolve(true);
+let localVaultLastWriteError = null;
 const GIFT_CARD_NAME_MAX_LENGTH = 32;
 const GIFT_CARD_MERCHANT_MAX_LENGTH = 64;
 const GIFT_CARD_NOTES_MAX_LENGTH = 240;
@@ -486,8 +489,8 @@ function applyLoadedPayload(parsed = {}) {
     return orderChanged || arrayChanged || categoryLoad.changed || giftCardsChanged;
 }
 
-// Phase 2B scaffold only. These helpers are intentionally not called by
-// initState(), save(), replaceSnapshot(), or Cloud Sync until migration is approved.
+// Local vault helpers are gated by LOCAL_VAULT_STORAGE_EXPERIMENT_FLAG.
+// With the flag off, the app keeps the existing plaintext bb_data path.
 export async function writeBudgetDataToLocalVault(payload = getDurablePayload(), key, options = {}) {
     const target = getAppBudgetStorageTarget();
     const Vault = await getLocalVaultStorageModule();
@@ -571,6 +574,70 @@ function safeJsonParseBudgetPayload(rawValue) {
         categories: Array.isArray(parsed.categories) ? parsed.categories : [],
         settings: parsed.settings && typeof parsed.settings === 'object' ? parsed.settings : {}
     };
+}
+
+function isLocalVaultEnvelopePayload(parsed) {
+    return Boolean(parsed
+        && typeof parsed === 'object'
+        && !Array.isArray(parsed)
+        && parsed.kind === LOCAL_VAULT_ENVELOPE_KIND
+        && typeof parsed.ciphertext === 'string'
+        && typeof parsed.iv === 'string');
+}
+
+function getLocalVaultDisabledEnvelopeError() {
+    return new Error('Encrypted local budget storage is present, but local vault storage is disabled. Re-enable local vault storage or recover this budget through Cloud Sync before continuing.');
+}
+
+async function persistEncryptedBudgetPayload(payload = getDurablePayload(), options = {}) {
+    const { key, keyId, created } = await getLocalVaultKeyForCurrentContext(options);
+    const updatedAt = options.updatedAt || options.localUpdatedAt || new Date().toISOString();
+    await writeBudgetDataToLocalVault(payload, key, {
+        ...options,
+        keyId,
+        updatedAt
+    });
+    return { keyId, keyCreated: created, localUpdatedAt: updatedAt };
+}
+
+function enqueueEncryptedBudgetPersistence(payload = getDurablePayload(), options = {}) {
+    const targetMode = getBudgetStorage().mode;
+    const shouldQueueCloud = !suppressCloudQueue
+        && targetMode !== 'demo'
+        && typeof window !== 'undefined'
+        && typeof window.BuddyCloud?.queuePush === 'function';
+
+    const queuedPayload = JSON.parse(JSON.stringify(payload || {}));
+    const queuedOptions = { ...options };
+    localVaultLastWriteError = null;
+
+    const nextWrite = localVaultWriteQueue
+        .catch(() => false)
+        .then(async () => {
+            try {
+                const result = await persistEncryptedBudgetPayload(queuedPayload, queuedOptions);
+                if (shouldQueueCloud) {
+                    window.BuddyCloud.queuePush('Budget synced to Cloud Sync.', { localUpdatedAt: result.localUpdatedAt });
+                }
+                return true;
+            } catch (error) {
+                localVaultLastWriteError = error;
+                console.error('[State] CRITICAL: Encrypted browser storage write failed', error);
+                notifyBrowserStorageBlocked();
+                return false;
+            }
+        });
+
+    localVaultWriteQueue = nextWrite;
+    return nextWrite;
+}
+
+export async function flushLocalVaultSaveQueue() {
+    return localVaultWriteQueue;
+}
+
+export function getLastLocalVaultSaveError() {
+    return localVaultLastWriteError;
 }
 
 export async function migrateBudgetDataToLocalVault(options = {}) {
@@ -679,23 +746,10 @@ export async function saveAsync(options = {}) {
         return false;
     }
 
-    try {
-        const { key } = await getLocalVaultKeyForCurrentContext(options);
-        await writeBudgetDataToLocalVault(getDurablePayload(), key, {
-            ...options,
-            updatedAt: new Date().toISOString()
-        });
-
-        if (!suppressCloudQueue && getBudgetStorage().mode !== 'demo' && window.BuddyCloud?.queuePush) {
-            window.BuddyCloud.queuePush('Budget synced to Cloud Sync.', { localUpdatedAt: getLocalUpdatedAt() });
-        }
-
-        return true;
-    } catch (error) {
-        console.error('[State] CRITICAL: Browser storage write failed', error);
-        notifyBrowserStorageBlocked();
-        return false;
-    }
+    return enqueueEncryptedBudgetPersistence(getDurablePayload(), {
+        ...options,
+        updatedAt: new Date().toISOString()
+    });
 }
 
 // ==========================================
@@ -709,10 +763,14 @@ export function initState() {
     if (saved) {
         try {
             const parsed = JSON.parse(saved);
+            if (isLocalVaultEnvelopePayload(parsed)) {
+                throw getLocalVaultDisabledEnvelopeError();
+            }
             loadedPayloadChanged = applyLoadedPayload(parsed);
             loadedSavedPayload = true;
         } catch (e) {
             console.error('[State] Failed to parse local state:', e);
+            if (e?.message?.includes('Encrypted local budget storage is present')) throw e;
         }
     }
     if (loadedSavedPayload) {
@@ -741,6 +799,14 @@ export function save(options = {}) {
     if (!allowSignedOutWrite && !canWriteBudgetData()) {
         notifySignedOutBudgetWriteBlocked(action || 'save budget data', { toast: Boolean(action) });
         return false;
+    }
+
+    if (isLocalVaultStorageExperimentEnabled() && getBudgetStorage().mode === 'app') {
+        enqueueEncryptedBudgetPersistence(getDurablePayload(), {
+            ...options,
+            updatedAt: new Date().toISOString()
+        });
+        return true;
     }
 
     try {
@@ -806,8 +872,17 @@ export function replaceSnapshot(snapshot = {}, options = {}) {
         throw e;
     }
 
+    const remoteUpdatedAt = options.remoteUpdatedAt || snapshot.meta?.localUpdatedAt || new Date().toISOString();
+    let queuedEncryptedSnapshotWrite = false;
+
     try {
-        if (!writeBudgetData(JSON.stringify(getDurablePayload()))) {
+        if (isLocalVaultStorageExperimentEnabled() && getBudgetStorage().mode === 'app') {
+            enqueueEncryptedBudgetPersistence(getDurablePayload(), {
+                ...options,
+                updatedAt: remoteUpdatedAt
+            });
+            queuedEncryptedSnapshotWrite = true;
+        } else if (!writeBudgetData(JSON.stringify(getDurablePayload()))) {
             throw new Error('Browser storage is unavailable.');
         }
     } catch (e) {
@@ -819,14 +894,79 @@ export function replaceSnapshot(snapshot = {}, options = {}) {
         throw e;
     }
 
+    if (queuedEncryptedSnapshotWrite) {
+        suppressCloudQueue = false;
+        return true;
+    }
+
     try {
-        const remoteUpdatedAt = options.remoteUpdatedAt || snapshot.meta?.localUpdatedAt || new Date().toISOString();
         setLocalUpdatedAt(remoteUpdatedAt);
     } catch (e) {
         console.warn('[State] WARNING: Snapshot written to disk, but metadata timestamp failed.', e);
     } finally {
         suppressCloudQueue = false;
     }
+
+    return true;
+}
+
+export async function replaceSnapshotAsync(snapshot = {}, options = {}) {
+    if (!isLocalVaultStorageExperimentEnabled() || getBudgetStorage().mode !== 'app') {
+        replaceSnapshot(snapshot, options);
+        return true;
+    }
+
+    const currentBilling = {
+        isPro: state.settings.isPro,
+        premiumSinceUTC: state.settings.premiumSinceUTC,
+        stripeCheckoutSessionId: state.settings.stripeCheckoutSessionId,
+        billingSubscriptionStatus: state.settings.billingSubscriptionStatus,
+        billingCurrentPeriodEnd: state.settings.billingCurrentPeriodEnd,
+        billingCancelAtPeriodEnd: state.settings.billingCancelAtPeriodEnd
+    };
+    const rollbackTransactions = [...state.transactions];
+    const rollbackCategories = [...state.categories];
+    const rollbackSettings = { ...state.settings };
+
+    suppressCloudQueue = true;
+
+    try {
+        applyLoadedPayload({
+            transactions: snapshot.transactions || [],
+            categories: snapshot.categories || [],
+            settings: {
+                ...snapshot.settings,
+                ...currentBilling
+            }
+        });
+    } catch (e) {
+        console.error('[State] CRITICAL: Failed to apply encrypted snapshot payload to memory. Rolling back memory state.', e);
+        state.transactions = rollbackTransactions;
+        state.categories = rollbackCategories;
+        state.settings = rollbackSettings;
+        suppressCloudQueue = false;
+        throw e;
+    }
+
+    try {
+        const remoteUpdatedAt = options.remoteUpdatedAt || snapshot.meta?.localUpdatedAt || new Date().toISOString();
+        const saved = await enqueueEncryptedBudgetPersistence(getDurablePayload(), {
+            ...options,
+            updatedAt: remoteUpdatedAt
+        });
+        if (!saved) throw localVaultLastWriteError || new Error('Encrypted snapshot write failed.');
+    } catch (e) {
+        console.error('[State] CRITICAL: Encrypted snapshot replacement failed disk write. Rolling back memory state.', e);
+        state.transactions = rollbackTransactions;
+        state.categories = rollbackCategories;
+        state.settings = rollbackSettings;
+        suppressCloudQueue = false;
+        throw e;
+    } finally {
+        suppressCloudQueue = false;
+    }
+
+    return true;
 }
 
 // ==========================================

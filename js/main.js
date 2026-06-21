@@ -45,6 +45,12 @@ function readLocalStorageValue(key, fallback = '') {
     }
 }
 
+function applyRuntimeFeatureFlags(config = {}) {
+    if (config.localVaultStorageEnabled === true || config.localVaultStorageEnabled === 'true') {
+        window[State.LOCAL_VAULT_STORAGE_EXPERIMENT_FLAG] = true;
+    }
+}
+
 /**
  * 1. THE BRIDGE (100% Bulletproof Version)
  * Force-binds all exported functions from State and UI modules to the window object.
@@ -99,6 +105,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!res.ok) throw new Error('Config file not found or inaccessible.');
             const config = await res.json();
             window.bbConfig = config;
+            applyRuntimeFeatureFlags(config);
             
             if (config.supabaseUrl && config.supabaseAnonKey && window.supabase) {
                 // Initialize Client
@@ -236,7 +243,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Initialize the data engine
         BudgetPrep.updatePreparingBudget?.({ detail: 'Loading this browser budget before cloud checks.' });
-        if (State.initState) State.initState();
+        if (State.isLocalVaultStorageExperimentEnabled?.() && State.initStateAsync) {
+            await State.initStateAsync();
+        } else if (State.initState) {
+            State.initState();
+        }
         appStateInitialized = true;
         const isDemoSession = DemoMode.isDemoModeActive?.() === true;
 
@@ -263,7 +274,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 supabaseClient: window.sb,
                 user: window.currentUser,
                 getSnapshot: State.getSnapshot,
-                replaceSnapshot: State.replaceSnapshot,
+                replaceSnapshot: State.replaceSnapshotAsync || State.replaceSnapshot,
                 isPremiumAccount: () => Boolean(State.getIsPro?.()),
                 afterRemoteApply: () => {
                     UI.render?.();
