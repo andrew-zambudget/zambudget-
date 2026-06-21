@@ -132,7 +132,7 @@
                 <ul>
                     <li><strong>Signed in:</strong> Cloud Sync is the default protection path. Your budget is encrypted on your device before upload, then stored as an encrypted vault.</li>
                     <li><strong>Browser-only:</strong> If you use Zam! without signing in, budget data stays only in that browser and is stored as an encrypted local vault envelope. Zam! still cannot recover it if the browser's site data, local vault key material, or browser profile is lost or cleared.</li>
-                    <li><strong>Local vault storage:</strong> Persisted real app budget contents are encrypted at rest in browser storage. The app decrypts budget data locally while it is open and unlocked so it can render, edit, import, export, and sync your budget.</li>
+                    <li><strong>Local vault storage:</strong> Persisted real app budget contents and local sync history are encrypted at rest in browser storage. The app decrypts budget data locally while it is open and unlocked so it can render, edit, import, export, and sync your budget.</li>
                     <li><strong>Trusted browser key:</strong> After Cloud Sync setup or recovery-key import, this browser may store a non-extractable WebCrypto key in IndexedDB so refreshes can keep syncing without asking for the recovery key again. The raw recovery key is not stored in localStorage and cannot be displayed from this trusted key. Zam! does not upload this trusted key or include it in device-management records, but app code running in this browser can use it locally to encrypt and decrypt your Cloud Sync vault while you are signed in.</li>
                     <li><strong>Gift card merchant metadata cache:</strong> If you use gift-card merchant hints, Zam! downloads one full merchant metadata bundle to this browser. Merchant searches, suggestion filtering, and selections happen locally; Zam! does not send individual merchant search terms or suggestion choices to a server. You can clear this cache in Global Settings.</li>
                     <li><strong>Smart Merchant Cleanup:</strong> CSV merchant cleanup suggestions run locally in the browser using a full static merchant seed bundle and accepted local aliases. If you accept a cleanup, Zam! may remember that alias for the same browser/user only. Zam! does not send merchant descriptions to a third-party merchant-recognition API.</li>
@@ -209,7 +209,7 @@
                 <ul>
                     <li>All data in transit is protected with TLS/HTTPS encryption</li>
                     <li>Cloud-synced data is encrypted end-to-end before leaving your device</li>
-                    <li>Persisted real app budget data in browser storage is encrypted at rest using a browser-local WebCrypto key</li>
+                    <li>Persisted real app budget data and local sync history in browser storage are encrypted at rest using a browser-local WebCrypto key</li>
                     <li>Authentication credentials are never stored in plain text</li>
                     <li>We follow industry-standard security practices</li>
                 </ul>
