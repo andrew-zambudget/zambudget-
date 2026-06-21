@@ -139,7 +139,7 @@ Local-only user:
 Hard rule:
 
 - `bb_browser_access_tokens_v1` and legacy `bb_browser_access_token_<userId>` values must never decrypt the local vault.
-- `bb_cloud_sync_slot_<userId>` must never decrypt the local vault.
+- `bb_cloud_sync_slot_v1` and legacy `bb_cloud_sync_slot_<userId>` values must never decrypt the local vault.
 - Supabase session tokens must never decrypt the local vault.
 - Cloud Sync trusted-key storage must not be used as the local vault key store.
 

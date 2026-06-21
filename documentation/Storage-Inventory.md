@@ -75,7 +75,8 @@ CSV-imported transaction details are stored inside `bb_data`, including import m
 | `bb_cloud_conflict_last_synced_at` | localStorage | Sensitive metadata | Last synced timestamp for conflict logic | Conflict helper state. |
 | `bb_cloud_conflict_remote_summary` | localStorage | Sensitive metadata | Sanitized remote summary | Should remain privacy-safe summary only. |
 | `bb_cloud_conflict_local_summary` | localStorage | Sensitive metadata | Sanitized local summary | Should remain privacy-safe summary only. |
-| `bb_cloud_sync_slot_<userId>` | localStorage | Auth or sync helper | Random sync-slot token | Not a budget decryptor. Used to identify this browser sync slot. |
+| `bb_cloud_sync_slot_v1` | localStorage | Auth or sync helper | Random sync-slot token | Not a budget decryptor. Used to identify this browser sync slot. Visible key name does not include the user ID. |
+| `bb_cloud_sync_slot_<userId>` | localStorage | Auth or sync helper, legacy | Old random sync-slot token pattern | Legacy tokens are migrated into `bb_cloud_sync_slot_v1` and removed. This key should not remain after migration. |
 | `bb_browser_access_tokens_v1` | localStorage | Auth or sync helper | Encrypted local metadata envelope for random browser access tokens | Not a budget decryptor. Used for browser-access registry hashing. Payload is encrypted and the visible key name does not include the user ID. |
 | `bb_browser_access_token_<userId>` | localStorage | Auth or sync helper, legacy | Old plaintext browser access token pattern | Legacy tokens are migrated into `bb_browser_access_tokens_v1` and removed on browser-access registry refresh. This key should not remain after migration. |
 | `bb_cloud_force_pull_after_sign_in_<userId>` | localStorage | Auth or sync helper | Force-pull marker | Used after sign-in recovery paths. |
@@ -150,6 +151,6 @@ The implementation must preserve:
 
 Cloud/browser access tokens must not be used as local vault encryption keys. Session credentials, browser access tokens, sync-slot tokens, and vault decryption material must remain separate.
 
-If legacy `bb_browser_access_token_<userId>` values, `bb_browser_access_tokens_v1`, or `bb_cloud_sync_slot_<userId>` leak, rotate or revoke them as auth/sync helper material. Do not treat them as vault decryption material.
+If legacy `bb_browser_access_token_<userId>` values, `bb_browser_access_tokens_v1`, `bb_cloud_sync_slot_v1`, or legacy `bb_cloud_sync_slot_<userId>` values leak, rotate or revoke them as auth/sync helper material. Do not treat them as vault decryption material.
 
 Local storage encryption protects persisted browser storage at rest. It does not fully protect data while the app is unlocked and decrypted in memory, and it does not eliminate XSS risk.

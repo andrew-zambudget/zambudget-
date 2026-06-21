@@ -277,6 +277,7 @@ test.describe('Zam! storage lifecycle', () => {
             }));
             localStorage.setItem('bb_local_updated_at', '2026-06-13T01:00:00.000Z');
             localStorage.setItem('bb_cloud_sync_enabled', 'true');
+            localStorage.setItem('bb_cloud_sync_slot_v1', 'new-slot-token');
             localStorage.setItem('bb_cloud_sync_slot_deleted-user-id', 'old-slot-token');
             localStorage.setItem('bb_browser_access_token_deleted-user-id', 'old-browser-token');
             localStorage.setItem('bb_cloud_recovery_key_saved_v1', 'true');
@@ -294,6 +295,7 @@ test.describe('Zam! storage lifecycle', () => {
                 data: localStorage.getItem('bb_data'),
                 updatedAt: localStorage.getItem('bb_local_updated_at'),
                 cloudEnabled: localStorage.getItem('bb_cloud_sync_enabled'),
+                genericSlot: localStorage.getItem('bb_cloud_sync_slot_v1'),
                 slot: localStorage.getItem('bb_cloud_sync_slot_deleted-user-id'),
                 browserToken: localStorage.getItem('bb_browser_access_token_deleted-user-id'),
                 genericRecoverySaved: localStorage.getItem('bb_cloud_recovery_key_saved_v1'),
@@ -313,6 +315,7 @@ test.describe('Zam! storage lifecycle', () => {
         expect(result.data).toBeNull();
         expect(result.updatedAt).toBeNull();
         expect(result.cloudEnabled).toBeNull();
+        expect(result.genericSlot).toBeNull();
         expect(result.slot).toBeNull();
         expect(result.browserToken).toBeNull();
         expect(result.genericRecoverySaved).toBeNull();

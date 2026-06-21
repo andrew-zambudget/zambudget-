@@ -22655,6 +22655,7 @@ function getTrustedBuddyCloudPreservedLocalStorage() {
 
     const keys = [
         'bb_cloud_sync_enabled',
+        'bb_cloud_sync_slot_v1',
         `bb_cloud_sync_slot_${userId}`,
         BrowserAccessVault.BROWSER_ACCESS_TOKENS_STORAGE_KEY,
         `${BROWSER_ACCESS_TOKEN_PREFIX}${userId}`,
@@ -23700,6 +23701,7 @@ function clearBudgetBuddyLocalAccountState(options = {}) {
         'bb_custom_categories',
         'bb_circular_buffer',
         'bb_cloud_sync_enabled',
+        'bb_cloud_sync_slot_v1',
         'bb_cloud_last_pushed_at',
         'bb_cloud_last_remote_at',
         'bb_cloud_last_error',

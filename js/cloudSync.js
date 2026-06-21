@@ -14,6 +14,7 @@ const CLOUD_KEY_PREFIX = 'bb_cloud_key_';
 const CLOUD_TRUSTED_KEY_DB_NAME = 'budgetbuddy_buddy_cloud_keys';
 const CLOUD_TRUSTED_KEY_DB_VERSION = 1;
 const CLOUD_TRUSTED_KEY_STORE = 'trusted_keys';
+const CLOUD_SYNC_SLOT_STORAGE_KEY = 'bb_cloud_sync_slot_v1';
 const CLOUD_SYNC_SLOT_PREFIX = 'bb_cloud_sync_slot_';
 const CLOUD_FORCE_PULL_AFTER_SIGN_IN_PREFIX = 'bb_cloud_force_pull_after_sign_in_';
 const CLOUD_TABLE = 'buddy_cloud_vaults';
@@ -290,7 +291,34 @@ function getStoredCloudKeyMaterial() {
 }
 
 function getSyncSlotKeyName(userId = currentUser?.id) {
+    return userId ? CLOUD_SYNC_SLOT_STORAGE_KEY : '';
+}
+
+function getLegacySyncSlotKeyName(userId = currentUser?.id) {
     return userId ? `${CLOUD_SYNC_SLOT_PREFIX}${userId}` : '';
+}
+
+function clearSyncSlotToken(userId = currentUser?.id) {
+    const keyName = getSyncSlotKeyName(userId);
+    const legacyKeyName = getLegacySyncSlotKeyName(userId);
+    if (keyName) localStorage.removeItem(keyName);
+    if (legacyKeyName) localStorage.removeItem(legacyKeyName);
+}
+
+function getMigratedSyncSlotToken(userId = currentUser?.id) {
+    const keyName = getSyncSlotKeyName(userId);
+    if (!keyName) return '';
+
+    const existing = localStorage.getItem(keyName);
+    const legacyKeyName = getLegacySyncSlotKeyName(userId);
+    const legacy = legacyKeyName ? localStorage.getItem(legacyKeyName) || '' : '';
+    if (legacy) {
+        if (!existing) localStorage.setItem(keyName, legacy);
+        localStorage.removeItem(legacyKeyName);
+        return existing || legacy;
+    }
+
+    return existing || '';
 }
 
 function getForcePullAfterSignInKeyName(userId = currentUser?.id) {
@@ -393,7 +421,7 @@ function getOrCreateSyncSlotToken() {
     const keyName = getSyncSlotKeyName();
     if (!keyName) throw new Error('Sign in before using Cloud Sync.');
 
-    const existing = localStorage.getItem(keyName);
+    const existing = getMigratedSyncSlotToken();
     if (existing) return existing;
 
     const token = generateCloudKey();
@@ -402,8 +430,7 @@ function getOrCreateSyncSlotToken() {
 }
 
 function getStoredSyncSlotToken(userId = currentUser?.id) {
-    const keyName = getSyncSlotKeyName(userId);
-    return keyName ? localStorage.getItem(keyName) || '' : '';
+    return getMigratedSyncSlotToken(userId);
 }
 
 async function getSyncSlotHash() {
@@ -1666,8 +1693,7 @@ export async function clearSyncSlots() {
 
     if (error) throw error;
 
-    const slotKeyName = getSyncSlotKeyName();
-    if (slotKeyName) localStorage.removeItem(slotKeyName);
+    clearSyncSlotToken();
     rememberStatus({
         syncSlotBlocked: false,
         syncSlotOwnerHash: '',
@@ -1692,8 +1718,7 @@ export async function releaseCurrentSyncSlot(options = {}) {
     const remote = await fetchRemoteVault();
     if (!remote) {
         if (clearLocalSlot) {
-            const slotKeyName = getSyncSlotKeyName();
-            if (slotKeyName) localStorage.removeItem(slotKeyName);
+            clearSyncSlotToken();
         }
         return false;
     }
@@ -1702,16 +1727,14 @@ export async function releaseCurrentSyncSlot(options = {}) {
     const nextSlots = slots.filter(slot => slot.hash !== syncOwnerHash);
     if (nextSlots.length === slots.length) {
         if (clearLocalSlot) {
-            const slotKeyName = getSyncSlotKeyName();
-            if (slotKeyName) localStorage.removeItem(slotKeyName);
+            clearSyncSlotToken();
         }
         return false;
     }
 
     await persistPrunedSyncSlots(remote, nextSlots);
     if (clearLocalSlot) {
-        const slotKeyName = getSyncSlotKeyName();
-        if (slotKeyName) localStorage.removeItem(slotKeyName);
+        clearSyncSlotToken();
     }
     rememberStatus({
         syncSlotBlocked: false,
@@ -1743,8 +1766,7 @@ export async function releaseSyncSlotByHash(syncSlotHash = '') {
     await persistPrunedSyncSlots(remote, nextSlots);
     const nextCurrentHash = targetHash === currentHash ? '' : currentHash;
     if (targetHash === currentHash) {
-        const slotKeyName = getSyncSlotKeyName();
-        if (slotKeyName) localStorage.removeItem(slotKeyName);
+        clearSyncSlotToken();
     }
 
     rememberStatus({
@@ -1782,10 +1804,9 @@ export async function releaseOtherSyncSlots() {
 
 export function removeThisDevice() {
     clearTimeout(pushTimer);
-    const slotKeyName = getSyncSlotKeyName();
     void clearTrustedCloudKey();
     clearMemoryCloudKey();
-    if (slotKeyName) localStorage.removeItem(slotKeyName);
+    clearSyncSlotToken();
     clearForcePullAfterSignIn();
     localStorage.removeItem(CLOUD_ENABLED_KEY);
     localStorage.removeItem(CLOUD_LAST_PUSHED_KEY);

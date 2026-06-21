@@ -9,6 +9,7 @@ const ACCOUNT_SCOPED_KEYS = Object.freeze([
     'bb_custom_categories',
     'bb_circular_buffer',
     'bb_cloud_sync_enabled',
+    'bb_cloud_sync_slot_v1',
     'bb_cloud_last_pushed_at',
     'bb_cloud_last_remote_at',
     'bb_cloud_last_error',

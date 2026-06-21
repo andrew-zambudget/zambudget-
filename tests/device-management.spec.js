@@ -104,6 +104,59 @@ test.describe('Cloud Sync device management', () => {
         expect(result.keys).not.toContain('bb_browser_access_token_browser-access-runtime-user');
     });
 
+    test('migrates sync slot token away from user-id key names', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        const result = await page.evaluate(async () => {
+            const userId = 'sync-slot-runtime-user';
+            const legacyToken = 'LEGACY_SYNC_SLOT_TOKEN_SENTINEL';
+            const legacyKey = 'bb_cloud_sync_slot_' + userId;
+            const storageKey = 'bb_cloud_sync_slot_v1';
+            const encodeBase64Url = bytes => {
+                let binary = '';
+                bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+                return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+            };
+            const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(legacyToken));
+            const expectedHash = encodeBase64Url(new Uint8Array(digest));
+
+            localStorage.removeItem(storageKey);
+            localStorage.setItem(legacyKey, legacyToken);
+            await window.BuddyCloud.init({
+                supabaseClient: null,
+                user: {
+                    id: userId,
+                    email: 'sync-slot-runtime@example.com'
+                },
+                getSnapshot: () => ({
+                    transactions: [],
+                    categories: [],
+                    settings: {},
+                    meta: {}
+                }),
+                replaceSnapshot: async () => true,
+                isPremiumAccount: () => false
+            });
+
+            const currentHash = await window.BuddyCloud.getCurrentSyncSlotHash();
+
+            return {
+                expectedHash,
+                currentHash,
+                genericValue: localStorage.getItem(storageKey),
+                legacyValue: localStorage.getItem(legacyKey),
+                keys: Object.keys(localStorage).sort()
+            };
+        });
+
+        expect(result.currentHash).toBe(result.expectedHash);
+        expect(result.genericValue).toBe('LEGACY_SYNC_SLOT_TOKEN_SENTINEL');
+        expect(result.legacyValue).toBeNull();
+        expect(result.keys).toContain('bb_cloud_sync_slot_v1');
+        expect(result.keys).not.toContain('bb_cloud_sync_slot_sync-slot-runtime-user');
+    });
+
     test('shows available Free sync slot when current browser is inactive', async ({ page }) => {
         await page.goto('/index.html');
         await waitForAppReady(page);
