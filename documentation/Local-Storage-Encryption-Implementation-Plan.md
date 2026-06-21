@@ -1,6 +1,6 @@
 # Local Storage Encryption Implementation Plan
 
-Status: Phase 2 implementation planning.
+Status: implemented for `bb_data` local vault rollout; retained as the implementation/runbook reference.
 Last reviewed: 2026-06-21.
 
 This plan uses Zam's existing Cloud Sync and recovery model. It does not reopen the product decision around recovery keys, trusted browsers, or Cloud Sync.
@@ -20,7 +20,7 @@ The existing model stays in place:
 - Browser-only/local-only budgets have no recovery support after local browser storage is lost.
 - Cloud/browser access tokens and sync-slot tokens are not vault decryption keys.
 
-The local encryption layer should work with that model instead of replacing it.
+The local encryption layer works with that model instead of replacing it.
 
 ## Goal
 
@@ -177,13 +177,13 @@ Tests:
 - mobile/tablet smoke tests
 - signed-out write guard
 
-### Phase 2C: Encrypted Write Path Behind Gate
+### Phase 2C: Encrypted Write Path
 
-Add a temporary internal feature gate so QA can test without forcing all users through migration immediately.
+The local vault config flag is now enabled in `config.json`.
 
 Requirements:
 
-- current plaintext `bb_data` remains readable until migration is enabled
+- legacy plaintext `bb_data` remains readable only long enough to migrate after local vault initialization
 - encrypted writes happen only when gate is enabled
 - `save()` still returns a meaningful boolean to existing UI callers
 - write failures do not silently corrupt memory
@@ -203,19 +203,13 @@ Migration behavior:
 
 Failure behavior:
 
-- If encryption fails, keep existing plaintext `bb_data` and show no false security claim.
+- If encryption fails during migration, keep existing plaintext `bb_data` and show no false security claim.
 - If encrypted write succeeds but verification fails, do not delete readable data.
 - If encrypted data exists but cannot unlock, use the existing recovery/trusted-browser model to recover if possible.
 
 ### Phase 2E: Flip Guardrail Tests
 
-After migration is enabled and approved, replace the current baseline test:
-
-```text
-documents current behavior: real bb_data is readable plaintext until local encryption is approved
-```
-
-with:
+The storage-sensitive guardrail now requires:
 
 ```text
 bb_data does not expose transaction descriptions, amounts, categories, notes, gift card metadata, CSV/import data, or deleted/tombstoned records
@@ -240,7 +234,7 @@ Before enabling encryption broadly:
 - CSV import still stores imported transactions correctly
 - CSV export still exports correct plaintext CSV after user action
 - diagnostics still exclude budget contents and keys
-- storage-sensitive-data tests pass after flipping plaintext expectation
+- storage-sensitive-data tests pass with encrypted `bb_data` expectations
 
 ## Documentation Updates Required When Encryption Ships
 

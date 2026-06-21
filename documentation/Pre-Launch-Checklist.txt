@@ -42,7 +42,8 @@ Current public stance: the marketing website may use Cloudflare aggregate delive
 - [ ] Review marketing `privacy.html`, `terms.html`, `cookie-policy.html`, and `trust.html`.
 - [ ] Review the public changelog and roadmap.
 - [ ] Confirm Cloud Sync copy accurately says synced budget contents are encrypted client-side and require the user's recovery key or trusted local browser key.
-- [ ] Confirm browser-only local budgets are documented as unrecoverable if local browser storage is lost.
+- [ ] Confirm browser-only local budgets are documented as encrypted at rest but unrecoverable if local browser storage or local vault key material is lost.
+- [ ] Confirm local browser encryption copy does not claim protection while the app is open and decrypted in memory.
 
 ## 6. Billing
 

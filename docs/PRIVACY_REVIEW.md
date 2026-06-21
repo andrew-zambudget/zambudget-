@@ -67,3 +67,20 @@ Privacy/legal requirement:
 - Do not set `Domain=.zambudget.com` for the required site-data cookie. It must remain host-only for `app.zambudget.com`.
 - Do not add a fake Accept all / Reject all consent flow while Zam only uses required first-party app storage.
 - If required site data is blocked, Zam should warn the user instead of pretending the app can save or load normally.
+
+## Local Vault Browser Storage
+
+Current behavior:
+
+- Real app budget data in `bb_data` is stored as an encrypted local vault envelope after app startup/migration.
+- The local vault key is a non-extractable WebCrypto key stored in IndexedDB, not localStorage.
+- Legacy plaintext `bb_data` may exist only before migration or in direct legacy test/setup scenarios.
+- Demo data remains session-only in `zam_demo_data` and should not contain real financial information.
+- Local encryption protects persisted browser storage at rest. It does not protect unlocked in-memory app state, XSS-compromised pages, malicious browser extensions, compromised devices, or plaintext CSV exports after download.
+- Browser-only budgets remain unrecoverable if browser storage or local vault key material is lost. Cloud Sync and exports remain the supported recovery paths.
+
+Privacy/legal requirement:
+
+- Public copy may say persisted real app budget data in browser storage is encrypted at rest.
+- Public copy must also say Zam cannot recover browser-only budgets after browser storage/key material is lost.
+- Do not imply local browser encryption gives Zam support access, server-side recovery, or protection while the app is open and decrypted in memory.

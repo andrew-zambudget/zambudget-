@@ -1,15 +1,20 @@
 # Local Storage Encryption Checklist
 
-Status: future implementation gate.
+Status: active local vault guardrail.
 Last reviewed: 2026-06-21.
 
-This checklist blocks premature local-storage encryption work. Local encryption changes core persistence, Cloud Sync, recovery-key UX, demo behavior, import/export, diagnostics, and account cleanup. Do not implement encryption until the unlock model is approved.
+This checklist records the guardrails for Zam's local vault storage rollout. Local encryption changes core persistence, Cloud Sync, recovery-key UX, demo behavior, import/export, diagnostics, and account cleanup, so future changes must preserve the boundaries below.
 
-## Not In Current Patch
+## Current Production Behavior
 
-The Phase 1 guardrail patch must not:
+- `bb_data` stores an encrypted local vault envelope for real app budget data.
+- plaintext legacy `bb_data` is migrated after the local vault key provider verifies an encrypt/decrypt roundtrip.
+- local vault keys are non-extractable WebCrypto keys stored in IndexedDB under `zam_local_vault_keys`.
+- demo data remains session-only in `zam_demo_data`.
+- Cloud Sync encryption, recovery-key behavior, import/export, budget math, and auth/session behavior remain separate systems.
 
-- encrypt `bb_data`
+## Do Not Regress
+
 - rename `bb_*` keys
 - change Cloud Sync encryption
 - change recovery-key behavior
@@ -18,16 +23,12 @@ The Phase 1 guardrail patch must not:
 - change gift card state behavior
 - change auth/session behavior
 
-## Phase 1 Allowed Work
+## Completed Implementation Checkpoints
 
-Phase 1 may:
-
-- add storage-sensitive-data tests
-- document current plaintext behavior
-- add TODO-marked future encryption assertions
-- verify recovery keys, master keys, and vault keys are not persisted in plaintext
-- inventory localStorage, sessionStorage, IndexedDB, and cookie keys
-- add guardrail documentation, checklists, and review gates
+- storage-sensitive-data tests now assert real `bb_data` does not expose budget sentinels.
+- local vault adapter, key provider, migration, runtime wiring, and rollout smoke tests are present.
+- recovery keys, master keys, and vault keys are not persisted in plaintext localStorage.
+- localStorage, sessionStorage, IndexedDB, and cookie keys are inventoried in `documentation/Storage-Inventory.md`.
 
 ## Existing Product Model
 
@@ -40,7 +41,7 @@ Zam already has an approved Cloud Sync and recovery model. The local encryption 
 - raw recovery-key text is not stored in localStorage
 - browser-only/local-only budgets remain unrecoverable if local storage/key material is lost
 
-The remaining decision is implementation-specific: how the local encryption adapter uses the existing trusted-browser/recovery model without weakening it.
+The local encryption adapter uses its own local key-provider boundary without weakening the existing trusted-browser/recovery model.
 
 ## Key Separation Rule
 
@@ -48,22 +49,12 @@ Cloud/browser access tokens must not be used as local vault encryption keys.
 
 A trusted browser/device unlock model may exist later, but session credentials, browser access tokens, sync-slot tokens, and vault decryption material must remain separate.
 
-## Required Design Answers
+## Remaining Design Answers To Keep Reviewed
 
-- What unlock secret protects local `bb_data`?
-- Can Zam recover local encrypted data if the user loses the unlock secret?
-- Does local encryption apply to demo data?
-- Does local encryption apply to CSV import batch metadata?
-- Does local encryption apply to merchant aliases?
-- Does local encryption apply to gift card metadata?
-- What remains intentionally plaintext?
-- How does a signed-out user unlock a local-only budget?
-- How does logout interact with encrypted local data?
-- How does factory reset remove encrypted data?
-- How does account-owner change cleanup work?
-- How does Cloud Sync restore write encrypted local data?
-- How does export/import avoid accidental encryption lock-in?
-- How are stale plaintext `bb_data` payloads migrated and removed?
+- Should CSV import batch metadata and merchant aliases later move inside the local vault?
+- What additional user-facing copy is needed if a local vault key is missing or corrupted?
+- Should local-only users get any optional export/reminder flow before clearing storage?
+- How should support triage a user with encrypted local `bb_data` but missing browser key material?
 
 ## Intentional Plaintext Boundary
 
@@ -78,7 +69,7 @@ Examples that may remain plaintext only if approved:
 - demo-mode flag
 - recovery-key-backed-up boolean UX flag
 
-Examples that should not remain plaintext after local encryption lands:
+Examples that should not remain plaintext:
 
 - transactions
 - categories
@@ -101,37 +92,28 @@ It does not fully protect data while the app is unlocked and decrypted in memory
 
 ## Required Engineering Plan
 
-1. Add encrypted storage adapter.
-2. Keep adapter isolated from UI and budget math.
-3. Add envelope format with explicit version.
-4. Add one-way migration from plaintext `bb_data`.
-5. Avoid creating new plaintext backup keys during migration.
-6. Preserve rollback if migration fails before deleting readable data.
-7. Add tests that prove old plaintext sentinel values disappear after migration.
-8. Add tests that prove corrupt encrypted envelopes do not overwrite memory.
-9. Add tests that prove Cloud Sync restore still works.
-10. Add tests that prove local-only users get understandable unlock/recovery states.
+1. Keep encrypted storage adapter isolated from UI and budget math.
+2. Keep envelope format versioned.
+3. Preserve one-way migration from plaintext `bb_data`.
+4. Avoid creating new plaintext backup keys during migration.
+5. Preserve rollback if migration fails before replacing readable data.
+6. Keep tests that prove old plaintext sentinel values disappear after migration.
+7. Keep tests that prove corrupt encrypted envelopes do not overwrite memory.
+8. Keep tests that prove Cloud Sync restore still works.
+9. Add/maintain tests for understandable unlock/recovery states as UI evolves.
 
 Rollback safety means the original plaintext value may remain only until encrypted migration is verified. Do not create new plaintext backup keys. After verified migration, remove the original plaintext payload.
 
 ## Release Gate
 
-Any PR that implements encryption, migration, key handling, recovery changes, or storage adapter changes must be blocked until this checklist is satisfied and product approval is recorded.
+Any PR that changes encryption, migration, key handling, recovery behavior, or storage adapter behavior must be blocked until this checklist is reviewed and product approval is recorded.
 
 See `documentation/Local-Storage-Encryption-Implementation-Plan.md` for the implementation path.
 
-## Future Test Flip
-
-Current Phase 1 test:
-
-```text
-documents current behavior: real bb_data is readable plaintext until local encryption is approved
-```
-
-Future encryption test after implementation:
+## Current Storage-Sensitive Test
 
 ```text
 bb_data does not expose transaction descriptions, amounts, categories, notes, gift card metadata, or deleted transaction tombstones
 ```
 
-Do not flip that test until migration and unlock behavior are product-approved and implemented.
+Do not weaken that test without product/security review.

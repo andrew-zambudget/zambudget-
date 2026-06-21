@@ -36,6 +36,44 @@ const REAL_BUDGET = {
     }
 };
 
+function modulePath(pathname) {
+    return `${pathname}?test=${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function expectRealBudgetPreserved(record) {
+    expect(['encrypted', 'plaintext']).toContain(record.classification.kind);
+    expect(record.payload?.transactions?.[0]?.category).toBe('RealRent');
+    expect(record.raw).not.toContain('demo-income-1');
+    if (record.classification.kind === 'encrypted') {
+        expect(record.raw).not.toContain('RealRent');
+    }
+}
+
+async function readLocalBudgetRecord(page) {
+    return page.evaluate(async ({ vaultModulePath, keyProviderModulePath }) => {
+        const Vault = await import(vaultModulePath);
+        const KeyProvider = await import(keyProviderModulePath);
+        const raw = localStorage.getItem('bb_data') || '';
+        const classification = Vault.classifyLocalBudgetRecord(raw);
+        let payload = null;
+
+        if (classification.kind === 'encrypted') {
+            const keyId = KeyProvider.getLocalVaultKeyId({ scope: 'primary' });
+            const key = await KeyProvider.readLocalVaultKey(keyId);
+            payload = key
+                ? await Vault.readEncryptedLocalVaultRecord(localStorage, key, { storageKey: 'bb_data' })
+                : null;
+        } else if (classification.kind === 'plaintext') {
+            payload = JSON.parse(raw);
+        }
+
+        return { raw, classification, payload };
+    }, {
+        vaultModulePath: modulePath('/js/localVaultStorage.js'),
+        keyProviderModulePath: modulePath('/js/localVaultKeyProvider.js')
+    });
+}
+
 test.describe('Zam! demo app flow', () => {
     test.beforeEach(async ({ page }) => {
         await installSignedOutSupabaseStub(page);
@@ -60,16 +98,15 @@ test.describe('Zam! demo app flow', () => {
 
         const startedState = await page.evaluate(() => ({
             active: sessionStorage.getItem('zam_demo_active'),
-            data: localStorage.getItem('bb_data'),
             demoData: sessionStorage.getItem('zam_demo_data'),
             staleActive: localStorage.getItem('bb_demo_active'),
             backup: localStorage.getItem('bb_demo_backup_bb_data'),
             backupFlag: localStorage.getItem('bb_demo_backup_has_data')
         }));
+        const startedBudget = await readLocalBudgetRecord(page);
 
         expect(startedState.active).toBe('true');
-        expect(startedState.data).toContain('RealRent');
-        expect(startedState.data).not.toContain('demo-income-1');
+        expectRealBudgetPreserved(startedBudget);
         expect(startedState.demoData).toContain('demo-income-1');
         expect(startedState.staleActive).toBeNull();
         expect(startedState.backup).toBeNull();
@@ -84,17 +121,16 @@ test.describe('Zam! demo app flow', () => {
         const restoredState = await page.evaluate(() => ({
             active: sessionStorage.getItem('zam_demo_active'),
             demoData: sessionStorage.getItem('zam_demo_data'),
-            data: localStorage.getItem('bb_data'),
             backup: localStorage.getItem('bb_demo_backup_bb_data'),
             backupFlag: localStorage.getItem('bb_demo_backup_has_data')
         }));
+        const restoredBudget = await readLocalBudgetRecord(page);
 
         expect(restoredState.active).toBeNull();
         expect(restoredState.demoData).toBeNull();
         expect(restoredState.backup).toBeNull();
         expect(restoredState.backupFlag).toBeNull();
-        expect(restoredState.data).toContain('RealRent');
-        expect(restoredState.data).not.toContain('demo-income-1');
+        expectRealBudgetPreserved(restoredBudget);
         expect(quarantineWarnings).toEqual([]);
     });
 

@@ -262,7 +262,7 @@
                             <div class="release-summary-row summary-security">
                                 <span class="release-summary-dot" aria-hidden="true"></span>
                                 <span class="release-summary-label">Storage</span>
-                                <span class="release-summary-copy">Added and verified flag-gated local vault encryption test coverage. Default production storage behavior remains unchanged while the feature flag is off.</span>
+                                <span class="release-summary-copy">Local vault storage is now enabled by default so persisted real app budget data is stored as an encrypted browser envelope.</span>
                             </div>
                             <div class="release-summary-row summary-ui">
                                 <span class="release-summary-dot" aria-hidden="true"></span>
@@ -316,8 +316,8 @@
                             <div class="tag-item tag-security">
                                 <span class="tag-icon" aria-hidden="true">VAULT</span>
                                 <div>
-                                    <div class="tag-text">Local vault foundation staged</div>
-                                    <span class="tag-detail">Local vault encryption and migration coverage now pass behind a disabled feature flag. Real user browser storage is not migrated yet, and production bb_data remains in the existing plaintext JSON format while the flag is off.</span>
+                                    <div class="tag-text">Local vault storage enabled</div>
+                                    <span class="tag-detail">Persisted real app budget data now migrates from legacy plaintext bb_data into an encrypted local vault envelope before render. Fresh saves use the encrypted envelope by default, while demo data remains isolated in session storage.</span>
                                 </div>
                             </div>
 

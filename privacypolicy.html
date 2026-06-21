@@ -113,11 +113,12 @@
                     <li><strong>Type:</strong> first-party functional/site-data cookie, host-only to app.zambudget.com.</li>
                     <li><strong>Optional analytics or advertising cookies:</strong> not used.</li>
                     <li><strong>Browser storage:</strong> localStorage, sessionStorage, IndexedDB, and other required app/site data may store or access information on this device for app function.</li>
-                    <li><strong>Browser budget storage:</strong> localStorage stores browser-only budget data and app preferences on this browser.</li>
+                    <li><strong>Browser budget storage:</strong> localStorage stores an encrypted local vault envelope for real app budget data on this browser. Envelope metadata, timestamps, app preferences, and some non-budget helper records may remain visible.</li>
                     <li><strong>Merchant cleanup aliases:</strong> localStorage may store accepted merchant cleanup aliases in <code>bb_merchant_aliases_v1</code> so future CSV imports can suggest the same cleanup for the same browser/user.</li>
                     <li><strong>Session storage:</strong> sessionStorage may hold temporary app state while the browser tab is open.</li>
                     <li><strong>Public demo sandbox:</strong> The public demo may store sample budget data in sessionStorage under <code>zam_demo_data</code> while the demo tab is open. Demo changes are not synced and should not contain real financial information.</li>
-                    <li><strong>Trusted Cloud Sync browser key:</strong> IndexedDB may store a non-extractable WebCrypto key after Cloud Sync setup or recovery-key import so this browser can keep syncing after refresh without storing the raw recovery key.</li>
+                    <li><strong>Local vault key:</strong> IndexedDB may store a non-extractable WebCrypto key so this browser can encrypt and decrypt persisted local budget storage. This key is local to this browser profile and is not uploaded to Zam!.</li>
+                    <li><strong>Trusted Cloud Sync browser key:</strong> IndexedDB may store a separate non-extractable WebCrypto key after Cloud Sync setup or recovery-key import so this browser can keep syncing after refresh without storing the raw recovery key.</li>
                     <li><strong>Authentication and security:</strong> Supabase, Cloudflare, Google OAuth, or other required providers may set their own security or session cookies during sign-in, security checks, or provider-hosted flows.</li>
                 </ul>
                 <p>You can block or clear cookies and site data through <strong>Browser settings &gt; Site settings &gt; Cookies and site data &gt; app.zambudget.com</strong>, or use Zam!'s local erase/reset controls such as <strong>Erase Local Budget Data</strong> or <strong>Erase Local Data</strong>. Blocking required site data may prevent Zam! from saving or loading budgets, keeping sign-in state, or preserving trusted Cloud Sync unlock state.</p>
@@ -130,7 +131,8 @@
                 <p>Zam! has two storage modes: signed-in Cloud Sync protection and browser-only storage.</p>
                 <ul>
                     <li><strong>Signed in:</strong> Cloud Sync is the default protection path. Your budget is encrypted on your device before upload, then stored as an encrypted vault.</li>
-                    <li><strong>Browser-only:</strong> If you use Zam! without signing in, budget data stays only in that browser's localStorage.</li>
+                    <li><strong>Browser-only:</strong> If you use Zam! without signing in, budget data stays only in that browser and is stored as an encrypted local vault envelope. Zam! still cannot recover it if the browser's site data, local vault key material, or browser profile is lost or cleared.</li>
+                    <li><strong>Local vault storage:</strong> Persisted real app budget contents are encrypted at rest in browser storage. The app decrypts budget data locally while it is open and unlocked so it can render, edit, import, export, and sync your budget.</li>
                     <li><strong>Trusted browser key:</strong> After Cloud Sync setup or recovery-key import, this browser may store a non-extractable WebCrypto key in IndexedDB so refreshes can keep syncing without asking for the recovery key again. The raw recovery key is not stored in localStorage and cannot be displayed from this trusted key. Zam! does not upload this trusted key or include it in device-management records, but app code running in this browser can use it locally to encrypt and decrypt your Cloud Sync vault while you are signed in.</li>
                     <li><strong>Gift card merchant metadata cache:</strong> If you use gift-card merchant hints, Zam! downloads one full merchant metadata bundle to this browser. Merchant searches, suggestion filtering, and selections happen locally; Zam! does not send individual merchant search terms or suggestion choices to a server. You can clear this cache in Global Settings.</li>
                     <li><strong>Smart Merchant Cleanup:</strong> CSV merchant cleanup suggestions run locally in the browser using a full static merchant seed bundle and accepted local aliases. If you accept a cleanup, Zam! may remember that alias for the same browser/user only. Zam! does not send merchant descriptions to a third-party merchant-recognition API.</li>
@@ -207,9 +209,11 @@
                 <ul>
                     <li>All data in transit is protected with TLS/HTTPS encryption</li>
                     <li>Cloud-synced data is encrypted end-to-end before leaving your device</li>
+                    <li>Persisted real app budget data in browser storage is encrypted at rest using a browser-local WebCrypto key</li>
                     <li>Authentication credentials are never stored in plain text</li>
                     <li>We follow industry-standard security practices</li>
                 </ul>
+                <p>Local browser encryption protects persisted browser storage at rest. It does not protect data while the app is open and decrypted in memory, and it does not replace device security, browser security, XSS prevention, or careful handling of exports and recovery keys.</p>
                 <p>That said, no system is perfectly secure. We encourage you to:</p>
                 <ul>
                     <li>Use a strong, unique password for your account</li>

@@ -22,7 +22,7 @@ Cloud Sync v1 is the default protection path for signed-in users. The app still 
 
 ## Security Model
 
-- Budget data is stored locally in `bb_data`.
+- Budget data is stored locally in `bb_data` as an encrypted local vault envelope after app startup/migration.
 - Cloud data is stored as one encrypted vault row per user in `buddy_cloud_vaults`.
 - The encrypted vault includes transactions, balances, budgets, categories, descriptions, notes, and amounts; the backend cannot read those fields.
 - Cloud Sync v1 does not store device names, user agents, IP-derived location, or persistent device identifiers in the app database.

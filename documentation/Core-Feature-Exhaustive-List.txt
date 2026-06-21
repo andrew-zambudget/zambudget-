@@ -7,7 +7,7 @@
 Zam! exists to provide a budgeting tool that can be used by anyone, with all core budgeting features available and a seamless experience. Privacy-first infrastructure and Cloud Sync should reduce risk without creating paywalls around essential budgeting workflows.
 
 ## LOCAL_ONLY_SUPPORT_POLICY
-Local-only budgets are allowed for privacy and offline use, but Zam! provides no recovery support for budgets saved only in browser/device storage. If a user clears browser data, clears site data, uses privacy-cleanup tools, loses access to the device/browser profile, or otherwise deletes local storage, Zam! cannot restore that local-only budget. Cloud Sync and exports are the supported recovery paths.
+Local-only budgets are allowed for privacy and offline use, and real app budget data is persisted as encrypted local vault storage. Zam! still provides no recovery support for budgets saved only in browser/device storage. If a user clears browser data, clears site data, clears IndexedDB/localStorage, uses privacy-cleanup tools, loses access to the device/browser profile, or otherwise deletes local storage/key material, Zam! cannot restore that local-only budget. Cloud Sync and exports are the supported recovery paths.
 
 ## 1. TRANSACTION_MANAGEMENT_ENGINE
 - [MUST_IMPLEMENT] Add New Transaction (Dedicated Form)
@@ -53,7 +53,7 @@ Local-only budgets are allowed for privacy and offline use, but Zam! provides no
 
 ## 4. DATA_PORTABILITY_OWNERSHIP
 - [MUST_IMPLEMENT] CSV Export (Full History, One-Click)
-- [MUST_IMPLEMENT] Local Persistence (Browser localStorage only)
+- [MUST_IMPLEMENT] Local Persistence (browser localStorage plus local vault key material in IndexedDB)
   - CONSTRAINT: No server-side requirement for these features.
 
 ## 5. INTERFACE_NAVIGATION_CONTROL

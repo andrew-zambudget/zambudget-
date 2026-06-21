@@ -1,21 +1,22 @@
 # Zam Browser Storage Inventory
 
-Status: Phase 1 guardrail inventory.
+Status: active storage inventory.
 Last reviewed: 2026-06-21.
 
-This document records browser-side storage used by Zam today. It is not an encryption design. It exists so future privacy, recovery, Cloud Sync, and local encryption work starts from the actual storage surface instead of guesses.
+This document records browser-side storage used by Zam today. It exists so privacy, recovery, Cloud Sync, and local encryption work starts from the actual storage surface instead of guesses.
 
 Any new storage key added in future patches must be added to this inventory before merge.
 
 ## Current Product Rule
 
-Do not encrypt, rename, or migrate storage keys until the local unlock/key model is approved.
+Real app budget contents must persist through the local vault envelope. Do not rename storage keys or introduce new storage keys without updating this inventory.
 
 Current local-first behavior:
 
-- Real app budgets are stored in `localStorage` under `bb_data`.
+- Real app budgets are stored in `localStorage` under `bb_data` as an encrypted local vault envelope.
 - Public demo budgets are stored in `sessionStorage` under `zam_demo_data`.
 - Cloud Sync vault uploads are encrypted separately before remote upload.
+- Local vault budget keys use IndexedDB non-extractable WebCrypto keys in `zam_local_vault_keys`.
 - Trusted Cloud Sync browser keys use IndexedDB non-extractable WebCrypto keys.
 
 ## Sensitivity Levels
@@ -32,7 +33,7 @@ Current local-first behavior:
 
 | Key | Storage | Classification | Contents | Notes |
 | --- | --- | --- | --- | --- |
-| `bb_data` | localStorage | Critical | Transactions, categories, settings, gift cards | Current real budget store. Readable JSON until local encryption is approved and implemented. |
+| `bb_data` | localStorage | Critical | Encrypted local vault envelope for transactions, categories, settings, gift cards | Current real budget store. Envelope metadata may be visible, but budget contents should not be readable in localStorage. |
 | `bb_local_updated_at` | localStorage | Sensitive metadata | Last local budget write timestamp | Used by local save and Cloud Sync comparison. |
 | `zam_demo_data` | sessionStorage | Critical, demo-only | Sample/demo budget payload | Demo edits are sandboxed and should not contain real financial data. |
 | `zam_demo_local_updated_at` | sessionStorage | Sensitive metadata, demo-only | Demo local write timestamp | Cleared with demo/session reset. |
@@ -85,6 +86,7 @@ CSV-imported transaction details are stored inside `bb_data`, including import m
 | `bb_cloud_recovery_key_unlocked_until_<userId>` | sessionStorage | Auth or sync helper | Short recovery-key view unlock timestamp | Session-only UI unlock marker. |
 | `bb_cloud_default_setup_attempted_<userId>` | localStorage | Auth or sync helper | Default setup attempt marker | Setup helper flag. |
 | `bb_cloud_key_<userId>` | localStorage | Critical, legacy forbidden | Old raw recovery-key storage pattern | Current cleanup removes these keys. Do not reintroduce. |
+| `zam_local_vault_keys` | IndexedDB | Auth or sync helper | Non-extractable AES-GCM CryptoKey records for local vault storage | Encrypts and decrypts persisted local `bb_data` envelopes. Local-only. Not uploaded to Zam!. |
 | `budgetbuddy_buddy_cloud_keys` | IndexedDB | Auth or sync helper | Non-extractable AES-GCM CryptoKey | Lets trusted browser sync after refresh without storing raw recovery-key text in localStorage. |
 
 ## Account, Billing, And Login Helpers
@@ -128,23 +130,23 @@ CSV-imported transaction details are stored inside `bb_data`, including import m
 - Demo mode writes to `zam_demo_data` and does not overwrite `bb_data`.
 - Account owner changes clear stale account-scoped local budget and sync state.
 - `bb_cloud_key_*` raw recovery-key remnants are removed by privacy cleanup.
-- Diagnostics are generated locally and exclude budget contents, recovery keys, and access tokens.
+- Diagnostics are generated locally and exclude budget contents, recovery keys, local vault keys, and access tokens.
 - Factory reset removes `bb_` and `zam_` namespace keys.
 
-## Future Encryption Gate
+## Local Vault Guardrail Status
 
-The Cloud Sync and recovery model already exists. Before local encryption implementation begins, the implementation must preserve:
+Local vault storage is enabled by default for real app budget persistence.
+
+The implementation must preserve:
 
 1. trusted browser behavior through non-extractable WebCrypto keys where applicable.
 2. recovery-key fallback for signed-in Cloud Sync users.
 3. no recovery support for local-only budgets after local storage/key loss.
 4. account/session tokens separated from vault decryption material.
-5. honest privacy/security copy after encryption lands.
+5. honest privacy/security copy as storage behavior changes.
 
 Cloud/browser access tokens must not be used as local vault encryption keys. Session credentials, browser access tokens, sync-slot tokens, and vault decryption material must remain separate.
 
 If `bb_browser_access_token_<userId>` or `bb_cloud_sync_slot_<userId>` leaks, rotate or revoke it as auth/sync helper material. Do not treat it as vault decryption material.
 
 Local storage encryption protects persisted browser storage at rest. It does not fully protect data while the app is unlocked and decrypted in memory, and it does not eliminate XSS risk.
-
-Do not flip plaintext guardrail tests to "must not expose plaintext" until the unlock model and migration design are approved.

@@ -5,12 +5,12 @@
 Current status:
 
 ```text
-Automated production smoke is green with local vault disabled by default.
-Local vault encryption is staged behind a disabled runtime/config flag.
-No production/runtime user data has been migrated to encrypted local vault storage.
+Local vault storage is enabled by default in config.json.
+Automated production smoke is green with local vault enabled.
+Runtime app saves now persist real app budget data as encrypted local vault envelopes.
 ```
 
-This is not a global user enablement yet.
+This is now a global user enablement after deployment picks up the pushed config.
 
 ## Runtime Rollout Gate
 
@@ -19,7 +19,7 @@ Current feature flag:
 ```text
 Browser flag: window.__ZAM_ENABLE_LOCAL_VAULT_STORAGE_EXPERIMENT__
 Config flag: config.json -> localVaultStorageEnabled: true
-Default state: absent/false/off
+Default state: enabled in `config.json`
 ```
 
 Runtime behavior now covered by tests:
@@ -32,7 +32,7 @@ Runtime behavior now covered by tests:
 - Cloud Sync/recovery/auth/session behavior is not redesigned by this rollout gate.
 ```
 
-## To Call Test Phase Complete With Flag Off
+## To Call Test Phase Complete With Flag On
 
 ### Finish Manual Lane 4
 
@@ -47,34 +47,19 @@ Manual production checks still needed or to be confirmed complete:
 - No unexpected trackers while logged in.
 ```
 
-## Push Test-Only Commit
-
-Push:
-
-```text
-b77d996 Update smoke test expectations
-```
-
-Notes:
-
-```text
-- No runtime app code changed in this commit.
-- This commit updates stale smoke test expectations only.
-```
-
 ## Changelog Wording
 
 Use:
 
 ```text
-Added and verified flag-gated local vault encryption test coverage. Default production storage behavior remains unchanged while the feature flag is off.
+Enabled local vault storage by default. Persisted real app budget data now migrates to an encrypted local vault envelope before render, and fresh saves use the encrypted envelope.
 ```
 
-Do not describe local browser storage as encrypted for users yet.
+Do not imply this protects data while the app is open and decrypted in memory.
 
 ## Privacy / Legal Wording
 
-Do not claim local browser budget storage is encrypted yet.
+Local browser budget storage can be described as encrypted at rest.
 
 Keep or confirm wording that:
 
@@ -88,58 +73,50 @@ If browser storage is mentioned, use wording like:
 Required site data may include local app data needed to save and load budgets.
 ```
 
-Internal-only note:
-
-```text
-Local vault encryption is staged behind a disabled runtime/config flag.
-```
+Keep the limitation: local-only budgets are still unrecoverable if browser storage or local vault key material is lost.
 
 ## Jira Status
 
 Use:
 
 ```text
-Foundation complete. Pending controlled production rollout.
+Local vault storage enabled. Monitor production behavior and support reports.
 ```
 
-Do not use:
-
-```text
-Local browser storage encryption live for users.
-```
+Avoid wording that suggests Zam can recover local-only encrypted budgets without Cloud Sync or an export.
 
 ## Storage Status Note
 
 Current production storage status:
 
 ```text
-Production storage state is expected / acceptable for flag-off local vault state.
+Production storage state is expected / acceptable for flag-on local vault state.
 
-bb_data remains plaintext JSON while local vault encryption is disabled by default.
+bb_data should be an encrypted local vault envelope after app startup/migration.
 
 No raw recovery key observed in localStorage.
 
 No local vault key observed in localStorage.
 
-Do not manually enable local vault in production UI yet.
+Local vault key material should live in IndexedDB, not localStorage.
 ```
 
-## Internal Rollout Doc Requirements
+## Internal Rollout / Audit Doc Requirements
 
-Before controlled rollout, document:
+For rollout audit and future support, document:
 
 ```text
 - Feature flag name and location:
   - window.__ZAM_ENABLE_LOCAL_VAULT_STORAGE_EXPERIMENT__
   - config.json -> localVaultStorageEnabled
-- Confirmation that default is off.
-- How to verify bb_data before enabling.
-- How to verify bb_data after enabling.
+- Confirmation that default is on.
+- How to verify legacy/plaintext bb_data before startup migration.
+- How to verify encrypted-envelope bb_data after startup migration.
 - How to confirm sensitive sentinel values are not visible.
 - How to verify refresh/decrypt/readback works.
 - How to verify State.flushLocalVaultSaveQueue() completes after runtime saves.
 - Rollback plan:
-  - turn the config flag off for new sessions
+  - turn the config flag off for new sessions only as an emergency rollback
   - do not manually edit user storage unless a specific recovery runbook exists
   - if bb_data is already encrypted and the flag is off, app startup must fail safe instead of blanking or overwriting the budget
   - re-enable the flag or use Cloud Sync/recovery flow to recover access
@@ -152,7 +129,7 @@ Attach or reference:
 ```text
 - Core app smoke: 15 passed
 - Auth route guard: 6 passed
-- Storage/recovery/local vault guardrails: 37 passed
+- Storage/recovery/local vault guardrails: updated for encrypted bb_data expectations
 - Focused local vault rollout suite: 26 passed
 - Full automated test suite: 127 passed, 1 skipped
 - Production login/demo/magic-link request checks: passed
@@ -160,22 +137,20 @@ Attach or reference:
 - Authenticated magic-link callback/recovery verification: manual pending unless completed
 ```
 
-## Public Marketing
+## Public Marketing / Legal
 
-No public marketing claim yet.
-
-Do not add a public feature bullet that implies local browser storage encryption is live until the feature is enabled globally and fully verified.
-
-If mentioned at all, describe it as:
+Allowed claim:
 
 ```text
-Engineering/security hardening in progress.
+Persisted real app budget data in browser storage is encrypted at rest.
 ```
 
-not as a live user guarantee.
+Required limitation:
+
+```text
+Local encryption does not protect unlocked in-memory app data and does not make browser-only budgets recoverable if browser storage or local vault key material is lost.
+```
 
 ## Final Call
 
-Production smoke can be considered complete with the local vault flag off after the remaining manual Lane 4 checks pass.
-
-Feature readiness for global local-vault enablement requires a separate rollout ticket and a controlled flag-on production smoke using a fresh account and an existing account.
+Production smoke can be considered complete with the local vault flag on after the remaining manual Lane 4 checks pass.

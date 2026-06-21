@@ -123,7 +123,7 @@
                     <li>The information is accurate to the best of your knowledge</li>
                     <li>You don't use this app for illegal activities or fraud</li>
                 </ul>
-                <p>If you use Zam! without signing in, your budget is stored only in this browser. Clearing browser data, clearing site data, using privacy-cleanup tools, or losing access to this device can permanently remove browser-only data. Zam! cannot provide recovery support for browser-only budgets after local browser/device storage is lost. Signing in uses Cloud Sync as the default encrypted backup path.</p>
+                <p>If you use Zam! without signing in, your budget is stored only in this browser as encrypted local vault data. Clearing browser data, clearing site data, clearing IndexedDB/localStorage, using privacy-cleanup tools, or losing access to this device/browser profile can permanently remove browser-only data or the local key material needed to open it. Zam! cannot provide recovery support for browser-only budgets after local browser/device storage or local vault key material is lost. Signing in uses Cloud Sync as the default encrypted backup path.</p>
                 <p>We're not liable for any financial decisions you make based on the data in this app.</p>
             </div>
         </div>
@@ -171,10 +171,11 @@
         <div class="section">
             <h2 class="section-title">Data Ownership</h2>
             <div class="section-body">
-                <p>You own all the data you enter. If you sign in, Cloud Sync protects your budget by default with an encrypted cloud vault that Zam! cannot decrypt without your recovery key. If you use Zam! without signing in, your budget remains browser-only.</p>
+                <p>You own all the data you enter. If you sign in, Cloud Sync protects your budget by default with an encrypted cloud vault that Zam! cannot decrypt without your recovery key. If you use Zam! without signing in, your budget remains browser-only and is stored as encrypted local vault data on that browser.</p>
                 <ul>
-                    <li>Browser-only data can be removed by clearing browser or site data, and Zam! cannot recover it after local storage is lost</li>
+                    <li>Browser-only data can be removed or made unreadable by clearing browser/site data or local vault key material, and Zam! cannot recover it after local storage/key material is lost</li>
                     <li>Cloud Sync data is encrypted on your device before upload and remains unreadable to Zam!</li>
+                    <li>Persisted real app budget data in browser storage is encrypted at rest, but the app decrypts it locally while open so you can use, edit, import, export, and sync your budget</li>
                     <li>A trusted browser may store a non-extractable WebCrypto key in IndexedDB so Cloud Sync can keep syncing after refresh. This local browser key is not uploaded to Zam!, is not part of Account &gt; Devices records, cannot be displayed as the recovery-key text, and is not a substitute for saving your recovery key</li>
                     <li>Free Tier Cloud Sync capacity is managed with privacy-minimal active browser leases. Account &gt; Devices may link a known browser access record to an existing opaque sync slot hash so you can see and release unmatched slots. If a browser does not check in for 60 minutes, the slot can be released automatically. This link is not a new device identifier and does not include device names, user agents, IP-derived locations, readable budget data, or recovery keys</li>
                     <li>You're responsible for saving your recovery key and exporting backups if you want additional recoverability</li>
