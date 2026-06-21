@@ -40,6 +40,7 @@ const APP_LOCAL_UPDATED_AT_KEY = 'bb_local_updated_at';
 const DEMO_BUDGET_DATA_KEY = 'zam_demo_data';
 const DEMO_LOCAL_UPDATED_AT_KEY = 'zam_demo_local_updated_at';
 const DEMO_ACTIVE_KEY = 'zam_demo_active';
+export const LOCAL_VAULT_STORAGE_EXPERIMENT_FLAG = '__ZAM_ENABLE_LOCAL_VAULT_STORAGE_EXPERIMENT__';
 const STORAGE_TEST_KEY = 'bb_storage_available_test';
 const SIGNED_OUT_WRITE_MESSAGE = 'Sign in or start the demo before adding real budget data.';
 const BROWSER_STORAGE_BLOCKED_MESSAGE = 'Zam needs required browser site data to save and load your budget on this device. Enable site data for app.zambudget.com or use your browser settings to clear/reset it.';
@@ -174,6 +175,29 @@ function writeBudgetData(value) {
     const target = getBudgetStorage();
     assertDemoDoesNotTouchRealBudgetStorage('write', target.key);
     return writeStorageValue(target.storage, target.key, value);
+}
+
+export function isLocalVaultStorageExperimentEnabled() {
+    return Boolean(typeof window !== 'undefined' && window[LOCAL_VAULT_STORAGE_EXPERIMENT_FLAG] === true);
+}
+
+function assertLocalVaultStorageExperimentEnabled() {
+    if (!isLocalVaultStorageExperimentEnabled()) {
+        throw new Error('Local vault storage experiment is disabled.');
+    }
+}
+
+function getAppBudgetStorageTarget() {
+    const target = getBudgetStorage();
+    if (target.key !== APP_BUDGET_DATA_KEY || target.mode !== 'app') {
+        throw new Error('Local vault storage Phase 2B is limited to app bb_data storage.');
+    }
+    return target;
+}
+
+async function getLocalVaultStorageModule() {
+    assertLocalVaultStorageExperimentEnabled();
+    return import('./localVaultStorage.js');
 }
 
 function notifySignedOutBudgetWriteBlocked(action = '', options = {}) {
@@ -455,6 +479,47 @@ function applyLoadedPayload(parsed = {}) {
     const orderChanged = normalizeCategoryCustomOrder();
     const arrayChanged = applyCustomOrderToCategoryArray();
     return orderChanged || arrayChanged || categoryLoad.changed || giftCardsChanged;
+}
+
+// Phase 2B scaffold only. These helpers are intentionally not called by
+// initState(), save(), replaceSnapshot(), or Cloud Sync until migration is approved.
+export async function writeBudgetDataToLocalVault(payload = getDurablePayload(), key, options = {}) {
+    const target = getAppBudgetStorageTarget();
+    const Vault = await getLocalVaultStorageModule();
+    const envelope = await Vault.writeEncryptedLocalVaultRecord(target.storage, payload, key, {
+        ...options,
+        storageKey: target.key
+    });
+    const localUpdatedAt = options.localUpdatedAt || options.updatedAt || new Date().toISOString();
+    setLocalUpdatedAt(localUpdatedAt);
+    return envelope;
+}
+
+export async function readBudgetDataFromLocalVault(key, options = {}) {
+    const target = getAppBudgetStorageTarget();
+    const Vault = await getLocalVaultStorageModule();
+    return Vault.readEncryptedLocalVaultRecord(target.storage, key, {
+        ...options,
+        storageKey: target.key
+    });
+}
+
+export async function applyBudgetDataFromLocalVault(key, options = {}) {
+    const payload = await readBudgetDataFromLocalVault(key, options);
+    const rollbackTransactions = [...state.transactions];
+    const rollbackCategories = [...state.categories];
+    const rollbackSettings = { ...state.settings };
+
+    try {
+        applyLoadedPayload(payload || {});
+    } catch (error) {
+        state.transactions = rollbackTransactions;
+        state.categories = rollbackCategories;
+        state.settings = rollbackSettings;
+        throw error;
+    }
+
+    return payload;
 }
 
 // ==========================================
