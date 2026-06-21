@@ -29,7 +29,7 @@ test.describe('browser access encrypted metadata storage', () => {
     test('writes browser access tokens as encrypted local metadata', async ({ page }) => {
         const result = await page.evaluate(async ({ moduleUrl, token }) => {
             const BrowserAccessVault = await import(moduleUrl);
-            const storageKey = BrowserAccessVault.getBrowserAccessTokenStorageKey('browser-access-user');
+            const storageKey = BrowserAccessVault.getBrowserAccessVaultStorageKey();
             await BrowserAccessVault.writeEncryptedBrowserAccessToken(token, {
                 userId: 'browser-access-user',
                 storageKey,
@@ -47,26 +47,29 @@ test.describe('browser access encrypted metadata storage', () => {
                 classification: BrowserAccessVault.classifyBrowserAccessTokenRecord({
                     userId: 'browser-access-user',
                     storageKey
-                })
+                }),
+                keys: Object.keys(localStorage).sort()
             };
         }, {
             moduleUrl: modulePath('/js/browserAccessVaultStorage.js'),
             token: TOKEN_SENTINEL
         });
 
-        expect(result.storageKey).toBe('bb_browser_access_token_browser-access-user');
+        expect(result.storageKey).toBe('bb_browser_access_tokens_v1');
         expect(result.classification.kind).toBe('encrypted');
         expect(result.raw).toContain('zam_local_metadata_vault');
-        expect(result.raw).toContain('browser_access_token');
+        expect(result.raw).toContain('browser_access_tokens');
         expect(result.raw).not.toContain(TOKEN_SENTINEL);
         expect(result.restored).toBe(TOKEN_SENTINEL);
+        expect(result.keys).toEqual(['bb_browser_access_tokens_v1']);
     });
 
     test('migrates legacy plaintext token without changing its value', async ({ page }) => {
         const result = await page.evaluate(async ({ moduleUrl, token }) => {
             const BrowserAccessVault = await import(moduleUrl);
-            const storageKey = BrowserAccessVault.getBrowserAccessTokenStorageKey('legacy-browser-access-user');
-            localStorage.setItem(storageKey, token);
+            const storageKey = BrowserAccessVault.getBrowserAccessVaultStorageKey();
+            const legacyKey = BrowserAccessVault.getLegacyBrowserAccessTokenStorageKey('legacy-browser-access-user');
+            localStorage.setItem(legacyKey, token);
 
             const restored = await BrowserAccessVault.getOrCreateEncryptedBrowserAccessToken({
                 userId: 'legacy-browser-access-user',
@@ -79,7 +82,9 @@ test.describe('browser access encrypted metadata storage', () => {
                 classification: BrowserAccessVault.classifyBrowserAccessTokenRecord({
                     userId: 'legacy-browser-access-user',
                     storageKey
-                })
+                }),
+                legacyValue: localStorage.getItem(legacyKey),
+                keys: Object.keys(localStorage).sort()
             };
         }, {
             moduleUrl: modulePath('/js/browserAccessVaultStorage.js'),
@@ -89,12 +94,14 @@ test.describe('browser access encrypted metadata storage', () => {
         expect(result.restored).toBe(TOKEN_SENTINEL);
         expect(result.classification.kind).toBe('encrypted');
         expect(result.raw).not.toContain(TOKEN_SENTINEL);
+        expect(result.legacyValue).toBeNull();
+        expect(result.keys).toEqual(['bb_browser_access_tokens_v1']);
     });
 
     test('corrupt encrypted token fails closed by rotating to a new encrypted token', async ({ page }) => {
         const result = await page.evaluate(async ({ moduleUrl, token }) => {
             const BrowserAccessVault = await import(moduleUrl);
-            const storageKey = BrowserAccessVault.getBrowserAccessTokenStorageKey('corrupt-browser-access-user');
+            const storageKey = BrowserAccessVault.getBrowserAccessVaultStorageKey();
             await BrowserAccessVault.writeEncryptedBrowserAccessToken(token, {
                 userId: 'corrupt-browser-access-user',
                 storageKey

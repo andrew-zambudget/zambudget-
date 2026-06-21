@@ -18,6 +18,7 @@ const ACCOUNT_SCOPED_KEYS = Object.freeze([
     'bb_cloud_conflict_remote_summary',
     'bb_cloud_conflict_local_summary',
     'bb_cloud_device_id',
+    'bb_browser_access_tokens_v1',
     'bb_pro_status',
     'bb_premium_active',
     'bb_stripe_checkout_session_id',

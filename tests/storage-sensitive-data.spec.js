@@ -347,6 +347,7 @@ test.describe('sensitive browser storage guardrails', () => {
             'bb_merchant_aliases_v1',
             'zam_gift_card_merchant_metadata_v1',
             'bb_cloud_sync_slot_<userId>',
+            'bb_browser_access_tokens_v1',
             'bb_browser_access_token_<userId>',
             'budgetbuddy_buddy_cloud_keys',
             'zam_site_data_notice'

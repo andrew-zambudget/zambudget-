@@ -231,7 +231,7 @@ const SYNC_HISTORY_VISIBLE_LIMIT = 5;
 const SYNC_SLOT_STATUS_OPEN_PANEL_REFRESH_MS = 5000;
 const BUDDY_CLOUD_MULTI_DEVICE_LIMIT_CODE = 'BUDDY_CLOUD_MULTI_DEVICE_LIMIT';
 const BROWSER_ACCESS_TABLE = 'buddy_cloud_browser_access';
-const BROWSER_ACCESS_TOKEN_PREFIX = BrowserAccessVault.BROWSER_ACCESS_TOKEN_PREFIX;
+const BROWSER_ACCESS_TOKEN_PREFIX = BrowserAccessVault.LEGACY_BROWSER_ACCESS_TOKEN_PREFIX;
 const BROWSER_ACCESS_SELECT_COLUMNS = 'browser_hash, created_at, last_seen_at, revoked_at, revoked_by_hash, sync_slot_hash';
 const BROWSER_ACCESS_LEGACY_SELECT_COLUMNS = 'browser_hash, created_at, last_seen_at, revoked_at, revoked_by_hash';
 const BROWSER_ACCESS_CHECK_MS = 60 * 1000;
@@ -2532,7 +2532,7 @@ function encodeBrowserAccessBase64Url(bytes) {
 }
 
 function getBrowserAccessKeyName() {
-    return window.currentUser?.id ? `${BROWSER_ACCESS_TOKEN_PREFIX}${window.currentUser.id}` : '';
+    return window.currentUser?.id ? BrowserAccessVault.BROWSER_ACCESS_TOKENS_STORAGE_KEY : '';
 }
 
 async function getOrCreateBrowserAccessToken() {
@@ -2567,7 +2567,10 @@ function hasBrowserAccessTokenRecord() {
         userId: window.currentUser?.id || '',
         storageKey: keyName
     });
-    return classification.kind === 'encrypted' || classification.kind === 'legacy-plaintext';
+    return classification.kind === 'encrypted'
+        || BrowserAccessVault.hasLegacyBrowserAccessToken({
+            userId: window.currentUser?.id || ''
+        });
 }
 
 async function getCurrentBrowserSyncSlotHashForAccess() {
@@ -2805,8 +2808,9 @@ async function handleCurrentBrowserAccessRevoked() {
     } catch (error) {
         console.warn('[Device Management] Could not release Cloud Sync slot before clearing revoked browser:', error);
     }
-    const keyName = getBrowserAccessKeyName();
-    if (keyName) localStorage.removeItem(keyName);
+    await BrowserAccessVault.deleteEncryptedBrowserAccessToken({
+        userId: window.currentUser?.id || ''
+    });
     showSessionClearingScreen('Clearing Session...', 'This browser was signed out from Account > Devices.');
     try {
         await window.sb?.auth?.signOut?.({ scope: 'local' });
@@ -22624,6 +22628,7 @@ function getTrustedBuddyCloudPreservedLocalStorage() {
     const keys = [
         'bb_cloud_sync_enabled',
         `bb_cloud_sync_slot_${userId}`,
+        BrowserAccessVault.BROWSER_ACCESS_TOKENS_STORAGE_KEY,
         `${BROWSER_ACCESS_TOKEN_PREFIX}${userId}`,
         `${RECOVERY_KEY_SAVED_PREFIX}${userId}`,
         `${RECOVERY_KEY_BACKED_UP_PREFIX}${userId}`,
@@ -23679,6 +23684,7 @@ function clearBudgetBuddyLocalAccountState(options = {}) {
         'bb_skip_tx_warn',
         'bb_pro_status',
         'bb_premium_active',
+        BrowserAccessVault.BROWSER_ACCESS_TOKENS_STORAGE_KEY,
         'bb_stripe_checkout_session_id',
         'bb_premium_activated_at',
         'bb_stripe_redirect_acknowledged'

@@ -22,7 +22,8 @@ test.describe('Cloud Sync device management', () => {
         const result = await page.evaluate(async () => {
             const rows = [];
             const legacyToken = 'LEGACY_BROWSER_ACCESS_TOKEN_SENTINEL';
-            const storageKey = 'bb_browser_access_token_browser-access-runtime-user';
+            const legacyKey = 'bb_browser_access_token_browser-access-runtime-user';
+            const storageKey = 'bb_browser_access_tokens_v1';
             const encodeBase64Url = bytes => {
                 let binary = '';
                 bytes.forEach(byte => { binary += String.fromCharCode(byte); });
@@ -31,7 +32,7 @@ test.describe('Cloud Sync device management', () => {
             const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(legacyToken));
             const expectedHash = encodeBase64Url(new Uint8Array(digest));
 
-            localStorage.setItem(storageKey, legacyToken);
+            localStorage.setItem(legacyKey, legacyToken);
 
             const makeQuery = () => ({
                 select() { return this; },
@@ -87,6 +88,8 @@ test.describe('Cloud Sync device management', () => {
             return {
                 expectedHash,
                 raw: localStorage.getItem(storageKey) || '',
+                legacyValue: localStorage.getItem(legacyKey),
+                keys: Object.keys(localStorage).sort(),
                 rows
             };
         });
@@ -94,8 +97,11 @@ test.describe('Cloud Sync device management', () => {
         expect(result.rows).toHaveLength(1);
         expect(result.rows[0].browser_hash).toBe(result.expectedHash);
         expect(result.raw).toContain('zam_local_metadata_vault');
-        expect(result.raw).toContain('browser_access_token');
+        expect(result.raw).toContain('browser_access_tokens');
         expect(result.raw).not.toContain('LEGACY_BROWSER_ACCESS_TOKEN_SENTINEL');
+        expect(result.legacyValue).toBeNull();
+        expect(result.keys).toContain('bb_browser_access_tokens_v1');
+        expect(result.keys).not.toContain('bb_browser_access_token_browser-access-runtime-user');
     });
 
     test('shows available Free sync slot when current browser is inactive', async ({ page }) => {

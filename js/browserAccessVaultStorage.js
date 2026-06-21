@@ -9,8 +9,9 @@ import {
     readLocalVaultKey
 } from './localVaultKeyProvider.js';
 
-export const BROWSER_ACCESS_TOKEN_PREFIX = 'bb_browser_access_token_';
-export const BROWSER_ACCESS_METADATA_NAME = 'browser_access_token';
+export const LEGACY_BROWSER_ACCESS_TOKEN_PREFIX = 'bb_browser_access_token_';
+export const BROWSER_ACCESS_TOKENS_STORAGE_KEY = 'bb_browser_access_tokens_v1';
+export const BROWSER_ACCESS_TOKENS_METADATA_NAME = 'browser_access_tokens';
 export const BROWSER_ACCESS_VAULT_SCOPE = 'browser-access';
 export const BROWSER_ACCESS_TOKEN_BYTES = 32;
 
@@ -20,11 +21,26 @@ function encodeBase64Url(bytes) {
     return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
+function cleanUserId(value = '') {
+    return String(value || '').trim().slice(0, 160);
+}
+
 function cleanToken(value = '') {
     return String(value || '')
         .replace(/[\u0000-\u001F\u007F]/g, '')
         .trim()
         .slice(0, 256);
+}
+
+function normalizeTokenMap(payload = {}) {
+    const source = payload?.tokens && typeof payload.tokens === 'object' && !Array.isArray(payload.tokens)
+        ? payload.tokens
+        : {};
+    return Object.fromEntries(
+        Object.entries(source)
+            .map(([userId, token]) => [cleanUserId(userId), cleanToken(token)])
+            .filter(([userId, token]) => userId && token)
+    );
 }
 
 export function generateBrowserAccessToken() {
@@ -33,9 +49,13 @@ export function generateBrowserAccessToken() {
     return encodeBase64Url(bytes);
 }
 
-export function getBrowserAccessTokenStorageKey(userId = '') {
-    const safeUserId = String(userId || '').trim();
-    return safeUserId ? `${BROWSER_ACCESS_TOKEN_PREFIX}${safeUserId}` : '';
+export function getLegacyBrowserAccessTokenStorageKey(userId = '') {
+    const safeUserId = cleanUserId(userId);
+    return safeUserId ? `${LEGACY_BROWSER_ACCESS_TOKEN_PREFIX}${safeUserId}` : '';
+}
+
+export function getBrowserAccessVaultStorageKey() {
+    return BROWSER_ACCESS_TOKENS_STORAGE_KEY;
 }
 
 export function getBrowserAccessVaultKeyId(options = {}) {
@@ -55,32 +75,38 @@ export async function readBrowserAccessVaultKey(options = {}) {
 
 export function classifyBrowserAccessTokenRecord(options = {}) {
     const storage = options.storage || localStorage;
-    const storageKey = options.storageKey || getBrowserAccessTokenStorageKey(options.userId);
+    const storageKey = options.storageKey || BROWSER_ACCESS_TOKENS_STORAGE_KEY;
     const rawValue = storageKey ? storage?.getItem?.(storageKey) || '' : '';
-    const classification = classifyLocalMetadataRecord(rawValue, {
-        name: BROWSER_ACCESS_METADATA_NAME
+    return classifyLocalMetadataRecord(rawValue, {
+        name: BROWSER_ACCESS_TOKENS_METADATA_NAME
     });
-
-    if (classification.kind === 'invalid' && cleanToken(rawValue)) {
-        return { kind: 'legacy-plaintext' };
-    }
-
-    return classification;
 }
 
-export async function writeEncryptedBrowserAccessToken(token, options = {}) {
+export function hasLegacyBrowserAccessToken(options = {}) {
     const storage = options.storage || localStorage;
-    const storageKey = options.storageKey || getBrowserAccessTokenStorageKey(options.userId);
-    const safeToken = cleanToken(token);
+    const legacyKey = options.legacyKey || getLegacyBrowserAccessTokenStorageKey(options.userId);
+    return Boolean(legacyKey && cleanToken(storage?.getItem?.(legacyKey) || ''));
+}
 
-    if (!storageKey) {
-        throw new TypeError('Browser access token storage key is required.');
-    }
+async function readEncryptedBrowserAccessTokenMap(options = {}) {
+    const storage = options.storage || localStorage;
+    const storageKey = options.storageKey || BROWSER_ACCESS_TOKENS_STORAGE_KEY;
+    const key = options.key || await readBrowserAccessVaultKey(options);
+    if (!key) return {};
 
-    if (!safeToken) {
-        throw new TypeError('Browser access token is required.');
-    }
+    const payload = await readEncryptedLocalMetadataRecord(
+        storage,
+        storageKey,
+        key,
+        { name: BROWSER_ACCESS_TOKENS_METADATA_NAME }
+    );
+    return normalizeTokenMap(payload);
+}
 
+async function writeEncryptedBrowserAccessTokenMap(tokenMap = {}, options = {}) {
+    const storage = options.storage || localStorage;
+    const storageKey = options.storageKey || BROWSER_ACCESS_TOKENS_STORAGE_KEY;
+    const safeMap = normalizeTokenMap({ tokens: tokenMap });
     const keyResult = options.key
         ? { key: options.key }
         : await getOrCreateBrowserAccessVaultKey(options);
@@ -88,59 +114,97 @@ export async function writeEncryptedBrowserAccessToken(token, options = {}) {
     await writeEncryptedLocalMetadataRecord(
         storage,
         storageKey,
-        { token: safeToken },
+        { tokens: safeMap },
         keyResult.key,
         {
-            name: BROWSER_ACCESS_METADATA_NAME,
+            name: BROWSER_ACCESS_TOKENS_METADATA_NAME,
             createdAt: options.createdAt,
             updatedAt: options.updatedAt
         }
     );
 
+    return safeMap;
+}
+
+export async function writeEncryptedBrowserAccessToken(token, options = {}) {
+    const userId = cleanUserId(options.userId);
+    const safeToken = cleanToken(token);
+    if (!userId) throw new TypeError('Browser access user id is required.');
+    if (!safeToken) throw new TypeError('Browser access token is required.');
+
+    let tokenMap = {};
+    try {
+        tokenMap = await readEncryptedBrowserAccessTokenMap(options);
+    } catch {
+        tokenMap = {};
+    }
+    tokenMap[userId] = safeToken;
+    await writeEncryptedBrowserAccessTokenMap(tokenMap, options);
     return safeToken;
 }
 
 export async function readEncryptedBrowserAccessToken(options = {}) {
+    const userId = cleanUserId(options.userId);
+    if (!userId) return '';
+    const tokenMap = await readEncryptedBrowserAccessTokenMap(options);
+    return cleanToken(tokenMap[userId]);
+}
+
+export async function deleteEncryptedBrowserAccessToken(options = {}) {
     const storage = options.storage || localStorage;
-    const storageKey = options.storageKey || getBrowserAccessTokenStorageKey(options.userId);
-    const key = options.key || await readBrowserAccessVaultKey(options);
+    const storageKey = options.storageKey || BROWSER_ACCESS_TOKENS_STORAGE_KEY;
+    const userId = cleanUserId(options.userId);
+    const legacyKey = options.legacyKey || getLegacyBrowserAccessTokenStorageKey(userId);
 
-    if (!storageKey || !key) return '';
+    if (legacyKey) storage.removeItem(legacyKey);
+    if (!userId) return false;
 
-    const payload = await readEncryptedLocalMetadataRecord(
-        storage,
-        storageKey,
-        key,
-        { name: BROWSER_ACCESS_METADATA_NAME }
-    );
+    let tokenMap = {};
+    try {
+        tokenMap = await readEncryptedBrowserAccessTokenMap({ ...options, storage, storageKey });
+    } catch {
+        return false;
+    }
 
-    return cleanToken(payload?.token);
+    if (!tokenMap[userId]) return false;
+    delete tokenMap[userId];
+
+    if (Object.keys(tokenMap).length === 0) {
+        storage.removeItem(storageKey);
+    } else {
+        await writeEncryptedBrowserAccessTokenMap(tokenMap, { ...options, storage, storageKey });
+    }
+    return true;
 }
 
 export async function getOrCreateEncryptedBrowserAccessToken(options = {}) {
     const storage = options.storage || localStorage;
-    const storageKey = options.storageKey || getBrowserAccessTokenStorageKey(options.userId);
+    const storageKey = options.storageKey || BROWSER_ACCESS_TOKENS_STORAGE_KEY;
+    const userId = cleanUserId(options.userId);
+    const legacyKey = options.legacyKey || getLegacyBrowserAccessTokenStorageKey(userId);
+    if (!userId) return '';
 
-    if (!storageKey) return '';
-
-    const rawValue = storage.getItem(storageKey) || '';
-    const classification = classifyBrowserAccessTokenRecord({ ...options, storage, storageKey });
-
-    if (classification.kind === 'encrypted') {
-        try {
-            const token = await readEncryptedBrowserAccessToken({ ...options, storage, storageKey });
-            if (token) return token;
-        } catch {
-            storage.removeItem(storageKey);
+    let tokenMap = {};
+    try {
+        tokenMap = await readEncryptedBrowserAccessTokenMap({ ...options, storage, storageKey });
+        if (tokenMap[userId]) {
+            if (legacyKey) storage.removeItem(legacyKey);
+            return tokenMap[userId];
         }
+    } catch {
+        storage.removeItem(storageKey);
+        tokenMap = {};
     }
 
-    const legacyToken = classification.kind === 'legacy-plaintext' ? cleanToken(rawValue) : '';
+    const legacyToken = legacyKey ? cleanToken(storage.getItem(legacyKey) || '') : '';
     const nextToken = legacyToken || generateBrowserAccessToken();
+    tokenMap[userId] = nextToken;
+
     try {
-        await writeEncryptedBrowserAccessToken(nextToken, { ...options, storage, storageKey });
+        await writeEncryptedBrowserAccessTokenMap(tokenMap, { ...options, storage, storageKey });
+        if (legacyKey) storage.removeItem(legacyKey);
     } catch (error) {
-        if (legacyToken) storage.removeItem(storageKey);
+        if (legacyKey) storage.removeItem(legacyKey);
         throw error;
     }
     return nextToken;
