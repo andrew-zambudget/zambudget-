@@ -133,13 +133,13 @@ CSV-imported transaction details are stored inside `bb_data`, including import m
 
 ## Future Encryption Gate
 
-Before local encryption implementation begins, product must approve:
+The Cloud Sync and recovery model already exists. Before local encryption implementation begins, the implementation must preserve:
 
-1. How local encrypted budgets unlock.
-2. Whether unlock is tied to recovery key, passphrase, PIN, passkey, browser-bound key, account login, or a hybrid.
-3. What happens on a new browser, cleared browser storage, lost device, and signed-out state.
-4. How local-only users recover or intentionally accept non-recoverability.
-5. What privacy/security copy changes after encryption lands.
+1. trusted browser behavior through non-extractable WebCrypto keys where applicable.
+2. recovery-key fallback for signed-in Cloud Sync users.
+3. no recovery support for local-only budgets after local storage/key loss.
+4. account/session tokens separated from vault decryption material.
+5. honest privacy/security copy after encryption lands.
 
 Cloud/browser access tokens must not be used as local vault encryption keys. Session credentials, browser access tokens, sync-slot tokens, and vault decryption material must remain separate.
 

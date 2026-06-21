@@ -29,17 +29,18 @@ Phase 1 may:
 - inventory localStorage, sessionStorage, IndexedDB, and cookie keys
 - add guardrail documentation, checklists, and review gates
 
-## Product Decision Required
+## Existing Product Model
 
-Approve one local unlock model before implementation:
+Zam already has an approved Cloud Sync and recovery model. The local encryption layer should work with that model rather than replacing it:
 
-| Option | Summary | Main tradeoff |
-| --- | --- | --- |
-| Recovery key each session | User enters Cloud Sync recovery key to unlock local vault | Strong but too much friction for normal use |
-| User passphrase/PIN-derived key | User creates local unlock secret | Adds recoverability and UX questions |
-| Browser-bound trusted key | Browser stores non-extractable key locally | Convenient but lost if browser data is cleared |
-| Account login plus encrypted device key | Account session unlocks local encrypted payload | Must avoid creating a server-recoverable budget promise |
-| Hybrid trusted browser plus recovery fallback | Trusted device unlocks locally, recovery key restores elsewhere | Likely best long-term path, but needs careful copy |
+- signed-in users use Cloud Sync as the default protection path
+- Cloud Sync remote vaults are encrypted client-side
+- recovery keys are required on new browsers/devices
+- trusted browsers may use non-extractable WebCrypto keys in IndexedDB
+- raw recovery-key text is not stored in localStorage
+- browser-only/local-only budgets remain unrecoverable if local storage/key material is lost
+
+The remaining decision is implementation-specific: how the local encryption adapter uses the existing trusted-browser/recovery model without weakening it.
 
 ## Key Separation Rule
 
@@ -116,6 +117,8 @@ Rollback safety means the original plaintext value may remain only until encrypt
 ## Release Gate
 
 Any PR that implements encryption, migration, key handling, recovery changes, or storage adapter changes must be blocked until this checklist is satisfied and product approval is recorded.
+
+See `documentation/Local-Storage-Encryption-Implementation-Plan.md` for the implementation path.
 
 ## Future Test Flip
 
