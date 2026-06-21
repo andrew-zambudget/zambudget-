@@ -49,25 +49,31 @@ test.describe('Gift card tracker', () => {
             window.initAddTransactionForm?.();
         });
 
-        await page.evaluate(() => window.switchTab?.('add'));
-        await page.locator('#toggleDetailsBtn').click();
-        await page.locator('#txPaymentMethod').selectOption('gift_card');
-        await expect(page.locator('#giftCardTrackerPanel')).toBeVisible();
-        await expect(page.locator('#giftCardAddForm')).toBeVisible();
-
-        await page.locator('#giftCardName').fill('Coffee');
-        await page.locator('#giftCardNumber').fill('GC-1234567890');
-        await page.locator('#giftCardTotalAmount').fill('50.00');
-        await page.locator('#giftCardCurrentBalance').fill('40.00');
-        await page.locator('#giftCardExpirationDate').fill('2030-12-31');
-        await page.locator('.gift-card-save-btn').click();
+        await page.evaluate(() => window.openGiftCardModal?.('create'));
+        await expect(page.locator('#giftCardModal')).toBeVisible();
+        await page.locator('#giftCardModalMerchant').fill('Coffee');
+        await page.locator('#giftCardModalNickname').fill('Coffee card');
+        await page.locator('#giftCardModalOriginalAmount').fill('50.00');
+        await page.locator('#giftCardModalAmountLeft').click();
+        await page.locator('#giftCardModalAmountLeft').fill('40.00');
+        await expect(page.locator('#giftCardModalAmountLeft')).toHaveValue('40.00');
+        await page.locator('#giftCardModalLastFour').fill('7890');
+        await page.evaluate(() => {
+            const expiration = document.getElementById('giftCardModalExpirationDate');
+            if (expiration) expiration.value = '2030-12-31';
+        });
+        await page.locator('#giftCardModalSubmitBtn').click();
         await expect.poll(() => page.evaluate(() => window.getGiftCards?.().length)).toBe(1);
+        await expect(page.locator('#giftCardModalSuccess')).toBeVisible();
 
         const createdCard = await page.evaluate(() => window.getGiftCards()[0]);
-        expectMoneyClose(createdCard.totalAmount, 50);
-        expectMoneyClose(createdCard.currentBalance, 40);
+        expectMoneyClose(createdCard.originalAmount, 50);
+        expectMoneyClose(createdCard.amountLeft, 40);
         expect(createdCard.expirationDate).toBe('2030-12-31');
 
+        await page.locator('#giftCardModalSuccess .btn-create', { hasText: 'Use for an Expense' }).click();
+        await expect(page.locator('#giftCardModal')).toBeHidden();
+        await expect(page.locator('#giftCardTrackerPanel')).toBeVisible();
         await page.locator('#txAmount').fill('12.34');
         await page.locator('#txDescription').fill('Gift card smoke');
         await page.locator('.cat-pill-v2[data-cat="Groceries"]').click();
@@ -78,7 +84,7 @@ test.describe('Gift card tracker', () => {
             card: window.getGiftCards()[0],
             tx: window.getTransactions()[0]
         }));
-        expectMoneyClose(afterSave.card.currentBalance, 27.66);
+        expectMoneyClose(afterSave.card.amountLeft, 27.66);
         expect(afterSave.tx.paymentMethod).toBe('gift_card');
         expect(afterSave.tx.giftCardId).toBeTruthy();
         expectMoneyClose(afterSave.tx.giftCardBalanceBefore, 40);
@@ -87,8 +93,30 @@ test.describe('Gift card tracker', () => {
         await page.evaluate(() => window.undoLastTransaction());
         await expect.poll(() => page.evaluate(() => window.getTransactions?.().length)).toBe(0);
         const afterUndo = await page.evaluate(() => window.getGiftCards()[0]);
-        expectMoneyClose(afterUndo.currentBalance, 40);
+        expectMoneyClose(afterUndo.amountLeft, 40);
         await expect(page.locator('#giftCardTrackerSummary')).toContainText('$40.00');
+
+        await page.evaluate((cardId) => window.openGiftCardModal?.('edit', cardId), createdCard.id);
+        await expect(page.locator('#giftCardModal')).toBeVisible();
+        await page.locator('#giftCardModalNickname').fill('Coffee backup');
+        await page.locator('#giftCardModalAmountLeft').click();
+        await page.locator('#giftCardModalAmountLeft').fill('35.00');
+        await expect(page.locator('#giftCardModalAmountLeft')).toHaveValue('35.00');
+        await page.locator('#giftCardModalSubmitBtn').click();
+        await expect(page.locator('#giftCardModal')).toBeHidden();
+        const afterEdit = await page.evaluate(() => window.getGiftCards()[0]);
+        expect(afterEdit.nickname).toBe('Coffee backup');
+        expectMoneyClose(afterEdit.amountLeft, 35);
+
+        await page.evaluate(() => {
+            window.switchTab?.('add');
+            window.toggleGiftCardManagerVisibility?.();
+        });
+        await expect(page.locator('#giftCardManagerList')).toBeHidden();
+        await expect.poll(() => page.evaluate(() => {
+            const payload = JSON.parse(localStorage.getItem('bb_data') || '{}');
+            return payload?.settings?.showGiftCardManager;
+        })).toBe(false);
 
         expect(browserErrors).toEqual([]);
     });

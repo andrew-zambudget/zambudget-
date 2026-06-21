@@ -180,7 +180,7 @@ test.describe('income total editing', () => {
         await expect(page.locator('#incomeTotalLogged')).toHaveText('$72.00');
     });
 
-    test('puts Gift Cards before Groceries in category quick add', async ({ page }) => {
+    test('puts Add Gift Card before Groceries in category quick add', async ({ page }) => {
         await page.goto('/index.html');
         await waitForAppReady(page);
         await page.evaluate(() => sessionStorage.setItem('zam_demo_active', 'true'));
@@ -189,11 +189,10 @@ test.describe('income total editing', () => {
         const labels = await page.locator('#quickAddGrid .quick-add-btn').evaluateAll(buttons =>
             buttons.map(button => button.textContent.replace(/\s+/g, ' ').trim())
         );
-        expect(labels[0]).toContain('Gift Cards');
+        expect(labels[0]).toContain('Add Gift Card');
         expect(labels[1]).toContain('Groceries');
 
         await page.locator('#quickAddGrid .quick-add-btn').first().click();
-        const categories = await page.evaluate(() => window.getCategories?.() || []);
-        expect(categories.some(category => category.name === 'Gift Cards' && category.type === 'expense')).toBe(true);
+        await expect(page.locator('#giftCardModal')).toBeVisible();
     });
 });
