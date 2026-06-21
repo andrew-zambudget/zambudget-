@@ -200,6 +200,11 @@ async function getLocalVaultStorageModule() {
     return import('./localVaultStorage.js');
 }
 
+async function getLocalVaultKeyProviderModule() {
+    assertLocalVaultStorageExperimentEnabled();
+    return import('./localVaultKeyProvider.js');
+}
+
 function notifySignedOutBudgetWriteBlocked(action = '', options = {}) {
     const { toast = true } = options;
     const detail = action ? ` ${action}` : '';
@@ -520,6 +525,177 @@ export async function applyBudgetDataFromLocalVault(key, options = {}) {
     }
 
     return payload;
+}
+
+function getCurrentLocalVaultUserId() {
+    return typeof window !== 'undefined' ? String(window.currentUser?.id || '').trim() : '';
+}
+
+async function getLocalVaultKeyForCurrentContext(options = {}) {
+    const Provider = await getLocalVaultKeyProviderModule();
+    const keyId = options.keyId || Provider.getLocalVaultKeyId({
+        userId: options.userId ?? getCurrentLocalVaultUserId(),
+        scope: options.scope || 'primary'
+    });
+    const keyResult = await Provider.getOrCreateLocalVaultKey(keyId);
+
+    if (!await Provider.verifyLocalVaultKeyRoundtrip(keyResult.key)) {
+        throw new Error('Local vault key roundtrip verification failed.');
+    }
+
+    return { key: keyResult.key, keyId, created: keyResult.created };
+}
+
+function applyLoadedPayloadWithRollback(payload = {}) {
+    const rollbackTransactions = [...state.transactions];
+    const rollbackCategories = [...state.categories];
+    const rollbackSettings = { ...state.settings };
+
+    try {
+        return applyLoadedPayload(payload || {});
+    } catch (error) {
+        state.transactions = rollbackTransactions;
+        state.categories = rollbackCategories;
+        state.settings = rollbackSettings;
+        throw error;
+    }
+}
+
+function safeJsonParseBudgetPayload(rawValue) {
+    const parsed = JSON.parse(rawValue);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new TypeError('Plaintext budget payload must be an object.');
+    }
+    return {
+        transactions: Array.isArray(parsed.transactions) ? parsed.transactions : [],
+        categories: Array.isArray(parsed.categories) ? parsed.categories : [],
+        settings: parsed.settings && typeof parsed.settings === 'object' ? parsed.settings : {}
+    };
+}
+
+export async function migrateBudgetDataToLocalVault(options = {}) {
+    const target = getAppBudgetStorageTarget();
+    const Vault = await getLocalVaultStorageModule();
+    const rawValue = readStorageValue(target.storage, target.key, '');
+    const classification = Vault.classifyLocalBudgetRecord(rawValue);
+
+    if (classification.kind === 'empty') {
+        return { migrated: false, reason: 'empty' };
+    }
+
+    if (classification.kind === 'encrypted') {
+        return { migrated: false, reason: 'already_encrypted' };
+    }
+
+    if (classification.kind !== 'plaintext') {
+        return { migrated: false, reason: classification.kind };
+    }
+
+    const plaintextBeforeMigration = rawValue;
+    const parsedPayload = safeJsonParseBudgetPayload(plaintextBeforeMigration);
+    const { key, keyId, created } = await getLocalVaultKeyForCurrentContext(options);
+    const updatedAt = options.updatedAt || getLocalUpdatedAt() || new Date().toISOString();
+    const envelope = await Vault.encryptLocalVaultPayload(parsedPayload, key, {
+        createdAt: options.createdAt || updatedAt,
+        updatedAt
+    });
+    const serializedEnvelope = Vault.serializeLocalVaultEnvelope(envelope);
+    const verifiedPayload = await Vault.decryptLocalVaultEnvelope(serializedEnvelope, key);
+
+    if (JSON.stringify(verifiedPayload) !== JSON.stringify(parsedPayload)) {
+        throw new Error('Local vault migration verification failed.');
+    }
+
+    if (!writeBudgetData(serializedEnvelope)) {
+        throw new Error('Browser storage is unavailable.');
+    }
+
+    const writtenPayload = await Vault.readEncryptedLocalVaultRecord(target.storage, key, { storageKey: target.key });
+    if (JSON.stringify(writtenPayload) !== JSON.stringify(parsedPayload)) {
+        writeBudgetData(plaintextBeforeMigration);
+        throw new Error('Local vault migration readback failed.');
+    }
+
+    setLocalUpdatedAt(updatedAt);
+
+    return {
+        migrated: true,
+        keyId,
+        keyCreated: created,
+        envelopeKind: envelope.kind,
+        version: envelope.version
+    };
+}
+
+export async function initStateAsync(options = {}) {
+    if (!isLocalVaultStorageExperimentEnabled() || getBudgetStorage().mode !== 'app') {
+        initState();
+        return { mode: 'plaintext_default' };
+    }
+
+    isBrowserStorageAvailable({ refresh: true });
+    await migrateBudgetDataToLocalVault(options);
+
+    const target = getAppBudgetStorageTarget();
+    const Vault = await getLocalVaultStorageModule();
+    const rawValue = readStorageValue(target.storage, target.key, '');
+    const classification = Vault.classifyLocalBudgetRecord(rawValue);
+
+    if (classification.kind === 'empty') {
+        console.log('[State] Engine initialized.');
+        return { mode: 'encrypted_empty' };
+    }
+
+    if (classification.kind !== 'encrypted') {
+        throw new Error(`Local vault init expected encrypted bb_data, found ${classification.kind}.`);
+    }
+
+    const { key, keyId } = await getLocalVaultKeyForCurrentContext(options);
+    const payload = await Vault.readEncryptedLocalVaultRecord(target.storage, key, { storageKey: target.key });
+    const loadedPayloadChanged = applyLoadedPayloadWithRollback(payload || {});
+
+    if (loadedPayloadChanged) {
+        await writeBudgetDataToLocalVault(getDurablePayload(), key, {
+            ...options,
+            keyId,
+            updatedAt: new Date().toISOString()
+        });
+    } else if (!getLocalUpdatedAt()) {
+        setLocalUpdatedAt(new Date().toISOString());
+    }
+
+    console.log('[State] Engine initialized.');
+    return { mode: 'encrypted', keyId };
+}
+
+export async function saveAsync(options = {}) {
+    if (!isLocalVaultStorageExperimentEnabled() || getBudgetStorage().mode !== 'app') {
+        return save(options);
+    }
+
+    const { allowSignedOutWrite = false, action = '' } = options || {};
+    if (!allowSignedOutWrite && !canWriteBudgetData()) {
+        notifySignedOutBudgetWriteBlocked(action || 'save budget data', { toast: Boolean(action) });
+        return false;
+    }
+
+    try {
+        const { key } = await getLocalVaultKeyForCurrentContext(options);
+        await writeBudgetDataToLocalVault(getDurablePayload(), key, {
+            ...options,
+            updatedAt: new Date().toISOString()
+        });
+
+        if (!suppressCloudQueue && getBudgetStorage().mode !== 'demo' && window.BuddyCloud?.queuePush) {
+            window.BuddyCloud.queuePush('Budget synced to Cloud Sync.', { localUpdatedAt: getLocalUpdatedAt() });
+        }
+
+        return true;
+    } catch (error) {
+        console.error('[State] CRITICAL: Browser storage write failed', error);
+        notifyBrowserStorageBlocked();
+        return false;
+    }
 }
 
 // ==========================================
