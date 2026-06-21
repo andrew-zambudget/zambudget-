@@ -2,6 +2,7 @@
 
 import * as State from './state.js';
 import * as SyncHistoryVault from './syncHistoryVaultStorage.js';
+import * as BrowserAccessVault from './browserAccessVaultStorage.js';
 import { esc, generateId, formatMoney, formatDate, validateCategoryName, getIconFromName } from './utils.js';
 
 // --- State Variables ---
@@ -230,7 +231,7 @@ const SYNC_HISTORY_VISIBLE_LIMIT = 5;
 const SYNC_SLOT_STATUS_OPEN_PANEL_REFRESH_MS = 5000;
 const BUDDY_CLOUD_MULTI_DEVICE_LIMIT_CODE = 'BUDDY_CLOUD_MULTI_DEVICE_LIMIT';
 const BROWSER_ACCESS_TABLE = 'buddy_cloud_browser_access';
-const BROWSER_ACCESS_TOKEN_PREFIX = 'bb_browser_access_token_';
+const BROWSER_ACCESS_TOKEN_PREFIX = BrowserAccessVault.BROWSER_ACCESS_TOKEN_PREFIX;
 const BROWSER_ACCESS_SELECT_COLUMNS = 'browser_hash, created_at, last_seen_at, revoked_at, revoked_by_hash, sync_slot_hash';
 const BROWSER_ACCESS_LEGACY_SELECT_COLUMNS = 'browser_hash, created_at, last_seen_at, revoked_at, revoked_by_hash';
 const BROWSER_ACCESS_CHECK_MS = 60 * 1000;
@@ -2534,27 +2535,39 @@ function getBrowserAccessKeyName() {
     return window.currentUser?.id ? `${BROWSER_ACCESS_TOKEN_PREFIX}${window.currentUser.id}` : '';
 }
 
-function getOrCreateBrowserAccessToken() {
+async function getOrCreateBrowserAccessToken() {
     const keyName = getBrowserAccessKeyName();
     if (!keyName) return '';
 
-    const existing = localStorage.getItem(keyName);
-    if (existing) return existing;
-
-    const bytes = new Uint8Array(32);
-    crypto.getRandomValues(bytes);
-    const token = encodeBrowserAccessBase64Url(bytes);
-    localStorage.setItem(keyName, token);
-    return token;
+    return BrowserAccessVault.getOrCreateEncryptedBrowserAccessToken({
+        userId: window.currentUser?.id || '',
+        storageKey: keyName
+    });
 }
 
 async function getBrowserAccessHash() {
     if (!crypto?.subtle) return '';
-    const token = getOrCreateBrowserAccessToken();
+    let token = '';
+    try {
+        token = await getOrCreateBrowserAccessToken();
+    } catch (error) {
+        console.warn('[Device Management] Could not prepare browser access token storage:', error?.message || error);
+        return '';
+    }
     if (!token) return '';
 
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
     return encodeBrowserAccessBase64Url(new Uint8Array(digest));
+}
+
+function hasBrowserAccessTokenRecord() {
+    const keyName = getBrowserAccessKeyName();
+    if (!keyName) return false;
+    const classification = BrowserAccessVault.classifyBrowserAccessTokenRecord({
+        userId: window.currentUser?.id || '',
+        storageKey: keyName
+    });
+    return classification.kind === 'encrypted' || classification.kind === 'legacy-plaintext';
 }
 
 async function getCurrentBrowserSyncSlotHashForAccess() {
@@ -3293,7 +3306,7 @@ function buildBuddyCloudDiagnosticReport() {
             lostKeyGuidance: 'Zam! cannot recover a lost Cloud Sync recovery key. If the key is permanently lost, reset Cloud Sync to create a new encrypted vault.'
         },
         browserAccess: {
-            hasLocalBrowserAccessToken: Boolean(getBrowserAccessKeyName() && localStorage.getItem(getBrowserAccessKeyName())),
+            hasLocalBrowserAccessToken: hasBrowserAccessTokenRecord(),
             registryTable: BROWSER_ACCESS_TABLE,
             checkInIntervalMs: BROWSER_ACCESS_CHECK_MS,
             supportsIndividualBudgetBuddyBrowserRevoke: true,
