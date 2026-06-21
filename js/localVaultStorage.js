@@ -25,17 +25,21 @@ function requireWebCrypto() {
     return { cryptoApi, subtle };
 }
 
+export function isLocalVaultCryptoKey(key) {
+    return Boolean(
+        key
+        && typeof key === 'object'
+        && key.type === 'secret'
+        && key.algorithm?.name === LOCAL_VAULT_ALGORITHM
+        && Array.isArray(key.usages)
+        && key.usages.includes('encrypt')
+        && key.usages.includes('decrypt')
+    );
+}
+
 function assertLocalVaultKey(key) {
-    if (!key || typeof key !== 'object') {
-        throw new TypeError('Local vault key must be a CryptoKey.');
-    }
-
-    if (key.type !== 'secret' || key.algorithm?.name !== LOCAL_VAULT_ALGORITHM) {
-        throw new TypeError('Local vault key must be an AES-GCM secret key.');
-    }
-
-    if (!Array.isArray(key.usages) || !key.usages.includes('encrypt') || !key.usages.includes('decrypt')) {
-        throw new TypeError('Local vault key must allow encrypt and decrypt usage.');
+    if (!isLocalVaultCryptoKey(key)) {
+        throw new TypeError('Local vault key must be a non-token AES-GCM CryptoKey with encrypt and decrypt usage.');
     }
 }
 

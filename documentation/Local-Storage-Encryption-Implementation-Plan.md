@@ -113,11 +113,21 @@ Envelope metadata may remain plaintext. Budget contents must not.
 
 Use the existing trusted browser/recovery model.
 
+Important implementation boundary:
+
+- The local vault may follow the same trusted-browser product concept, but it must use its own local key-provider boundary.
+- Do not directly reuse private Cloud Sync trusted-key internals from `js/cloudSync.js`.
+- The local vault key provider stores its own non-extractable AES-GCM WebCrypto key in IndexedDB.
+- The local vault key store must remain separate from the Cloud Sync trusted-key store.
+- Cloud Sync recovery remains the recovery path for signed-in users when local vault access is missing or lost.
+- Local-only users cannot recover the encrypted local budget if browser storage or local vault key material is lost.
+- Migration must not run until a local vault key exists and an encrypt/decrypt roundtrip succeeds.
+
 Signed-in Cloud Sync user:
 
-- If this browser has trusted Cloud Sync key material, use approved local vault key material derived from or backed by that trusted state.
+- If this browser has trusted local vault key material, use it for persisted local storage.
 - If trusted state is missing, ask for the Cloud Sync recovery key through the existing recovery-key import flow.
-- After recovery-key import, rebuild trusted local state and write the local encrypted vault.
+- After recovery-key import, rebuild trusted local vault state and write the local encrypted vault.
 - If local encrypted data cannot unlock but Cloud Sync can recover, prefer remote encrypted vault restore over pretending support can recover local data.
 
 Local-only user:
@@ -131,6 +141,7 @@ Hard rule:
 - `bb_browser_access_token_<userId>` must never decrypt the local vault.
 - `bb_cloud_sync_slot_<userId>` must never decrypt the local vault.
 - Supabase session tokens must never decrypt the local vault.
+- Cloud Sync trusted-key storage must not be used as the local vault key store.
 
 ## Implementation Chunks
 
