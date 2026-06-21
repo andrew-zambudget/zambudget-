@@ -312,7 +312,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Apply theme safely
         const savedTheme = readLocalStorageValue('bb_theme_mode', 'system');
         if (UI.applyTheme) UI.applyTheme(savedTheme);
-        UI.applyAccentTheme?.(readLocalStorageValue('bb_accent_color', 'teal'));
+        UI.applyAccentTheme?.(UI.resolveAccentTheme?.() || 'slate');
 
         if (!isDemoSession) {
             BudgetPrep.updatePreparingBudget?.({ detail: 'Confirming encrypted Cloud Sync protection.' });

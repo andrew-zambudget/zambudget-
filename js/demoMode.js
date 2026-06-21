@@ -955,13 +955,31 @@ function injectStyles() {
             to { opacity: 1; }
         }
 
+        @keyframes bbDemoFlowIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 1024px) {
+            .bb-demo-banner:not(.is-minimized) {
+                position: relative;
+                left: auto;
+                bottom: auto;
+                z-index: 1200;
+                width: min(760px, calc(100vw - 24px));
+                margin: 10px auto 14px;
+                transform: none;
+                animation: bbDemoFlowIn 220ms ease-out;
+            }
+        }
+
         @media (max-width: 720px) {
             body.bb-demo-active {
-                padding-bottom: 134px;
+                padding-bottom: calc(5.75rem + env(safe-area-inset-bottom));
             }
 
             body.bb-demo-active.bb-demo-banner-minimized {
-                padding-bottom: 58px;
+                padding-bottom: calc(5.75rem + env(safe-area-inset-bottom) + 58px);
             }
 
             body.bb-account-prompt-active {
@@ -971,7 +989,6 @@ function injectStyles() {
             .bb-demo-banner {
                 grid-template-columns: 1fr;
                 align-items: stretch;
-                bottom: 10px;
                 width: min(420px, calc(100vw - 20px));
                 padding: 10px;
                 gap: 8px;
@@ -980,7 +997,7 @@ function injectStyles() {
             .bb-demo-banner.is-minimized {
                 left: auto;
                 right: 10px;
-                bottom: 10px;
+                bottom: calc(5.75rem + env(safe-area-inset-bottom) + 10px);
                 grid-template-columns: auto auto;
                 align-items: center;
                 width: auto;
@@ -1100,7 +1117,12 @@ function renderBanner() {
         }
     });
 
-    document.body.appendChild(banner);
+    const main = document.getElementById('main');
+    if (main?.parentNode) {
+        main.parentNode.insertBefore(banner, main);
+    } else {
+        document.body.appendChild(banner);
+    }
     document.body.classList.add('bb-demo-active');
     setDemoBannerMinimized(isDemoBannerMinimized());
 }

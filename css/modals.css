@@ -1379,10 +1379,10 @@ body.budget-restore-active {
 .btn-create {
   flex: 1;
   padding: 0.75rem;
-  background: var(--accent);
+  background: var(--accent-strong, #334155);
   border: none;
   border-radius: 8px;
-  color: #fff;
+  color: var(--accent-on, #ffffff);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -2676,8 +2676,8 @@ body::before {
 }
 
 #settingsModal .toggle-group .btn-small[style*="background: var(--accent)"] {
-  background: var(--accent) !important;
-  color: #fff !important;
+  background: var(--accent-strong, #334155) !important;
+  color: var(--accent-on, #ffffff) !important;
   box-shadow: 0 2px 8px rgba(var(--accent-rgb), 0.3);
 }
 
@@ -2756,6 +2756,23 @@ body::before {
 #settingsModal .accent-swatch-option:has(input:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
+}
+
+#settingsModal .settings-palette-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+#settingsModal .settings-palette-btn {
+  flex: 1 1 150px;
+  min-height: 38px;
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 850;
 }
 
 /* 8. Danger Zone - Professional & Distinct */

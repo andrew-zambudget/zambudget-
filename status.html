@@ -6,12 +6,17 @@
     <meta name="robots" content="noindex,follow">
     <link rel="canonical" href="https://zambudget.com/status">
     <title>Operational Status - Zam!</title>
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
     <style>
-        :root{--bg:#0f1117;--surface:#1a1d27;--surface-hover:#242736;--border:#2a2d3a;--text:#e4e4e7;--text-dim:#71717a;--green:#22c55e;--green-bg:rgba(34,197,94,0.1);--red:#ef4444;--red-bg:rgba(239,68,68,0.1);--yellow:#eab308;--yellow-bg:rgba(234,179,8,0.1);--blue:#3b82f6;--blue-bg:rgba(59,130,246,0.1);--accent:#8b5cf6}
+        :root{--bg:#0f1117;--surface:#1a1d27;--surface-hover:#242736;--border:#2a2d3a;--text:#e4e4e7;--text-dim:#71717a;--green:#22c55e;--green-bg:rgba(34,197,94,0.1);--red:#ef4444;--red-bg:rgba(239,68,68,0.1);--yellow:#eab308;--yellow-bg:rgba(234,179,8,0.1);--blue:#3b82f6;--blue-bg:rgba(59,130,246,0.1);--accent:#8b5cf6;--zam-wordmark-color-current:#F8FAFC}
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
         header{padding:1.25rem 2rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface)}
-        .logo{font-size:1.4rem;font-weight:700;letter-spacing:-.5px}.logo span{color:var(--accent)}
+        .zam-wordmark{color:var(--zam-wordmark-color-current,#F8FAFC);font-weight:800;letter-spacing:0;text-decoration:none}
+        .logo{display:inline-flex;align-items:center;gap:.5rem;color:var(--text);font-size:1.4rem;font-weight:700;letter-spacing:0;text-decoration:none}.logo img{width:34px;height:34px;flex:0 0 auto}.logo .zam-wordmark{color:var(--zam-wordmark-color-current,#F8FAFC)}
         .back-link{color:var(--text-dim);text-decoration:none;font-size:.9rem;transition:color .2s}.back-link:hover{color:var(--accent)}
         main{flex:1;max-width:800px;width:100%;margin:0 auto;padding:3rem 2rem}
         .policy-header{margin-bottom:2.5rem}
@@ -104,7 +109,7 @@
 <body>
 
 <header>
-    <div class="logo">Zam!</div>
+    <a class="logo" href="index.html" aria-label="Zam! home"><img src="/assets/brand/zam-logo-mark.svg" alt="" aria-hidden="true" decoding="async"><span class="zam-wordmark">Zam!</span></a>
     <a href="index.html" class="back-link">← Back to App</a>
 </header>
 
@@ -225,7 +230,7 @@
         <a href="https://zambudget.com/terms" class="footer-link" target="_blank" rel="noopener noreferrer">Terms of Service</a>
         <a href="https://zambudget.com/status" class="footer-link" target="_blank" rel="noopener noreferrer">Operational Status</a>
     </div>
-    <div class="copyright-text">&copy; 2026 Zam! All rights reserved.</div>
+    <div class="copyright-text">&copy; 2026 <span class="zam-wordmark">Zam!</span> All rights reserved.</div>
 </footer>
 
 <script>

@@ -6,6 +6,10 @@
     <meta name="robots" content="noindex,follow">
     <link rel="canonical" href="https://zambudget.com/terms">
     <title>Terms of Service - Zam!</title>
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
     <style>
         :root{--bg:#0f1117;--surface:#1a1d27;--surface-hover:#242736;--border:#374151;--text:#e4e4e7;--text-dim:#9ca3af;--green:#22c55e;--green-bg:rgba(34,197,94,0.1);--red:#ef4444;--red-bg:rgba(239,68,68,0.1);--blue:#3b82f6;--blue-bg:rgba(59,130,246,0.1);--accent:#8b5cf6;--shadow:rgba(0,0,0,0.3)}
         [data-theme="light"]{--bg:#f8fafc;--surface:#fff;--surface-hover:#f1f5f9;--border:#cbd5e1;--text:#1e293b;--text-dim:#475569;--green:#16a34a;--green-bg:rgba(22,163,74,0.1);--red:#dc2626;--red-bg:rgba(220,38,38,0.1);--blue:#2563eb;--blue-bg:rgba(37,99,235,0.1);--accent:#7c3aed;--shadow:rgba(0,0,0,0.05)}
@@ -19,8 +23,9 @@
         .skip-link:focus{transform:translateY(0)}
 
         .app-header{padding:1rem 2rem;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:space-between;transition:background-color .3s,border-color .3s}
-        .logo{font-size:1.5rem;font-weight:700;letter-spacing:-.5px;color:var(--text);text-decoration:none;display:flex;align-items:center;gap:0.5rem}
-        .logo span{color:var(--accent)}
+        .logo{font-size:1.5rem;font-weight:700;letter-spacing:0;color:var(--text);text-decoration:none;display:flex;align-items:center;gap:0.5rem}
+        .zam-wordmark{color:var(--zam-wordmark-color-current,#F8FAFC);font-weight:800;letter-spacing:0;text-decoration:none}
+        .logo .zam-wordmark{color:var(--zam-wordmark-color-current,#F8FAFC)}
         .logo:hover{opacity:0.9}
         .header-controls{display:flex;align-items:center;gap:1rem}
         .icon-btn{background:transparent;border:1px solid var(--border);color:var(--text-dim);border-radius:8px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s}
@@ -79,7 +84,7 @@
 <body>
     <a href="#main" class="skip-link">Skip to main content</a>
     <header class="app-header">
-        <a href="index.html" class="logo">Zam!</a>
+        <a href="index.html" class="logo"><img src="/assets/brand/zam-logo-mark.svg" alt="" aria-hidden="true" decoding="async"><span class="zam-wordmark">Zam!</span></a>
 
         <div class="header-controls">
             <div class="theme-toggle-group" role="group" aria-label="Theme selection">
@@ -226,7 +231,7 @@
             <a href="https://zambudget.com/terms" class="footer-link" target="_blank" rel="noopener noreferrer">Terms of Service</a>
         </div>
         <div class="copyright-text">
-            &copy; 2026 Zam!
+            &copy; 2026 <span class="zam-wordmark">Zam!</span>
         </div>
     </footer>
     <!-- Source Code Posture Modal -->

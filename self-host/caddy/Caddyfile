@@ -1,0 +1,13 @@
+:80 {
+	root * /srv/zam
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		Permissions-Policy clipboard-read=(), geolocation=(), microphone=(), camera=()
+	}
+
+	try_files {path} {path}/ /index.html
+	file_server
+}

@@ -1,0 +1,279 @@
+---
+- name: Prepare Zam self-host deployment
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: true
+
+  vars:
+    supported_ubuntu_versions:
+      - "22.04"
+      - "24.04"
+      - "26.04"
+    supported_debian_versions:
+      - "12"
+      - "13"
+    allowed_install_modes:
+      - cloudflare_tunnel
+      - direct_caddy
+      - local_only
+    allowed_backup_modes:
+      - none
+      - local
+      - s3
+      - b2
+    zam_install_dir: /opt/zam
+    zam_compose_project_name: zam
+
+  vars_prompt:
+    - name: zam_install_mode
+      prompt: "Access mode: cloudflare_tunnel, direct_caddy, or local_only"
+      default: "cloudflare_tunnel"
+      private: false
+
+    - name: zam_domain
+      prompt: "Zam domain or hostname. Example: zam.example.com. Use localhost only for local_only"
+      default: "zam.example.com"
+      private: false
+
+    - name: zam_admin_email
+      prompt: "Admin email for setup notices"
+      private: false
+
+    - name: zam_timezone
+      prompt: "Server timezone"
+      default: "UTC"
+      private: false
+
+    - name: zam_app_port
+      prompt: "Internal Zam app port"
+      default: "8080"
+      private: false
+
+    - name: zam_install_portainer
+      prompt: "Install optional Portainer Docker web UI? yes/no"
+      default: "no"
+      private: false
+
+    - name: zam_portainer_domain
+      prompt: "Optional Portainer hostname. Leave blank unless installing Portainer"
+      default: ""
+      private: false
+
+    - name: cloudflare_tunnel_token
+      prompt: "Cloudflare Tunnel token. Required only for cloudflare_tunnel mode"
+      default: ""
+      private: true
+
+    - name: smtp_host
+      prompt: "SMTP host for magic links"
+      private: false
+
+    - name: smtp_port
+      prompt: "SMTP port"
+      default: "587"
+      private: false
+
+    - name: smtp_username
+      prompt: "SMTP username"
+      private: false
+
+    - name: smtp_password
+      prompt: "SMTP password or provider token"
+      private: true
+
+    - name: smtp_sender_email
+      prompt: "Sender email for Zam magic links"
+      private: false
+
+    - name: smtp_sender_name
+      prompt: "Sender display name"
+      default: "Zam"
+      private: false
+
+    - name: backup_mode
+      prompt: "Backup mode: none, local, s3, or b2"
+      default: "local"
+      private: false
+
+    - name: backup_path
+      prompt: "Local backup path"
+      default: "/opt/zam/backups"
+      private: false
+
+    - name: backup_bucket
+      prompt: "Backup bucket name. Leave blank for none/local"
+      default: ""
+      private: false
+
+    - name: backup_access_key
+      prompt: "Backup access key. Leave blank for none/local"
+      default: ""
+      private: true
+
+    - name: backup_secret_key
+      prompt: "Backup secret key. Leave blank for none/local"
+      default: ""
+      private: true
+
+  pre_tasks:
+    - name: Validate Ubuntu Server LTS or Debian target
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution in ["Ubuntu", "Debian"]
+          - (ansible_distribution == "Ubuntu" and ansible_distribution_version in supported_ubuntu_versions) or (ansible_distribution == "Debian" and ansible_distribution_major_version in supported_debian_versions)
+        fail_msg: "Use Ubuntu Server LTS 22.04/24.04/26.04 or Debian 12/13 for the guided Zam installer."
+
+    - name: Validate install mode
+      ansible.builtin.assert:
+        that:
+          - zam_install_mode in allowed_install_modes
+        fail_msg: "Install mode must be cloudflare_tunnel, direct_caddy, or local_only."
+
+    - name: Validate app port and Portainer answer
+      ansible.builtin.assert:
+        that:
+          - zam_app_port is match("^[0-9]+$")
+          - zam_install_portainer | lower in ["yes", "no", "y", "n", "true", "false", "1", "0"]
+        fail_msg: "App port must be numeric, and Portainer answer must be yes/no."
+
+    - name: Validate domain mode pairing
+      ansible.builtin.assert:
+        that:
+          - zam_install_mode == "local_only" or zam_domain != "localhost"
+          - zam_install_mode != "local_only" or zam_domain in ["localhost", "127.0.0.1"]
+        fail_msg: "Use a real hostname for cloudflare_tunnel/direct_caddy, and localhost only for local_only."
+
+    - name: Validate admin email
+      ansible.builtin.assert:
+        that:
+          - zam_admin_email is match("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
+        fail_msg: "Admin email must look like a valid email address."
+
+    - name: Validate SMTP settings
+      ansible.builtin.assert:
+        that:
+          - smtp_host | length > 0
+          - smtp_port is match("^[0-9]+$")
+          - smtp_username | length > 0
+          - smtp_password | length > 0
+          - smtp_sender_email is match("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
+        fail_msg: "SMTP host, port, username, password/token, and sender email are required for magic links."
+
+    - name: Validate Cloudflare tunnel token when requested
+      ansible.builtin.assert:
+        that:
+          - cloudflare_tunnel_token | length > 20
+        fail_msg: "Cloudflare Tunnel mode requires a Cloudflare tunnel token."
+      when: zam_install_mode == "cloudflare_tunnel"
+
+    - name: Validate backup mode
+      ansible.builtin.assert:
+        that:
+          - backup_mode in allowed_backup_modes
+        fail_msg: "Backup mode must be none, local, s3, or b2."
+
+    - name: Validate remote backup credentials when requested
+      ansible.builtin.assert:
+        that:
+          - backup_bucket | length > 0
+          - backup_access_key | length > 0
+          - backup_secret_key | length > 0
+        fail_msg: "S3/B2 backups require bucket, access key, and secret key."
+      when: backup_mode in ["s3", "b2"]
+
+  tasks:
+    - name: Create Zam install directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+      loop:
+        - "{{ zam_install_dir }}"
+        - "{{ zam_install_dir }}/config"
+        - "{{ zam_install_dir }}/caddy"
+        - "{{ zam_install_dir }}/data"
+        - "{{ zam_install_dir }}/scripts"
+        - "{{ backup_path }}"
+
+    - name: Generate persistent prototype secrets
+      ansible.builtin.shell: |
+        set -eu
+        mkdir -p "{{ zam_install_dir }}/secrets"
+        chmod 700 "{{ zam_install_dir }}/secrets"
+        for name in postgres_password jwt_secret anon_key service_role_key; do
+          if [ ! -f "{{ zam_install_dir }}/secrets/${name}" ]; then
+            openssl rand -hex 32 > "{{ zam_install_dir }}/secrets/${name}"
+            chmod 600 "{{ zam_install_dir }}/secrets/${name}"
+          fi
+        done
+      args:
+        executable: /bin/sh
+
+    - name: Read generated secrets
+      ansible.builtin.slurp:
+        src: "{{ zam_install_dir }}/secrets/{{ item }}"
+      register: zam_secret_files
+      loop:
+        - postgres_password
+        - jwt_secret
+        - anon_key
+        - service_role_key
+      no_log: true
+
+    - name: Set generated secret facts
+      ansible.builtin.set_fact:
+        postgres_password_generated: "{{ (zam_secret_files.results | selectattr('item', 'equalto', 'postgres_password') | first).content | b64decode | trim }}"
+        jwt_secret_generated: "{{ (zam_secret_files.results | selectattr('item', 'equalto', 'jwt_secret') | first).content | b64decode | trim }}"
+        anon_key_generated: "{{ (zam_secret_files.results | selectattr('item', 'equalto', 'anon_key') | first).content | b64decode | trim }}"
+        service_role_key_generated: "{{ (zam_secret_files.results | selectattr('item', 'equalto', 'service_role_key') | first).content | b64decode | trim }}"
+      no_log: true
+
+    - name: Render environment file
+      ansible.builtin.template:
+        src: templates/env.j2
+        dest: "{{ zam_install_dir }}/.env"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Render Docker Compose file
+      ansible.builtin.template:
+        src: templates/docker-compose.yml.j2
+        dest: "{{ zam_install_dir }}/docker-compose.yml"
+        owner: root
+        group: root
+        mode: "0640"
+
+    - name: Render Caddyfile
+      ansible.builtin.template:
+        src: templates/Caddyfile.j2
+        dest: "{{ zam_install_dir }}/caddy/Caddyfile"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Render app config template
+      ansible.builtin.template:
+        src: templates/config.json.j2
+        dest: "{{ zam_install_dir }}/config/config.json"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Render setup summary
+      ansible.builtin.template:
+        src: templates/setup-summary.txt.j2
+        dest: "{{ zam_install_dir }}/SETUP-SUMMARY.txt"
+        owner: root
+        group: root
+        mode: "0640"
+
+    - name: Show setup summary
+      ansible.builtin.debug:
+        msg:
+          - "Zam self-host prototype files were written to {{ zam_install_dir }}."
+          - "Review {{ zam_install_dir }}/SETUP-SUMMARY.txt before starting containers."
+          - "This prototype does not yet launch the full Supabase-compatible backend."

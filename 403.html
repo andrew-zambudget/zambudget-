@@ -6,6 +6,10 @@
     <meta name="robots" content="noindex,nofollow">
     <meta http-equiv="Cache-Control" content="no-store">
     <title>Zam! is refreshing</title>
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
     <style>
         :root {
             color-scheme: dark light;
@@ -16,6 +20,7 @@
             --text-dim: #9ca3af;
             --accent: #8b5cf6;
             --green: #22c55e;
+            --zam-wordmark-color-current: #F8FAFC;
         }
 
         @media (prefers-color-scheme: light) {
@@ -27,6 +32,7 @@
                 --text-dim: #475569;
                 --accent: #7c3aed;
                 --green: #16a34a;
+                --zam-wordmark-color-current: #111827;
             }
         }
 
@@ -69,15 +75,16 @@
         }
 
         .mark {
-            display: inline-grid;
-            place-items: center;
             width: 34px;
             height: 34px;
             border-radius: 10px;
-            background: linear-gradient(135deg, var(--accent), var(--green));
-            color: #ffffff;
-            font-size: 1rem;
-            font-weight: 900;
+        }
+
+        .zam-wordmark {
+            color: var(--zam-wordmark-color-current, #F8FAFC);
+            font-weight: 800;
+            letter-spacing: 0;
+            text-decoration: none;
         }
 
         h1 {
@@ -143,8 +150,8 @@
 <body>
     <main>
         <a class="brand" href="https://app.zambudget.com/" aria-label="Zam! app">
-            <span class="mark" aria-hidden="true">Z</span>
-            Zam!
+            <img class="mark" src="/assets/brand/zam-logo-mark.svg" alt="" aria-hidden="true" decoding="async">
+            <span class="zam-wordmark">Zam!</span>
         </a>
         <h1>Zam! is refreshing.</h1>
         <p>This usually means the app is between deploys, a hosting edge is catching up, or a cache rule served a temporary access response.</p>

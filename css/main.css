@@ -2,12 +2,33 @@
 
 /* --- 1. RESET & BASE --- */
 :root {
+  --zam-wordmark-color: #111827;
+  --zam-wordmark-color-on-dark: #F8FAFC;
+  --zam-wordmark-color-current: #F8FAFC;
   /* Default fallbacks if variables.css hasn't loaded */
   --font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --transition-normal: 0.3s ease;
   
   /* Touch Target Minimums (WCAG AA) */
   --touch-target-min: 44px;
+}
+
+[data-theme="dark"] {
+  --zam-wordmark-color-current: #F8FAFC;
+}
+
+[data-theme="light"] {
+  --zam-wordmark-color-current: #111827;
+}
+
+[data-theme="system"] {
+  --zam-wordmark-color-current: #F8FAFC;
+}
+
+@media (prefers-color-scheme: light) {
+  [data-theme="system"] {
+    --zam-wordmark-color-current: #111827;
+  }
 }
 
 html {
@@ -20,6 +41,14 @@ html {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+.zam-wordmark {
+  color: var(--zam-wordmark-color-current, #F8FAFC);
+  font-weight: 800;
+  letter-spacing: 0;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 body {
@@ -60,8 +89,8 @@ body {
   position: absolute;
   top: -100%;
   left: 0;
-  background: var(--accent);
-  color: #fff;
+  background: var(--accent-strong, #334155);
+  color: var(--accent-on, #ffffff);
   padding: 0.75rem 1.5rem;
   z-index: 10000;
   font-weight: 700;
@@ -108,13 +137,20 @@ textarea:focus-visible {
 .logo {
   font-size: 1.5rem;
   font-weight: 700;
-  letter-spacing: -0.5px;
+  letter-spacing: 0;
   color: var(--accent);
   text-decoration: none;
   display: flex;
   align-items: center;
+  gap: 0.5rem;
   flex: 0 1 auto;
   min-width: 0;
+}
+
+.logo img {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
 }
 
 .logo:hover { opacity: 0.9; }
@@ -184,9 +220,9 @@ textarea:focus-visible {
 }
 
 .beta-support-primary {
-  color: #fff;
-  border-color: var(--accent);
-  background: var(--accent);
+  color: var(--accent-on, #ffffff);
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
 }
 
 .beta-support-secondary {
@@ -467,8 +503,8 @@ textarea:focus-visible {
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  background: var(--accent);
-  color: #fff;
+  background: var(--accent-strong);
+  color: var(--accent-on, #ffffff);
   flex: 0 0 auto;
 }
 
@@ -483,16 +519,16 @@ textarea:focus-visible {
 }
 
 .footer-back-btn {
-  color: #fff;
-  background: var(--accent);
-  border-color: var(--accent);
+  color: var(--accent-on, #ffffff);
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
 }
 
 .footer-back-btn:hover {
-  color: #fff;
-  background: var(--accent);
-  border-color: var(--accent);
+  color: var(--accent-on, #ffffff);
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
   opacity: 0.92;
 }
 
@@ -537,8 +573,8 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  background: var(--accent);
+  color: var(--accent-on, #ffffff);
+  background: var(--accent-strong);
   border: 2px solid var(--border);
   font-weight: 700;
   font-size: 1.1rem;
@@ -724,8 +760,8 @@ footer {
 }
 
 .footer-btn-pill {
-  background: var(--accent);
-  color: #fff;
+  background: var(--accent-strong);
+  color: var(--accent-on, #ffffff);
   padding: 0.25rem 0.85rem;
   border-radius: 20px;
   font-size: 0.75rem;
@@ -825,6 +861,7 @@ footer {
     gap: 0.75rem;
   }
   .nav-links { display: none; }
+  .theme-toggle-group { display: none; }
   .auth-buttons { margin-left: auto; }
   .beta-support-strip {
     align-items: stretch;

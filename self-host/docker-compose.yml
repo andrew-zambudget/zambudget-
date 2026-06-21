@@ -1,0 +1,31 @@
+services:
+  zam-app:
+    image: caddy:2-alpine
+    container_name: zam-self-host-app
+    restart: unless-stopped
+    ports:
+      - "${ZAM_APP_PORT:-8080}:80"
+    volumes:
+      - ../dist:/srv/zam:ro
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Future production package:
+  # Add Supabase-compatible services here or vendor a pinned upstream Supabase
+  # Docker Compose stack under self-host/supabase/.
+  #
+  # Expected backend services:
+  # - postgres
+  # - auth
+  # - rest
+  # - realtime
+  # - functions
+  # - storage, if Zam starts using storage
+  #
+  # For the current prototype, run the backend lab with:
+  # npx supabase start
+  # npx supabase db reset

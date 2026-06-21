@@ -1,0 +1,30 @@
+Zam! self-host prototype summary
+================================
+
+Install directory:
+{{ zam_install_dir }}
+
+Access mode:
+{{ zam_install_mode }}
+
+Zam hostname:
+{{ zam_domain }}
+
+Admin email:
+{{ zam_admin_email }}
+
+SMTP sender:
+{{ smtp_sender_name }} <{{ smtp_sender_email }}>
+
+Backup mode:
+{{ backup_mode }}
+
+Portainer installed:
+{{ zam_install_portainer }}
+
+Notes:
+- Billing is disabled for personal self-hosting.
+- Docker Compose is generated as an implementation detail.
+- This prototype does not yet include the pinned Supabase-compatible backend services.
+- Generated SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY values are prototype placeholders until the backend key generator creates valid JWTs.
+- Do not paste recovery keys, auth tokens, or real budget data into support tickets.

@@ -1,0 +1,44 @@
+{% if zam_install_mode == "direct_caddy" %}
+{{ zam_domain }} {
+	encode zstd gzip
+	root * /srv/zam
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		Permissions-Policy clipboard-read=(), geolocation=(), microphone=(), camera=()
+	}
+	try_files {path} {path}/ /index.html
+	file_server
+}
+{% elif zam_install_mode == "cloudflare_tunnel" %}
+:80 {
+	encode zstd gzip
+	root * /srv/zam
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		Permissions-Policy clipboard-read=(), geolocation=(), microphone=(), camera=()
+	}
+	try_files {path} {path}/ /index.html
+	file_server
+}
+{% else %}
+:80 {
+	root * /srv/zam
+	encode zstd gzip
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		Permissions-Policy clipboard-read=(), geolocation=(), microphone=(), camera=()
+	}
+	try_files {path} {path}/ /index.html
+	file_server
+}
+{% endif %}
+
+{% if zam_install_portainer | lower in ["yes", "y", "true", "1"] and zam_portainer_domain | length > 0 and zam_install_mode == "direct_caddy" %}
+{{ zam_portainer_domain }} {
+	encode zstd gzip
+	reverse_proxy portainer:9000
+}
+{% endif %}

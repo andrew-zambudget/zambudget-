@@ -1,31 +1,69 @@
 (function () {
     const THEME_KEY = 'bb_theme_mode';
     const ACCENT_KEY = 'bb_accent_color';
+    const SESSION_ACCENT_KEY = 'bb_session_accent_color';
+    const FALLBACK_ACCENT = 'slate';
     const ACCENTS = {
-        teal: ['#14b8a6', '#0f766e', '20, 184, 166'],
-        blue: ['#3b82f6', '#1d4ed8', '59, 130, 246'],
-        green: ['#22c55e', '#15803d', '34, 197, 94'],
-        amber: ['#f59e0b', '#b45309', '245, 158, 11'],
-        rose: ['#f43f5e', '#be123c', '244, 63, 94'],
-        indigo: ['#6366f1', '#4338ca', '99, 102, 241'],
-        slate: ['#64748b', '#334155', '100, 116, 139'],
-        orange: ['#f97316', '#c2410c', '249, 115, 22'],
-        cyan: ['#06b6d4', '#0e7490', '6, 182, 212'],
-        sky: ['#0ea5e9', '#0369a1', '14, 165, 233'],
-        lime: ['#84cc16', '#4d7c0f', '132, 204, 22'],
-        emerald: ['#10b981', '#047857', '16, 185, 129'],
-        red: ['#ef4444', '#b91c1c', '239, 68, 68'],
-        pink: ['#ec4899', '#be185d', '236, 72, 153'],
-        zinc: ['#71717a', '#3f3f46', '113, 113, 122']
+        teal: ['#14b8a6', '#0f766e', '20, 184, 166', '#ffffff'],
+        blue: ['#3b82f6', '#1d4ed8', '59, 130, 246', '#ffffff'],
+        green: ['#22c55e', '#15803d', '34, 197, 94', '#ffffff'],
+        amber: ['#f59e0b', '#92400e', '245, 158, 11', '#ffffff'],
+        rose: ['#f43f5e', '#be123c', '244, 63, 94', '#ffffff'],
+        indigo: ['#6366f1', '#4338ca', '99, 102, 241', '#ffffff'],
+        slate: ['#64748b', '#334155', '100, 116, 139', '#ffffff'],
+        orange: ['#f97316', '#9a3412', '249, 115, 22', '#ffffff'],
+        cyan: ['#06b6d4', '#155e75', '6, 182, 212', '#ffffff'],
+        sky: ['#0ea5e9', '#075985', '14, 165, 233', '#ffffff'],
+        lime: ['#84cc16', '#3f6212', '132, 204, 22', '#ffffff'],
+        emerald: ['#10b981', '#047857', '16, 185, 129', '#ffffff'],
+        red: ['#ef4444', '#b91c1c', '239, 68, 68', '#ffffff'],
+        pink: ['#ec4899', '#be185d', '236, 72, 153', '#ffffff'],
+        zinc: ['#71717a', '#3f3f46', '113, 113, 122', '#ffffff']
     };
+
+    function isValidAccent(accent) {
+        return Object.prototype.hasOwnProperty.call(ACCENTS, accent);
+    }
+
+    function readStorage(storage, key) {
+        try {
+            return storage.getItem(key) || '';
+        } catch (error) {
+            return '';
+        }
+    }
+
+    function writeStorage(storage, key, value) {
+        try {
+            storage.setItem(key, value);
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function chooseRandomAccent() {
+        const accents = Object.keys(ACCENTS);
+        return accents[Math.floor(Math.random() * accents.length)] || FALLBACK_ACCENT;
+    }
 
     function getStoredTheme() {
         return localStorage.getItem(THEME_KEY) || 'system';
     }
 
-    function getStoredAccent() {
-        const saved = localStorage.getItem(ACCENT_KEY) || 'teal';
-        return Object.prototype.hasOwnProperty.call(ACCENTS, saved) ? saved : 'teal';
+    function resolveAccent() {
+        const savedAccent = readStorage(localStorage, ACCENT_KEY);
+        if (isValidAccent(savedAccent)) return savedAccent;
+
+        const sessionAccent = readStorage(sessionStorage, SESSION_ACCENT_KEY);
+        if (isValidAccent(sessionAccent)) return sessionAccent;
+
+        const randomAccent = chooseRandomAccent();
+        if (writeStorage(sessionStorage, SESSION_ACCENT_KEY, randomAccent)) {
+            return randomAccent;
+        }
+
+        return FALLBACK_ACCENT;
     }
 
     function updateThemeButtons(mode) {
@@ -35,12 +73,13 @@
     }
 
     function applyAccent() {
-        const accent = getStoredAccent();
-        const [color, strong, rgb] = ACCENTS[accent];
+        const accent = resolveAccent();
+        const [color, strong, rgb, onAccent] = ACCENTS[accent] || ACCENTS[FALLBACK_ACCENT];
         const root = document.documentElement;
         root.setAttribute('data-accent', accent);
         root.style.setProperty('--accent', color);
         root.style.setProperty('--accent-strong', strong);
+        root.style.setProperty('--accent-on', onAccent || '#ffffff');
         root.style.setProperty('--accent-rgb', rgb);
     }
 

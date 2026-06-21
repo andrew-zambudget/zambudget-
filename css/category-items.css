@@ -61,9 +61,9 @@
 }
 
 .scroll-arrow:hover {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
+  background: var(--accent-strong);
+  color: var(--accent-on, #ffffff);
+  border-color: var(--accent-strong);
 }
 
 .scroll-arrow.left { left: -4px; }

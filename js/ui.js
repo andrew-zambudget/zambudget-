@@ -12578,6 +12578,8 @@ function setupDrillDownBudgetEdit(categoryName) {
 // ==========================================
 
 const ACCENT_THEME_KEY = 'bb_accent_color';
+const ACCENT_THEME_SESSION_KEY = 'bb_session_accent_color';
+const ACCENT_THEME_FALLBACK = 'slate';
 const ACCENT_THEME_VALUES = new Set([
     'teal',
     'blue',
@@ -12617,11 +12619,78 @@ const ACCENT_THEME_LABELS = {
 let settingsInitialSignature = '';
 let settingsDashboardControlsBound = false;
 
-function updateSettingsAccentLabel(accent = 'teal') {
+function isValidAccentTheme(accent) {
+    return ACCENT_THEME_VALUES.has(accent);
+}
+
+function readAccentStorage(storage, key) {
+    try {
+        return storage?.getItem(key) || '';
+    } catch (error) {
+        return '';
+    }
+}
+
+function writeAccentStorage(storage, key, value) {
+    try {
+        storage?.setItem(key, value);
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+function removeAccentStorage(storage, key) {
+    try {
+        storage?.removeItem(key);
+    } catch (error) {
+        // Ignore storage failures; the active theme still applies in memory.
+    }
+}
+
+function getActiveAccentTheme() {
+    const activeAccent = document.documentElement.getAttribute('data-accent');
+    return isValidAccentTheme(activeAccent) ? activeAccent : ACCENT_THEME_FALLBACK;
+}
+
+function chooseRandomAccentTheme(excludeAccent = '') {
+    const accents = [...ACCENT_THEME_VALUES];
+    const candidates = accents.filter(accent => accent !== excludeAccent);
+    const pool = candidates.length ? candidates : accents;
+    return pool[Math.floor(Math.random() * pool.length)] || ACCENT_THEME_FALLBACK;
+}
+
+export function resolveAccentTheme() {
+    const savedAccent = readAccentStorage(localStorage, ACCENT_THEME_KEY);
+    if (isValidAccentTheme(savedAccent)) return savedAccent;
+
+    const sessionAccent = readAccentStorage(sessionStorage, ACCENT_THEME_SESSION_KEY);
+    if (isValidAccentTheme(sessionAccent)) return sessionAccent;
+
+    const randomAccent = chooseRandomAccentTheme();
+    if (writeAccentStorage(sessionStorage, ACCENT_THEME_SESSION_KEY, randomAccent)) {
+        return randomAccent;
+    }
+
+    return ACCENT_THEME_FALLBACK;
+}
+
+function updateSettingsAccentModeStatus() {
+    const status = document.getElementById('settingsAccentModeStatus');
+    if (!status) return;
+    const savedAccent = readAccentStorage(localStorage, ACCENT_THEME_KEY);
+    if (isValidAccentTheme(savedAccent)) {
+        status.textContent = `Saved default: ${ACCENT_THEME_LABELS[savedAccent] || 'Slate'}.`;
+    } else {
+        status.textContent = 'Random by default. Zam will pick a color for this browser session until you save one.';
+    }
+}
+
+function updateSettingsAccentLabel(accent = ACCENT_THEME_FALLBACK) {
     const label = document.getElementById('settingsAccentSelected');
     if (!label) return;
-    const safeAccent = ACCENT_THEME_VALUES.has(accent) ? accent : 'teal';
-    label.textContent = `Selected: ${ACCENT_THEME_LABELS[safeAccent] || 'Teal'}`;
+    const safeAccent = isValidAccentTheme(accent) ? accent : ACCENT_THEME_FALLBACK;
+    label.textContent = `Selected: ${ACCENT_THEME_LABELS[safeAccent] || 'Slate'}`;
 }
 
 function getSettingsFormSignature() {
@@ -12642,7 +12711,7 @@ function getSettingsFormSignature() {
         giftCardVisibility: giftCardVisibilitySelect?.value || 'show',
         savingsAsIncome: Boolean(savingsAsIncomeYes?.checked),
         overrideDebtLock: Boolean(overrideDebtLockYes?.checked),
-        accent: accentSelect?.value || 'teal'
+        accent: accentSelect?.value || getActiveAccentTheme()
     });
 }
 
@@ -12710,19 +12779,45 @@ function bindSettingsDashboardControls() {
     });
 }
 
-export function applyAccentTheme(accent = 'teal') {
-    const safeAccent = ACCENT_THEME_VALUES.has(accent) ? accent : 'teal';
+export function applyAccentTheme(accent = ACCENT_THEME_FALLBACK) {
+    const safeAccent = isValidAccentTheme(accent) ? accent : ACCENT_THEME_FALLBACK;
     document.documentElement.setAttribute('data-accent', safeAccent);
     document.querySelectorAll('input[name="accentColor"]').forEach(input => {
         input.checked = input.value === safeAccent;
     });
     updateSettingsAccentLabel(safeAccent);
+    updateSettingsAccentModeStatus();
 }
 
-export function setAccentTheme(accent = 'teal') {
-    const safeAccent = ACCENT_THEME_VALUES.has(accent) ? accent : 'teal';
-    localStorage.setItem(ACCENT_THEME_KEY, safeAccent);
+export function setAccentTheme(accent = ACCENT_THEME_FALLBACK) {
+    const safeAccent = isValidAccentTheme(accent) ? accent : ACCENT_THEME_FALLBACK;
+    writeAccentStorage(localStorage, ACCENT_THEME_KEY, safeAccent);
+    removeAccentStorage(sessionStorage, ACCENT_THEME_SESSION_KEY);
     applyAccentTheme(safeAccent);
+}
+
+export function randomizeAccentTheme() {
+    const randomAccent = chooseRandomAccentTheme(getActiveAccentTheme());
+    writeAccentStorage(sessionStorage, ACCENT_THEME_SESSION_KEY, randomAccent);
+    applyAccentTheme(randomAccent);
+    refreshSettingsDirtyState();
+    showToast('Color randomized for this session.');
+}
+
+export function saveCurrentAccentTheme() {
+    const activeAccent = getActiveAccentTheme();
+    setAccentTheme(activeAccent);
+    refreshSettingsDirtyState();
+    showToast('Color saved as your default.');
+}
+
+export function useRandomAccentByDefault() {
+    removeAccentStorage(localStorage, ACCENT_THEME_KEY);
+    const randomAccent = chooseRandomAccentTheme(getActiveAccentTheme());
+    writeAccentStorage(sessionStorage, ACCENT_THEME_SESSION_KEY, randomAccent);
+    applyAccentTheme(randomAccent);
+    captureSettingsBaseline();
+    showToast('Random color mode is on.');
 }
 
 export function applyTheme(theme) {
@@ -12745,13 +12840,13 @@ export function setTheme(theme) {
 
 export function initSettingsUI() {
     const savedTheme = localStorage.getItem('bb_theme_mode') || 'system';
-    const savedAccent = localStorage.getItem(ACCENT_THEME_KEY) || 'teal';
+    const activeAccent = resolveAccentTheme();
     const activeBtn = document.querySelector(`.theme-opt[data-theme-val="${savedTheme}"]`);
     if (activeBtn) {
         document.querySelectorAll('.theme-opt').forEach(btn => btn.classList.remove('active'));
         activeBtn.classList.add('active');
     }
-    applyAccentTheme(savedAccent);
+    applyAccentTheme(activeAccent);
     document.querySelectorAll('input[name="accentColor"]').forEach(input => {
         input.addEventListener('change', () => {
             if (input.checked) applyAccentTheme(input.value);
@@ -12780,7 +12875,7 @@ export function openSettingsModal() {
     const savingsAsIncomeNo = document.getElementById('zbbSavingsAsIncomeNo');
     const overrideDebtLockYes = document.getElementById('overrideDebtSavingsLockYes');
     const overrideDebtLockNo = document.getElementById('overrideDebtSavingsLockNo');
-    const savedAccent = localStorage.getItem(ACCENT_THEME_KEY) || 'teal';
+    const activeAccent = resolveAccentTheme();
 
     if (currencySelect) currencySelect.value = currentCurrency;
     if (typeSelect) typeSelect.value = defType;
@@ -12791,7 +12886,7 @@ export function openSettingsModal() {
     if (savingsAsIncomeNo) savingsAsIncomeNo.checked = !treatSavingsAsIncome;
     if (overrideDebtLockYes) overrideDebtLockYes.checked = overrideDebtLock;
     if (overrideDebtLockNo) overrideDebtLockNo.checked = !overrideDebtLock;
-    applyAccentTheme(savedAccent);
+    applyAccentTheme(activeAccent);
     syncSettingsSegmentedControls();
     captureSettingsBaseline();
 
@@ -12802,7 +12897,7 @@ export function openSettingsModal() {
 }
 
 export function closeSettingsModal() {
-    applyAccentTheme(localStorage.getItem(ACCENT_THEME_KEY) || 'teal');
+    applyAccentTheme(resolveAccentTheme());
     settingsInitialSignature = '';
     setSettingsDirtyState(false);
     closeModal('settingsModal');
