@@ -97,7 +97,8 @@ CSV-imported transaction details are stored inside `bb_data`, including import m
 
 | Key | Storage | Classification | Contents | Notes |
 | --- | --- | --- | --- | --- |
-| `bb_signed_in_owner_id` | localStorage | Auth or sync helper | Last signed-in user ID | Used to clear stale account-scoped budget state on account changes. |
+| `bb_signed_in_owner_hash_v1` | localStorage | Auth or sync helper | Hash of the last signed-in user ID | Used to clear stale account-scoped budget state on account changes. Visible value does not include the raw user ID. |
+| `bb_signed_in_owner_id` | localStorage | Auth or sync helper, legacy | Old raw signed-in user ID marker | Legacy values are migrated into `bb_signed_in_owner_hash_v1` and removed. This key should not remain after migration. |
 | `bb_premium_active` | localStorage | Auth or sync helper | Premium active flag | Convenience/status flag. |
 | `bb_pro_status` | localStorage | Auth or sync helper | Legacy/parallel premium flag | Convenience/status flag. |
 | `bb_stripe_checkout_session_id` | localStorage | Sensitive metadata | Stripe checkout session ID | Billing flow helper. |

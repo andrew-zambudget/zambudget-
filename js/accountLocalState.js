@@ -1,4 +1,5 @@
 const SIGNED_IN_OWNER_KEY = 'bb_signed_in_owner_id';
+const SIGNED_IN_OWNER_HASH_KEY = 'bb_signed_in_owner_hash_v1';
 
 const ACCOUNT_SCOPED_KEYS = Object.freeze([
     'bb_data',
@@ -68,8 +69,28 @@ function storageRemove(key) {
     }
 }
 
+function hashOwnerId(userId = '') {
+    const value = String(userId || '').trim();
+    if (!value) return '';
+
+    let hash = 0x811c9dc5;
+    for (let index = 0; index < value.length; index += 1) {
+        hash ^= value.charCodeAt(index);
+        hash = Math.imul(hash, 0x01000193);
+    }
+    return `fnv1a32:${(hash >>> 0).toString(16).padStart(8, '0')}`;
+}
+
 export function getSignedInLocalOwnerId() {
-    return storageGet(SIGNED_IN_OWNER_KEY) || '';
+    const legacyOwnerId = storageGet(SIGNED_IN_OWNER_KEY) || '';
+    if (legacyOwnerId) {
+        const legacyHash = hashOwnerId(legacyOwnerId);
+        if (legacyHash && !storageGet(SIGNED_IN_OWNER_HASH_KEY)) {
+            storageSet(SIGNED_IN_OWNER_HASH_KEY, legacyHash);
+        }
+        storageRemove(SIGNED_IN_OWNER_KEY);
+    }
+    return storageGet(SIGNED_IN_OWNER_HASH_KEY) || '';
 }
 
 export function clearSignedInAccountScopedLocalState({ preserveOwnerKey = false } = {}) {
@@ -83,20 +104,23 @@ export function clearSignedInAccountScopedLocalState({ preserveOwnerKey = false 
         // If key enumeration is blocked, direct keys above still cleared.
     }
 
-    if (!preserveOwnerKey) storageRemove(SIGNED_IN_OWNER_KEY);
+    storageRemove(SIGNED_IN_OWNER_KEY);
+    if (!preserveOwnerKey) storageRemove(SIGNED_IN_OWNER_HASH_KEY);
 }
 
 export function guardSignedInLocalOwner(userId = '') {
     const nextUserId = String(userId || '').trim();
     if (!nextUserId) return { changed: false, previousUserId: '', nextUserId: '' };
 
-    const previousUserId = getSignedInLocalOwnerId();
-    if (previousUserId && previousUserId !== nextUserId) {
+    const nextOwnerHash = hashOwnerId(nextUserId);
+    const previousOwnerHash = getSignedInLocalOwnerId();
+    if (previousOwnerHash && previousOwnerHash !== nextOwnerHash) {
         clearSignedInAccountScopedLocalState({ preserveOwnerKey: true });
-        storageSet(SIGNED_IN_OWNER_KEY, nextUserId);
-        return { changed: true, previousUserId, nextUserId };
+        storageSet(SIGNED_IN_OWNER_HASH_KEY, nextOwnerHash);
+        return { changed: true, previousUserId: previousOwnerHash, nextUserId };
     }
 
-    storageSet(SIGNED_IN_OWNER_KEY, nextUserId);
-    return { changed: false, previousUserId, nextUserId };
+    storageSet(SIGNED_IN_OWNER_HASH_KEY, nextOwnerHash);
+    storageRemove(SIGNED_IN_OWNER_KEY);
+    return { changed: false, previousUserId: previousOwnerHash, nextUserId };
 }

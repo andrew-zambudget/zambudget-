@@ -292,6 +292,7 @@ test.describe('Zam! storage lifecycle', () => {
             return {
                 guard,
                 owner: localStorage.getItem('bb_signed_in_owner_id'),
+                ownerHash: localStorage.getItem('bb_signed_in_owner_hash_v1'),
                 data: localStorage.getItem('bb_data'),
                 updatedAt: localStorage.getItem('bb_local_updated_at'),
                 cloudEnabled: localStorage.getItem('bb_cloud_sync_enabled'),
@@ -306,12 +307,13 @@ test.describe('Zam! storage lifecycle', () => {
             };
         }, modulePath('/js/accountLocalState.js'));
 
-        expect(result.guard).toEqual({
-            changed: true,
-            previousUserId: 'deleted-user-id',
-            nextUserId: 'fresh-user-id'
-        });
-        expect(result.owner).toBe('fresh-user-id');
+        expect(result.guard.changed).toBe(true);
+        expect(result.guard.previousUserId).toMatch(/^fnv1a32:[0-9a-f]{8}$/);
+        expect(result.guard.previousUserId).not.toContain('deleted-user-id');
+        expect(result.guard.nextUserId).toBe('fresh-user-id');
+        expect(result.owner).toBeNull();
+        expect(result.ownerHash).toMatch(/^fnv1a32:[0-9a-f]{8}$/);
+        expect(result.ownerHash).not.toContain('fresh-user-id');
         expect(result.data).toBeNull();
         expect(result.updatedAt).toBeNull();
         expect(result.cloudEnabled).toBeNull();
@@ -352,7 +354,8 @@ test.describe('Zam! storage lifecycle', () => {
                 firstRunData,
                 sameOwnerGuard,
                 sameOwnerData,
-                owner: localStorage.getItem('bb_signed_in_owner_id')
+                owner: localStorage.getItem('bb_signed_in_owner_id'),
+                ownerHash: localStorage.getItem('bb_signed_in_owner_hash_v1')
             };
         }, modulePath('/js/accountLocalState.js'));
 
@@ -360,7 +363,9 @@ test.describe('Zam! storage lifecycle', () => {
         expect(result.firstRunData.transactions[0].id).toBe('unmarked-budget');
         expect(result.sameOwnerGuard.changed).toBe(false);
         expect(result.sameOwnerData.transactions[0].id).toBe('same-owner-budget');
-        expect(result.owner).toBe('existing-user-id');
+        expect(result.owner).toBeNull();
+        expect(result.ownerHash).toMatch(/^fnv1a32:[0-9a-f]{8}$/);
+        expect(result.ownerHash).not.toContain('existing-user-id');
     });
 
     test('demo mode keeps real budget untouched when the user exits', async ({ page }) => {
