@@ -279,6 +279,8 @@ test.describe('Zam! storage lifecycle', () => {
             localStorage.setItem('bb_cloud_sync_enabled', 'true');
             localStorage.setItem('bb_cloud_sync_slot_deleted-user-id', 'old-slot-token');
             localStorage.setItem('bb_browser_access_token_deleted-user-id', 'old-browser-token');
+            localStorage.setItem('bb_cloud_recovery_key_saved_v1', 'true');
+            localStorage.setItem('bb_cloud_recovery_key_backed_up_v1', 'true');
             localStorage.setItem('bb_cloud_recovery_key_saved_deleted-user-id', 'true');
             localStorage.setItem('bb_theme_mode', 'dark');
             localStorage.setItem('bb_accent_color', 'teal');
@@ -294,6 +296,8 @@ test.describe('Zam! storage lifecycle', () => {
                 cloudEnabled: localStorage.getItem('bb_cloud_sync_enabled'),
                 slot: localStorage.getItem('bb_cloud_sync_slot_deleted-user-id'),
                 browserToken: localStorage.getItem('bb_browser_access_token_deleted-user-id'),
+                genericRecoverySaved: localStorage.getItem('bb_cloud_recovery_key_saved_v1'),
+                genericRecoveryBackedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_v1'),
                 recoverySaved: localStorage.getItem('bb_cloud_recovery_key_saved_deleted-user-id'),
                 theme: localStorage.getItem('bb_theme_mode'),
                 accent: localStorage.getItem('bb_accent_color')
@@ -311,6 +315,8 @@ test.describe('Zam! storage lifecycle', () => {
         expect(result.cloudEnabled).toBeNull();
         expect(result.slot).toBeNull();
         expect(result.browserToken).toBeNull();
+        expect(result.genericRecoverySaved).toBeNull();
+        expect(result.genericRecoveryBackedUp).toBeNull();
         expect(result.recoverySaved).toBeNull();
         expect(result.theme).toBe('dark');
         expect(result.accent).toBe('teal');

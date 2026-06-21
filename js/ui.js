@@ -1186,6 +1186,8 @@ async function copyTextToClipboard(text) {
 }
 
 const RECOVERY_KEY_CLIPBOARD_CLEAR_MS = 60000;
+const RECOVERY_KEY_SAVED_STORAGE_KEY = 'bb_cloud_recovery_key_saved_v1';
+const RECOVERY_KEY_BACKED_UP_STORAGE_KEY = 'bb_cloud_recovery_key_backed_up_v1';
 const RECOVERY_KEY_SAVED_PREFIX = 'bb_cloud_recovery_key_saved_';
 const RECOVERY_KEY_BACKED_UP_PREFIX = 'bb_cloud_recovery_key_backed_up_';
 const RECOVERY_KEY_GRACE_STARTED_PREFIX = 'bb_cloud_recovery_key_grace_started_';
@@ -1198,10 +1200,18 @@ let recoveryKeyUnlockTimer = null;
 let recoveryKeyCountdownTimer = null;
 
 function getRecoveryKeySavedFlagName() {
-    return window.currentUser?.id ? `${RECOVERY_KEY_SAVED_PREFIX}${window.currentUser.id}` : '';
+    return window.currentUser?.id ? RECOVERY_KEY_SAVED_STORAGE_KEY : '';
 }
 
 function getRecoveryKeyBackedUpFlagName() {
+    return window.currentUser?.id ? RECOVERY_KEY_BACKED_UP_STORAGE_KEY : '';
+}
+
+function getLegacyRecoveryKeySavedFlagName() {
+    return window.currentUser?.id ? `${RECOVERY_KEY_SAVED_PREFIX}${window.currentUser.id}` : '';
+}
+
+function getLegacyRecoveryKeyBackedUpFlagName() {
     return window.currentUser?.id ? `${RECOVERY_KEY_BACKED_UP_PREFIX}${window.currentUser.id}` : '';
 }
 
@@ -1252,23 +1262,41 @@ function markBuddyCloudDefaultSetupAttempted() {
 function markRecoveryKeySaved() {
     const keyName = getRecoveryKeySavedFlagName();
     if (keyName) localStorage.setItem(keyName, 'true');
+    const legacyName = getLegacyRecoveryKeySavedFlagName();
+    if (legacyName) localStorage.removeItem(legacyName);
     const graceName = getRecoveryKeyGraceStartedName();
     if (graceName) localStorage.removeItem(graceName);
 }
 
 function hasRecoveryKeySavedFlag() {
     const keyName = getRecoveryKeySavedFlagName();
+    const legacyName = getLegacyRecoveryKeySavedFlagName();
+    if (legacyName && localStorage.getItem(legacyName) === 'true') {
+        if (keyName) localStorage.setItem(keyName, 'true');
+        localStorage.removeItem(legacyName);
+    }
     return Boolean(keyName && localStorage.getItem(keyName) === 'true');
 }
 
 function markRecoveryKeyBackedUp() {
     const keyName = getRecoveryKeyBackedUpFlagName();
     if (keyName) localStorage.setItem(keyName, 'true');
+    const legacyName = getLegacyRecoveryKeyBackedUpFlagName();
+    if (legacyName) localStorage.removeItem(legacyName);
     markRecoveryKeySaved();
 }
 
 function hasRecoveryKeyBackedUpFlag() {
     const keyName = getRecoveryKeyBackedUpFlagName();
+    const legacyName = getLegacyRecoveryKeyBackedUpFlagName();
+    if (legacyName && localStorage.getItem(legacyName) === 'true') {
+        if (keyName) localStorage.setItem(keyName, 'true');
+        const savedKeyName = getRecoveryKeySavedFlagName();
+        if (savedKeyName) localStorage.setItem(savedKeyName, 'true');
+        const legacySavedName = getLegacyRecoveryKeySavedFlagName();
+        if (legacySavedName) localStorage.removeItem(legacySavedName);
+        localStorage.removeItem(legacyName);
+    }
     return Boolean(keyName && localStorage.getItem(keyName) === 'true');
 }
 
@@ -22630,6 +22658,8 @@ function getTrustedBuddyCloudPreservedLocalStorage() {
         `bb_cloud_sync_slot_${userId}`,
         BrowserAccessVault.BROWSER_ACCESS_TOKENS_STORAGE_KEY,
         `${BROWSER_ACCESS_TOKEN_PREFIX}${userId}`,
+        RECOVERY_KEY_SAVED_STORAGE_KEY,
+        RECOVERY_KEY_BACKED_UP_STORAGE_KEY,
         `${RECOVERY_KEY_SAVED_PREFIX}${userId}`,
         `${RECOVERY_KEY_BACKED_UP_PREFIX}${userId}`,
         `${RECOVERY_KEY_GRACE_STARTED_PREFIX}${userId}`,
@@ -23685,6 +23715,8 @@ function clearBudgetBuddyLocalAccountState(options = {}) {
         'bb_pro_status',
         'bb_premium_active',
         BrowserAccessVault.BROWSER_ACCESS_TOKENS_STORAGE_KEY,
+        RECOVERY_KEY_SAVED_STORAGE_KEY,
+        RECOVERY_KEY_BACKED_UP_STORAGE_KEY,
         'bb_stripe_checkout_session_id',
         'bb_premium_activated_at',
         'bb_stripe_redirect_acknowledged'

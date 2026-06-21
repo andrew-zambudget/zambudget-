@@ -163,6 +163,36 @@ test.describe('recovery key setup guardrails', () => {
         await resetBrowserStorage(page);
     });
 
+    test('legacy recovery-key status flags migrate away from user-id key names', async ({ page }) => {
+        await waitForRecoveryKeySetupModal(page);
+
+        await page.evaluate((userId) => {
+            localStorage.removeItem('bb_cloud_recovery_key_saved_v1');
+            localStorage.removeItem('bb_cloud_recovery_key_backed_up_v1');
+            localStorage.setItem('bb_cloud_recovery_key_saved_' + userId, 'true');
+            localStorage.setItem('bb_cloud_recovery_key_backed_up_' + userId, 'true');
+        }, TEST_USER_ID);
+
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await waitForAppReady(page);
+        await page.waitForFunction(() => {
+            const status = window.BuddyCloud?.getStatus?.() || {};
+            return Boolean(status.signedIn && status.enabled && status.hasKey);
+        });
+
+        const result = await page.evaluate((userId) => ({
+            genericSaved: localStorage.getItem('bb_cloud_recovery_key_saved_v1'),
+            genericBackedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_v1'),
+            legacySaved: localStorage.getItem('bb_cloud_recovery_key_saved_' + userId),
+            legacyBackedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_' + userId)
+        }), TEST_USER_ID);
+
+        expect(result.genericSaved).toBe('true');
+        expect(result.genericBackedUp).toBe('true');
+        expect(result.legacySaved).toBeNull();
+        expect(result.legacyBackedUp).toBeNull();
+    });
+
     test('fresh setup requires a 10-second acknowledgement before 72-hour reminder', async ({ page }) => {
         const modal = await waitForRecoveryKeySetupModal(page);
 
@@ -179,13 +209,17 @@ test.describe('recovery key setup guardrails', () => {
 
         await expect(modal).toBeHidden();
         const flags = await page.evaluate((userId) => ({
-            backedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_' + userId),
-            saved: localStorage.getItem('bb_cloud_recovery_key_saved_' + userId),
+            backedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_v1'),
+            saved: localStorage.getItem('bb_cloud_recovery_key_saved_v1'),
+            legacyBackedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_' + userId),
+            legacySaved: localStorage.getItem('bb_cloud_recovery_key_saved_' + userId),
             graceStarted: localStorage.getItem('bb_cloud_recovery_key_grace_started_' + userId)
         }), TEST_USER_ID);
 
         expect(flags.backedUp).toBeNull();
         expect(flags.saved).toBeNull();
+        expect(flags.legacyBackedUp).toBeNull();
+        expect(flags.legacySaved).toBeNull();
         expect(flags.graceStarted).toBeTruthy();
 
         await page.reload({ waitUntil: 'domcontentloaded' });
@@ -231,13 +265,17 @@ test.describe('recovery key setup guardrails', () => {
         await expect(confirmModal).toBeHidden();
 
         const flags = await page.evaluate((userId) => ({
-            backedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_' + userId),
-            saved: localStorage.getItem('bb_cloud_recovery_key_saved_' + userId),
+            backedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_v1'),
+            saved: localStorage.getItem('bb_cloud_recovery_key_saved_v1'),
+            legacyBackedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_' + userId),
+            legacySaved: localStorage.getItem('bb_cloud_recovery_key_saved_' + userId),
             graceStarted: localStorage.getItem('bb_cloud_recovery_key_grace_started_' + userId)
         }), TEST_USER_ID);
 
         expect(flags.backedUp).toBe('true');
         expect(flags.saved).toBe('true');
+        expect(flags.legacyBackedUp).toBeNull();
+        expect(flags.legacySaved).toBeNull();
         expect(flags.graceStarted).toBeNull();
     });
 });

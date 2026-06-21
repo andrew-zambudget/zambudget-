@@ -81,8 +81,10 @@ CSV-imported transaction details are stored inside `bb_data`, including import m
 | `bb_cloud_force_pull_after_sign_in_<userId>` | localStorage | Auth or sync helper | Force-pull marker | Used after sign-in recovery paths. |
 | `bb_cloud_recent_restore_<userId>` | localStorage | Auth or sync helper | Recent restore marker | Used by Cloud Sync restore flow. |
 | `bb_cloud_manual_sync_at_<userId>` | localStorage | Auth or sync helper | Manual sync throttling timestamp | Used to avoid repeated manual sync actions. |
-| `bb_cloud_recovery_key_saved_<userId>` | localStorage | Auth or sync helper | User says recovery key was saved | Status flag only. Does not store the key text. |
-| `bb_cloud_recovery_key_backed_up_<userId>` | localStorage | Auth or sync helper | Recovery key backup verified flag | Status flag only. Does not store the key text. |
+| `bb_cloud_recovery_key_saved_v1` | localStorage | Auth or sync helper | User says recovery key was saved | Status flag only. Does not store the key text. Visible key name does not include the user ID. |
+| `bb_cloud_recovery_key_backed_up_v1` | localStorage | Auth or sync helper | Recovery key backup verified flag | Status flag only. Does not store the key text. Visible key name does not include the user ID. |
+| `bb_cloud_recovery_key_saved_<userId>` | localStorage | Auth or sync helper, legacy | Old recovery-key saved status flag pattern | Legacy flags are migrated into `bb_cloud_recovery_key_saved_v1` and removed. This key should not remain after migration. |
+| `bb_cloud_recovery_key_backed_up_<userId>` | localStorage | Auth or sync helper, legacy | Old recovery-key backup status flag pattern | Legacy flags are migrated into `bb_cloud_recovery_key_backed_up_v1` and removed. This key should not remain after migration. |
 | `bb_cloud_recovery_key_grace_started_<userId>` | localStorage | Auth or sync helper | Grace-period timestamp | Status timestamp only. Does not store the key text. |
 | `bb_cloud_recovery_key_unlocked_until_<userId>` | sessionStorage | Auth or sync helper | Short recovery-key view unlock timestamp | Session-only UI unlock marker. |
 | `bb_cloud_default_setup_attempted_<userId>` | localStorage | Auth or sync helper | Default setup attempt marker | Setup helper flag. |
