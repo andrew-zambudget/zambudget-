@@ -114,8 +114,7 @@ test.describe('Gift card tracker', () => {
         });
         await expect(page.locator('#giftCardManagerList')).toBeHidden();
         await expect.poll(() => page.evaluate(() => {
-            const payload = JSON.parse(localStorage.getItem('bb_data') || '{}');
-            return payload?.settings?.showGiftCardManager;
+            return window.getSnapshot?.().settings?.showGiftCardManager;
         })).toBe(false);
 
         expect(browserErrors).toEqual([]);

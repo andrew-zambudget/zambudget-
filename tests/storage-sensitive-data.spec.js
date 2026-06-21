@@ -26,7 +26,7 @@ function modulePath(pathname) {
 async function seedSensitiveBudget(page) {
     await page.goto('/index.html');
     await waitForAppReady(page);
-    await page.evaluate((sentinels) => {
+    await page.evaluate(async (sentinels) => {
         window.currentUser = { id: 'storage-sensitive-test-user' };
         window.replaceSnapshot({
             transactions: [
@@ -86,6 +86,7 @@ async function seedSensitiveBudget(page) {
                 ]
             }
         }, { remoteUpdatedAt: '2026-06-21T12:00:00.000Z' });
+        await window.flushLocalVaultSaveQueue?.();
     }, SENTINELS);
 }
 
@@ -95,30 +96,33 @@ test.describe('sensitive browser storage guardrails', () => {
         await resetBrowserStorage(page);
     });
 
-    test('documents current behavior: real bb_data is readable plaintext until local encryption is approved', async ({ page }) => {
+    test('real bb_data is encrypted while readable app state is preserved', async ({ page }) => {
         await seedSensitiveBudget(page);
 
-        const result = await page.evaluate(() => {
+        const result = await page.evaluate(async ({ vaultModulePath }) => {
+            const Vault = await import(vaultModulePath);
             const raw = localStorage.getItem('bb_data') || '';
-            const parsed = JSON.parse(raw);
+            const snapshot = window.getSnapshot?.() || {};
             return {
                 raw,
-                transactionCount: parsed.transactions.length,
-                categoryCount: parsed.categories.length,
-                giftCardCount: parsed.settings?.giftCards?.length || 0,
+                classification: Vault.classifyLocalBudgetRecord(raw),
+                transactionCount: snapshot.transactions?.length || 0,
+                categoryCount: snapshot.categories?.length || 0,
+                giftCardCount: snapshot.settings?.giftCards?.length || 0,
                 localUpdatedAt: localStorage.getItem('bb_local_updated_at')
             };
-        });
+        }, { vaultModulePath: modulePath('/js/localVaultStorage.js') });
 
+        expect(result.classification.kind).toBe('encrypted');
         expect(result.transactionCount).toBe(2);
         expect(result.categoryCount).toBe(1);
         expect(result.giftCardCount).toBe(1);
         expect(result.localUpdatedAt).toBeTruthy();
-        expect(result.raw).toContain(SENTINELS.merchant);
-        expect(result.raw).toContain(SENTINELS.category);
-        expect(result.raw).toContain(SENTINELS.notes);
-        expect(result.raw).toContain(SENTINELS.deleted);
-        expect(result.raw).toContain('4242');
+        expect(result.raw).not.toContain(SENTINELS.merchant);
+        expect(result.raw).not.toContain(SENTINELS.category);
+        expect(result.raw).not.toContain(SENTINELS.notes);
+        expect(result.raw).not.toContain(SENTINELS.deleted);
+        expect(result.raw).not.toContain('4242');
     });
 
     test('demo budget data stays in sessionStorage and does not overwrite real bb_data', async ({ page }) => {
@@ -250,19 +254,31 @@ test.describe('sensitive browser storage guardrails', () => {
         await page.locator('#csvImportConfirmBtn').click();
         await expect.poll(async () => page.evaluate(() => localStorage.getItem('bb_csv_import_batches_v1') || '')).toContain('phase1_storage_guardrail.csv');
 
-        const result = await page.evaluate(() => {
+        const result = await page.evaluate(async ({ vaultModulePath }) => {
+            await window.flushLocalVaultSaveQueue?.();
+            const Vault = await import(vaultModulePath);
             const appData = localStorage.getItem('bb_data') || '';
+            const snapshot = window.getSnapshot?.() || {};
             const batchesRaw = localStorage.getItem('bb_csv_import_batches_v1') || '';
             const batches = JSON.parse(batchesRaw || '[]');
             return {
                 appData,
+                classification: Vault.classifyLocalBudgetRecord(appData),
+                transactions: snapshot.transactions || [],
                 batchesRaw,
                 latestBatch: batches[0] || null
             };
-        });
+        }, { vaultModulePath: modulePath('/js/localVaultStorage.js') });
 
-        expect(result.appData).toContain(SENTINELS.csvMerchant);
-        expect(result.appData).toContain(SENTINELS.csvNote);
+        expect(result.classification.kind).toBe('encrypted');
+        expect(result.appData).not.toContain(SENTINELS.csvMerchant);
+        expect(result.appData).not.toContain(SENTINELS.csvNote);
+        expect(result.transactions).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                description: SENTINELS.csvMerchant,
+                notes: SENTINELS.csvNote
+            })
+        ]));
         expect(result.latestBatch?.sourceFileName).toBe('phase1_storage_guardrail.csv');
         expect(result.latestBatch?.rowsImported).toBe(1);
         expect(result.latestBatch?.importTransactionIds).toHaveLength(1);
