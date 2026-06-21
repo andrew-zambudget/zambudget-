@@ -187,8 +187,10 @@ test.describe('recovery key setup guardrails', () => {
             legacyBackedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_' + userId)
         }), TEST_USER_ID);
 
-        expect(result.genericSaved).toBe('true');
-        expect(result.genericBackedUp).toBe('true');
+        expect(result.genericSaved).toMatch(/^zrk:v1:/);
+        expect(result.genericSaved).not.toBe('true');
+        expect(result.genericBackedUp).toMatch(/^zrk:v1:/);
+        expect(result.genericBackedUp).not.toBe('true');
         expect(result.legacySaved).toBeNull();
         expect(result.legacyBackedUp).toBeNull();
     });
@@ -272,8 +274,10 @@ test.describe('recovery key setup guardrails', () => {
             graceStarted: localStorage.getItem('bb_cloud_recovery_key_grace_started_' + userId)
         }), TEST_USER_ID);
 
-        expect(flags.backedUp).toBe('true');
-        expect(flags.saved).toBe('true');
+        expect(flags.backedUp).toMatch(/^zrk:v1:/);
+        expect(flags.backedUp).not.toBe('true');
+        expect(flags.saved).toMatch(/^zrk:v1:/);
+        expect(flags.saved).not.toBe('true');
         expect(flags.legacyBackedUp).toBeNull();
         expect(flags.legacySaved).toBeNull();
         expect(flags.graceStarted).toBeNull();

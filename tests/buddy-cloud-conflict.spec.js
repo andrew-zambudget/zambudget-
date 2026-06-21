@@ -277,7 +277,8 @@ test.describe('Cloud Sync conflict sensitivity', () => {
                 hasRecoveryKey: typeof setup.recoveryKey === 'string' && setup.recoveryKey.length > 20,
                 enabledAfterSetup: statusAfterSetup.enabled,
                 hasKeyAfterSetup: statusAfterSetup.hasKey,
-                vaultCreated: Boolean(store.vault?.payload)
+                vaultCreated: Boolean(store.vault?.payload),
+                cloudEnabledValue: localStorage.getItem('bb_cloud_sync_enabled')
             };
         }, {
             stateModulePath: modulePath('/js/state.js'),
@@ -293,6 +294,8 @@ test.describe('Cloud Sync conflict sensitivity', () => {
         expect(result.enabledAfterSetup).toBe(true);
         expect(result.hasKeyAfterSetup).toBe(true);
         expect(result.vaultCreated).toBe(true);
+        expect(result.cloudEnabledValue).toMatch(/^zcs:v1:/);
+        expect(result.cloudEnabledValue).not.toBe('true');
     });
 
     test('status reports local changes newer than verified Cloud Sync', async ({ page }) => {

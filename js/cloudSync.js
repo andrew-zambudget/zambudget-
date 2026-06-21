@@ -1,6 +1,7 @@
 // js/cloudSync.js
 
 const CLOUD_ENABLED_KEY = 'bb_cloud_sync_enabled';
+const CLOUD_ENABLED_VALUE = 'zcs:v1:9f42d18a';
 const CLOUD_HISTORY_KEY = 'bb_sync_history';
 const CLOUD_LAST_PUSHED_KEY = 'bb_cloud_last_pushed_at';
 const CLOUD_LAST_REMOTE_KEY = 'bb_cloud_last_remote_at';
@@ -933,7 +934,13 @@ function readConflictSummary(key) {
 }
 
 function isEnabled() {
-    return localStorage.getItem(CLOUD_ENABLED_KEY) === 'true';
+    const value = localStorage.getItem(CLOUD_ENABLED_KEY);
+    if (value === CLOUD_ENABLED_VALUE) return true;
+    if (value === 'true') {
+        localStorage.setItem(CLOUD_ENABLED_KEY, CLOUD_ENABLED_VALUE);
+        return true;
+    }
+    return false;
 }
 
 function canUseCloud() {
@@ -1606,7 +1613,7 @@ export async function enableSync(options = {}) {
     const existingRawKey = getStoredCloudRawKey();
     const remote = await fetchRemoteVault();
     if (remote && !existingKeyMaterial && !options.recoveryKey) {
-        localStorage.setItem(CLOUD_ENABLED_KEY, 'true');
+        localStorage.setItem(CLOUD_ENABLED_KEY, CLOUD_ENABLED_VALUE);
         rememberStatus();
         return { enabled: true, remoteExisted: true, needsKey: true };
     }
@@ -1624,7 +1631,7 @@ export async function enableSync(options = {}) {
         await claimSyncSlot(remote, { replace: options.replaceSyncSlot === true });
     }
     if (rawKey) await storeCloudKey(rawKey);
-    localStorage.setItem(CLOUD_ENABLED_KEY, 'true');
+    localStorage.setItem(CLOUD_ENABLED_KEY, CLOUD_ENABLED_VALUE);
     if (!remote) {
         await pushSnapshotNow('Cloud Sync enabled. Local budget uploaded.');
         rememberStatus();
@@ -1843,7 +1850,7 @@ export async function importRecoveryKey(rawKey) {
         if (remote) await decryptSnapshot(remote.payload, cryptoKey);
     }
     await storeCloudKey(normalized, { cryptoKey });
-    localStorage.setItem(CLOUD_ENABLED_KEY, 'true');
+    localStorage.setItem(CLOUD_ENABLED_KEY, CLOUD_ENABLED_VALUE);
     rememberStatus();
     record('Cloud Sync recovery key trusted on this browser.', 'local');
     return true;

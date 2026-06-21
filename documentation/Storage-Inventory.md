@@ -65,7 +65,7 @@ CSV-imported transaction details are stored inside `bb_data`, including import m
 
 | Key | Storage | Classification | Contents | Notes |
 | --- | --- | --- | --- | --- |
-| `bb_cloud_sync_enabled` | localStorage | Auth or sync helper | Cloud Sync enabled flag | Account-scoped local state. |
+| `bb_cloud_sync_enabled` | localStorage | Auth or sync helper | Opaque Cloud Sync enabled marker | Account-scoped local state. Legacy `true` values are migrated to an opaque marker. |
 | `bb_sync_history` | localStorage | Sensitive metadata | Encrypted local metadata envelope for the last five sanitized sync messages | Legacy plaintext history is sanitized and migrated at startup. Runtime writes use `zam_local_metadata_vault` and do not upload through Cloud Sync. |
 | `bb_cloud_last_pushed_at` | localStorage | Sensitive metadata | Last local push timestamp | Used by conflict/status logic. |
 | `bb_cloud_last_remote_at` | localStorage | Sensitive metadata | Last remote timestamp | Used by conflict/status logic. |
@@ -82,8 +82,8 @@ CSV-imported transaction details are stored inside `bb_data`, including import m
 | `bb_cloud_force_pull_after_sign_in_<userId>` | localStorage | Auth or sync helper | Force-pull marker | Used after sign-in recovery paths. |
 | `bb_cloud_recent_restore_<userId>` | localStorage | Auth or sync helper | Recent restore marker | Used by Cloud Sync restore flow. |
 | `bb_cloud_manual_sync_at_<userId>` | localStorage | Auth or sync helper | Manual sync throttling timestamp | Used to avoid repeated manual sync actions. |
-| `bb_cloud_recovery_key_saved_v1` | localStorage | Auth or sync helper | User says recovery key was saved | Status flag only. Does not store the key text. Visible key name does not include the user ID. |
-| `bb_cloud_recovery_key_backed_up_v1` | localStorage | Auth or sync helper | Recovery key backup verified flag | Status flag only. Does not store the key text. Visible key name does not include the user ID. |
+| `bb_cloud_recovery_key_saved_v1` | localStorage | Auth or sync helper | Opaque recovery-key saved marker | Status marker only. Does not store the key text. Visible key name does not include the user ID. Legacy `true` values are migrated to an opaque marker. |
+| `bb_cloud_recovery_key_backed_up_v1` | localStorage | Auth or sync helper | Opaque recovery-key backup verified marker | Status marker only. Does not store the key text. Visible key name does not include the user ID. Legacy `true` values are migrated to an opaque marker. |
 | `bb_cloud_recovery_key_saved_<userId>` | localStorage | Auth or sync helper, legacy | Old recovery-key saved status flag pattern | Legacy flags are migrated into `bb_cloud_recovery_key_saved_v1` and removed. This key should not remain after migration. |
 | `bb_cloud_recovery_key_backed_up_<userId>` | localStorage | Auth or sync helper, legacy | Old recovery-key backup status flag pattern | Legacy flags are migrated into `bb_cloud_recovery_key_backed_up_v1` and removed. This key should not remain after migration. |
 | `bb_cloud_recovery_key_grace_started_<userId>` | localStorage | Auth or sync helper | Grace-period timestamp | Status timestamp only. Does not store the key text. |

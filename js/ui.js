@@ -1188,6 +1188,8 @@ async function copyTextToClipboard(text) {
 const RECOVERY_KEY_CLIPBOARD_CLEAR_MS = 60000;
 const RECOVERY_KEY_SAVED_STORAGE_KEY = 'bb_cloud_recovery_key_saved_v1';
 const RECOVERY_KEY_BACKED_UP_STORAGE_KEY = 'bb_cloud_recovery_key_backed_up_v1';
+const RECOVERY_KEY_SAVED_STORAGE_VALUE = 'zrk:v1:4c7a2f10';
+const RECOVERY_KEY_BACKED_UP_STORAGE_VALUE = 'zrk:v1:91d8b643';
 const RECOVERY_KEY_SAVED_PREFIX = 'bb_cloud_recovery_key_saved_';
 const RECOVERY_KEY_BACKED_UP_PREFIX = 'bb_cloud_recovery_key_backed_up_';
 const RECOVERY_KEY_GRACE_STARTED_PREFIX = 'bb_cloud_recovery_key_grace_started_';
@@ -1261,7 +1263,7 @@ function markBuddyCloudDefaultSetupAttempted() {
 
 function markRecoveryKeySaved() {
     const keyName = getRecoveryKeySavedFlagName();
-    if (keyName) localStorage.setItem(keyName, 'true');
+    if (keyName) localStorage.setItem(keyName, RECOVERY_KEY_SAVED_STORAGE_VALUE);
     const legacyName = getLegacyRecoveryKeySavedFlagName();
     if (legacyName) localStorage.removeItem(legacyName);
     const graceName = getRecoveryKeyGraceStartedName();
@@ -1272,15 +1274,20 @@ function hasRecoveryKeySavedFlag() {
     const keyName = getRecoveryKeySavedFlagName();
     const legacyName = getLegacyRecoveryKeySavedFlagName();
     if (legacyName && localStorage.getItem(legacyName) === 'true') {
-        if (keyName) localStorage.setItem(keyName, 'true');
+        if (keyName) localStorage.setItem(keyName, RECOVERY_KEY_SAVED_STORAGE_VALUE);
         localStorage.removeItem(legacyName);
     }
-    return Boolean(keyName && localStorage.getItem(keyName) === 'true');
+    const value = keyName ? localStorage.getItem(keyName) : '';
+    if (value === 'true') {
+        localStorage.setItem(keyName, RECOVERY_KEY_SAVED_STORAGE_VALUE);
+        return true;
+    }
+    return value === RECOVERY_KEY_SAVED_STORAGE_VALUE;
 }
 
 function markRecoveryKeyBackedUp() {
     const keyName = getRecoveryKeyBackedUpFlagName();
-    if (keyName) localStorage.setItem(keyName, 'true');
+    if (keyName) localStorage.setItem(keyName, RECOVERY_KEY_BACKED_UP_STORAGE_VALUE);
     const legacyName = getLegacyRecoveryKeyBackedUpFlagName();
     if (legacyName) localStorage.removeItem(legacyName);
     markRecoveryKeySaved();
@@ -1290,14 +1297,19 @@ function hasRecoveryKeyBackedUpFlag() {
     const keyName = getRecoveryKeyBackedUpFlagName();
     const legacyName = getLegacyRecoveryKeyBackedUpFlagName();
     if (legacyName && localStorage.getItem(legacyName) === 'true') {
-        if (keyName) localStorage.setItem(keyName, 'true');
+        if (keyName) localStorage.setItem(keyName, RECOVERY_KEY_BACKED_UP_STORAGE_VALUE);
         const savedKeyName = getRecoveryKeySavedFlagName();
-        if (savedKeyName) localStorage.setItem(savedKeyName, 'true');
+        if (savedKeyName) localStorage.setItem(savedKeyName, RECOVERY_KEY_SAVED_STORAGE_VALUE);
         const legacySavedName = getLegacyRecoveryKeySavedFlagName();
         if (legacySavedName) localStorage.removeItem(legacySavedName);
         localStorage.removeItem(legacyName);
     }
-    return Boolean(keyName && localStorage.getItem(keyName) === 'true');
+    const value = keyName ? localStorage.getItem(keyName) : '';
+    if (value === 'true') {
+        localStorage.setItem(keyName, RECOVERY_KEY_BACKED_UP_STORAGE_VALUE);
+        return true;
+    }
+    return value === RECOVERY_KEY_BACKED_UP_STORAGE_VALUE;
 }
 
 function isRecoveryKeyDisplayUnlocked() {
