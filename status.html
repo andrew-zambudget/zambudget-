@@ -153,6 +153,18 @@
             <div class="service-name">🔒 Data Encryption</div>
             <div class="service-status"><span class="service-dot online"></span> Online</div>
         </div>
+        <div class="service-row">
+            <div class="service-name">Local Vault Foundation</div>
+            <div class="service-status"><span class="service-dot degraded"></span> Staged / Flag Off</div>
+        </div>
+    </div>
+
+    <div class="policy-section">
+        <h2 class="section-title">Security Hardening Status</h2>
+        <div class="section-content">
+            <p>Local vault encryption foundation and migration tests are implemented behind a disabled feature flag. Default production storage behavior remains unchanged while the flag is off.</p>
+            <p>Browser-local <code>bb_data</code> remains in the existing plaintext JSON format until a separate controlled rollout enables local vault storage for real users.</p>
+        </div>
     </div>
 
     <!-- UPTIME HISTORY WITH DATE MARKERS -->

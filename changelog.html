@@ -259,6 +259,11 @@
                                 <span class="release-summary-label">Privacy</span>
                                 <span class="release-summary-copy">Suggestions run in the browser. Accepted aliases are local only, and the app now blocks clipboard-read access while keeping user-triggered copy actions write-only.</span>
                             </div>
+                            <div class="release-summary-row summary-security">
+                                <span class="release-summary-dot" aria-hidden="true"></span>
+                                <span class="release-summary-label">Storage</span>
+                                <span class="release-summary-copy">Added and verified flag-gated local vault encryption test coverage. Default production storage behavior remains unchanged while the feature flag is off.</span>
+                            </div>
                             <div class="release-summary-row summary-ui">
                                 <span class="release-summary-dot" aria-hidden="true"></span>
                                 <span class="release-summary-label">Control</span>
@@ -305,6 +310,14 @@
                                 <div>
                                     <div class="tag-text">Clipboard reads blocked</div>
                                     <span class="tag-detail">Recovery-key copy actions now write only. Zam no longer reads the clipboard to auto-clear copied keys, and deployed app assets include a Permissions-Policy header that blocks clipboard-read permission prompts.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">VAULT</span>
+                                <div>
+                                    <div class="tag-text">Local vault foundation staged</div>
+                                    <span class="tag-detail">Local vault encryption and migration coverage now pass behind a disabled feature flag. Real user browser storage is not migrated yet, and production bb_data remains in the existing plaintext JSON format while the flag is off.</span>
                                 </div>
                             </div>
 
