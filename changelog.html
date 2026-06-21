@@ -264,6 +264,11 @@
                                 <span class="release-summary-label">Storage</span>
                                 <span class="release-summary-copy">Local vault storage is now enabled by default so persisted real app budget data is stored as an encrypted browser envelope.</span>
                             </div>
+                            <div class="release-summary-row summary-security">
+                                <span class="release-summary-dot" aria-hidden="true"></span>
+                                <span class="release-summary-label">Sync history</span>
+                                <span class="release-summary-copy">Cloud Sync history now migrates to encrypted local metadata storage while keeping its existing sanitized, browser-only status display.</span>
+                            </div>
                             <div class="release-summary-row summary-ui">
                                 <span class="release-summary-dot" aria-hidden="true"></span>
                                 <span class="release-summary-label">Control</span>
@@ -318,6 +323,14 @@
                                 <div>
                                     <div class="tag-text">Local vault storage enabled</div>
                                     <span class="tag-detail">Persisted real app budget data now migrates from legacy plaintext bb_data into an encrypted local vault envelope before render. Fresh saves use the encrypted envelope by default, while demo data remains isolated in session storage.</span>
+                                </div>
+                            </div>
+
+                            <div class="tag-item tag-security">
+                                <span class="tag-icon" aria-hidden="true">SYNC</span>
+                                <div>
+                                    <div class="tag-text">Sync history metadata encrypted</div>
+                                    <span class="tag-detail">The header sync-history panel still shows the same sanitized status events, but the stored bb_sync_history value now uses an encrypted local metadata envelope instead of readable localStorage text.</span>
                                 </div>
                             </div>
 

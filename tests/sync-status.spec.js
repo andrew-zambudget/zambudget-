@@ -30,10 +30,22 @@ async function createExpenseFromAddTab(page, description = 'Local status smoke')
     }, categoryName);
 }
 
+async function clearLocalVaultKeyDb(page) {
+    await page.evaluate(async () => {
+        await new Promise(resolve => {
+            const request = indexedDB.deleteDatabase('zam_local_vault_keys');
+            request.onsuccess = () => resolve();
+            request.onerror = () => resolve();
+            request.onblocked = () => resolve();
+        });
+    });
+}
+
 test.describe('Cloud Sync local save status', () => {
     test.beforeEach(async ({ page }) => {
         await installSignedOutSupabaseStub(page);
         await resetBrowserStorage(page);
+        await clearLocalVaultKeyDb(page);
     });
 
     test('Add transaction in demo mode is labeled as a local save', async ({ page }) => {
@@ -61,5 +73,65 @@ test.describe('Cloud Sync local save status', () => {
         );
 
         await context.setOffline(false);
+    });
+
+    test('legacy plaintext sync history migrates to encrypted storage and still renders', async ({ page }) => {
+        await page.goto('/tests/fixtures/blank.html');
+        await page.evaluate(() => {
+            localStorage.setItem('bb_sync_history', JSON.stringify([
+                {
+                    id: 'legacy-sync-history-event',
+                    time: '2026-06-21T18:30:00.000Z',
+                    status: 'synced',
+                    message: 'Cloud Sync is up to date.',
+                    details: {
+                        transaction: {
+                            amount: 12.34,
+                            description: 'LEGACY_SYNC_HISTORY_MERCHANT'
+                        }
+                    }
+                }
+            ]));
+        });
+
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+        await page.waitForFunction(() => {
+            const raw = localStorage.getItem('bb_sync_history') || '';
+            return raw.includes('zam_local_metadata_vault') && raw.includes('sync_history');
+        });
+
+        const raw = await page.evaluate(() => localStorage.getItem('bb_sync_history') || '');
+        expect(raw).not.toContain('Cloud Sync is up to date.');
+        expect(raw).not.toContain('2026-06-21T18:30:00.000Z');
+        expect(raw).not.toContain('LEGACY_SYNC_HISTORY_MERCHANT');
+
+        await page.locator('#syncStatusBtn').click();
+        await expect(page.locator('#syncHistoryPanel')).toBeVisible();
+        await expect(page.locator('#syncHistoryList')).toContainText('Cloud Sync is up to date.');
+        await expect(page.locator('#syncHistoryList')).not.toContainText('LEGACY_SYNC_HISTORY_MERCHANT');
+    });
+
+    test('new sync history writes are encrypted after local saves', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await createExpenseFromAddTab(page, 'Encrypted sync history runtime');
+        await page.waitForTimeout(500);
+        await page.evaluate(async () => {
+            await window.flushSyncHistorySaveQueue?.();
+        });
+        await page.waitForFunction(() => {
+            const raw = localStorage.getItem('bb_sync_history') || '';
+            return raw.includes('zam_local_metadata_vault') && raw.includes('sync_history');
+        });
+
+        const raw = await page.evaluate(() => localStorage.getItem('bb_sync_history') || '');
+        expect(raw).not.toContain('Saved locally. Cloud Sync not active.');
+        expect(raw).not.toContain('Encrypted sync history runtime');
+
+        await page.locator('#syncStatusBtn').click();
+        await expect(page.locator('#syncHistoryPanel')).toBeVisible();
+        await expect(page.locator('#syncHistoryList')).toContainText('Saved locally. Cloud Sync not active.');
     });
 });

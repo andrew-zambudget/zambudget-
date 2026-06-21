@@ -1,6 +1,7 @@
 // js/ui.js
 
 import * as State from './state.js';
+import * as SyncHistoryVault from './syncHistoryVaultStorage.js';
 import { esc, generateId, formatMoney, formatDate, validateCategoryName, getIconFromName } from './utils.js';
 
 // --- State Variables ---
@@ -259,6 +260,10 @@ let currentSyncStatus = 'local';
 let currentSyncStatusMessage = 'Saved partially';
 let syncStatusAlternateTimer = null;
 let syncStatusAlternateKeyNeeded = false;
+let syncHistoryCache = null;
+let syncHistoryStorageInitPromise = null;
+let syncHistoryPersistQueue = Promise.resolve(true);
+let syncHistoryLastStorageError = null;
 
 const NAME_MAX_LENGTH = 24;
 
@@ -427,28 +432,108 @@ function sanitizeSyncHistoryEvent(event = {}, index = 0) {
     return safeEvent;
 }
 
-function getSyncHistory() {
+function sanitizeSyncHistoryEvents(events = []) {
+    return Array.isArray(events)
+        ? events.slice(0, SYNC_HISTORY_VISIBLE_LIMIT).map((event, index) => sanitizeSyncHistoryEvent(event, index))
+        : [];
+}
+
+function readPlaintextSyncHistoryFromStorage() {
     try {
         const parsed = JSON.parse(localStorage.getItem(SYNC_HISTORY_KEY) || '[]');
-        if (!Array.isArray(parsed)) return [];
-        const sanitized = parsed
-            .slice(0, SYNC_HISTORY_VISIBLE_LIMIT)
-            .map((event, index) => sanitizeSyncHistoryEvent(event, index));
-        const nextValue = JSON.stringify(sanitized);
-        if (JSON.stringify(parsed.slice(0, SYNC_HISTORY_VISIBLE_LIMIT)) !== nextValue) {
-            localStorage.setItem(SYNC_HISTORY_KEY, nextValue);
-        }
-        return sanitized;
+        return sanitizeSyncHistoryEvents(parsed);
     } catch {
         return [];
     }
 }
 
+export async function initEncryptedSyncHistoryStorage() {
+    if (syncHistoryStorageInitPromise) return syncHistoryStorageInitPromise;
+
+    syncHistoryStorageInitPromise = (async () => {
+        try {
+            const classification = SyncHistoryVault.classifySyncHistoryRecord(localStorage);
+            if (classification.kind === 'encrypted') {
+                syncHistoryCache = await SyncHistoryVault.readEncryptedSyncHistory();
+                renderSyncHistory();
+                return { mode: 'encrypted', count: syncHistoryCache.length };
+            }
+
+            if (classification.kind === 'plaintext') {
+                const sanitized = readPlaintextSyncHistoryFromStorage();
+                syncHistoryCache = sanitized;
+                if (sanitized.length > 0) {
+                    await SyncHistoryVault.writeEncryptedSyncHistory(sanitized);
+                } else {
+                    localStorage.removeItem(SYNC_HISTORY_KEY);
+                }
+                renderSyncHistory();
+                return { mode: 'migrated', count: sanitized.length };
+            }
+
+            syncHistoryCache = [];
+            if (classification.kind === 'invalid') {
+                localStorage.removeItem(SYNC_HISTORY_KEY);
+            }
+            renderSyncHistory();
+            return { mode: classification.kind, count: 0 };
+        } catch (error) {
+            syncHistoryLastStorageError = error;
+            syncHistoryCache = [];
+            console.warn('[Sync History] Encrypted sync history unavailable; showing empty local history.', error);
+            renderSyncHistory();
+            return { mode: 'error', count: 0 };
+        }
+    })();
+
+    return syncHistoryStorageInitPromise;
+}
+
+function getSyncHistory() {
+    if (Array.isArray(syncHistoryCache)) {
+        return syncHistoryCache;
+    }
+
+    const classification = SyncHistoryVault.classifySyncHistoryRecord(localStorage);
+    if (classification.kind === 'plaintext') {
+        return readPlaintextSyncHistoryFromStorage();
+    }
+
+    if (classification.kind === 'encrypted') {
+        void initEncryptedSyncHistoryStorage();
+    }
+
+    return [];
+}
+
 function saveSyncHistory(events) {
-    const sanitized = Array.isArray(events)
-        ? events.slice(0, SYNC_HISTORY_VISIBLE_LIMIT).map((event, index) => sanitizeSyncHistoryEvent(event, index))
-        : [];
-    localStorage.setItem(SYNC_HISTORY_KEY, JSON.stringify(sanitized));
+    const sanitized = sanitizeSyncHistoryEvents(events);
+    syncHistoryCache = sanitized;
+    syncHistoryLastStorageError = null;
+
+    syncHistoryPersistQueue = syncHistoryPersistQueue
+        .catch(() => false)
+        .then(async () => {
+            try {
+                await SyncHistoryVault.writeEncryptedSyncHistory(sanitized);
+                return true;
+            } catch (error) {
+                syncHistoryLastStorageError = error;
+                console.warn('[Sync History] Could not persist encrypted sync history.', error);
+                return false;
+            }
+        });
+
+    return sanitized;
+}
+
+export async function flushSyncHistorySaveQueue() {
+    await initEncryptedSyncHistoryStorage();
+    return syncHistoryPersistQueue;
+}
+
+export function getLastSyncHistoryStorageError() {
+    return syncHistoryLastStorageError;
 }
 
 function formatSyncTime(iso) {
@@ -975,9 +1060,10 @@ function observeLocalSave(message = 'Saved partially.') {
     }, 360);
 }
 
-function initSyncObserver() {
+async function initSyncObserver() {
     if (syncObserverInitialized) return;
     syncObserverInitialized = true;
+    await initEncryptedSyncHistoryStorage();
 
     if (getSyncHistory().length === 0) {
         recordSyncEvent(navigator.onLine === false ? 'Offline - changes saved partially.' : 'Saved partially.', navigator.onLine === false ? 'error' : 'local');
@@ -4430,7 +4516,7 @@ window.openBuddyCloudDeviceManagement = function(event) {
 };
 
 function initAccountSecurityObservers() {
-    initSyncObserver();
+    void initSyncObserver();
     startBrowserAccessWatcher();
 }
 

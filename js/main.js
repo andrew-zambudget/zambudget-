@@ -250,6 +250,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         appStateInitialized = true;
         const isDemoSession = DemoMode.isDemoModeActive?.() === true;
+        await UI.initEncryptedSyncHistoryStorage?.();
 
         if (!isDemoSession && window.currentUser && typeof UI.refreshPremiumAccess === 'function') {
             BudgetPrep.updatePreparingBudget?.({ detail: 'Checking Premium status and account access.' });

@@ -66,7 +66,7 @@ CSV-imported transaction details are stored inside `bb_data`, including import m
 | Key | Storage | Classification | Contents | Notes |
 | --- | --- | --- | --- | --- |
 | `bb_cloud_sync_enabled` | localStorage | Auth or sync helper | Cloud Sync enabled flag | Account-scoped local state. |
-| `bb_sync_history` | localStorage | Sensitive metadata | Last five sync messages | Cleanup sanitizes details and strips transaction-specific legacy details. |
+| `bb_sync_history` | localStorage | Sensitive metadata | Encrypted local metadata envelope for the last five sanitized sync messages | Legacy plaintext history is sanitized and migrated at startup. Runtime writes use `zam_local_metadata_vault` and do not upload through Cloud Sync. |
 | `bb_cloud_last_pushed_at` | localStorage | Sensitive metadata | Last local push timestamp | Used by conflict/status logic. |
 | `bb_cloud_last_remote_at` | localStorage | Sensitive metadata | Last remote timestamp | Used by conflict/status logic. |
 | `bb_cloud_last_error` | localStorage | Sensitive metadata | Last sync error text | Must not include secrets or budget details. |
@@ -86,7 +86,7 @@ CSV-imported transaction details are stored inside `bb_data`, including import m
 | `bb_cloud_recovery_key_unlocked_until_<userId>` | sessionStorage | Auth or sync helper | Short recovery-key view unlock timestamp | Session-only UI unlock marker. |
 | `bb_cloud_default_setup_attempted_<userId>` | localStorage | Auth or sync helper | Default setup attempt marker | Setup helper flag. |
 | `bb_cloud_key_<userId>` | localStorage | Critical, legacy forbidden | Old raw recovery-key storage pattern | Current cleanup removes these keys. Do not reintroduce. |
-| `zam_local_vault_keys` | IndexedDB | Auth or sync helper | Non-extractable AES-GCM CryptoKey records for local vault storage | Encrypts and decrypts persisted local `bb_data` envelopes. Local-only. Not uploaded to Zam!. |
+| `zam_local_vault_keys` | IndexedDB | Auth or sync helper | Non-extractable AES-GCM CryptoKey records for local vault storage | Encrypts and decrypts persisted local `bb_data` envelopes and local metadata envelopes such as `bb_sync_history`. Local-only. Not uploaded to Zam!. |
 | `budgetbuddy_buddy_cloud_keys` | IndexedDB | Auth or sync helper | Non-extractable AES-GCM CryptoKey | Lets trusted browser sync after refresh without storing raw recovery-key text in localStorage. |
 
 ## Account, Billing, And Login Helpers
