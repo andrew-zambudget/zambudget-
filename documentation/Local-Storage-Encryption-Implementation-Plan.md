@@ -229,12 +229,15 @@ Before enabling encryption broadly:
 - wrong recovery key fails without overwriting data
 - Cloud Sync restore writes a usable local encrypted copy
 - factory reset removes encrypted local data
+- factory reset removes local vault key material
 - account owner change clears encrypted local data
+- account owner change clears prior account local vault key material
 - demo mode stays sandboxed in `zam_demo_data`
 - CSV import still stores imported transactions correctly
 - CSV export still exports correct plaintext CSV after user action
 - diagnostics still exclude budget contents and keys
 - storage-sensitive-data tests pass with encrypted `bb_data` expectations
+- local-vault-hardening tests pass for cross-envelope rejection, tamper handling, key hardening, browser-surface leakage checks, and reset/account-owner cleanup
 
 ## Documentation Updates Required When Encryption Ships
 

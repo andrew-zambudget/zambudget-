@@ -17915,8 +17915,11 @@ function getCsvExportAmount(tx = {}) {
 }
 
 function csvExportField(value = '') {
-    const text = String(value ?? '');
-    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    let text = String(value ?? '');
+    if (/^[\s]*[=+\-@]|\t|\r/.test(text)) {
+        text = `'${text}`;
+    }
+    return /[",\r\n\t]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 function buildCsvExportContent(transactions = []) {

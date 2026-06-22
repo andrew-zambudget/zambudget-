@@ -1,4 +1,5 @@
 import * as OperationalMetadata from './localOperationalMetadataStorage.js';
+import { deleteAllLocalVaultKeys } from './localVaultKeyProvider.js';
 
 const SIGNED_IN_OWNER_KEY = 'bb_signed_in_owner_id';
 const SIGNED_IN_OWNER_HASH_KEY = 'bb_signed_in_owner_hash_v1';
@@ -99,6 +100,7 @@ export function getSignedInLocalOwnerId() {
 export function clearSignedInAccountScopedLocalState({ preserveOwnerKey = false } = {}) {
     ACCOUNT_SCOPED_KEYS.forEach(storageRemove);
     OperationalMetadata.clearLocalOperationalMetadataStorage();
+    deleteAllLocalVaultKeys().catch(() => false);
 
     try {
         Object.keys(localStorage)

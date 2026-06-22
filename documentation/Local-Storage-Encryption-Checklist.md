@@ -27,6 +27,7 @@ This checklist records the guardrails for Zam's local vault storage rollout. Loc
 
 - storage-sensitive-data tests now assert real `bb_data` does not expose budget sentinels.
 - local vault adapter, key provider, migration, runtime wiring, and rollout smoke tests are present.
+- local vault hardening tests assert envelope purpose binding, tamper rejection, key non-extractability, key wrap rejection, broad browser-surface leakage checks, and reset/account-owner key cleanup.
 - recovery keys, master keys, and vault keys are not persisted in plaintext localStorage.
 - localStorage, sessionStorage, IndexedDB, and cookie keys are inventoried in `documentation/Storage-Inventory.md`.
 
@@ -113,7 +114,7 @@ See `documentation/Local-Storage-Encryption-Implementation-Plan.md` for the impl
 ## Current Storage-Sensitive Test
 
 ```text
-bb_data does not expose transaction descriptions, amounts, categories, notes, gift card metadata, or deleted transaction tombstones
+bb_data does not expose transaction descriptions, amounts, categories, notes, gift card metadata, CSV/import data, or deleted transaction tombstones
 ```
 
 Do not weaken that test without product/security review.

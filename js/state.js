@@ -1,6 +1,7 @@
 // js/state.js
 
 import * as OperationalMetadata from './localOperationalMetadataStorage.js';
+import { deleteAllLocalVaultKeys } from './localVaultKeyProvider.js';
 
 let state = {
     transactions: [],
@@ -1812,7 +1813,7 @@ export const setCurrentTag = (t) => state.currentTag = t;
 export const getCurrentDrilldownCat = () => state.currentDrilldownCat;
 export const setCurrentDrilldownCat = (c) => state.currentDrilldownCat = c;
 
-export const factoryReset = () => {
+export const factoryReset = async () => {
     try {
         Object.keys(localStorage).forEach(key => {
             if (key.startsWith('bb_') || key.startsWith('zam_')) secureRemove(key);
@@ -1827,6 +1828,12 @@ export const factoryReset = () => {
         });
     } catch {
         // If session storage is blocked, there is nothing else to clear.
+    }
+
+    try {
+        await deleteAllLocalVaultKeys();
+    } catch {
+        // IndexedDB key cleanup is best-effort before the local reset reload.
     }
 
     window.location.reload();

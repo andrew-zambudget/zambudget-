@@ -136,10 +136,10 @@ CSV-imported transaction details are stored inside `bb_data`, including import m
 
 - Signed-out users cannot write real budget data unless demo mode is active.
 - Demo mode writes to `zam_demo_data` and does not overwrite `bb_data`.
-- Account owner changes clear stale account-scoped local budget and sync state.
+- Account owner changes clear stale account-scoped local budget, sync state, operational metadata, and local vault key material.
 - `bb_cloud_key_*` raw recovery-key remnants are removed by privacy cleanup.
 - Diagnostics are generated locally and exclude budget contents, recovery keys, local vault keys, and access tokens.
-- Factory reset removes `bb_` and `zam_` namespace keys.
+- Factory reset removes `bb_` and `zam_` namespace keys plus local vault key material in IndexedDB.
 
 ## Local Vault Guardrail Status
 
