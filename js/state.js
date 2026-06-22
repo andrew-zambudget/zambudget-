@@ -1,5 +1,7 @@
 // js/state.js
 
+import * as OperationalMetadata from './localOperationalMetadataStorage.js';
+
 let state = {
     transactions: [],
     categories: [],
@@ -254,12 +256,19 @@ function secureRemoveSession(key) {
 function getLocalUpdatedAt() {
     const target = getBudgetStorage();
     assertDemoDoesNotTouchRealBudgetStorage('read timestamp', target.key);
+    if (target.mode === 'app') {
+        const encryptedValue = OperationalMetadata.getLocalUpdatedAt();
+        if (encryptedValue) return encryptedValue;
+    }
     return readStorageValue(target.storage, target.localUpdatedAtKey, '');
 }
 
 function setLocalUpdatedAt(value = new Date().toISOString()) {
     const target = getBudgetStorage();
     assertDemoDoesNotTouchRealBudgetStorage('write timestamp', target.key);
+    if (target.mode === 'app') {
+        return OperationalMetadata.setLocalUpdatedAt(value);
+    }
     if (!writeStorageValue(target.storage, target.localUpdatedAtKey, value)) {
         throw new Error('Browser storage is unavailable.');
     }

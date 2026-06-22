@@ -1,5 +1,7 @@
 // js/cloudSync.js
 
+import * as OperationalMetadata from './localOperationalMetadataStorage.js';
+
 const CLOUD_ENABLED_KEY = 'bb_cloud_sync_enabled';
 const CLOUD_ENABLED_VALUE = 'zcs:v1:9f42d18a';
 const CLOUD_HISTORY_KEY = 'bb_sync_history';
@@ -302,7 +304,7 @@ function getLegacySyncSlotKeyName(userId = currentUser?.id) {
 function clearSyncSlotToken(userId = currentUser?.id) {
     const keyName = getSyncSlotKeyName(userId);
     const legacyKeyName = getLegacySyncSlotKeyName(userId);
-    if (keyName) localStorage.removeItem(keyName);
+    if (keyName) OperationalMetadata.removeCloudSyncSlotToken();
     if (legacyKeyName) localStorage.removeItem(legacyKeyName);
 }
 
@@ -310,11 +312,11 @@ function getMigratedSyncSlotToken(userId = currentUser?.id) {
     const keyName = getSyncSlotKeyName(userId);
     if (!keyName) return '';
 
-    const existing = localStorage.getItem(keyName);
+    const existing = OperationalMetadata.getCloudSyncSlotToken();
     const legacyKeyName = getLegacySyncSlotKeyName(userId);
     const legacy = legacyKeyName ? localStorage.getItem(legacyKeyName) || '' : '';
     if (legacy) {
-        if (!existing) localStorage.setItem(keyName, legacy);
+        if (!existing) OperationalMetadata.setCloudSyncSlotToken(legacy);
         localStorage.removeItem(legacyKeyName);
         return existing || legacy;
     }
@@ -426,7 +428,7 @@ function getOrCreateSyncSlotToken() {
     if (existing) return existing;
 
     const token = generateCloudKey();
-    localStorage.setItem(keyName, token);
+    OperationalMetadata.setCloudSyncSlotToken(token);
     return token;
 }
 
@@ -656,7 +658,7 @@ function getTimestampMs(value = '') {
 }
 
 function getLastVerifiedCloudAt() {
-    return localStorage.getItem(CLOUD_LAST_PUSHED_KEY) || localStorage.getItem(CLOUD_LAST_REMOTE_KEY) || '';
+    return OperationalMetadata.getCloudLastPushedAt() || OperationalMetadata.getCloudLastRemoteAt() || '';
 }
 
 function getLocalCloudVerificationState() {
@@ -975,8 +977,8 @@ function clearConflictState() {
 
 function clearStaleEnabledStateForFreshSetup() {
     localStorage.removeItem(CLOUD_ENABLED_KEY);
-    localStorage.removeItem(CLOUD_LAST_PUSHED_KEY);
-    localStorage.removeItem(CLOUD_LAST_REMOTE_KEY);
+    OperationalMetadata.removeCloudLastPushedAt();
+    OperationalMetadata.removeCloudLastRemoteAt();
     localStorage.removeItem(CLOUD_LAST_ERROR_KEY);
     clearConflictState();
     rememberStatus({
@@ -1000,8 +1002,8 @@ function rememberStatus(next = {}) {
         hasKey: hasLocalCloudKey(),
         hasExportableKey: hasExportableCloudKey(),
         hasTrustedKey: hasTrustedCloudKey(),
-        lastPushedAt: localStorage.getItem(CLOUD_LAST_PUSHED_KEY) || '',
-        lastRemoteAt: localStorage.getItem(CLOUD_LAST_REMOTE_KEY) || '',
+        lastPushedAt: OperationalMetadata.getCloudLastPushedAt(),
+        lastRemoteAt: OperationalMetadata.getCloudLastRemoteAt(),
         lastError: localStorage.getItem(CLOUD_LAST_ERROR_KEY) || '',
         hasConflict: Boolean(conflict.remoteUpdatedAt || conflict.localUpdatedAt),
         conflictRemoteAt: conflict.remoteUpdatedAt,
@@ -1522,8 +1524,8 @@ async function performPushSnapshotNow(reason = 'Budget synced to Cloud Sync.') {
             versionHistoryError: getVersionHistoryErrorMessage(snapshotError)
         });
     }
-    localStorage.setItem(CLOUD_LAST_PUSHED_KEY, clientUpdatedAt);
-    localStorage.setItem(CLOUD_LAST_REMOTE_KEY, clientUpdatedAt);
+    OperationalMetadata.setCloudLastPushedAt(clientUpdatedAt);
+    OperationalMetadata.setCloudLastRemoteAt(clientUpdatedAt);
     clearConflictState();
     clearForcePullAfterSignIn();
     record('Sync completed', 'synced', syncDetails);
@@ -1536,7 +1538,7 @@ async function pushSnapshotNow(reason = 'Budget synced to Cloud Sync.') {
         if (!result) return result;
 
         const localUpdatedAt = getLocalSnapshot().meta?.localUpdatedAt || '';
-        const lastPushedAt = localStorage.getItem(CLOUD_LAST_PUSHED_KEY) || '';
+        const lastPushedAt = OperationalMetadata.getCloudLastPushedAt();
         if (localUpdatedAt && lastPushedAt && localUpdatedAt !== lastPushedAt) {
             return pushSnapshotNow(reason);
         }
@@ -1596,8 +1598,8 @@ export async function forcePull() {
         isApplyingRemote = false;
     }
 
-    localStorage.setItem(CLOUD_LAST_REMOTE_KEY, remote.client_updated_at);
-    localStorage.setItem(CLOUD_LAST_PUSHED_KEY, remote.client_updated_at);
+    OperationalMetadata.setCloudLastRemoteAt(remote.client_updated_at);
+    OperationalMetadata.setCloudLastPushedAt(remote.client_updated_at);
     clearConflictState();
     clearForcePullAfterSignIn();
     record('Cloud Sync budget downloaded.', 'synced');
@@ -1655,7 +1657,7 @@ export async function enableSync(options = {}) {
             needsChoice: true,
             remoteUpdatedAt: remote.client_updated_at || remote.updated_at || '',
             localUpdatedAt,
-            lastSyncedAt: localStorage.getItem(CLOUD_LAST_REMOTE_KEY) || localStorage.getItem(CLOUD_LAST_PUSHED_KEY) || '',
+            lastSyncedAt: OperationalMetadata.getCloudLastRemoteAt() || OperationalMetadata.getCloudLastPushedAt() || '',
             remoteSummary: getSnapshotSummary(remoteSnapshot),
             localSummary: getSnapshotSummary(localSnapshot)
         };
@@ -1816,8 +1818,8 @@ export function removeThisDevice() {
     clearSyncSlotToken();
     clearForcePullAfterSignIn();
     localStorage.removeItem(CLOUD_ENABLED_KEY);
-    localStorage.removeItem(CLOUD_LAST_PUSHED_KEY);
-    localStorage.removeItem(CLOUD_LAST_REMOTE_KEY);
+    OperationalMetadata.removeCloudLastPushedAt();
+    OperationalMetadata.removeCloudLastRemoteAt();
     localStorage.removeItem(CLOUD_LAST_ERROR_KEY);
     clearConflictState();
     rememberStatus({
@@ -1980,11 +1982,11 @@ export async function init(options = {}) {
         await claimSyncSlot(remote);
 
         const forcePullAfterSignIn = shouldForcePullAfterSignIn();
-        const lastRemoteAt = localStorage.getItem(CLOUD_LAST_REMOTE_KEY) || '';
+        const lastRemoteAt = OperationalMetadata.getCloudLastRemoteAt();
         const localSnapshot = getLocalSnapshot();
         const localUpdatedAt = localSnapshot.meta?.localUpdatedAt || '';
         const remoteChanged = remote.client_updated_at && remote.client_updated_at !== lastRemoteAt;
-        const localChanged = localUpdatedAt && localUpdatedAt !== localStorage.getItem(CLOUD_LAST_PUSHED_KEY);
+        const localChanged = localUpdatedAt && localUpdatedAt !== OperationalMetadata.getCloudLastPushedAt();
         const localHasBudgetData = localSnapshotHasBudgetData(localSnapshot);
         const localSummary = getSnapshotSummary(localSnapshot);
         let remoteSnapshot = null;
@@ -1999,7 +2001,7 @@ export async function init(options = {}) {
             setConflictState({
                 remoteUpdatedAt: remote.client_updated_at || remote.updated_at || '',
                 localUpdatedAt,
-                lastSyncedAt: lastRemoteAt || localStorage.getItem(CLOUD_LAST_PUSHED_KEY) || '',
+                lastSyncedAt: lastRemoteAt || OperationalMetadata.getCloudLastPushedAt() || '',
                 remoteSummary: nextRemoteSummary,
                 localSummary
             });

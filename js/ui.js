@@ -3,6 +3,7 @@
 import * as State from './state.js';
 import * as SyncHistoryVault from './syncHistoryVaultStorage.js';
 import * as BrowserAccessVault from './browserAccessVaultStorage.js';
+import * as OperationalMetadata from './localOperationalMetadataStorage.js';
 import { esc, generateId, formatMoney, formatDate, validateCategoryName, getIconFromName } from './utils.js';
 
 // --- State Variables ---
@@ -2100,7 +2101,7 @@ function getBuddyCloudRecoveryRows(status = window.BuddyCloud?.getStatus?.() || 
 function getBuddyCloudReviewDetails(details = {}) {
     const status = window.BuddyCloud?.getStatus?.() || {};
     const remoteUpdatedAt = details.remoteUpdatedAt || status.conflictRemoteAt || status.lastRemoteAt || '';
-    const localUpdatedAt = details.localUpdatedAt || status.conflictLocalAt || localStorage.getItem('bb_local_updated_at') || '';
+    const localUpdatedAt = details.localUpdatedAt || status.conflictLocalAt || OperationalMetadata.getLocalUpdatedAt() || '';
     const lastSyncedAt = details.lastSyncedAt
         || status.conflictLastSyncedAt
         || status.lastPushedAt
@@ -3328,9 +3329,9 @@ function buildBuddyCloudDiagnosticReport() {
             versionHistoryLastSnapshotAt: status.versionHistoryLastSnapshotAt || '',
             versionHistoryError: status.versionHistoryError || '',
             lastError: lastError || '',
-            localUpdatedAt: localStorage.getItem('bb_local_updated_at') || '',
-            lastPushedAt: localStorage.getItem('bb_cloud_last_pushed_at') || '',
-            lastRemoteAt: localStorage.getItem('bb_cloud_last_remote_at') || '',
+            localUpdatedAt: OperationalMetadata.getLocalUpdatedAt(),
+            lastPushedAt: OperationalMetadata.getCloudLastPushedAt(),
+            lastRemoteAt: OperationalMetadata.getCloudLastRemoteAt(),
             localBudgetPayloadSizeRange: getApproxByteRange(localBudgetPayload),
             syncHistoryRetainedEvents: SYNC_HISTORY_VISIBLE_LIMIT,
             recentSyncEvents: getSyncHistory().slice(0, SYNC_HISTORY_VISIBLE_LIMIT).map(event => ({
@@ -14430,6 +14431,10 @@ window.closeCategoryModal = function() {
 
 const PREMIUM_ACTIVE_KEY = 'bb_premium_active';
 const PRO_STATUS_KEY = 'bb_pro_status';
+const PREMIUM_ACTIVE_MARKER = 'zpa:v1:82f6a1c9';
+const PREMIUM_INACTIVE_MARKER = 'zpa:v1:5b0d93ef';
+const PRO_ACTIVE_MARKER = 'zps:v1:9f34e2a1';
+const PRO_INACTIVE_MARKER = 'zps:v1:3c81d0b7';
 const STRIPE_SESSION_KEY = 'bb_stripe_checkout_session_id';
 const PREMIUM_ACTIVATED_AT_KEY = 'bb_premium_activated_at';
 const STRIPE_REDIRECT_ACK_KEY = 'bb_stripe_redirect_acknowledged';
@@ -14782,8 +14787,8 @@ function setUpgradeButtonLoading(button, isLoading) {
 export function setPremiumAccess(active = true, metadata = {}) {
     const isActive = Boolean(active);
 
-    localStorage.setItem(PREMIUM_ACTIVE_KEY, isActive ? 'true' : 'false');
-    localStorage.setItem(PRO_STATUS_KEY, isActive ? 'true' : 'false');
+    localStorage.setItem(PREMIUM_ACTIVE_KEY, isActive ? PREMIUM_ACTIVE_MARKER : PREMIUM_INACTIVE_MARKER);
+    localStorage.setItem(PRO_STATUS_KEY, isActive ? PRO_ACTIVE_MARKER : PRO_INACTIVE_MARKER);
 
     if (metadata.sessionId) localStorage.setItem(STRIPE_SESSION_KEY, metadata.sessionId);
     if (isActive) localStorage.setItem(PREMIUM_ACTIVATED_AT_KEY, new Date().toISOString());
@@ -16392,6 +16397,10 @@ function getEditCategoryOptions(tx) {
     }
 
     return categories;
+}
+
+function isPremiumStatusMarkerActive(value = '') {
+    return value === PREMIUM_ACTIVE_MARKER || value === PRO_ACTIVE_MARKER || value === 'true';
 }
 
 function isDevImportAuditEnabled() {
@@ -18092,8 +18101,8 @@ function hasMerchantRecognitionPremiumAccess() {
     try {
         return Boolean(
             State.getIsPro?.()
-            || localStorage.getItem(PREMIUM_ACTIVE_KEY) === 'true'
-            || localStorage.getItem(PRO_STATUS_KEY) === 'true'
+            || isPremiumStatusMarkerActive(localStorage.getItem(PREMIUM_ACTIVE_KEY))
+            || isPremiumStatusMarkerActive(localStorage.getItem(PRO_STATUS_KEY))
         );
     } catch {
         return Boolean(State.getIsPro?.());
@@ -22667,6 +22676,7 @@ function getTrustedBuddyCloudPreservedLocalStorage() {
 
     const keys = [
         'bb_cloud_sync_enabled',
+        OperationalMetadata.LOCAL_OPERATIONAL_METADATA_KEY,
         'bb_cloud_sync_slot_v1',
         `bb_cloud_sync_slot_${userId}`,
         BrowserAccessVault.BROWSER_ACCESS_TOKENS_STORAGE_KEY,
@@ -23706,6 +23716,7 @@ function clearBudgetBuddyLocalAccountState(options = {}) {
 
     [
         'bb_data',
+        OperationalMetadata.LOCAL_OPERATIONAL_METADATA_KEY,
         'bb_local_updated_at',
         'bb_sync_history',
         'bb_transactions',
@@ -23736,6 +23747,10 @@ function clearBudgetBuddyLocalAccountState(options = {}) {
         'bb_stripe_redirect_acknowledged'
     ].forEach(key => localStorage.removeItem(key));
 
+    if (!preserveTrustedBuddyCloud) {
+        OperationalMetadata.clearLocalOperationalMetadataStorage();
+    }
+
     Object.keys(localStorage)
         .filter(key => key.startsWith('bb_cloud_key_') || key.startsWith('bb_cloud_sync_slot_') || key.startsWith(BROWSER_ACCESS_TOKEN_PREFIX) || key.startsWith(RECOVERY_KEY_SAVED_PREFIX) || key.startsWith(RECOVERY_KEY_BACKED_UP_PREFIX) || key.startsWith(RECOVERY_KEY_GRACE_STARTED_PREFIX) || key.startsWith(BUDDY_CLOUD_FORCE_PULL_AFTER_SIGN_IN_PREFIX) || key.startsWith(BUDDY_CLOUD_RECENT_RESTORE_PREFIX))
         .forEach(key => localStorage.removeItem(key));
@@ -23760,8 +23775,8 @@ function isLogoutBackupBlockedError(error) {
 
 function getMostRecentVerifiedBuddyCloudAt() {
     const values = [
-        localStorage.getItem('bb_cloud_last_pushed_at') || '',
-        localStorage.getItem('bb_cloud_last_remote_at') || ''
+        OperationalMetadata.getCloudLastPushedAt(),
+        OperationalMetadata.getCloudLastRemoteAt()
     ];
 
     return values.reduce((latest, value) => {
@@ -23777,7 +23792,7 @@ function getMostRecentVerifiedBuddyCloudAt() {
 }
 
 function hasLocalBudgetChangesAfterVerifiedBuddyCloud() {
-    const localUpdatedAt = localStorage.getItem('bb_local_updated_at') || '';
+    const localUpdatedAt = OperationalMetadata.getLocalUpdatedAt();
     if (!localUpdatedAt) return false;
 
     const verifiedAt = getMostRecentVerifiedBuddyCloudAt();
@@ -23839,8 +23854,8 @@ async function verifyBuddyCloudBeforeLogout(options = {}) {
         );
     }
 
-    const localUpdatedAt = localStorage.getItem('bb_local_updated_at') || '';
-    const lastPushedAt = localStorage.getItem('bb_cloud_last_pushed_at') || '';
+    const localUpdatedAt = OperationalMetadata.getLocalUpdatedAt();
+    const lastPushedAt = OperationalMetadata.getCloudLastPushedAt();
     if (localUpdatedAt && lastPushedAt && localUpdatedAt !== lastPushedAt) {
         if (allowBackupSkip) {
             recordSyncEvent('Final Cloud Sync backup skipped because backup verification did not complete. Sign-out is allowed.', 'local');

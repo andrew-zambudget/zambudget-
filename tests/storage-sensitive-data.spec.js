@@ -109,7 +109,7 @@ test.describe('sensitive browser storage guardrails', () => {
                 transactionCount: snapshot.transactions?.length || 0,
                 categoryCount: snapshot.categories?.length || 0,
                 giftCardCount: snapshot.settings?.giftCards?.length || 0,
-                localUpdatedAt: localStorage.getItem('bb_local_updated_at')
+                localUpdatedAt: window.getSnapshot?.().meta?.localUpdatedAt || ''
             };
         }, { vaultModulePath: modulePath('/js/localVaultStorage.js') });
 
@@ -346,6 +346,7 @@ test.describe('sensitive browser storage guardrails', () => {
             'bb_csv_import_mappings_v1',
             'bb_merchant_aliases_v1',
             'zam_gift_card_merchant_metadata_v1',
+            'bb_local_operational_metadata_v1',
             'bb_cloud_sync_slot_v1',
             'bb_cloud_sync_slot_<userId>',
             'bb_browser_access_tokens_v1',

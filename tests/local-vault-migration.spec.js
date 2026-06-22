@@ -38,9 +38,11 @@ test.describe('local vault migration and encrypted persistence', () => {
         const result = await page.evaluate(async ({ stateModulePath, vaultModulePath, sentinels }) => {
             const State = await import(stateModulePath);
             const Vault = await import(vaultModulePath);
+            const Operational = await import('/js/localOperationalMetadataStorage.js');
             window.currentUser = { id: 'phase3-migration-user' };
             window[State.LOCAL_VAULT_STORAGE_EXPERIMENT_FLAG] = true;
             localStorage.setItem('bb_local_updated_at', '2026-06-21T08:00:00.000Z');
+            await Operational.initLocalOperationalMetadataStorage();
             localStorage.setItem('bb_data', JSON.stringify({
                 transactions: [
                     {
@@ -80,7 +82,7 @@ test.describe('local vault migration and encrypted persistence', () => {
         expect(result.classification.kind).toBe('encrypted');
         expect(result.transactions[0].description).toBe(SENTINELS.merchant);
         expect(result.snapshot.settings.giftCards[0].nickname).toBe(SENTINELS.giftCard);
-        expect(result.localStorageKeys).toEqual(['bb_data', 'bb_local_updated_at']);
+        expect(result.localStorageKeys).toEqual(['bb_data', 'bb_local_operational_metadata_v1']);
 
         Object.values(SENTINELS).forEach((sentinel) => {
             expect(result.stored).not.toContain(sentinel);

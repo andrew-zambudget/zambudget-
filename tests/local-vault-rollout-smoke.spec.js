@@ -130,6 +130,8 @@ test.describe('local vault controlled rollout smoke', () => {
                 settings: {}
             });
             const saved = await State.saveAsync({ action: 'rollout fresh encrypted save' });
+            const Operational = await import('/js/localOperationalMetadataStorage.js');
+            await Operational.flushLocalOperationalMetadataWrites();
             const stored = localStorage.getItem('bb_data') || '';
 
             return {
@@ -148,7 +150,7 @@ test.describe('local vault controlled rollout smoke', () => {
         expect(firstLoad.initResult).toEqual({ mode: 'encrypted_empty' });
         expect(firstLoad.saved).toBe(true);
         expect(firstLoad.classification.kind).toBe('encrypted');
-        expect(firstLoad.keyNames).toEqual(['bb_data', 'bb_local_updated_at']);
+        expect(firstLoad.keyNames).toEqual(['bb_data', 'bb_local_operational_metadata_v1']);
         expect(firstLoad.stored).not.toContain(SENTINELS.freshMerchant);
         expect(firstLoad.stored).not.toContain(SENTINELS.category);
         expect(firstLoad.stored).not.toContain(SENTINELS.note);

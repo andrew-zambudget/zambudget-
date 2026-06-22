@@ -27,6 +27,7 @@ import * as BuddyCloud from './cloudSync.js';
 import * as DemoMode from './demoMode.js';
 import * as BudgetPrep from './budgetPrep.js';
 import * as AuthRouteGuard from './authRouteGuard.js';
+import * as OperationalMetadata from './localOperationalMetadataStorage.js';
 import { runPrivacyStorageCleanup } from './privacyStorageCleanup.js';
 import { guardSignedInLocalOwner } from './accountLocalState.js';
 
@@ -97,6 +98,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         return;
     }
+    await OperationalMetadata.initLocalOperationalMetadataStorage();
 
     try {
         // --- SUPABASE INITIALIZATION START ---

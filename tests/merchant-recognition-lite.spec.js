@@ -92,6 +92,42 @@ test.describe('Smart Merchant Cleanup', () => {
         await resetBrowserStorage(page);
     });
 
+    test('stores Premium status flags as opaque local markers', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        const result = await page.evaluate(async () => {
+            const State = await import('/js/state.js');
+            window.setPremiumAccess?.(true, { source: 'premium_marker_test' });
+            const active = {
+                premium: localStorage.getItem('bb_premium_active'),
+                pro: localStorage.getItem('bb_pro_status'),
+                isPro: Boolean(State.getIsPro?.())
+            };
+
+            window.setPremiumAccess?.(false, { source: 'premium_marker_test' });
+            const inactive = {
+                premium: localStorage.getItem('bb_premium_active'),
+                pro: localStorage.getItem('bb_pro_status'),
+                isPro: Boolean(State.getIsPro?.())
+            };
+
+            return { active, inactive };
+        });
+
+        expect(result.active.isPro).toBe(true);
+        expect(result.active.premium).toMatch(/^zpa:v1:/);
+        expect(result.active.pro).toMatch(/^zps:v1:/);
+        expect(result.active.premium).not.toBe('true');
+        expect(result.active.pro).not.toBe('true');
+
+        expect(result.inactive.isPro).toBe(false);
+        expect(result.inactive.premium).toMatch(/^zpa:v1:/);
+        expect(result.inactive.pro).toMatch(/^zps:v1:/);
+        expect(result.inactive.premium).not.toBe('false');
+        expect(result.inactive.pro).not.toBe('false');
+    });
+
     test('suggests merchant cleanup for Premium imports and preserves raw descriptions', async ({ page }) => {
         const browserErrors = [];
         page.on('pageerror', error => browserErrors.push(error.message));

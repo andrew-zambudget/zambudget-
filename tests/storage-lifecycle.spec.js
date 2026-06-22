@@ -101,13 +101,16 @@ test.describe('Zam! storage lifecycle', () => {
         expect(result.storedTransactions[0].id).toBe('tx-original');
     });
 
-    test('replaceSnapshot() keeps memory aligned when only timestamp metadata fails', async ({ page }) => {
+    test('replaceSnapshot() keeps memory aligned when operational metadata persistence fails', async ({ page }) => {
         const result = await page.evaluate(async (stateModulePath) => {
             const State = await import(stateModulePath);
+            const Operational = await import('/js/localOperationalMetadataStorage.js');
             const originalSetItem = Storage.prototype.setItem;
 
             Storage.prototype.setItem = function patchedSetItem(key, value) {
-                if (key === 'bb_local_updated_at') throw new DOMException('Metadata write failed', 'QuotaExceededError');
+                if (key === Operational.LOCAL_OPERATIONAL_METADATA_KEY) {
+                    throw new DOMException('Metadata write failed', 'QuotaExceededError');
+                }
                 return originalSetItem.call(this, key, value);
             };
 
@@ -122,20 +125,23 @@ test.describe('Zam! storage lifecycle', () => {
                 threw = true;
             }
 
+            await Operational.flushLocalOperationalMetadataWrites();
             Storage.prototype.setItem = originalSetItem;
 
             return {
                 threw,
                 memoryTransactions: State.getTransactions(),
                 storedTransactions: JSON.parse(localStorage.getItem('bb_data')).transactions,
-                timestamp: localStorage.getItem('bb_local_updated_at')
+                timestamp: State.getSnapshot().meta.localUpdatedAt,
+                operationalMetadata: localStorage.getItem(Operational.LOCAL_OPERATIONAL_METADATA_KEY)
             };
         }, modulePath('/js/state.js'));
 
         expect(result.threw).toBe(false);
         expect(result.memoryTransactions[0].id).toBe('tx-metadata');
         expect(result.storedTransactions[0].id).toBe('tx-metadata');
-        expect(result.timestamp).toBeNull();
+        expect(result.timestamp).toBeTruthy();
+        expect(result.operationalMetadata).toBeNull();
     });
 
     test('factoryReset() removes only Zam! namespace keys', async ({ page }) => {

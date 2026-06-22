@@ -166,7 +166,7 @@ async function runTrustedSignInScenario(page, { localAmount = 42 } = {}) {
             lastError: status.lastError,
             conflictRemoteAt: localStorage.getItem('bb_cloud_conflict_remote_at'),
             forcePullMarker: localStorage.getItem(`bb_cloud_force_pull_after_sign_in_${user.id}`),
-            lastRemoteAt: localStorage.getItem('bb_cloud_last_remote_at'),
+            lastRemoteAt: status.lastRemoteAt,
             storedAmount: stored.transactions?.[0]?.amount || 0
         };
     }, {
@@ -328,8 +328,10 @@ test.describe('Cloud Sync conflict sensitivity', () => {
                 }],
                 settings: { currency: '$' }
             }, { remoteUpdatedAt: '2026-06-13T18:00:00.000Z' });
-            localStorage.setItem('bb_cloud_last_pushed_at', '2026-06-13T18:00:00.000Z');
-            localStorage.setItem('bb_cloud_last_remote_at', '2026-06-13T18:00:00.000Z');
+            const Operational = await import('/js/localOperationalMetadataStorage.js');
+            Operational.setCloudLastPushedAt('2026-06-13T18:00:00.000Z');
+            Operational.setCloudLastRemoteAt('2026-06-13T18:00:00.000Z');
+            await Operational.flushLocalOperationalMetadataWrites();
             localStorage.setItem('bb_cloud_sync_enabled', 'true');
 
             State.addTransaction({

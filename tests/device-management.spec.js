@@ -140,20 +140,28 @@ test.describe('Cloud Sync device management', () => {
             });
 
             const currentHash = await window.BuddyCloud.getCurrentSyncSlotHash();
+            const Operational = await import('/js/localOperationalMetadataStorage.js');
+            await Operational.flushLocalOperationalMetadataWrites();
+            const encryptedRaw = localStorage.getItem(Operational.LOCAL_OPERATIONAL_METADATA_KEY) || '';
 
             return {
                 expectedHash,
                 currentHash,
                 genericValue: localStorage.getItem(storageKey),
+                encryptedRaw,
+                operationalClassification: Operational.classifyLocalOperationalMetadataRecord(),
                 legacyValue: localStorage.getItem(legacyKey),
                 keys: Object.keys(localStorage).sort()
             };
         });
 
         expect(result.currentHash).toBe(result.expectedHash);
-        expect(result.genericValue).toBe('LEGACY_SYNC_SLOT_TOKEN_SENTINEL');
+        expect(result.genericValue).toBeNull();
+        expect(result.operationalClassification.kind).toBe('encrypted');
+        expect(result.encryptedRaw).not.toContain('LEGACY_SYNC_SLOT_TOKEN_SENTINEL');
         expect(result.legacyValue).toBeNull();
-        expect(result.keys).toContain('bb_cloud_sync_slot_v1');
+        expect(result.keys).toContain('bb_local_operational_metadata_v1');
+        expect(result.keys).not.toContain('bb_cloud_sync_slot_v1');
         expect(result.keys).not.toContain('bb_cloud_sync_slot_sync-slot-runtime-user');
     });
 

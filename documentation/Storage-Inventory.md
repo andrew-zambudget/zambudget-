@@ -34,7 +34,8 @@ Current local-first behavior:
 | Key | Storage | Classification | Contents | Notes |
 | --- | --- | --- | --- | --- |
 | `bb_data` | localStorage | Critical | Encrypted local vault envelope for transactions, categories, settings, gift cards | Current real budget store. Envelope metadata may be visible, but budget contents should not be readable in localStorage. |
-| `bb_local_updated_at` | localStorage | Sensitive metadata | Last local budget write timestamp | Used by local save and Cloud Sync comparison. |
+| `bb_local_operational_metadata_v1` | localStorage | Sensitive metadata | Encrypted local metadata envelope for local write timestamp, Cloud Sync verification timestamps, and sync-slot token | Per-browser operational metadata. Runtime values use `zam_local_metadata_vault` and are not uploaded through Cloud Sync. |
+| `bb_local_updated_at` | localStorage | Sensitive metadata, legacy | Old last local budget write timestamp | Migrated into `bb_local_operational_metadata_v1` and removed. This key should not remain after migration. |
 | `zam_demo_data` | sessionStorage | Critical, demo-only | Sample/demo budget payload | Demo edits are sandboxed and should not contain real financial data. |
 | `zam_demo_local_updated_at` | sessionStorage | Sensitive metadata, demo-only | Demo local write timestamp | Cleared with demo/session reset. |
 | `bb_demo_backup_bb_data` | localStorage | Critical, legacy | Pre-demo budget backup from older demo flow | Cleanup removes stranded legacy backups when demo is inactive. |
@@ -67,16 +68,16 @@ CSV-imported transaction details are stored inside `bb_data`, including import m
 | --- | --- | --- | --- | --- |
 | `bb_cloud_sync_enabled` | localStorage | Auth or sync helper | Opaque Cloud Sync enabled marker | Account-scoped local state. Legacy `true` values are migrated to an opaque marker. |
 | `bb_sync_history` | localStorage | Sensitive metadata | Encrypted local metadata envelope for the last five sanitized sync messages | Legacy plaintext history is sanitized and migrated at startup. Runtime writes use `zam_local_metadata_vault` and do not upload through Cloud Sync. |
-| `bb_cloud_last_pushed_at` | localStorage | Sensitive metadata | Last local push timestamp | Used by conflict/status logic. |
-| `bb_cloud_last_remote_at` | localStorage | Sensitive metadata | Last remote timestamp | Used by conflict/status logic. |
+| `bb_cloud_last_pushed_at` | localStorage | Sensitive metadata, legacy | Old last local push timestamp | Migrated into `bb_local_operational_metadata_v1` and removed. This key should not remain after migration. |
+| `bb_cloud_last_remote_at` | localStorage | Sensitive metadata, legacy | Old last remote timestamp | Migrated into `bb_local_operational_metadata_v1` and removed. This key should not remain after migration. |
 | `bb_cloud_last_error` | localStorage | Sensitive metadata | Last sync error text | Must not include secrets or budget details. |
 | `bb_cloud_conflict_remote_at` | localStorage | Sensitive metadata | Conflict remote timestamp | Conflict helper state. |
 | `bb_cloud_conflict_local_at` | localStorage | Sensitive metadata | Conflict local timestamp | Conflict helper state. |
 | `bb_cloud_conflict_last_synced_at` | localStorage | Sensitive metadata | Last synced timestamp for conflict logic | Conflict helper state. |
 | `bb_cloud_conflict_remote_summary` | localStorage | Sensitive metadata | Sanitized remote summary | Should remain privacy-safe summary only. |
 | `bb_cloud_conflict_local_summary` | localStorage | Sensitive metadata | Sanitized local summary | Should remain privacy-safe summary only. |
-| `bb_cloud_sync_slot_v1` | localStorage | Auth or sync helper | Random sync-slot token | Not a budget decryptor. Used to identify this browser sync slot. Visible key name does not include the user ID. |
-| `bb_cloud_sync_slot_<userId>` | localStorage | Auth or sync helper, legacy | Old random sync-slot token pattern | Legacy tokens are migrated into `bb_cloud_sync_slot_v1` and removed. This key should not remain after migration. |
+| `bb_cloud_sync_slot_v1` | localStorage | Auth or sync helper, legacy | Old random sync-slot token | Migrated into `bb_local_operational_metadata_v1` and removed. Not a budget decryptor. This key should not remain after migration. |
+| `bb_cloud_sync_slot_<userId>` | localStorage | Auth or sync helper, legacy | Old random sync-slot token pattern | Migrated into `bb_local_operational_metadata_v1` and removed. This key should not remain after migration. |
 | `bb_browser_access_tokens_v1` | localStorage | Auth or sync helper | Encrypted local metadata envelope for random browser access tokens | Not a budget decryptor. Used for browser-access registry hashing. Payload is encrypted and the visible key name does not include the user ID. |
 | `bb_browser_access_token_<userId>` | localStorage | Auth or sync helper, legacy | Old plaintext browser access token pattern | Legacy tokens are migrated into `bb_browser_access_tokens_v1` and removed on browser-access registry refresh. This key should not remain after migration. |
 | `bb_cloud_force_pull_after_sign_in_<userId>` | localStorage | Auth or sync helper | Force-pull marker | Used after sign-in recovery paths. |
@@ -101,8 +102,8 @@ CSV-imported transaction details are stored inside `bb_data`, including import m
 | `sb-<project-ref>-auth-token` | localStorage | Auth or sync helper, legacy | Old Supabase SDK plaintext auth session key | Legacy values are migrated into `zam_supabase_auth_session_v1` and removed. This key can contain access tokens, refresh tokens, user ID, email, and OAuth metadata, so it should not remain after migration. |
 | `bb_signed_in_owner_hash_v1` | localStorage | Auth or sync helper | Hash of the last signed-in user ID | Used to clear stale account-scoped budget state on account changes. Visible value does not include the raw user ID. |
 | `bb_signed_in_owner_id` | localStorage | Auth or sync helper, legacy | Old raw signed-in user ID marker | Legacy values are migrated into `bb_signed_in_owner_hash_v1` and removed. This key should not remain after migration. |
-| `bb_premium_active` | localStorage | Auth or sync helper | Premium active flag | Convenience/status flag. |
-| `bb_pro_status` | localStorage | Auth or sync helper | Legacy/parallel premium flag | Convenience/status flag. |
+| `bb_premium_active` | localStorage | Auth or sync helper | Opaque premium status marker | Convenience/status flag. Legacy `true` / `false` values are replaced on the next billing status update. |
+| `bb_pro_status` | localStorage | Auth or sync helper | Opaque legacy/parallel premium status marker | Convenience/status flag. Legacy `true` / `false` values are replaced on the next billing status update. |
 | `bb_stripe_checkout_session_id` | localStorage | Sensitive metadata | Stripe checkout session ID | Billing flow helper. |
 | `bb_premium_activated_at` | localStorage | Sensitive metadata | Premium activation timestamp | Billing flow helper. |
 | `bb_stripe_redirect_acknowledged` | localStorage | Preference | Redirect notice acknowledgement | UI helper. |
@@ -154,6 +155,6 @@ The implementation must preserve:
 
 Cloud/browser access tokens must not be used as local vault encryption keys. Session credentials, browser access tokens, sync-slot tokens, and vault decryption material must remain separate.
 
-If legacy `bb_browser_access_token_<userId>` values, `bb_browser_access_tokens_v1`, `bb_cloud_sync_slot_v1`, or legacy `bb_cloud_sync_slot_<userId>` values leak, rotate or revoke them as auth/sync helper material. Do not treat them as vault decryption material.
+If legacy `bb_browser_access_token_<userId>` values, `bb_browser_access_tokens_v1`, `bb_local_operational_metadata_v1`, legacy `bb_cloud_sync_slot_v1`, or legacy `bb_cloud_sync_slot_<userId>` values leak, rotate or revoke them as auth/sync helper material. Do not treat them as vault decryption material.
 
 Local storage encryption protects persisted browser storage at rest. It does not fully protect data while the app is unlocked and decrypted in memory, and it does not eliminate XSS risk.

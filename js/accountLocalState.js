@@ -1,8 +1,11 @@
+import * as OperationalMetadata from './localOperationalMetadataStorage.js';
+
 const SIGNED_IN_OWNER_KEY = 'bb_signed_in_owner_id';
 const SIGNED_IN_OWNER_HASH_KEY = 'bb_signed_in_owner_hash_v1';
 
 const ACCOUNT_SCOPED_KEYS = Object.freeze([
     'bb_data',
+    OperationalMetadata.LOCAL_OPERATIONAL_METADATA_KEY,
     'bb_local_updated_at',
     'bb_sync_history',
     'bb_transactions',
@@ -95,6 +98,7 @@ export function getSignedInLocalOwnerId() {
 
 export function clearSignedInAccountScopedLocalState({ preserveOwnerKey = false } = {}) {
     ACCOUNT_SCOPED_KEYS.forEach(storageRemove);
+    OperationalMetadata.clearLocalOperationalMetadataStorage();
 
     try {
         Object.keys(localStorage)

@@ -15,7 +15,7 @@ test.describe('logout safety', () => {
         await page.goto('/index.html');
         await waitForAppReady(page);
 
-        await page.evaluate(() => {
+        await page.evaluate(async () => {
             window.currentUser = {
                 id: 'logout-recovery-key-missing-user',
                 email: 'logout-key-missing@example.com'
@@ -38,8 +38,10 @@ test.describe('logout safety', () => {
                 categories: [],
                 settings: {}
             }));
-            localStorage.setItem('bb_local_updated_at', '2026-06-13T02:00:00.000Z');
-            localStorage.setItem('bb_cloud_last_remote_at', '2026-06-13T01:00:00.000Z');
+            const Operational = await import('/js/localOperationalMetadataStorage.js');
+            Operational.setLocalUpdatedAt('2026-06-13T02:00:00.000Z');
+            Operational.setCloudLastRemoteAt('2026-06-13T01:00:00.000Z');
+            await Operational.flushLocalOperationalMetadataWrites();
 
             window.handleLogout();
         });
@@ -61,7 +63,8 @@ test.describe('logout safety', () => {
         await page.goto('/index.html');
         await waitForAppReady(page);
 
-        await page.evaluate(() => {
+        await page.evaluate(async () => {
+            const Operational = await import('/js/localOperationalMetadataStorage.js');
             window.currentUser = {
                 id: 'logout-recovery-key-exportable-user',
                 email: 'logout-exportable@example.com'
@@ -81,8 +84,9 @@ test.describe('logout safety', () => {
                 }),
                 exportRecoveryKey: () => 'test-exportable-recovery-key',
                 forcePush: async () => {
-                    const updatedAt = localStorage.getItem('bb_local_updated_at') || new Date().toISOString();
-                    localStorage.setItem('bb_cloud_last_pushed_at', updatedAt);
+                    const updatedAt = Operational.getLocalUpdatedAt() || new Date().toISOString();
+                    Operational.setCloudLastPushedAt(updatedAt);
+                    await Operational.flushLocalOperationalMetadataWrites();
                     return true;
                 }
             };

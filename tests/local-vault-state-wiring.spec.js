@@ -58,7 +58,7 @@ test.describe('local vault state wiring scaffold', () => {
                 saved,
                 raw,
                 classification: Vault.classifyLocalBudgetRecord(raw),
-                timestamp: localStorage.getItem('bb_local_updated_at')
+                timestamp: State.getSnapshot().meta.localUpdatedAt
             };
         }, {
             stateModulePath: modulePath('/js/state.js'),
@@ -148,7 +148,7 @@ test.describe('local vault state wiring scaffold', () => {
                 decrypted,
                 classification: Vault.classifyLocalBudgetRecord(raw),
                 keys: Object.keys(localStorage),
-                timestamp: localStorage.getItem('bb_local_updated_at')
+                timestamp: State.getSnapshot().meta.localUpdatedAt
             };
         }, {
             stateModulePath: modulePath('/js/state.js'),
