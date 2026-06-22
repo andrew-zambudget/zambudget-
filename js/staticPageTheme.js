@@ -2,6 +2,9 @@
     const THEME_KEY = 'bb_theme_mode';
     const ACCENT_KEY = 'bb_accent_color';
     const SESSION_ACCENT_KEY = 'bb_session_accent_color';
+    const ENCRYPTED_AUTH_KEY = 'zam_supabase_auth_session_v1';
+    const AUTH_METADATA_NAME = 'supabase_auth_session';
+    const LEGACY_AUTH_KEY_PATTERN = /^sb-.+-auth-token$/;
     const FALLBACK_ACCENT = 'slate';
     const ACCENTS = {
         teal: ['#14b8a6', '#0f766e', '20, 184, 166', '#ffffff'],
@@ -96,36 +99,57 @@
         applyAccent();
     }
 
-    function getStoredAuthUser() {
+    function parseJson(value) {
         try {
+            return JSON.parse(value);
+        } catch {
+            return null;
+        }
+    }
+
+    function looksLikeEncryptedAuthRecord(value) {
+        const stored = parseJson(value || '');
+        return Boolean(
+            stored
+            && stored.kind === 'zam_local_metadata_vault'
+            && stored.version === 1
+            && stored.algorithm === 'AES-GCM'
+            && stored.name === AUTH_METADATA_NAME
+            && typeof stored.iv === 'string'
+            && typeof stored.ciphertext === 'string'
+        );
+    }
+
+    function getStoredAuthStatus() {
+        try {
+            if (looksLikeEncryptedAuthRecord(localStorage.getItem(ENCRYPTED_AUTH_KEY))) {
+                return { signedIn: true };
+            }
+
             for (let index = 0; index < localStorage.length; index += 1) {
                 const key = localStorage.key(index);
-                if (!key || !/^sb-.+-auth-token$/.test(key)) continue;
-
-                const stored = JSON.parse(localStorage.getItem(key) || 'null');
-                const session = stored?.currentSession || stored;
-                const user = session?.user || stored?.user;
-                if (user?.id) return user;
+                if (key && LEGACY_AUTH_KEY_PATTERN.test(key) && localStorage.getItem(key)) {
+                    return { signedIn: true };
+                }
             }
         } catch (error) {
             console.warn('[staticPageTheme] Could not read local auth status:', error);
         }
-        return null;
+        return { signedIn: false };
     }
 
     function updateAuthStatus() {
         const statusLinks = document.querySelectorAll('.footer-page-actions .btn-text:not(.footer-back-btn)');
         if (!statusLinks.length) return;
 
-        const user = getStoredAuthUser();
+        const authStatus = getStoredAuthStatus();
         statusLinks.forEach((link) => {
-            if (user) {
-                const email = user.email || 'signed-in account';
+            if (authStatus.signedIn) {
                 link.href = 'index.html';
                 link.textContent = 'Signed In';
-                link.dataset.tooltip = email;
-                link.title = email;
-                link.setAttribute('aria-label', `Signed in as ${email}. Back to Zam!`);
+                link.dataset.tooltip = 'Signed in on this browser';
+                link.title = 'Signed in on this browser';
+                link.setAttribute('aria-label', 'Signed in on this browser. Back to Zam!');
                 link.classList.add('static-auth-signed-in');
             } else {
                 link.href = 'login.html';
@@ -151,6 +175,8 @@
     });
 
     window.addEventListener('storage', (event) => {
-        if (event.key && /^sb-.+-auth-token$/.test(event.key)) updateAuthStatus();
+        if (event.key === ENCRYPTED_AUTH_KEY || (event.key && LEGACY_AUTH_KEY_PATTERN.test(event.key))) {
+            updateAuthStatus();
+        }
     });
 })();

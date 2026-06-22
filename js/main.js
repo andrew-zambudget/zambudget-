@@ -109,7 +109,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if (config.supabaseUrl && config.supabaseAnonKey && window.supabase) {
                 // Initialize Client
-                window.sb = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+                window.sb = window.ZamSupabaseAuth?.createClient
+                    ? window.ZamSupabaseAuth.createClient(window.supabase, config.supabaseUrl, config.supabaseAnonKey)
+                    : window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
                 const routeGuard = await AuthRouteGuard.guardCurrentAppRoute({ supabaseClient: window.sb });
                 if (routeGuard.redirected) return;
 

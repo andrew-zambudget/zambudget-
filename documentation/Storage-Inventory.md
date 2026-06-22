@@ -97,6 +97,8 @@ CSV-imported transaction details are stored inside `bb_data`, including import m
 
 | Key | Storage | Classification | Contents | Notes |
 | --- | --- | --- | --- | --- |
+| `zam_supabase_auth_session_v1` | localStorage | Auth or sync helper | Encrypted local metadata envelope for the Supabase auth session | Contains the SDK session payload only after decryption by the Supabase auth storage adapter. Not a budget decryptor. If missing or corrupt, the user must sign in again. |
+| `sb-<project-ref>-auth-token` | localStorage | Auth or sync helper, legacy | Old Supabase SDK plaintext auth session key | Legacy values are migrated into `zam_supabase_auth_session_v1` and removed. This key can contain access tokens, refresh tokens, user ID, email, and OAuth metadata, so it should not remain after migration. |
 | `bb_signed_in_owner_hash_v1` | localStorage | Auth or sync helper | Hash of the last signed-in user ID | Used to clear stale account-scoped budget state on account changes. Visible value does not include the raw user ID. |
 | `bb_signed_in_owner_id` | localStorage | Auth or sync helper, legacy | Old raw signed-in user ID marker | Legacy values are migrated into `bb_signed_in_owner_hash_v1` and removed. This key should not remain after migration. |
 | `bb_premium_active` | localStorage | Auth or sync helper | Premium active flag | Convenience/status flag. |

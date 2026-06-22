@@ -18,6 +18,7 @@
 
   <!-- Supabase JS -->
     <script src="/js/vendor/supabase.js"></script>
+    <script src="/js/supabaseAuthStorage.js"></script>
 
     <style>
         /* Local overrides if needed, but mostly using shared classes */
@@ -707,7 +708,9 @@
             return;
         }
 
-        sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        sb = window.ZamSupabaseAuth && window.ZamSupabaseAuth.createClient
+            ? window.ZamSupabaseAuth.createClient(window.supabase, SUPABASE_URL, SUPABASE_KEY)
+            : window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // Check if already logged in
         var { data: { session } } = await sb.auth.getSession();

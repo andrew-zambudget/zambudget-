@@ -51,7 +51,9 @@ test.describe('Zam! authenticated smoke', () => {
             }
 
             const config = await response.json();
-            const client = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+            const client = window.ZamSupabaseAuth?.createClient
+                ? window.ZamSupabaseAuth.createClient(window.supabase, config.supabaseUrl, config.supabaseAnonKey)
+                : window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
             const { data, error } = await client.auth.signInWithPassword({ email, password });
 
             if (error) {
