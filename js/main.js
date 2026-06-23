@@ -37,6 +37,7 @@ window.currentUser = null;
 window.bbConfig = null;
 window.ZamAuthRouteGuard = AuthRouteGuard;
 let appStateInitialized = false;
+let settledAuthenticatedUserId = null;
 
 function readLocalStorageValue(key, fallback = '') {
     try {
@@ -127,7 +128,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 // Listen for changes (like logging out)
                 window.sb.auth.onAuthStateChange(async (event, session) => {
-                    window.currentUser = session ? session.user : null;
+                    const previousUserId = window.currentUser?.id || null;
+                    const nextUser = session ? session.user : null;
+                    const nextUserId = nextUser?.id || null;
+                    const isSameSettledUser = Boolean(
+                        appStateInitialized
+                        && previousUserId
+                        && nextUserId
+                        && previousUserId === nextUserId
+                        && settledAuthenticatedUserId === nextUserId
+                    );
+                    const isBackgroundAuthRefresh = isSameSettledUser && [
+                        'INITIAL_SESSION',
+                        'SIGNED_IN',
+                        'TOKEN_REFRESHED',
+                        'USER_UPDATED'
+                    ].includes(String(event || ''));
+
+                    window.currentUser = nextUser;
                     if (!appStateInitialized) return;
 
                     if (DemoMode.isDemoModeActive?.()) {
@@ -162,7 +180,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                     }
 
-                    const showAuthPrep = Boolean(window.currentUser);
+                    const showAuthPrep = Boolean(window.currentUser) && !isBackgroundAuthRefresh;
                     if (showAuthPrep) {
                         BudgetPrep.showPreparingBudget?.({
                             title: 'Refreshing budget...',
@@ -200,6 +218,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                     } finally {
                         if (typeof window.updateAuthUI === 'function') window.updateAuthUI();
+                        settledAuthenticatedUserId = window.currentUser?.id || null;
                         if (showAuthPrep && !authRefreshFailed) BudgetPrep.hidePreparingBudget?.();
                     }
                 });
@@ -253,6 +272,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             State.initState();
         }
         appStateInitialized = true;
+        settledAuthenticatedUserId = window.currentUser?.id || null;
         const isDemoSession = DemoMode.isDemoModeActive?.() === true;
         await UI.initEncryptedSyncHistoryStorage?.();
 
