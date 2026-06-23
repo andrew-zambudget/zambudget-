@@ -390,6 +390,35 @@ async function revealRecentActions(page) {
     await expect(firstCard).toHaveClass(/is-swipe-delete-open/);
 }
 
+async function expectDrillDownVerticalScrollDoesNotRevealActions(page) {
+    const firstCard = page.locator('#drillDownTxList .drilldown-tx-card').first();
+    await expect(firstCard).toBeVisible();
+
+    const box = await firstCard.boundingBox();
+    expect(box, 'drilldown transaction card has a box for gesture testing').toBeTruthy();
+
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 110, { steps: 8 });
+    await page.mouse.up();
+
+    await expect(firstCard).not.toHaveClass(/is-swipe-actions-open/);
+}
+
+async function revealDrillDownActions(page) {
+    const firstCard = page.locator('#drillDownTxList .drilldown-tx-card').first();
+    await expect(firstCard).toBeVisible();
+
+    const menuButton = firstCard.locator('.drilldown-tx-menu-btn');
+    await expect(menuButton).toBeVisible();
+    await menuButton.click();
+    await expect(firstCard).toHaveClass(/is-swipe-actions-open/);
+
+    await expect(firstCard.locator('.drilldown-tx-swipe-edit-btn')).toBeVisible();
+    await expect(firstCard.locator('.drilldown-tx-swipe-move-btn')).toBeVisible();
+    await expect(firstCard.locator('.drilldown-tx-swipe-delete-btn')).toBeVisible();
+}
+
 async function attachScreenshot(page, name) {
     await test.info().attach(name, {
         body: await page.screenshot({ fullPage: true }),
@@ -476,6 +505,12 @@ test.describe('mobile / tablet responsive acceptance suite', () => {
             await expect(page.locator('#categoryDrillDownPanel')).toHaveClass(/active/);
             await expectBoxInsideViewport(page, '#categoryDrillDownPanel', `${viewport.name} category drilldown`);
             await expectNoHorizontalOverflow(page, `${viewport.name} category drilldown`);
+            await expectDrillDownVerticalScrollDoesNotRevealActions(page);
+            await revealDrillDownActions(page);
+            await page.locator('#drillDownTxList .drilldown-tx-card.is-swipe-actions-open .drilldown-tx-swipe-delete-btn').click();
+            await expect(page.locator('#deleteTxModal')).toBeVisible();
+            await page.locator('#deleteTxModal .btn-cancel').click();
+            await expect(page.locator('#deleteTxModal')).toBeHidden();
             await page.evaluate(() => window.closeCategoryDrillDown?.());
 
             await page.evaluate(() => window.openGiftCardModal?.('create'));

@@ -6580,7 +6580,7 @@ input.error, select.error {
   }
 
   .drilldown-tx-menu-wrap {
-    display: none;
+    display: inline-flex;
   }
 
   #view-recent .recent-tx-menu-btn {

@@ -12500,7 +12500,11 @@ function bindDrillDownSwipeActions(listContainer) {
         };
 
         card.addEventListener('click', (event) => {
-            if (card.classList.contains('is-swipe-actions-open') && !(event.target instanceof Element && event.target.closest('.drilldown-tx-swipe-btn'))) {
+            const target = event.target instanceof Element ? event.target : null;
+            const isActionControl = Boolean(target?.closest('.drilldown-tx-swipe-btn, .drilldown-tx-menu-btn'));
+            if (isActionControl) return;
+
+            if (card.classList.contains('is-swipe-actions-open')) {
                 event.preventDefault();
                 event.stopPropagation();
                 resetSwipe();
