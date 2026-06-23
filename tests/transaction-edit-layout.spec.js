@@ -93,4 +93,116 @@ test.describe('transaction edit layout', () => {
         expect(metrics.actionInside).toBe(true);
         expect(metrics.actionNotClipped).toBe(true);
     });
+
+    test('keeps Add More Details aligned and closes date picker before Pay With focus', async ({ page }) => {
+        await page.setViewportSize({ width: 760, height: 900 });
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+        await page.evaluate(() => window.switchTab('add'));
+
+        await page.locator('#toggleDetailsBtn').click();
+        await expect(page.locator('#txHiddenDetails')).toHaveClass(/open/);
+
+        const desktopLayout = await page.evaluate(() => {
+            const dateGroup = document.querySelector('#txHiddenDetails .add-date-group');
+            const payGroup = document.getElementById('txPaymentMethod')?.closest('.add-form-group');
+            const notesGroup = document.getElementById('txNotes')?.closest('.add-form-group');
+            const dateRect = dateGroup?.getBoundingClientRect();
+            const payRect = payGroup?.getBoundingClientRect();
+            const notesRect = notesGroup?.getBoundingClientRect();
+            return {
+                dateBeforePay: Boolean(dateRect && payRect && dateRect.right <= payRect.left),
+                controlsAligned: Boolean(dateRect && payRect && Math.abs(dateRect.top - payRect.top) <= 2),
+                notesBelow: Boolean(dateRect && payRect && notesRect && notesRect.top > dateRect.bottom && notesRect.top > payRect.bottom),
+                paymentNotClipped: Boolean(payGroup && payGroup.scrollWidth <= payGroup.clientWidth + 1)
+            };
+        });
+
+        expect(desktopLayout.dateBeforePay).toBe(true);
+        expect(desktopLayout.controlsAligned).toBe(true);
+        expect(desktopLayout.notesBelow).toBe(true);
+        expect(desktopLayout.paymentNotClipped).toBe(true);
+
+        await page.locator('#txDateTrigger').click();
+        await expect(page.locator('#addDatePicker')).toBeVisible();
+        await page.locator('#txPaymentMethod').focus();
+        await expect(page.locator('#addDatePicker')).toBeHidden();
+    });
+
+    test('keeps reset form tooltip aligned and unrotated', async ({ page }) => {
+        await page.setViewportSize({ width: 760, height: 900 });
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+        await page.evaluate(() => window.switchTab('add'));
+
+        const resetButton = page.locator('.add-form-reset-btn');
+        await expect(resetButton).toBeVisible();
+        await expect(resetButton).toHaveAttribute('aria-label', 'Reset add transaction form');
+        await expect(resetButton).toHaveAttribute('data-tooltip', 'Reset form');
+
+        await resetButton.hover();
+
+        const tooltipState = await resetButton.evaluate((button) => {
+            const tooltip = window.getComputedStyle(button, '::after');
+            const caret = window.getComputedStyle(button, '::before');
+            const buttonStyle = window.getComputedStyle(button);
+            const buttonRect = button.getBoundingClientRect();
+            const tooltipTop = Number.parseFloat(tooltip.top);
+            const caretTop = Number.parseFloat(caret.top);
+            const matrix = buttonStyle.transform === 'none'
+                ? [1, 0, 0, 1, 0, 0]
+                : buttonStyle.transform.match(/-?[\d.]+/g)?.map(Number) || [];
+            const hasRotation = matrix.length >= 4
+                ? Math.abs(matrix[1]) > 0.01 || Math.abs(matrix[2]) > 0.01
+                : false;
+
+            return {
+                tooltipText: button.getAttribute('data-tooltip'),
+                tooltipOpensBelow: Number.isFinite(tooltipTop) && tooltipTop > buttonRect.height,
+                caretOpensBelow: Number.isFinite(caretTop) && caretTop > buttonRect.height,
+                buttonNotRotated: !hasRotation
+            };
+        });
+
+        expect(tooltipState.tooltipText).toBe('Reset form');
+        expect(tooltipState.tooltipOpensBelow).toBe(true);
+        expect(tooltipState.caretOpensBelow).toBe(true);
+        expect(tooltipState.buttonNotRotated).toBe(true);
+
+        await resetButton.focus();
+        await expect(resetButton).toBeFocused();
+    });
+
+    test('stacks Add More Details cleanly on narrow screens', async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 860 });
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+        await page.evaluate(() => window.switchTab('add'));
+
+        await page.locator('#toggleDetailsBtn').click();
+        await expect(page.locator('#txHiddenDetails')).toHaveClass(/open/);
+
+        const mobileLayout = await page.evaluate(() => {
+            const dateGroup = document.querySelector('#txHiddenDetails .add-date-group');
+            const payGroup = document.getElementById('txPaymentMethod')?.closest('.add-form-group');
+            const notesGroup = document.getElementById('txNotes')?.closest('.add-form-group');
+            const dateRect = dateGroup?.getBoundingClientRect();
+            const payRect = payGroup?.getBoundingClientRect();
+            const notesRect = notesGroup?.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            return {
+                dateAbovePay: Boolean(dateRect && payRect && dateRect.bottom <= payRect.top),
+                payAboveNotes: Boolean(payRect && notesRect && payRect.bottom <= notesRect.top),
+                dateInsideViewport: Boolean(dateRect && dateRect.left >= 0 && dateRect.right <= viewportWidth),
+                payInsideViewport: Boolean(payRect && payRect.left >= 0 && payRect.right <= viewportWidth),
+                notesInsideViewport: Boolean(notesRect && notesRect.left >= 0 && notesRect.right <= viewportWidth)
+            };
+        });
+
+        expect(mobileLayout.dateAbovePay).toBe(true);
+        expect(mobileLayout.payAboveNotes).toBe(true);
+        expect(mobileLayout.dateInsideViewport).toBe(true);
+        expect(mobileLayout.payInsideViewport).toBe(true);
+        expect(mobileLayout.notesInsideViewport).toBe(true);
+    });
 });

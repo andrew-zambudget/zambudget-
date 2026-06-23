@@ -46,6 +46,19 @@ test.describe('signed-out budget write guard', () => {
         expect(result.transactions).toEqual([]);
     });
 
+    test('shows budget-data controls as unavailable while signed out without demo', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await expect(page.locator('body')).toHaveClass(/zam-signed-out-no-demo/);
+        await expect(page.locator('#submitBtn')).toBeDisabled();
+        await expect(page.locator('#zbbPrimaryAction')).toBeDisabled();
+        await expect(page.locator('#tab-recent')).toBeDisabled();
+        await expect(page.locator('#submitBtn')).toHaveAttribute('aria-disabled', 'true');
+        await expect(page.locator('#betaSupportPrimaryAction')).toHaveText('Join Beta');
+        await expect(page.locator('#betaSupportPrimaryAction')).not.toHaveAttribute('data-tooltip', /.+/);
+    });
+
     test('allows budget data creation in demo mode without a signed-in user', async ({ page }) => {
         await page.goto('/index.html');
         await waitForAppReady(page);
@@ -81,5 +94,24 @@ test.describe('signed-out budget write guard', () => {
         expect(result.demoPersisted).not.toBeNull();
         expect(result.categories).toHaveLength(1);
         expect(result.transactions).toHaveLength(1);
+    });
+
+    test('keeps budget-data controls enabled in demo and signed-in states', async ({ page }) => {
+        await page.goto('/demo');
+        await waitForAppReady(page);
+
+        await expect(page.locator('body')).not.toHaveClass(/zam-signed-out-no-demo/);
+        await expect(page.locator('#submitBtn')).toBeEnabled();
+
+        await page.evaluate(() => {
+            sessionStorage.removeItem('zam_demo_active');
+            window.currentUser = { id: 'signed-out-ui-enabled-user', email: 'enabled@example.com' };
+            window.render?.();
+            window.updateAuthUI?.();
+        });
+
+        await expect(page.locator('body')).not.toHaveClass(/zam-signed-out-no-demo/);
+        await expect(page.locator('#submitBtn')).toBeEnabled();
+        await expect(page.locator('#zbbPrimaryAction')).toBeEnabled();
     });
 });

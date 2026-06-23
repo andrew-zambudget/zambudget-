@@ -26,4 +26,34 @@ test.describe('local privacy settings copy', () => {
         await expect(dataPrivacyCard).toContainText('Cloud Sync and recovery keys remain the recovery path for synced budgets.');
         await expect(dataPrivacyCard).toContainText('Browser-only budgets still need user-managed backups.');
     });
+
+    test('requires unlocking before the local erase confirmation is reachable', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await page.evaluate(() => window.openSettingsModal());
+        await expect(page.locator('#settingsModal')).toBeVisible();
+
+        const unlockButton = page.locator('#unlockLocalEraseBtn');
+        const eraseButton = page.locator('#openLocalEraseBtn');
+
+        await expect(unlockButton).toBeVisible();
+        await expect(eraseButton).toBeHidden();
+
+        await unlockButton.click();
+
+        await expect(unlockButton).toBeHidden();
+        await expect(eraseButton).toBeVisible();
+
+        await eraseButton.click();
+
+        await expect(page.locator('#resetConfirmModal')).toBeVisible();
+        await page.locator('#resetConfirmModal .btn-cancel').click();
+        await expect(page.locator('#resetConfirmModal')).toBeHidden();
+
+        await page.evaluate(() => window.openSettingsModal());
+        await expect(page.locator('#settingsModal')).toBeVisible();
+        await expect(unlockButton).toBeVisible();
+        await expect(eraseButton).toBeHidden();
+    });
 });

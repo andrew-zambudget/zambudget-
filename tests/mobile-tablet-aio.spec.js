@@ -41,7 +41,17 @@ const ACCENT_PALETTES = [
     'emerald',
     'red',
     'pink',
-    'zinc'
+    'zinc',
+    'violet',
+    'purple',
+    'fuchsia',
+    'magenta',
+    'coral',
+    'mint',
+    'jade',
+    'gold',
+    'lavender',
+    'graphite'
 ];
 
 async function startDemo(page, viewport) {

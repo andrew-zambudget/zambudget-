@@ -49,6 +49,20 @@ test.describe('Gift card tracker', () => {
             window.initAddTransactionForm?.();
         });
 
+        await expect(page.locator('#giftCardManagerSection')).toHaveClass(/is-collapsed/);
+        await expect(page.locator('#giftCardManagerCount')).toHaveText('No gift cards yet');
+        await expect(page.locator('#giftCardManagerToggleBtn')).toHaveText('Show');
+        await expect(page.locator('.gift-card-manager-add')).toBeHidden();
+        await expect(page.locator('#giftCardManagerList')).toBeHidden();
+        await expect.poll(() => page.evaluate(() => window.getSnapshot?.().settings?.showGiftCardManager)).toBe(false);
+
+        await page.locator('#giftCardManagerToggleBtn').click();
+        await expect(page.locator('#giftCardManagerSection')).not.toHaveClass(/is-collapsed/);
+        await expect(page.locator('#giftCardManagerToggleBtn')).toHaveText('Hide');
+        await expect(page.locator('.gift-card-manager-add')).toBeVisible();
+        await expect(page.locator('#giftCardManagerList')).toBeVisible();
+        await expect(page.locator('#giftCardManagerList')).toContainText('No gift cards yet. Add one here, then choose it as a Pay With option when logging an expense.');
+
         await page.evaluate(() => window.openGiftCardModal?.('create'));
         await expect(page.locator('#giftCardModal')).toBeVisible();
         await page.locator('#giftCardModalMerchant').fill('Coffee');

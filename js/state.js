@@ -27,7 +27,7 @@ let state = {
         billingSubscriptionStatus: '',
         billingCurrentPeriodEnd: '',
         billingCancelAtPeriodEnd: false,
-        showGiftCardManager: true,
+        showGiftCardManager: false,
         giftCards: []
     },
     // Runtime helpers
@@ -494,6 +494,7 @@ function applyLoadedPayload(parsed = {}) {
     state.settings.overrideDebtEmergencyFundLock = parsed.settings?.overrideDebtEmergencyFundLock === true;
     state.settings.treatSavingsAsTotalIncome = parsed.settings?.treatSavingsAsTotalIncome === true;
     state.settings.treatSavingsAsIncomeInZbb = false;
+    state.settings.showGiftCardManager = parsed.settings?.showGiftCardManager === true;
     const orderChanged = normalizeCategoryCustomOrder();
     const arrayChanged = applyCustomOrderToCategoryArray();
     return orderChanged || arrayChanged || categoryLoad.changed || giftCardsChanged;
@@ -1719,7 +1720,7 @@ export const setDefaultType = (val) => { state.settings.defaultType = val; save(
 export const getDefaultPayment = () => state.settings.defaultPayment || '';
 export const setDefaultPayment = (val) => { state.settings.defaultPayment = val; save(); };
 
-export const getShowGiftCardManager = () => state.settings.showGiftCardManager !== false;
+export const getShowGiftCardManager = () => state.settings.showGiftCardManager === true;
 export const setShowGiftCardManager = (val) => {
     state.settings.showGiftCardManager = Boolean(val);
     save();

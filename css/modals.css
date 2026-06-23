@@ -195,6 +195,8 @@
 }
 
 #accountModal .account-profile-copy {
+  display: grid;
+  gap: 0.32rem;
   min-width: 0;
   padding-left: 0.1rem;
 }
@@ -213,10 +215,10 @@
   padding: 0 0.45rem 0 0;
   text-align: left;
   font-size: clamp(0.86rem, 2.5vw, 0.98rem);
-  line-height: 1.18;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.24;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
   opacity: 1;
   transform: translateY(0);
   transition: opacity 0.26s ease, transform 0.26s ease;
@@ -1393,6 +1395,25 @@ body.budget-restore-active {
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(var(--accent-rgb), 0.4);
   opacity: 0.9;
+}
+
+[data-theme="light"][data-theme-preset="light:burger-stand"] .btn-create {
+  border: 1px solid #d62828;
+  background: linear-gradient(180deg, #d62828 0%, #b91c1c 100%);
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(214, 40, 40, 0.2);
+}
+
+[data-theme="light"][data-theme-preset="light:burger-stand"] .btn-create:hover {
+  border-color: #b91c1c;
+  background: linear-gradient(180deg, #c81e1e 0%, #991b1b 100%);
+  box-shadow: 0 8px 20px rgba(185, 28, 28, 0.24);
+  opacity: 1;
+}
+
+[data-theme="light"][data-theme-preset="light:burger-stand"] .btn-create:focus-visible {
+  outline: 2px solid #24b8b0;
+  outline-offset: 3px;
 }
 
 .btn-small {
@@ -2775,6 +2796,16 @@ body::before {
   font-weight: 850;
 }
 
+@media (max-width: 520px) {
+  #settingsModal .settings-theme-options {
+    grid-template-columns: 1fr;
+  }
+
+  #settingsModal .settings-theme-option {
+    justify-content: flex-start;
+  }
+}
+
 /* 8. Danger Zone - Professional & Distinct */
 #settingsModal .danger-zone {
   margin-top: 0.25rem;
@@ -3153,16 +3184,264 @@ body::before {
   line-height: 1;
 }
 
+#settingsModal .settings-appearance-section {
+  display: grid;
+  gap: 0.5rem;
+}
+
+#settingsModal .settings-theme-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+#settingsModal .settings-theme-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 42px;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-weight: 850;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+#settingsModal .settings-theme-option:hover {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  color: var(--text);
+}
+
+#settingsModal .settings-theme-option.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 11%, var(--surface));
+  color: var(--text);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.1);
+}
+
+#settingsModal .settings-theme-option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+#settingsModal .settings-theme-preset-status {
+  margin: 0;
+}
+
+#settingsModal .settings-theme-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  align-items: start;
+  gap: 0.55rem;
+}
+
+#settingsModal .settings-theme-preset-card {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 62px;
+  height: 62px;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+#settingsModal .settings-theme-preset-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--shadow) 56%, transparent);
+  transform: translateY(-1px);
+}
+
+#settingsModal .settings-theme-preset-card.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  box-shadow:
+    0 0 0 3px rgba(var(--accent-rgb), 0.1),
+    0 8px 18px color-mix(in srgb, var(--shadow) 62%, transparent);
+}
+
+#settingsModal .settings-theme-preset-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+#settingsModal .settings-theme-preset-preview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  width: 46px;
+  height: 30px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: background-position 240ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+#settingsModal .settings-theme-preset-preview span {
+  border-radius: 6px;
+  transition: transform 180ms ease, filter 180ms ease;
+}
+
+#settingsModal .settings-theme-preset-card:hover .settings-theme-preset-preview span,
+#settingsModal .settings-theme-preset-card:focus-visible .settings-theme-preset-preview span {
+  filter: saturate(1.08);
+  transform: translateY(-1px);
+}
+
+#settingsModal .settings-theme-preset-preview.is-light {
+  background: linear-gradient(135deg, #f8fafc, #e0f2fe);
+}
+
+#settingsModal .settings-theme-preset-preview.is-light span:nth-child(1) {
+  background: #ffffff;
+}
+
+#settingsModal .settings-theme-preset-preview.is-light span:nth-child(2) {
+  background: #14b8a6;
+}
+
+#settingsModal .settings-theme-preset-preview.is-light span:nth-child(3) {
+  background: #111827;
+}
+
+#settingsModal .settings-theme-preset-preview.is-burger-stand-light {
+  border-color: #d8b98f;
+  background:
+    radial-gradient(circle at 18% 18%, #7bd88f 0 7%, transparent 8%),
+    radial-gradient(circle at 78% 78%, #f472b6 0 7%, transparent 8%),
+    linear-gradient(135deg, #fff8ec 0%, #fff1d6 42%, #ffffff 64%, #d9f8f5 100%);
+  background-size: 120% 120%;
+}
+
+#settingsModal .settings-theme-preset-preview.is-burger-stand-light span:nth-child(1) {
+  background:
+    linear-gradient(180deg, #d62828 0 72%, #b91c1c 100%);
+}
+
+#settingsModal .settings-theme-preset-preview.is-burger-stand-light span:nth-child(2) {
+  background:
+    linear-gradient(180deg, #f4b23c 0 70%, #b45309 100%);
+}
+
+#settingsModal .settings-theme-preset-preview.is-burger-stand-light span:nth-child(3) {
+  background:
+    linear-gradient(180deg, #24b8b0 0 68%, #60a5fa 100%);
+}
+
+#settingsModal .settings-theme-preset-card:hover .settings-theme-preset-preview.is-burger-stand-light,
+#settingsModal .settings-theme-preset-card:focus-visible .settings-theme-preset-preview.is-burger-stand-light {
+  border-color: #24b8b0;
+  background-position: 100% 100%;
+  box-shadow: inset 0 0 0 1px rgba(36, 184, 176, 0.18);
+}
+
+#settingsModal .settings-theme-preset-preview.is-dark {
+  background: linear-gradient(135deg, #020617, #1e293b);
+}
+
+#settingsModal .settings-theme-preset-preview.is-dark span:nth-child(1) {
+  background: #0f172a;
+}
+
+#settingsModal .settings-theme-preset-preview.is-dark span:nth-child(2) {
+  background: #2dd4bf;
+}
+
+#settingsModal .settings-theme-preset-preview.is-dark span:nth-child(3) {
+  background: #f8fafc;
+}
+
+#settingsModal .settings-theme-preset-copy {
+  display: grid;
+  gap: 0.08rem;
+  min-width: 0;
+  align-content: center;
+}
+
+#settingsModal .settings-theme-preset-label {
+  color: var(--text-dim);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+#settingsModal .settings-theme-preset-name {
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1.12;
+}
+
+[data-theme="light"][data-theme-preset="light:burger-stand"] #settingsModal .modal-box,
+[data-theme="light"][data-theme-preset="light:burger-stand"] #settingsModal .settings-dashboard-card,
+[data-theme="light"][data-theme-preset="light:burger-stand"] #settingsModal .settings-section-card,
+[data-theme="light"][data-theme-preset="light:burger-stand"] #settingsModal .settings-cache-card {
+  border-color: color-mix(in srgb, #ead7bf 76%, var(--border));
+  background: linear-gradient(180deg, #ffffff 0%, #fffaf2 100%);
+}
+
+[data-theme="light"][data-theme-preset="light:burger-stand"] #settingsModal .settings-theme-option.active,
+[data-theme="light"][data-theme-preset="light:burger-stand"] #settingsModal .settings-theme-preset-card.active,
+[data-theme="light"][data-theme-preset="light:burger-stand"] #settingsModal .accent-swatch-option:has(input:checked) {
+  border-color: #24b8b0;
+  background: color-mix(in srgb, #d9f8f5 72%, #ffffff);
+  box-shadow: 0 0 0 3px rgba(36, 184, 176, 0.13);
+}
+
+[data-theme="light"][data-theme-preset="light:burger-stand"] #settingsModal .settings-selected-pill,
+[data-theme="light"][data-theme-preset="light:burger-stand"] #settingsModal .settings-theme-preset-label {
+  color: #b45309;
+}
+
+[data-theme="light"][data-theme-preset="light:burger-stand"] #settingsModal .settings-theme-option:focus-visible,
+[data-theme="light"][data-theme-preset="light:burger-stand"] #settingsModal .settings-theme-preset-card:focus-visible,
+[data-theme="light"][data-theme-preset="light:burger-stand"] #settingsModal .accent-swatch-option:focus-within {
+  outline-color: #24b8b0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="light"][data-theme-preset="light:burger-stand"] #settingsModal .settings-theme-option,
+  [data-theme="light"][data-theme-preset="light:burger-stand"] #settingsModal .settings-theme-preset-card,
+  [data-theme="light"][data-theme-preset="light:burger-stand"] #settingsModal .settings-theme-preset-preview,
+  [data-theme="light"][data-theme-preset="light:burger-stand"] #settingsModal .settings-theme-preset-preview span {
+    transition-duration: 0.001ms !important;
+    transform: none !important;
+  }
+}
+
 #settingsModal .accent-picker {
-  grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
   gap: 0.45rem;
 }
 
 #settingsModal .accent-swatch-option {
   min-height: 38px;
-  padding: 0.48rem 0.55rem;
+  padding: 0.48rem 0.62rem;
   border-radius: 8px;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
+  min-width: 0;
+}
+
+#settingsModal .accent-swatch-option > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #settingsModal .accent-swatch {
@@ -3305,16 +3584,55 @@ body::before {
   gap: 0.75rem;
 }
 
+#settingsModal .settings-danger-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
 #settingsModal .settings-danger-title {
   color: var(--text);
   font-size: 0.9rem;
   font-weight: 850;
 }
 
+#settingsModal .btn-muted-danger,
 #settingsModal .btn-outline-danger {
-  width: 100%;
   margin: 0;
   border-radius: 8px;
+}
+
+#settingsModal .btn-muted-danger {
+  min-height: 40px;
+  padding: 0.62rem 0.9rem;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 92%, var(--bg));
+  color: var(--text-dim);
+  font-weight: 850;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+#settingsModal .btn-muted-danger:hover,
+#settingsModal .btn-muted-danger:focus-visible {
+  border-color: color-mix(in srgb, var(--red) 32%, var(--border));
+  background: color-mix(in srgb, var(--red) 8%, var(--surface));
+  color: var(--text);
+}
+
+#settingsModal .btn-muted-danger:active {
+  transform: translateY(1px);
+}
+
+#settingsModal .settings-danger-actions .btn-outline-danger {
+  width: auto;
+  min-height: 40px;
+  padding: 0.62rem 0.9rem;
 }
 
 #settingsModal .settings-sticky-footer {

@@ -122,11 +122,22 @@
 
 .category-item.is-category-edit-row {
   cursor: grab;
+  align-items: stretch !important;
+  gap: 0.55rem;
+  padding: 0.7rem 0.75rem 0.7rem 0.45rem !important;
+  border-style: solid;
+  overflow: visible;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 180ms ease;
 }
 
 .category-item.is-dragging-category {
   opacity: 0.58;
-  transform: scale(0.99);
+  transform: scale(0.992);
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--accent, #14b8a6) 14%, transparent);
 }
 
 .category-item.is-drag-over-before::before,
@@ -153,24 +164,47 @@
 .category-reorder-controls {
   display: grid;
   grid-template-rows: auto auto auto;
-  gap: 0.25rem;
+  justify-items: center;
+  align-content: center;
+  gap: 0.24rem;
   align-self: stretch;
-  padding: 0.45rem 0.35rem 0.45rem 0.15rem;
-  flex: 0 0 auto;
+  padding: 0.12rem 0.28rem 0.12rem 0;
+  flex: 0 0 3.2rem;
+  border-right: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 78%, transparent);
 }
 
 .category-drag-handle {
-  width: 5.25rem;
-  min-height: 1.6rem;
-  border: 1px dashed color-mix(in srgb, var(--accent, #14b8a6) 32%, var(--border));
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--accent, #14b8a6) 7%, var(--surface, #ffffff));
+  width: 2.25rem;
+  min-height: 1.75rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
   color: var(--text-dim, #64748b);
-  font-size: 0.84rem;
+  font-size: 1rem;
   font-weight: 950;
-  letter-spacing: 0.12em;
+  letter-spacing: -0.16em;
   cursor: grab;
   touch-action: none;
+  line-height: 1;
+  transition: background-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+}
+
+.category-grip-mark {
+  width: 0.95rem;
+  height: 1.1rem;
+  display: block;
+  background-image: radial-gradient(currentColor 1.5px, transparent 1.5px);
+  background-size: 0.34rem 0.34rem;
+  background-position: center;
+  opacity: 0.75;
+}
+
+.category-drag-handle:hover,
+.category-drag-handle:focus-visible {
+  background: color-mix(in srgb, var(--accent, #14b8a6) 10%, var(--surface, #ffffff));
+  color: var(--accent, #14b8a6);
+  outline: none;
+  transform: translateY(-1px);
 }
 
 .category-drag-handle:active {
@@ -178,13 +212,13 @@
 }
 
 .category-reorder-btn {
-  width: 100%;
-  min-height: 2.15rem;
+  width: 2.1rem;
+  min-height: 2.1rem;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 999px;
   background: var(--surface);
   color: var(--text);
-  font-size: 0.86rem;
+  font-size: 0.92rem;
   font-weight: 950;
   line-height: 1;
   cursor: pointer;
@@ -206,31 +240,32 @@
 
 .category-reorder-btn:disabled {
   cursor: not-allowed;
-  opacity: 0.38;
+  opacity: 0.32;
   transform: none;
 }
 
 .category-position-control {
-  width: 2.45rem;
+  width: 2.55rem;
 }
 
 .category-position-row {
   display: grid;
-  grid-template-columns: 2.45rem 2.55rem;
-  gap: 0.25rem;
+  grid-template-columns: 1fr;
+  gap: 0.22rem;
   align-items: stretch;
 }
 
 .category-position-input {
   width: 100%;
-  height: 2.15rem;
+  min-width: 2.55rem;
+  height: 1.9rem;
   -moz-appearance: textfield;
   appearance: textfield;
   border: 1px solid var(--border, #e2e8f0);
-  border-radius: 8px;
-  background: var(--surface, #ffffff);
-  color: var(--text, #0f172a);
-  font-size: 0.82rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-hover, #f1f5f9) 72%, var(--surface, #ffffff));
+  color: var(--text-dim, #64748b);
+  font-size: 0.78rem;
   font-weight: 900;
   text-align: center;
   font-variant-numeric: tabular-nums;
@@ -239,7 +274,82 @@
 
 .category-position-input:focus {
   border-color: var(--accent, #14b8a6);
+  color: var(--text, #0f172a);
+  background: var(--surface, #ffffff);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #14b8a6) 18%, transparent);
+}
+
+.category-reorder-feedback {
+  position: absolute;
+  left: 4.15rem;
+  top: 0.55rem;
+  z-index: 5;
+  max-width: min(13rem, calc(100% - 8rem));
+  padding: 0.2rem 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--accent, #14b8a6) 35%, var(--border, #e2e8f0));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #14b8a6) 12%, var(--surface, #ffffff));
+  color: var(--accent, #14b8a6);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--accent, #14b8a6) 13%, transparent);
+  font-size: 0.68rem;
+  font-weight: 850;
+  line-height: 1.1;
+  pointer-events: none;
+  white-space: nowrap;
+  animation: categoryReorderFeedbackIn 180ms ease both;
+}
+
+@keyframes categoryReorderFeedbackIn {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .category-item.is-category-edit-row {
+    gap: 0.45rem;
+    padding: 0.65rem 0.55rem 0.65rem 0.35rem !important;
+  }
+
+  .category-reorder-controls {
+    flex-basis: 3rem;
+  }
+
+  .category-drag-handle,
+  .category-reorder-btn {
+    width: 2rem;
+    min-height: 2rem;
+  }
+
+  .category-position-control {
+    width: 2.45rem;
+  }
+
+  .category-position-input {
+    min-width: 2.45rem;
+  }
+
+  .category-reorder-feedback {
+    left: 3.95rem;
+    top: 0.45rem;
+    max-width: calc(100% - 6.5rem);
+    font-size: 0.64rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .category-item.is-category-edit-row,
+  .category-reorder-btn,
+  .category-drag-handle,
+  .category-reorder-feedback {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
 .category-position-input::-webkit-outer-spin-button,
@@ -2320,7 +2430,8 @@
   .budget-bar-fill,
   .icon-critical,
   .status-critical,
-  .notes-container {
+  .notes-container,
+  .empty-state-animated-icon {
     animation: none !important;
     transition: none !important;
   }

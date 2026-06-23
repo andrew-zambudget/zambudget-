@@ -110,9 +110,6 @@
                         </div>
                         <span id="syncHistoryStatusBadge" class="sync-history-badge sync-history-badge-local">Partial</span>
                     </div>
-                    <div id="syncHistoryList" class="sync-history-list" role="log" aria-labelledby="syncHistoryTitle" aria-live="polite">
-                        <div class="sync-history-empty">No sync activity yet.</div>
-                    </div>
                     <div class="sync-cloud-nudge" id="syncCloudNudge" role="note">
                         <div class="sync-cloud-nudge-title">Saved partially</div>
                         <p>Clearing browser or site data can remove a browser-only budget. Sign in to protect it with Cloud Sync.</p>
@@ -124,6 +121,9 @@
                             <span class="sync-device-count-fineprint" id="syncDeviceCountFineprint">Free - Device 0 of 2</span>
                             <button type="button" class="sync-cloud-btn sync-cloud-manual" id="syncManualBtn" onclick="window.manualBuddyCloudSync(event)" hidden>Sync now</button>
                         </div>
+                    </div>
+                    <div id="syncHistoryList" class="sync-history-list" role="log" aria-labelledby="syncHistoryTitle" aria-live="polite">
+                        <div class="sync-history-empty">No sync activity yet.</div>
                     </div>
                 </div>
             </div>
@@ -852,13 +852,41 @@
                                             <div class="settings-card-header settings-card-header-row">
                                                 <div>
                                                     <h4 class="settings-card-title">Appearance</h4>
-                                                    <p class="settings-card-copy">Personalize how Zam! looks.</p>
+                                                    <p class="settings-card-copy">Personalize how Zam! looks on this device.</p>
                                                 </div>
                                                 <div id="settingsAccentSelected" class="settings-selected-pill">Selected: Teal</div>
                                             </div>
 
-                                <div class="form-group settings-field">
+                                <div class="form-group settings-field settings-appearance-section">
+                                    <div class="settings-field-label">Theme Mode</div>
+                                    <div class="help-text">Choose how Zam appears on this device.</div>
+                                    <div class="settings-theme-options" role="radiogroup" aria-label="Theme mode">
+                                        <button type="button" class="theme-opt settings-theme-option" data-theme-val="light" onclick="window.setTheme('light')" aria-label="Use light theme">
+                                            <span aria-hidden="true">☀️</span>
+                                            <span>Light</span>
+                                        </button>
+                                        <button type="button" class="theme-opt settings-theme-option" data-theme-val="dark" onclick="window.setTheme('dark')" aria-label="Use dark theme">
+                                            <span aria-hidden="true">🌙</span>
+                                            <span>Dark</span>
+                                        </button>
+                                        <button type="button" class="theme-opt settings-theme-option" data-theme-val="system" onclick="window.setTheme('system')" aria-label="Use system theme">
+                                            <span aria-hidden="true">💻</span>
+                                            <span>System</span>
+                                        </button>
+                                    </div>
+                                    <div class="help-text">System follows your device setting automatically.</div>
+                                </div>
+
+                                <div class="form-group settings-field settings-appearance-section" id="settingsBuiltInThemesSection">
+                                    <div class="settings-field-label">Built-in Themes</div>
+                                    <div class="help-text">Choose a ready-made look for this mode.</div>
+                                    <div id="settingsThemePresetStatus" class="help-text settings-theme-preset-status" aria-live="polite">Light themes available.</div>
+                                    <div id="settingsThemePresetGrid" class="settings-theme-preset-grid" role="radiogroup" aria-label="Built-in themes"></div>
+                                </div>
+
+                                <div class="form-group settings-field settings-appearance-section">
                                     <div class="settings-field-label">Accent Color</div>
+                                    <div class="help-text">Choose the color used for buttons, highlights, focus states, and progress accents.</div>
                                     <div class="accent-picker" role="radiogroup" aria-label="Accent color">
                                         <label class="accent-swatch-option" style="--swatch-color:#14b8a6">
                                             <input type="radio" name="accentColor" value="teal">
@@ -935,14 +963,64 @@
                                             <span class="accent-swatch" aria-hidden="true"></span>
                                             <span>Zinc</span>
                                         </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#8b5cf6">
+                                            <input type="radio" name="accentColor" value="violet">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Violet</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#a855f7">
+                                            <input type="radio" name="accentColor" value="purple">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Purple</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#d946ef">
+                                            <input type="radio" name="accentColor" value="fuchsia">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Fuchsia</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#db2777">
+                                            <input type="radio" name="accentColor" value="magenta">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Magenta</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#fb7185">
+                                            <input type="radio" name="accentColor" value="coral">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Coral</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#2dd4bf">
+                                            <input type="radio" name="accentColor" value="mint">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Mint</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#00a86b">
+                                            <input type="radio" name="accentColor" value="jade">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Jade</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#eab308">
+                                            <input type="radio" name="accentColor" value="gold">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Gold</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#a78bfa">
+                                            <input type="radio" name="accentColor" value="lavender">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Lavender</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#4b5563">
+                                            <input type="radio" name="accentColor" value="graphite">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Graphite</span>
+                                        </label>
                                     </div>
                                     <div class="settings-palette-actions" aria-label="Palette controls">
-                                        <button type="button" class="btn-cancel settings-palette-btn" onclick="window.randomizeAccentTheme()">Randomize Color</button>
-                                        <button type="button" class="btn-cancel settings-palette-btn" onclick="window.saveCurrentAccentTheme()">Save Color</button>
+                                        <button type="button" id="settingsAccentRandomizeBtn" class="btn-cancel settings-palette-btn" onclick="window.randomizeAccentTheme()">Randomize</button>
+                                        <button type="button" class="btn-cancel settings-palette-btn" onclick="window.saveCurrentAccentTheme()">Save Accent Color</button>
                                         <button type="button" class="btn-cancel settings-palette-btn" onclick="window.useRandomAccentByDefault()">Use Random by Default</button>
                                     </div>
                                     <div id="settingsAccentModeStatus" class="help-text" aria-live="polite">Random by default unless you save a color.</div>
-                                    <div class="help-text">Changes buttons, focus rings, highlights, and progress accents. Theme mode still follows Light, Dark, or System separately.</div>
+                                    <div class="help-text">Random by default gives each browser session a fresh accent color until you save one.</div>
                                 </div>
                                         </section>
                                     </div>
@@ -1019,14 +1097,17 @@
                                         <section id="settingsDanger" class="settings-card danger-zone">
                                             <div class="settings-card-header">
                                                 <p class="text-red">Danger Zone</p>
-                                                <p class="settings-card-copy">Destructive actions that can permanently remove local browser data.</p>
+                                                <p class="settings-card-copy">Actions here affect data stored in this browser.</p>
                                             </div>
                                             <div class="settings-danger-action">
                                                 <div>
                                                     <div class="settings-danger-title">Erase Local Budget Data</div>
-                                                    <div class="help-text">Clears Zam! transactions, categories, and settings stored in this browser. This cannot be undone.</div>
+                                                    <div class="help-text">This clears local transactions, categories, and settings from this browser. This cannot be undone.</div>
                                                 </div>
-                                                <button type="button" class="btn-outline-danger" onclick="window.openResetModal()">Erase Local Budget Data</button>
+                                                <div class="settings-danger-actions">
+                                                    <button type="button" id="unlockLocalEraseBtn" class="btn-muted-danger" onclick="window.unlockLocalErase()">Unlock Erase</button>
+                                                    <button type="button" id="openLocalEraseBtn" class="btn-outline-danger" onclick="window.openUnlockedResetModal()" hidden aria-disabled="true">Erase Local Budget Data</button>
+                                                </div>
                                             </div>
                                         </section>
                                     </div>

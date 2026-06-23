@@ -630,13 +630,36 @@ function renderSyncEventDetails(details = null, event = {}) {
     `;
 }
 
+function renderSignedOutSyncHistorySummary(history = []) {
+    const latest = Array.isArray(history) ? history[0] : null;
+    if (!latest?.time) {
+        return '<div class="sync-history-empty">No Cloud Sync activity yet. Sign in to protect this budget.</div>';
+    }
+
+    return `
+        <div class="sync-history-item sync-history-item-local">
+            <span class="sync-history-time">${esc(formatSyncTime(latest.time))}</span>
+            <div class="sync-history-event-wrap">
+                <span class="sync-history-event">
+                    <span class="sync-history-status-dot sync-history-status-dot-local" data-tooltip="Local only" aria-label="Local only" tabindex="0"></span>
+                    <span class="sync-history-event-text">Last saved locally. Sign in to protect this budget with Cloud Sync.</span>
+                </span>
+            </div>
+        </div>
+    `;
+}
+
 function renderSyncHistory() {
     const list = document.getElementById('syncHistoryList');
     const badge = document.getElementById('syncHistoryStatusBadge');
     const history = getSyncHistory();
+    const status = window.BuddyCloud?.getStatus?.() || {};
+    const signedIn = Boolean(status.signedIn);
 
     if (list) {
-        list.innerHTML = history.length
+        list.innerHTML = !signedIn
+            ? renderSignedOutSyncHistorySummary(history)
+            : history.length
             ? history.slice(0, SYNC_HISTORY_VISIBLE_LIMIT).map(event => {
                 const eventStatus = getSafeSyncEventStatus(event.status);
                 const eventMessage = event.message || 'Local data saved.';
@@ -654,9 +677,9 @@ function renderSyncHistory() {
     }
 
     if (badge) {
-        const status = currentSyncStatus || history[0]?.status || 'synced';
-        badge.className = `sync-history-badge sync-history-badge-${status}`;
-        badge.textContent = getSyncStatusDisplayLabel(status);
+        const displayStatus = !signedIn ? 'local' : currentSyncStatus || history[0]?.status || 'synced';
+        badge.className = `sync-history-badge sync-history-badge-${displayStatus}`;
+        badge.textContent = signedIn ? getSyncStatusDisplayLabel(displayStatus) : 'SYNC OFF';
     }
 
     syncCloudActionButtons();
@@ -747,7 +770,7 @@ function syncCloudActionButtons() {
             ? `Free sync slots ${usedFreeSlots} of ${freeLimit}`
             : signedIn
             ? `Free sync slots 0 of ${freeLimit}`
-            : `Free sync slots ${freeLimit} included`;
+            : `${freeLimit} free sync slots included`;
         deviceCount.removeAttribute('data-tooltip');
         deviceCount.setAttribute('aria-label', deviceCount.textContent);
         deviceCount.removeAttribute('tabindex');
@@ -4961,6 +4984,8 @@ let selectedCategories = new Set();
 let isCategoryEditMode = false;
 let draggedCategoryName = '';
 let draggedCategoryPosition = 0;
+let categoryReorderFeedback = null;
+let categoryReorderFeedbackTimer = null;
 let activeCategoryAttentionMode = '';
 let categoryAttentionFocusPending = false;
 
@@ -4987,6 +5012,63 @@ function syncCurrencyBadges() {
     }
 }
 
+const SIGNED_OUT_BUDGET_ACTION_SELECTOR = [
+    '#submitBtn',
+    '#zbbPrimaryAction',
+    '#zbbSecondaryAction',
+    '#quickAddGrid .quick-add-btn',
+    '.gift-card-manager-add',
+    '#giftCardAddToggle',
+    '.gift-card-save-btn',
+    '#giftCardModalSubmitBtn',
+    '.debt-add-btn',
+    '#tab-recent'
+].join(', ');
+
+function shouldGateBudgetActionsForSignedOut() {
+    return !window.currentUser && !isDemoModeActive();
+}
+
+function syncSignedOutBudgetActionState() {
+    const gated = shouldGateBudgetActionsForSignedOut();
+    document.body?.classList.toggle('zam-signed-out-no-demo', gated);
+
+    document.querySelectorAll(SIGNED_OUT_BUDGET_ACTION_SELECTOR).forEach(element => {
+        element.classList.toggle('is-signed-out-disabled', gated);
+
+        if (gated) {
+            element.setAttribute('aria-disabled', 'true');
+            element.setAttribute('data-budget-auth-gated', 'true');
+            if (!element.dataset.signedOutTitleSet) {
+                element.dataset.signedOutTitleSet = 'true';
+                element.dataset.signedOutPreviousTitle = element.getAttribute('title') || '';
+                element.setAttribute('title', 'Sign in or start the demo to use this.');
+            }
+            if ('disabled' in element && !element.disabled) {
+                element.disabled = true;
+                element.dataset.signedOutDisabled = 'true';
+            }
+        } else {
+            element.removeAttribute('aria-disabled');
+            element.removeAttribute('data-budget-auth-gated');
+            if (element.dataset.signedOutTitleSet === 'true') {
+                const previousTitle = element.dataset.signedOutPreviousTitle || '';
+                if (previousTitle) {
+                    element.setAttribute('title', previousTitle);
+                } else {
+                    element.removeAttribute('title');
+                }
+                delete element.dataset.signedOutTitleSet;
+                delete element.dataset.signedOutPreviousTitle;
+            }
+            if (element.dataset.signedOutDisabled === 'true') {
+                element.disabled = false;
+                delete element.dataset.signedOutDisabled;
+            }
+        }
+    });
+}
+
 export function render() {
     syncCurrencyBadges();
     renderZBBDashboard();
@@ -4996,6 +5078,7 @@ export function render() {
     renderSavingsTab();
     renderIncomeTab();
     renderFormCategories();
+    syncSignedOutBudgetActionState();
 }
 
 function getCategoryTransactionSummary(categoryName, categoryType = 'expense') {
@@ -5362,6 +5445,8 @@ function getCategoryMetricDisplay({ budget = 0, spent = 0 } = {}) {
 export function toggleCategoryEditMode() {
     isCategoryEditMode = !isCategoryEditMode;
     selectedCategories.clear();
+    categoryReorderFeedback = null;
+    clearCategoryReorderFeedbackTimer();
     if (isCategoryEditMode && State.getCategorySort?.() !== 'manual') {
         State.setCategorySort?.('manual');
     }
@@ -5491,6 +5576,48 @@ function resetDebtVisibleLimit() {
         : Number(debtDisplaySize);
 }
 
+function getManualCategoryPosition(name) {
+    const categories = (State.getCategoriesForSort?.('manual') || []).filter(cat =>
+        cat?.type !== 'income' &&
+        cat?.type !== 'debt' &&
+        cat?.type !== 'savings' &&
+        cat?.type !== 'sinking_fund'
+    );
+    const index = categories.findIndex(cat => cat?.name === name);
+    return index >= 0 ? index + 1 : 0;
+}
+
+function clearCategoryReorderFeedbackTimer() {
+    if (categoryReorderFeedbackTimer) {
+        clearTimeout(categoryReorderFeedbackTimer);
+        categoryReorderFeedbackTimer = null;
+    }
+}
+
+function setCategoryReorderFeedback(name, position) {
+    const safePosition = Number(position) || getManualCategoryPosition(name);
+    if (!name || safePosition <= 0) return;
+
+    clearCategoryReorderFeedbackTimer();
+    categoryReorderFeedback = {
+        name,
+        position: safePosition,
+        message: `Moved to position ${safePosition}`
+    };
+
+    categoryReorderFeedbackTimer = setTimeout(() => {
+        if (categoryReorderFeedback?.name === name && categoryReorderFeedback?.position === safePosition) {
+            categoryReorderFeedback = null;
+            renderCategoryList();
+        }
+    }, 2400);
+}
+
+function updateCategoryReorderLiveRegion(message) {
+    const liveRegion = document.getElementById('categoryReorderLiveRegion');
+    if (liveRegion) liveRegion.textContent = message || '';
+}
+
 export function moveCategoryOrder(name, direction, event = null) {
     event?.preventDefault?.();
     event?.stopPropagation?.();
@@ -5502,12 +5629,18 @@ export function moveCategoryOrder(name, direction, event = null) {
     }
 
     selectedCategories.clear();
+    const nextPosition = getManualCategoryPosition(name);
+    setCategoryReorderFeedback(name, nextPosition);
+    updateCategoryReorderLiveRegion(`Moved ${name} to position ${nextPosition}`);
     finishCategoryReorder();
 }
 
 function finishCategoryReorder() {
     syncCategorySortSelect();
     renderCategoryList();
+    if (categoryReorderFeedback?.name && categoryReorderFeedback?.position) {
+        updateCategoryReorderLiveRegion(`Moved ${categoryReorderFeedback.name} to position ${categoryReorderFeedback.position}`);
+    }
     renderFormCategories();
     refreshOpenCategoryDrillDown();
 }
@@ -5523,8 +5656,24 @@ export function moveCategoryToPosition(name, position, event = null) {
     }
 
     selectedCategories.clear();
+    const nextPosition = result.position || getManualCategoryPosition(name);
+    setCategoryReorderFeedback(name, nextPosition);
+    updateCategoryReorderLiveRegion(`Moved ${name} to position ${nextPosition}`);
     finishCategoryReorder();
 }
+
+window.handleCategoryPositionKeydown = function(event, name) {
+    event?.stopPropagation?.();
+    if (event?.key !== 'Enter') return;
+
+    event.preventDefault?.();
+    moveCategoryToPosition(name, event.currentTarget?.value, event);
+    event.currentTarget?.blur?.();
+};
+
+window.handleCategoryPositionChange = function(event, name) {
+    moveCategoryToPosition(name, event?.currentTarget?.value, event);
+};
 
 window.startCategoryDrag = function(event, name) {
     if (!isCategoryEditMode) return;
@@ -5619,7 +5768,7 @@ export function renderCategoryList() {
         renderDensityControls({ containerId: 'categoryDensityControls' });
         listContainer.innerHTML = `
             <div class="empty-state-container" style="text-align: center; padding: 2rem 1rem;">
-                <div style="font-size: 2.5rem; margin-bottom: 0.5rem; opacity: 0.8;">📁</div>
+                <div class="empty-state-animated-icon category-empty-state-icon" style="font-size: 2.5rem; margin-bottom: 0.5rem; opacity: 0.8;">📁</div>
                 <p style="color: var(--text-dim); margin-bottom: 1.25rem; font-size: 0.95rem;">No categories yet. Create one or use Quick Add to get started.</p>
                 <button class="btn-primary-dashed" onclick="window.openCategoryModal('create')">
                     + Create Category
@@ -5658,20 +5807,23 @@ export function renderCategoryList() {
         const index = row.index;
         // ... [Keep your checkbox/edit mode logic exactly as before] ...
         const isChecked = selectedCategories.has(cat.name) ? 'checked' : '';
+        const reorderFeedbackHTML = isCategoryEditMode && categoryReorderFeedback?.name === cat.name
+            ? `<span class="category-reorder-feedback" aria-hidden="true">${esc(categoryReorderFeedback.message)}</span>`
+            : '';
         const checkboxHTML = isCategoryEditMode
             ? `<input type="checkbox" class="bulk-select-cb" data-cat-name="${esc(cat.name)}" ${isChecked} onclick="event.stopPropagation()" onchange="window.toggleCategorySelection(${jsArg(cat.name)}, this.checked)">`
             : '';
         const reorderHTML = isCategoryEditMode
             ? `
                 <div class="category-reorder-controls" aria-label="Move ${esc(cat.name)}">
-                    <button type="button" class="category-drag-handle" draggable="true" ondragstart="window.startCategoryDrag(event, ${jsArg(cat.name)})" ondragend="window.endCategoryDrag(event)" onclick="event.stopPropagation()" aria-label="Drag ${esc(cat.name)} to reorder">::</button>
-                    <button type="button" class="category-reorder-btn" onclick="window.moveCategoryOrder(${jsArg(cat.name)}, 'up', event)" ${index === 0 ? 'disabled' : ''} aria-label="Move ${esc(cat.name)} up">&uarr;</button>
+                    <button type="button" class="category-drag-handle" draggable="true" ondragstart="window.startCategoryDrag(event, ${jsArg(cat.name)})" ondragend="window.endCategoryDrag(event)" onclick="event.stopPropagation()" aria-label="Drag ${esc(cat.name)} to reorder" title="Drag to reorder">⋮⋮</button>
+                    <button type="button" class="category-reorder-btn" onclick="window.moveCategoryOrder(${jsArg(cat.name)}, 'up', event)" ${index === 0 ? 'disabled' : ''} aria-label="Move ${esc(cat.name)} up" title="Move up">↑</button>
                     <div class="category-position-row">
                         <div class="category-position-control">
                             <label class="sr-only" for="cat-position-${index}">Position for ${esc(cat.name)}</label>
-                            <input id="cat-position-${index}" class="category-position-input" type="number" inputmode="numeric" min="1" max="${categories.length}" value="${index + 1}" onclick="event.stopPropagation()" onkeydown="event.stopPropagation(); if(event.key === 'Enter'){ window.moveCategoryToPosition(${jsArg(cat.name)}, this.value, event); this.blur(); }" onchange="window.moveCategoryToPosition(${jsArg(cat.name)}, this.value, event)" aria-label="Move ${esc(cat.name)} to position">
+                            <input id="cat-position-${index}" class="category-position-input" type="number" inputmode="numeric" min="1" max="${categories.length}" value="${index + 1}" onclick="event.stopPropagation()" onkeydown="window.handleCategoryPositionKeydown(event, ${jsArg(cat.name)})" onchange="window.handleCategoryPositionChange(event, ${jsArg(cat.name)})" aria-label="Move ${esc(cat.name)} to position">
                         </div>
-                        <button type="button" class="category-reorder-btn" onclick="window.moveCategoryOrder(${jsArg(cat.name)}, 'down', event)" ${index === categories.length - 1 ? 'disabled' : ''} aria-label="Move ${esc(cat.name)} down">&darr;</button>
+                        <button type="button" class="category-reorder-btn" onclick="window.moveCategoryOrder(${jsArg(cat.name)}, 'down', event)" ${index === categories.length - 1 ? 'disabled' : ''} aria-label="Move ${esc(cat.name)} down" title="Move down">↓</button>
                     </div>
                 </div>
             `
@@ -5703,6 +5855,7 @@ export function renderCategoryList() {
         <div class="category-item${isCategoryEditMode ? ' is-category-edit-row' : ''}" id="cat-card-${esc(cat.name.replace(/\s+/g, '-'))}" data-category-name="${esc(cat.name)}" style="display: flex; align-items: center; padding-left: ${isCategoryEditMode ? '0.5rem' : '0'};" ${dragAttrs} ${rowAttrs}>
             ${checkboxHTML}
             ${reorderHTML}
+            ${reorderFeedbackHTML}
             <div style="flex: 1; display: flex; align-items: center; cursor: ${cursorStyle}; transition: transform 0.1s ease; border: 1px solid transparent; padding: 0.5rem 0;">
                 <div class="category-icon-box ${barClass}" id="icon-${esc(cat.name.replace(/\s+/g, '-'))}">
                     <span class="category-icon">${esc(cat.icon || '📁')}</span>
@@ -5795,7 +5948,12 @@ export function renderCategoryList() {
         `;
     }
 
-    listContainer.innerHTML = categoriesHTML + categoryLoadMoreHTML + bottomBarHTML;
+    listContainer.innerHTML = `
+        <div id="categoryReorderLiveRegion" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+        ${categoriesHTML}
+        ${categoryLoadMoreHTML}
+        ${bottomBarHTML}
+    `;
 }
 
 window.setCategoryDisplaySize = function(value) {
@@ -9471,7 +9629,7 @@ function renderGiftCardManagerList() {
     if (!section || !list) return;
 
     const cards = State.getGiftCards?.() || [];
-    const isVisible = State.getShowGiftCardManager ? State.getShowGiftCardManager() : true;
+    const isVisible = State.getShowGiftCardManager ? State.getShowGiftCardManager() : false;
     section.classList.toggle('is-collapsed', !isVisible);
     list.hidden = !isVisible;
     if (toggle) {
@@ -9480,9 +9638,9 @@ function renderGiftCardManagerList() {
         toggle.setAttribute('aria-controls', 'giftCardManagerList');
     }
     if (count) {
-        count.textContent = isVisible
-            ? `${cards.length} ${cards.length === 1 ? 'tracked card' : 'tracked cards'}`
-            : 'Hidden';
+        count.textContent = cards.length === 0
+            ? 'No gift cards yet'
+            : `${cards.length} ${cards.length === 1 ? 'gift card' : 'gift cards'}`;
     }
     if (!isVisible) {
         list.innerHTML = '';
@@ -9492,7 +9650,7 @@ function renderGiftCardManagerList() {
     if (!cards.length) {
         list.innerHTML = `
             <div class="gift-card-manager-empty">
-                No tracked gift cards yet. Add one here, then use it as a Pay With option when logging an expense.
+                No gift cards yet. Add one here, then choose it as a Pay With option when logging an expense.
             </div>
         `;
         return;
@@ -9527,7 +9685,7 @@ function renderGiftCardManagerList() {
 }
 
 export function toggleGiftCardManagerVisibility() {
-    const current = State.getShowGiftCardManager ? State.getShowGiftCardManager() : true;
+    const current = State.getShowGiftCardManager ? State.getShowGiftCardManager() : false;
     State.setShowGiftCardManager?.(!current);
     renderGiftCardManagerList();
     observeLocalSave(current ? 'Gift card section hidden partially.' : 'Gift card section shown partially.');
@@ -10841,6 +10999,14 @@ function bindAddFormInputEvents() {
 
     const notesInput = document.getElementById('txNotes');
     if (notesInput) notesInput.maxLength = ADD_TX_NOTES_MAX_LENGTH;
+
+    const methodSelect = document.getElementById('txPaymentMethod');
+    if (methodSelect && !methodSelect.dataset.addTxPaymentBound) {
+        methodSelect.dataset.addTxPaymentBound = 'true';
+        ['focus', 'pointerdown', 'click'].forEach(eventName => {
+            methodSelect.addEventListener(eventName, () => closeAddDatePicker());
+        });
+    }
 }
 
 export function initAddTransactionForm() {
@@ -13610,6 +13776,8 @@ function setupDrillDownBudgetEdit(categoryName) {
 const ACCENT_THEME_KEY = 'bb_accent_color';
 const ACCENT_THEME_SESSION_KEY = 'bb_session_accent_color';
 const ACCENT_THEME_FALLBACK = 'slate';
+const THEME_MODE_KEY = 'bb_theme_mode';
+const THEME_PRESET_KEY = 'bb_theme_preset';
 const ACCENT_THEME_VALUES = new Set([
     'teal',
     'blue',
@@ -13625,7 +13793,17 @@ const ACCENT_THEME_VALUES = new Set([
     'emerald',
     'red',
     'pink',
-    'zinc'
+    'zinc',
+    'violet',
+    'purple',
+    'fuchsia',
+    'magenta',
+    'coral',
+    'mint',
+    'jade',
+    'gold',
+    'lavender',
+    'graphite'
 ]);
 
 const ACCENT_THEME_LABELS = {
@@ -13643,11 +13821,51 @@ const ACCENT_THEME_LABELS = {
     emerald: 'Emerald',
     red: 'Red',
     pink: 'Pink',
-    zinc: 'Zinc'
+    zinc: 'Zinc',
+    violet: 'Violet',
+    purple: 'Purple',
+    fuchsia: 'Fuchsia',
+    magenta: 'Magenta',
+    coral: 'Coral',
+    mint: 'Mint',
+    jade: 'Jade',
+    gold: 'Gold',
+    lavender: 'Lavender',
+    graphite: 'Graphite'
+};
+
+const BUILT_IN_THEME_PRESETS = {
+    light: [
+        {
+            id: 'light:tbd',
+            mode: 'light',
+            label: 'Light Theme',
+            name: 'Default',
+            description: 'Clean default light mode.'
+        },
+        {
+            id: 'light:burger-stand',
+            mode: 'light',
+            label: 'Light Theme',
+            name: 'Burger Stand Light',
+            description: 'Warm diner colors with ketchup red, mustard gold, and teal accents.',
+            previewClass: 'is-burger-stand-light'
+        }
+    ],
+    dark: [
+        {
+            id: 'dark:tbd',
+            mode: 'dark',
+            label: 'Dark Theme',
+            name: 'Default',
+            description: 'Clean default dark mode.'
+        }
+    ]
 };
 
 let settingsInitialSignature = '';
 let settingsDashboardControlsBound = false;
+let accentRandomizeInProgress = false;
 
 function isValidAccentTheme(accent) {
     return ACCENT_THEME_VALUES.has(accent);
@@ -13678,6 +13896,27 @@ function removeAccentStorage(storage, key) {
     }
 }
 
+function isValidThemeMode(theme) {
+    return theme === 'light' || theme === 'dark' || theme === 'system';
+}
+
+function getStoredThemeMode() {
+    const savedTheme = localStorage.getItem(THEME_MODE_KEY) || 'system';
+    return isValidThemeMode(savedTheme) ? savedTheme : 'system';
+}
+
+function getEffectiveThemeMode(theme = getStoredThemeMode()) {
+    if (theme === 'system') {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return theme === 'dark' ? 'dark' : 'light';
+}
+
+function getThemePresetById(presetId) {
+    return [...BUILT_IN_THEME_PRESETS.light, ...BUILT_IN_THEME_PRESETS.dark]
+        .find(preset => preset.id === presetId) || null;
+}
+
 function getActiveAccentTheme() {
     const activeAccent = document.documentElement.getAttribute('data-accent');
     return isValidAccentTheme(activeAccent) ? activeAccent : ACCENT_THEME_FALLBACK;
@@ -13688,6 +13927,25 @@ function chooseRandomAccentTheme(excludeAccent = '') {
     const candidates = accents.filter(accent => accent !== excludeAccent);
     const pool = candidates.length ? candidates : accents;
     return pool[Math.floor(Math.random() * pool.length)] || ACCENT_THEME_FALLBACK;
+}
+
+function waitForAccentRandomizerTick(ms = 48) {
+    return new Promise(resolve => window.setTimeout(resolve, ms));
+}
+
+function prefersReducedMotion() {
+    return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+}
+
+function buildAccentRandomizerSequence(startAccent = getActiveAccentTheme(), count = 10) {
+    const sequence = [];
+    let previousAccent = startAccent;
+    while (sequence.length < count) {
+        const nextAccent = chooseRandomAccentTheme(previousAccent);
+        sequence.push(nextAccent);
+        previousAccent = nextAccent;
+    }
+    return sequence;
 }
 
 export function resolveAccentTheme() {
@@ -13703,6 +13961,73 @@ export function resolveAccentTheme() {
     }
 
     return ACCENT_THEME_FALLBACK;
+}
+
+function updateSettingsThemePresetUi() {
+    const grid = document.getElementById('settingsThemePresetGrid');
+    const status = document.getElementById('settingsThemePresetStatus');
+    if (!grid) return;
+
+    const storedMode = getStoredThemeMode();
+    const effectiveMode = getEffectiveThemeMode(storedMode);
+    const presets = BUILT_IN_THEME_PRESETS[effectiveMode] || BUILT_IN_THEME_PRESETS.light;
+    const savedPresetId = localStorage.getItem(THEME_PRESET_KEY) || '';
+    const activePresetId = presets.some(preset => preset.id === savedPresetId)
+        ? savedPresetId
+        : presets[0]?.id || '';
+
+    if (status) {
+        if (storedMode === 'system') {
+            status.textContent = `System is currently using ${effectiveMode === 'dark' ? 'Dark' : 'Light'} themes.`;
+        } else {
+            status.textContent = `${effectiveMode === 'dark' ? 'Dark' : 'Light'} themes available.`;
+        }
+    }
+
+    grid.innerHTML = presets.map(preset => {
+        const active = preset.id === activePresetId;
+        return `
+            <button
+                type="button"
+                class="settings-theme-preset-card ${active ? 'active' : ''}"
+                data-theme-preset="${preset.id}"
+                data-theme-mode="${preset.mode}"
+                role="radio"
+                aria-checked="${active ? 'true' : 'false'}"
+                onclick="window.selectBuiltInThemePreset('${preset.id}')"
+            >
+                <span class="settings-theme-preset-preview is-${preset.mode} ${preset.previewClass || ''}" aria-hidden="true">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </span>
+                <span class="settings-theme-preset-copy">
+                    <span class="settings-theme-preset-label">${preset.label}</span>
+                    <span class="settings-theme-preset-name">${preset.name}</span>
+                </span>
+            </button>
+        `;
+    }).join('');
+}
+
+function applyBuiltInThemePreset() {
+    const savedPresetId = localStorage.getItem(THEME_PRESET_KEY) || '';
+    const preset = getThemePresetById(savedPresetId);
+    const effectiveMode = getEffectiveThemeMode(getStoredThemeMode());
+    if (!preset || preset.mode !== effectiveMode) {
+        document.documentElement.removeAttribute('data-theme-preset');
+        return;
+    }
+    document.documentElement.setAttribute('data-theme-preset', preset.id);
+}
+
+export function selectBuiltInThemePreset(presetId) {
+    const preset = getThemePresetById(presetId);
+    if (!preset) return;
+    localStorage.setItem(THEME_PRESET_KEY, preset.id);
+    applyBuiltInThemePreset();
+    updateSettingsThemePresetUi();
+    showToast(`${preset.name} selected.`);
 }
 
 function updateSettingsAccentModeStatus() {
@@ -13738,7 +14063,7 @@ function getSettingsFormSignature() {
         defaultType: typeSelect?.value || 'expense',
         defaultPayment: paymentSelect?.value || '',
         summaryView: summarySelect?.value || 'open',
-        giftCardVisibility: giftCardVisibilitySelect?.value || 'show',
+        giftCardVisibility: giftCardVisibilitySelect?.value || 'hide',
         savingsAsIncome: Boolean(savingsAsIncomeYes?.checked),
         overrideDebtLock: Boolean(overrideDebtLockYes?.checked),
         accent: accentSelect?.value || getActiveAccentTheme()
@@ -13826,12 +14151,45 @@ export function setAccentTheme(accent = ACCENT_THEME_FALLBACK) {
     applyAccentTheme(safeAccent);
 }
 
-export function randomizeAccentTheme() {
-    const randomAccent = chooseRandomAccentTheme(getActiveAccentTheme());
-    writeAccentStorage(sessionStorage, ACCENT_THEME_SESSION_KEY, randomAccent);
-    applyAccentTheme(randomAccent);
-    refreshSettingsDirtyState();
-    showToast('Color randomized for this session.');
+export async function randomizeAccentTheme() {
+    if (accentRandomizeInProgress) return;
+    accentRandomizeInProgress = true;
+
+    const randomizeButton = document.getElementById('settingsAccentRandomizeBtn');
+    const originalButtonText = randomizeButton?.textContent || 'Randomize';
+    const sequence = buildAccentRandomizerSequence(getActiveAccentTheme(), 10);
+    const finalAccent = sequence[sequence.length - 1] || chooseRandomAccentTheme(getActiveAccentTheme());
+
+    if (randomizeButton) {
+        randomizeButton.disabled = true;
+        randomizeButton.setAttribute('aria-busy', 'true');
+    }
+
+    try {
+        if (prefersReducedMotion()) {
+            applyAccentTheme(finalAccent);
+        } else {
+            for (let index = 0; index < sequence.length; index += 1) {
+                if (randomizeButton) {
+                    randomizeButton.textContent = `${sequence.length - index}`;
+                }
+                applyAccentTheme(sequence[index]);
+                await waitForAccentRandomizerTick(52);
+            }
+        }
+
+        writeAccentStorage(sessionStorage, ACCENT_THEME_SESSION_KEY, finalAccent);
+        applyAccentTheme(finalAccent);
+        refreshSettingsDirtyState();
+        showToast('Color randomized for this session.');
+    } finally {
+        if (randomizeButton) {
+            randomizeButton.disabled = false;
+            randomizeButton.removeAttribute('aria-busy');
+            randomizeButton.textContent = originalButtonText;
+        }
+        accentRandomizeInProgress = false;
+    }
 }
 
 export function saveCurrentAccentTheme() {
@@ -13857,25 +14215,30 @@ export function applyTheme(theme) {
     } else {
         document.documentElement.setAttribute('data-theme', theme);
     }
+    applyBuiltInThemePreset();
+    updateSettingsThemePresetUi();
 }
 
 export function setTheme(theme) {
-    localStorage.setItem('bb_theme_mode', theme);
-    applyTheme(theme);
+    const safeTheme = isValidThemeMode(theme) ? theme : 'system';
+    localStorage.setItem(THEME_MODE_KEY, safeTheme);
+    applyTheme(safeTheme);
 
     document.querySelectorAll('.theme-opt').forEach(btn => btn.classList.remove('active'));
-    const activeBtn = document.querySelector(`.theme-opt[data-theme-val="${theme}"]`);
+    const activeBtn = document.querySelector(`.theme-opt[data-theme-val="${safeTheme}"]`);
     if (activeBtn) activeBtn.classList.add('active');
 }
 
 export function initSettingsUI() {
-    const savedTheme = localStorage.getItem('bb_theme_mode') || 'system';
+    const savedTheme = getStoredThemeMode();
     const activeAccent = resolveAccentTheme();
     const activeBtn = document.querySelector(`.theme-opt[data-theme-val="${savedTheme}"]`);
     if (activeBtn) {
         document.querySelectorAll('.theme-opt').forEach(btn => btn.classList.remove('active'));
         activeBtn.classList.add('active');
     }
+    applyBuiltInThemePreset();
+    updateSettingsThemePresetUi();
     applyAccentTheme(activeAccent);
     document.querySelectorAll('input[name="accentColor"]').forEach(input => {
         input.addEventListener('change', () => {
@@ -13923,6 +14286,7 @@ export function openSettingsModal() {
     renderSyncHistory();
     updateGiftCardMerchantCacheUi();
     renderCsvImportBatchList();
+    relockLocalErase();
     openModal('settingsModal');
 }
 
@@ -13930,6 +14294,7 @@ export function closeSettingsModal() {
     applyAccentTheme(resolveAccentTheme());
     settingsInitialSignature = '';
     setSettingsDirtyState(false);
+    relockLocalErase();
     closeModal('settingsModal');
 }
 
@@ -13977,16 +14342,69 @@ export function updateCurrencyUI() {
 
 // --- FACTORY RESET LOGIC ---
 
+let localEraseUnlocked = false;
+let localEraseUnlockTimer = null;
+const LOCAL_ERASE_UNLOCK_MS = 30000;
+
+function clearLocalEraseUnlockTimer() {
+    if (localEraseUnlockTimer) {
+        clearTimeout(localEraseUnlockTimer);
+        localEraseUnlockTimer = null;
+    }
+}
+
+function syncLocalEraseUnlockUI() {
+    const unlockBtn = document.getElementById('unlockLocalEraseBtn');
+    const eraseBtn = document.getElementById('openLocalEraseBtn');
+
+    if (unlockBtn) {
+        unlockBtn.hidden = localEraseUnlocked;
+    }
+
+    if (eraseBtn) {
+        eraseBtn.hidden = !localEraseUnlocked;
+        eraseBtn.setAttribute('aria-disabled', localEraseUnlocked ? 'false' : 'true');
+    }
+}
+
+function relockLocalErase() {
+    localEraseUnlocked = false;
+    clearLocalEraseUnlockTimer();
+    syncLocalEraseUnlockUI();
+}
+
+export function unlockLocalErase() {
+    localEraseUnlocked = true;
+    clearLocalEraseUnlockTimer();
+    localEraseUnlockTimer = setTimeout(() => {
+        relockLocalErase();
+    }, LOCAL_ERASE_UNLOCK_MS);
+    syncLocalEraseUnlockUI();
+}
+
+export function openUnlockedResetModal() {
+    if (!localEraseUnlocked) {
+        syncLocalEraseUnlockUI();
+        showToast('Unlock erase first.');
+        return;
+    }
+
+    relockLocalErase();
+    openResetModal();
+}
+
 export function openResetModal() {
     closeSettingsModal();
     openModal('resetConfirmModal');
 }
 
 export function closeResetModal() {
+    relockLocalErase();
     closeModal('resetConfirmModal');
 }
 
 export function executeFactoryReset() {
+    relockLocalErase();
     if (State.factoryReset) {
         State.factoryReset();
     }
@@ -23992,9 +24410,11 @@ function rememberAccountWelcomeGreeting(greeting) {
 
 function getNextAccountWelcomeGreeting({ reset = false } = {}) {
     if (reset) {
-        accountWelcomeGreeting = ACCOUNT_WELCOME_TRANSLATIONS[0];
-        accountWelcomeRecent = [accountWelcomeGreeting];
+        accountWelcomeRecent = [];
         accountWelcomeBag = [];
+        refillAccountWelcomeBag();
+        accountWelcomeGreeting = accountWelcomeBag.shift() || ACCOUNT_WELCOME_TRANSLATIONS[0];
+        rememberAccountWelcomeGreeting(accountWelcomeGreeting);
         return accountWelcomeGreeting;
     }
 
@@ -24137,7 +24557,7 @@ function updateBetaSupportAction() {
 
     action.textContent = 'Join Beta';
     action.href = 'https://app.zambudget.com/login';
-    action.dataset.tooltip = 'Join beta';
+    action.removeAttribute('data-tooltip');
     action.onclick = null;
 }
 
@@ -24193,6 +24613,7 @@ export function updateAuthUI() {
     syncBillingUi();
     syncAccountRecoveryUi();
     syncAccountAuthProviderUi();
+    syncSignedOutBudgetActionState();
     repairViewportLayout();
 }
 
@@ -25141,6 +25562,7 @@ window.switchTab = switchTab;
 window.closeMobileAddOverlay = closeMobileAddOverlay;
 window.setType = setType;
 window.showToast = showToast;
+window.selectBuiltInThemePreset = selectBuiltInThemePreset;
 window.toggleZBBSummary = toggleZBBSummary;
 window.toggleZBBAmountReveal = toggleZBBAmountReveal;
 window.handleZBBPlanAction = handleZBBPlanAction;

@@ -60,6 +60,40 @@ test.describe('Cloud Sync local save status', () => {
         );
     });
 
+    test('signed-out Cloud Sync panel shows sync off state and keeps sign-in action reachable', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await createExpenseFromAddTab(page, 'Signed out sync off status');
+        await page.locator('#syncStatusBtn').click();
+
+        const panel = page.locator('#syncHistoryPanel');
+        await expect(panel).toBeVisible();
+        await expect(page.locator('#syncHistoryStatusBadge')).toHaveText('SYNC OFF');
+        await expect(page.locator('#syncCloudNudge')).toContainText('Sign in to protect this budget');
+        await expect(page.locator('#syncDeviceCountFineprint')).toHaveText('2 free sync slots included');
+
+        const signInButton = page.locator('#syncEnableBtn');
+        await expect(signInButton).toHaveText('Sign In');
+        await expect(signInButton).toBeEnabled();
+        await expect(page.locator('#syncKeyBtn')).toBeDisabled();
+
+        await expect(page.locator('#syncHistoryList .sync-history-item')).toHaveCount(1);
+        await expect(page.locator('#syncHistoryList')).toContainText('Last saved locally. Sign in to protect this budget with Cloud Sync.');
+
+        const order = await page.evaluate(() => {
+            const nudge = document.getElementById('syncCloudNudge');
+            const actions = document.getElementById('syncCloudActions');
+            const list = document.getElementById('syncHistoryList');
+            return {
+                nudgeBeforeList: Boolean(nudge && list && nudge.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING),
+                actionsBeforeList: Boolean(actions && list && actions.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING)
+            };
+        });
+        expect(order.nudgeBeforeList).toBe(true);
+        expect(order.actionsBeforeList).toBe(true);
+    });
+
     test('Add transaction while offline is labeled as local and not backed up', async ({ page, context }) => {
         await page.goto('/index.html');
         await waitForAppReady(page);
@@ -108,7 +142,8 @@ test.describe('Cloud Sync local save status', () => {
 
         await page.locator('#syncStatusBtn').click();
         await expect(page.locator('#syncHistoryPanel')).toBeVisible();
-        await expect(page.locator('#syncHistoryList')).toContainText('Cloud Sync is up to date.');
+        await expect(page.locator('#syncHistoryList .sync-history-item')).toHaveCount(1);
+        await expect(page.locator('#syncHistoryList')).toContainText('Last saved locally. Sign in to protect this budget with Cloud Sync.');
         await expect(page.locator('#syncHistoryList')).not.toContainText('LEGACY_SYNC_HISTORY_MERCHANT');
     });
 
@@ -132,6 +167,7 @@ test.describe('Cloud Sync local save status', () => {
 
         await page.locator('#syncStatusBtn').click();
         await expect(page.locator('#syncHistoryPanel')).toBeVisible();
-        await expect(page.locator('#syncHistoryList')).toContainText('Saved locally. Cloud Sync not active.');
+        await expect(page.locator('#syncHistoryList .sync-history-item')).toHaveCount(1);
+        await expect(page.locator('#syncHistoryList')).toContainText('Last saved locally. Sign in to protect this budget with Cloud Sync.');
     });
 });

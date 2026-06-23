@@ -21,7 +21,17 @@
         emerald: ['#10b981', '#047857', '16, 185, 129', '#ffffff'],
         red: ['#ef4444', '#b91c1c', '239, 68, 68', '#ffffff'],
         pink: ['#ec4899', '#be185d', '236, 72, 153', '#ffffff'],
-        zinc: ['#71717a', '#3f3f46', '113, 113, 122', '#ffffff']
+        zinc: ['#71717a', '#3f3f46', '113, 113, 122', '#ffffff'],
+        violet: ['#8b5cf6', '#5b21b6', '139, 92, 246', '#ffffff'],
+        purple: ['#a855f7', '#6b21a8', '168, 85, 247', '#ffffff'],
+        fuchsia: ['#d946ef', '#86198f', '217, 70, 239', '#ffffff'],
+        magenta: ['#db2777', '#9d174d', '219, 39, 119', '#ffffff'],
+        coral: ['#fb7185', '#9f1239', '251, 113, 133', '#ffffff'],
+        mint: ['#2dd4bf', '#0f766e', '45, 212, 191', '#ffffff'],
+        jade: ['#00a86b', '#047857', '0, 168, 107', '#ffffff'],
+        gold: ['#eab308', '#854d0e', '234, 179, 8', '#ffffff'],
+        lavender: ['#a78bfa', '#5b21b6', '167, 139, 250', '#ffffff'],
+        graphite: ['#4b5563', '#1f2937', '75, 85, 99', '#ffffff']
     };
 
     function isValidAccent(accent) {

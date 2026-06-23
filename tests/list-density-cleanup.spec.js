@@ -186,6 +186,69 @@ test.describe('list density cleanup', () => {
         await expect(toolbar.locator('.category-edit-action-icon')).toBeEnabled();
         await expect(toolbar.locator('.category-edit-action-delete')).toBeEnabled();
         await expect(toolbar.locator('.category-edit-action-delete')).toHaveClass(/is-active/);
+
+        const firstRow = page.locator('#categoryList .category-item').first();
+        await expect(firstRow).toHaveCSS('border-style', 'solid');
+        await expect(firstRow).toHaveAttribute('data-category-name', 'Category 1');
+        await expect(firstRow.locator('.category-drag-handle')).toBeVisible();
+        await expect(firstRow.locator('.category-position-input')).toHaveValue('1');
+
+        const handleWidth = await firstRow.locator('.category-drag-handle').evaluate((node) => node.getBoundingClientRect().width);
+        expect(handleWidth).toBeLessThan(48);
+        const positionWidth = await firstRow.locator('.category-position-input').evaluate((node) => node.getBoundingClientRect().width);
+        expect(positionWidth).toBeGreaterThanOrEqual(38);
+
+        await page.locator('#categoryList .category-item[data-category-name="Category 1"] .category-reorder-btn[aria-label="Move Category 1 down"]').click();
+        await expect(page.locator('#categoryList .category-item').nth(0)).toHaveAttribute('data-category-name', 'Category 2');
+        await expect(page.locator('#categoryList .category-item').nth(1)).toHaveAttribute('data-category-name', 'Category 1');
+        await expect(page.locator('#categoryList .category-item[data-category-name="Category 1"] .category-reorder-feedback')).toContainText('Moved to position 2');
+        await expect(page.locator('#categoryReorderLiveRegion')).toContainText('Moved Category 1 to position 2');
+
+        const categoryOnePosition = page.locator('#categoryList .category-item[data-category-name="Category 1"] .category-position-input');
+        await categoryOnePosition.click();
+        await categoryOnePosition.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
+        await categoryOnePosition.pressSequentially('4');
+        await categoryOnePosition.press('Enter');
+        await expect(page.locator('#categoryList .category-item').nth(3)).toHaveAttribute('data-category-name', 'Category 1');
+        await expect(page.locator('#categoryList .category-item[data-category-name="Category 1"] .category-reorder-feedback')).toContainText('Moved to position 4');
+        await expect(page.locator('#categoryReorderLiveRegion')).toContainText('Moved Category 1 to position 4');
+
+        const persistedOrder = await page.evaluate(() =>
+            window.getCategoriesForSort?.('manual')
+                ?.filter((cat) => cat.type === 'expense')
+                ?.slice(0, 4)
+                ?.map((cat) => cat.name)
+        );
+        expect(persistedOrder).toEqual(['Category 2', 'Category 3', 'Category 4', 'Category 1']);
+    });
+
+    test('Categories empty state animates only the icon and respects reduced motion', async ({ page }) => {
+        await page.evaluate(() => {
+            window.replaceSnapshot?.({
+                transactions: [],
+                categories: [],
+                settings: {
+                    currency: '$',
+                    defaultType: 'expense',
+                    defaultPayment: '',
+                    defaultCategory: '',
+                    lastCategorySort: 'manual',
+                    giftCards: []
+                }
+            }, { remoteUpdatedAt: '2026-06-20T12:00:00.000Z' });
+            window.switchTab?.('add');
+            window.renderCategoryList?.();
+        });
+
+        const emptyState = page.locator('#categoryList .empty-state-container');
+        const icon = emptyState.locator('.category-empty-state-icon');
+        await expect(emptyState).toContainText('No categories yet. Create one or use Quick Add to get started.');
+        await expect(icon).toBeVisible();
+        await expect(icon).toHaveClass(/empty-state-animated-icon/);
+        await expect(icon).toHaveCSS('animation-name', 'floatEmptyState');
+
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await expect(icon).toHaveCSS('animation-name', 'none');
     });
 
     test('category drilldown inline title editor accepts spaces', async ({ page }) => {
