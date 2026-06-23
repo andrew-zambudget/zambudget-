@@ -152,60 +152,62 @@
 
     <main id="main">
       <div class="summary-grid zbb-workflow-grid">
-        <div class="card zbb-card zbb-summary-card is-collapsed" id="zbbSummaryCard">
+        <div class="card zbb-card zbb-summary-card" id="zbbSummaryCard">
             <div class="zbb-summary-header">
                 <div class="zbb-summary-copy">
-                    <div class="card-label">Budget Snapshot</div>
-                    <h2 class="zbb-summary-title">Money at a glance</h2>
-                    <p class="zbb-summary-subtitle">One place for income, assignments, and budget health.</p>
+                    <div class="card-label">This Month's Plan</div>
+                    <h2 class="zbb-summary-title">Budget health at a glance</h2>
+                    <p class="zbb-summary-subtitle">Income, assigned money, and budget health in one place.</p>
                 </div>
-                <button type="button" id="zbbSummaryToggle" class="zbb-summary-toggle" onclick="window.toggleZBBSummary()" aria-controls="zbbSummaryBody" aria-expanded="false" aria-label="Show budget snapshot">
-                    <span class="zbb-summary-toggle-text">+</span>
+                <button type="button" id="zbbAmountRevealToggle" class="zbb-summary-toggle zbb-amount-toggle" onclick="window.toggleZBBAmountReveal()" aria-controls="zbbSummaryBody" aria-pressed="false" aria-label="Show plan amounts">
+                    <span class="zbb-summary-toggle-text">Show amounts</span>
                 </button>
             </div>
 
-            <div class="zbb-summary-body" id="zbbSummaryBody" aria-hidden="true" inert>
-            <div class="zbb-summary-metrics">
-                <section class="zbb-summary-metric">
-                    <div class="card-label" id="zbbIncomeLabel">Monthly Income</div>
-                    <div class="money-container" tabindex="0" role="button" aria-label="Show Monthly Income amount. Currently hidden for privacy." aria-pressed="false" data-reveal-label="Monthly Income">
-                        <div class="shimmer-overlay"></div>
-                        <div class="card-value neutral blur-value" id="zbbIncome">$0.00</div>
-                        <div class="reveal-tooltip">Tap to Reveal</div>
-                    </div>
-                    <div class="card-subtext">Money available to assign jobs.</div>
-                </section>
-
-                <section class="zbb-summary-metric">
-                    <div class="card-label">To Be Budgeted</div>
-                    <div class="money-container" tabindex="0" role="button" aria-label="Show To Be Budgeted amount. Currently hidden for privacy." aria-pressed="false" data-reveal-label="To Be Budgeted">
-                        <div class="shimmer-overlay"></div>
-                        <div class="card-value blur-value" id="zbbTBB">$0.00</div>
-                        <div class="reveal-tooltip">Tap to Reveal</div>
-                    </div>
-                    <div class="zbb-progress-container" aria-hidden="true">
-                        <div class="zbb-progress-fill" id="zbbAssignedBar"></div>
-                    </div>
-                    <div class="card-subtext" id="zbbTBBSub">Every dollar needs a job. Give them one!</div>
-                </section>
-
-                <section class="zbb-summary-metric">
-                    <div class="card-label">Assigned Funds</div>
-                    <div class="money-container" tabindex="0" role="button" aria-label="Show Assigned Funds amount. Currently hidden for privacy." aria-pressed="false" data-reveal-label="Assigned Funds">
-                        <div class="shimmer-overlay"></div>
-                        <div class="card-value neutral blur-value" id="zbbAssigned">$0.00</div>
-                        <div class="reveal-tooltip">Tap to Reveal</div>
-                    </div>
-                    <div class="card-subtext">Dollars planned. Ready for spending.</div>
-                </section>
-            </div>
-
-                <div class="zbb-status-panel">
+            <div class="zbb-summary-body" id="zbbSummaryBody">
+                <section class="zbb-status-panel" id="zbbPlanStatusCard">
                     <div class="status-icon" id="zbbStatusIcon">⚠️</div>
                     <div class="zbb-status-copy">
-                        <div class="card-label">Budget Status</div>
-                        <div class="card-subtext status-text" id="zbbStatusText">Fix Left to Budget before tracking.</div>
+                        <div class="card-label">Status</div>
+                        <h3 class="zbb-status-title" id="zbbStatusTitle">Add income to start</h3>
+                        <p class="card-subtext status-text" id="zbbStatusText">Record income before assigning money to categories.</p>
+                        <div class="zbb-status-actions" id="zbbStatusActions">
+                            <button type="button" id="zbbPrimaryAction" class="btn-create zbb-status-action-primary" onclick="window.handleZBBPlanAction('add-income')">Add Income</button>
+                            <button type="button" id="zbbSecondaryAction" class="btn-cancel zbb-status-action-secondary" onclick="window.handleZBBPlanAction('review-budget')" hidden>Review Budget</button>
+                        </div>
                     </div>
+                </section>
+
+                <div class="zbb-summary-metrics">
+                    <section class="zbb-summary-metric">
+                        <div class="card-label" id="zbbIncomeLabel">Income</div>
+                        <div class="money-container" aria-label="Income amount. Currently hidden for privacy." data-reveal-label="Income" data-reveal-scope="zbb-summary">
+                            <div class="shimmer-overlay"></div>
+                            <div class="card-value neutral blur-value" id="zbbIncome">$0.00</div>
+                        </div>
+                        <div class="card-subtext">Money recorded for this month.</div>
+                    </section>
+
+                    <section class="zbb-summary-metric">
+                        <div class="card-label">Assigned</div>
+                        <div class="money-container" aria-label="Assigned amount. Currently hidden for privacy." data-reveal-label="Assigned" data-reveal-scope="zbb-summary">
+                            <div class="shimmer-overlay"></div>
+                            <div class="card-value neutral blur-value" id="zbbAssigned">$0.00</div>
+                        </div>
+                        <div class="card-subtext">Money planned across your categories.</div>
+                    </section>
+
+                    <section class="zbb-summary-metric" id="zbbLeftMetric">
+                        <div class="card-label" id="zbbTBBLabel">Left to Assign</div>
+                        <div class="money-container" aria-label="Left to Assign amount. Currently hidden for privacy." data-reveal-label="Left to Assign" data-reveal-scope="zbb-summary">
+                            <div class="shimmer-overlay"></div>
+                            <div class="card-value blur-value" id="zbbTBB">$0.00</div>
+                        </div>
+                        <div class="zbb-progress-container" aria-hidden="true">
+                            <div class="zbb-progress-fill" id="zbbAssignedBar"></div>
+                        </div>
+                        <div class="card-subtext" id="zbbTBBSub">Money still waiting for a job.</div>
+                    </section>
                 </div>
             </div>
         </div>
@@ -229,6 +231,17 @@
                     </button>
                 </div>
 
+                <section id="categoryNeedsAttentionPanel" class="category-needs-attention-panel" aria-labelledby="categoryNeedsAttentionTitle" hidden>
+                    <div class="category-needs-attention-header">
+                        <div>
+                            <div id="categoryNeedsAttentionTitle" class="category-needs-attention-title">Needs Attention</div>
+                            <div id="categoryNeedsAttentionText" class="category-needs-attention-text">Review category assignments below.</div>
+                        </div>
+                        <button type="button" id="categoryNeedsAttentionDismiss" class="category-needs-attention-dismiss" onclick="window.dismissCategoryAttentionPanel()" aria-label="Hide category guidance">Done</button>
+                    </div>
+                    <div id="categoryNeedsAttentionList" class="category-needs-attention-list"></div>
+                </section>
+
                 <div class="sort-control-bar" id="sortControlBar">
                     <span class="sort-cat-count" id="sortCatCount">0 categories</span>
                     <label class="sort-field" for="categorySortSelect">
@@ -247,6 +260,8 @@
                     </span>
                     </label>
                 </div>
+
+                <div id="categoryDensityControls" class="list-density-controls list-density-controls-categories" aria-live="polite"></div>
 
                 <div class="category-list" id="categoryList"></div>
 
@@ -320,6 +335,7 @@
                                     </div>
                                 </div>
                             </div>
+                            <div id="incomeDensityControls" class="list-density-controls list-density-controls-income" aria-live="polite"></div>
                             <div class="income-breakdown-container" style="flex: 1; overflow-y: auto;">
                                 <div id="incomeBreakdown" class="income-breakdown"></div>
                             </div>
@@ -385,6 +401,7 @@
                                 </div>
                             </div>
 
+                            <div id="savingsDensityControls" class="list-density-controls list-density-controls-savings" aria-live="polite"></div>
                             <div class="savings-buckets-grid" id="savingsBucketsGrid" style="flex: 1; overflow-y: auto;"></div>
                         </div>
                     </div>
@@ -599,6 +616,7 @@
                                 <div>
                                     <div class="calendar-selected-title" id="calendarSelectedTitle">Selected day</div>
                                     <div class="calendar-selected-meta" id="calendarSelectedMeta">No transactions</div>
+                                    <div class="calendar-selected-list" id="calendarSelectedList"></div>
                                 </div>
                                 <button type="button" class="btn-create calendar-selected-action" onclick="window.openBudgetCalendarRecent()">View Recent</button>
                             </div>
@@ -639,6 +657,8 @@
                                 <button type="button" class="recent-ghost-btn" onclick="window.clearBudgetCalendarDate()">Clear</button>
                             </div>
 
+                            <div id="recentDensityControls" class="list-density-controls list-density-controls-recent" aria-live="polite"></div>
+
                             <div id="recentBulkPanel" class="recent-bulk-panel" hidden>
                                 <div>
                                     <div class="recent-bulk-title">Bulk Edit</div>
@@ -646,6 +666,7 @@
                                 </div>
                                 <div class="recent-bulk-actions">
                                     <button type="button" id="recentBulkSelectBtn" class="recent-ghost-btn" onclick="window.selectVisibleTransactions()">Select Visible</button>
+                                    <button type="button" id="recentBulkSelectFilteredBtn" class="recent-ghost-btn" onclick="window.selectAllFilteredTransactions()" hidden>Select All Filtered</button>
                                     <button type="button" id="recentBulkDeleteBtn" class="recent-danger-btn" onclick="window.bulkDeleteRecentTransactions()" hidden>Delete Selected</button>
                                 </div>
                             </div>
@@ -775,7 +796,7 @@
                                 </div>
 
                                 <div class="form-group settings-field">
-                                    <div class="settings-field-label">Budget Snapshot Display</div>
+                                    <div class="settings-field-label">This Month's Plan Display</div>
                                     <select id="summaryViewSelect" class="settings-hidden-select" aria-hidden="true" tabindex="-1">
                                         <option value="open">Always Open</option>
                                         <option value="collapsed">Start Collapsed</option>
@@ -1435,66 +1456,99 @@
                 </div>
 
                                 <div class="drill-down-overlay" id="categoryDrillDownOverlay" onclick="window.closeCategoryDrillDown()"></div>
-                                <div class="drill-down-panel" id="categoryDrillDownPanel">
-                                    <button class="btn-close-panel" onclick="window.closeCategoryDrillDown()">×</button>
+                                <div class="drill-down-panel" id="categoryDrillDownPanel" role="dialog" aria-modal="true" aria-labelledby="drillDownTitle" aria-describedby="drillDownStatusMessage">
+                                    <button type="button" class="btn-close-panel" onclick="window.closeCategoryDrillDown()" aria-label="Close category details">&times;</button>
 
                                     <div class="drill-down-hero">
-                                        <div class="drill-down-icon drill-down-edit-target" id="drillDownIcon" role="button" tabindex="0" title="Edit icon">📁</div>
-                                        <h2 class="drill-down-title drill-down-edit-target" id="drillDownTitle" role="button" tabindex="0" title="Edit name">Category Name</h2>
+                                        <div class="drill-down-icon drill-down-edit-target" id="drillDownIcon" role="button" tabindex="0" title="Edit icon">?</div>
+                                        <div class="drill-down-heading-copy">
+                                            <h2 class="drill-down-title drill-down-edit-target" id="drillDownTitle" role="button" tabindex="0" title="Edit name">Category Name</h2>
+                                            <p id="drillDownSubtitle" class="drill-down-subtitle">Category details</p>
+                                        </div>
                                     </div>
 
                                     <div class="drill-down-metrics">
-                                                            <div id="zbbMessage" class="zbb-message">Set a budget to get started</div>
+                                        <div class="metric-group">
+                                            <span class="metric-label" id="drillDownAssignedLabel">Assigned</span>
+                                            <div class="inline-edit-wrapper" id="budgetEditWrapper" title="Click to edit assigned amount">
+                                                <div id="drillDownBudgetText" class="metric-value editable-text">$0.00</div>
+                                                <div id="drillDownBudgetInputContainer" style="display: none;" class="metric-input-wrapper">
+                                                    <span class="currency-symbol" id="drillDownSymbol">$</span>
+                                                    <input type="number" id="drillDownBudget" class="metric-value-input" min="0" step="0.01" placeholder="0.00">
+                                                </div>
+                                            </div>
+                                            <span class="metric-help">What you planned</span>
+                                        </div>
 
-                                                            <div class="metric-group">
-                                                                <span class="metric-label">Budgeted</span>
-                                                                <div class="inline-edit-wrapper" id="budgetEditWrapper" title="Click to edit budget">
-                                                                    <div id="drillDownBudgetText" class="metric-value editable-text">$0.00</div>
-                                                                    <div id="drillDownBudgetInputContainer" style="display: none;" class="metric-input-wrapper">
-                                                                        <span class="currency-symbol" id="drillDownSymbol">$</span>
-                                                                        <input type="number" id="drillDownBudget" class="metric-value-input" min="0" step="0.01" placeholder="0.00">
-                                                                    </div>
-                                                                </div>
-                                                            </div>
+                                        <div class="metric-group">
+                                            <span class="metric-label" id="drillDownToggleLabel">Spent</span>
+                                            <span class="metric-value" id="drillDownTotal">$0.00</span>
+                                            <span class="metric-help" id="drillDownSpentHelp">This month</span>
+                                        </div>
 
-                                                            <div class="metric-group empty-spacer"></div>
+                                        <div class="metric-group">
+                                            <span class="metric-label" id="drillDownRemainingLabel">Remaining</span>
+                                            <span class="metric-value" id="drillDownRemaining">$0.00</span>
+                                            <span class="metric-help" id="drillDownRemainingHelp">Left to spend</span>
+                                        </div>
 
-                                                            <div class="metric-group">
-                                                                <button type="button" id="drillDownToggleMetric" class="drill-down-metric-toggle" onclick="window.toggleDrillDownMetric()" aria-label="Show amount left">
-                                                                    <span class="metric-label" id="drillDownToggleLabel">Spent</span>
-                                                                    <span class="metric-value" id="drillDownTotal">$0.00</span>
-                                                                </button>
-                                                            </div>
+                                        <section id="drillDownStatusCard" class="drill-down-status-card is-neutral" aria-live="polite">
+                                            <div class="drill-down-status-icon" id="drillDownStatusIcon" aria-hidden="true">i</div>
+                                            <div>
+                                                <h3 id="drillDownStatusLabel">No Activity</h3>
+                                                <p id="drillDownStatusMessage">No spending has been recorded in this category this month.</p>
+                                            </div>
+                                        </section>
 
-                                                            <div class="progress-bar-container" id="drillDownProgressTrack" role="group" aria-label="Income progress percentages">
-                                                                <div id="drillDownProgress" class="progress-bar-fill" aria-hidden="true"></div>
-                                                                <button type="button" id="drillDownProgressFillBtn" class="progress-segment-hit progress-fill-hit" aria-label="Show logged percentage" aria-pressed="false" disabled></button>
-                                                                <button type="button" id="drillDownProgressTrackBtn" class="progress-segment-hit progress-track-hit" aria-label="Show expected percentage" aria-pressed="false" disabled></button>
-                                                                <span class="progress-end-label progress-start">0%</span>
-                                                                <span class="progress-end-label progress-end">100%</span>
-                                                                <span id="drillDownProgressFillPct" class="progress-hover-label progress-fill-label" aria-hidden="true">0%</span>
-                                                                <span id="drillDownProgressTrackPct" class="progress-hover-label progress-track-label" aria-hidden="true">100%</span>
-                                                            </div>
-                                                        </div>
+                                        <div class="progress-bar-container" id="drillDownProgressTrack" role="progressbar" aria-label="Category progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                                            <div id="drillDownProgress" class="progress-bar-fill" aria-hidden="true"></div>
+                                            <button type="button" id="drillDownProgressFillBtn" class="progress-segment-hit progress-fill-hit" aria-label="Show used percentage" aria-pressed="false" disabled></button>
+                                            <button type="button" id="drillDownProgressTrackBtn" class="progress-segment-hit progress-track-hit" aria-label="Show remaining percentage" aria-pressed="false" disabled></button>
+                                            <span class="income-progress-tick" style="--divider-left: 10%;" aria-hidden="true"></span>
+                                            <span class="income-progress-tick" style="--divider-left: 20%;" aria-hidden="true"></span>
+                                            <span class="income-progress-tick" style="--divider-left: 30%;" aria-hidden="true"></span>
+                                            <span class="income-progress-tick" style="--divider-left: 40%;" aria-hidden="true"></span>
+                                            <span class="income-progress-tick income-progress-tick-strong" style="--divider-left: 50%;" aria-hidden="true"></span>
+                                            <span class="income-progress-tick" style="--divider-left: 60%;" aria-hidden="true"></span>
+                                            <span class="income-progress-tick" style="--divider-left: 70%;" aria-hidden="true"></span>
+                                            <span class="income-progress-tick" style="--divider-left: 80%;" aria-hidden="true"></span>
+                                            <span class="income-progress-tick" style="--divider-left: 90%;" aria-hidden="true"></span>
+                                            <span class="progress-end-label progress-start">0%</span>
+                                            <span class="progress-end-label progress-end">100%</span>
+                                            <span id="drillDownProgressFillPct" class="progress-hover-label progress-fill-label" aria-hidden="true">0%</span>
+                                            <span id="drillDownProgressTrackPct" class="progress-hover-label progress-track-label" aria-hidden="true">100%</span>
+                                        </div>
+                                        <div id="zbbMessage" class="zbb-message" hidden>Set a budget to get started</div>
+                                    </div>
+
+                                    <section class="drill-down-insight-card" id="drillDownInsightCard">
+                                        <div class="drill-down-section-kicker">Insight</div>
+                                        <p id="drillDownInsight">No spending has been recorded in this category this month.</p>
+                                    </section>
 
                                     <div class="drill-down-actions">
-                                        <button class="btn-drill-action" id="drillDownEditBtn">
-                                            ✏️ Edit
-                                        </button>
-                                        <button class="btn-drill-action btn-drill-danger" id="drillDownDeleteBtn">
-                                            🗑️ Delete
-                                        </button>
+                                        <button type="button" class="btn-drill-action btn-drill-primary" id="drillDownPrimaryActionBtn">Add Transaction</button>
+                                        <button type="button" class="btn-drill-action" id="drillDownEditBtn">Edit Category</button>
+                                        <button type="button" class="btn-drill-action" id="drillDownSecondaryActionBtn">View Transactions</button>
+                                        <button type="button" class="btn-drill-action btn-drill-danger" id="drillDownDeleteBtn">Delete Category</button>
                                     </div>
 
                                     <div class="drill-down-history">
-                                        <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--border); margin-bottom: 1rem; padding-bottom: 0.5rem;">
-                                            <h3 class="history-title" style="border: none; margin-bottom: 0; padding-bottom: 0;">Recent Activity</h3>
-                                            <button id="drillDownLogExpenseBtn" style="background: transparent; border: none; color: var(--accent); font-weight: 600; cursor: pointer; font-size: 0.85rem; transition: color 0.2s ease;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--accent)'">
-                                                + Log Expense
-                                            </button>
-                                        </div>
-                                        <div id="drillDownTxList" class="drill-down-tx-list">
+                                        <div class="drill-down-section-header">
+                                            <h3 class="history-title">Recent Activity</h3>
+                                            <div class="drill-down-section-actions">
+                                                <label class="drill-down-density-control" for="drillDownRecentDisplaySize">
+                                                    <select id="drillDownRecentDisplaySize" aria-label="Show recent activity rows">
+                                                        <option value="5">5 rows</option>
+                                                        <option value="10">10 rows</option>
+                                                        <option value="15">15 rows</option>
+                                                        <option value="all">All rows</option>
+                                                    </select>
+                                                </label>
+                                                <button type="button" id="drillDownLogExpenseBtn" class="drill-down-link-btn drill-down-log-btn" aria-label="Log transaction" title="Log transaction">+</button>
                                             </div>
+                                        </div>
+                                        <div id="drillDownTxList" class="drill-down-tx-list"></div>
                                     </div>
                                 </div>
 

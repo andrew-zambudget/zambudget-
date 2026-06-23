@@ -19,9 +19,28 @@ let activeGiftCardModalDateField = '';
 const privacyTimers = new Map();
 const privacyScrambleTimers = new Map();
 const PRIVACY_SCRAMBLE_INTERVAL_MS = 900;
+const ZBB_SUMMARY_REVEAL_ID = 'zbb-summary';
 const INCOME_INITIAL_RENDER_COUNT = 2;
 const INCOME_LAZY_BATCH_SIZE = 2;
 let visibleIncomeSourceCount = INCOME_INITIAL_RENDER_COUNT;
+const LIST_DENSITY_VALUES = [5, 10, 15];
+const LIST_DENSITY_ALL = 'all';
+const DEFAULT_RECENT_DISPLAY_SIZE = 5;
+const DEFAULT_CATEGORY_DISPLAY_SIZE = 5;
+const DEFAULT_INCOME_DISPLAY_SIZE = 5;
+const DEFAULT_SAVINGS_DISPLAY_SIZE = 5;
+const DEFAULT_DEBT_DISPLAY_SIZE = 5;
+let recentDisplaySize = DEFAULT_RECENT_DISPLAY_SIZE;
+let recentVisibleLimit = DEFAULT_RECENT_DISPLAY_SIZE;
+let recentLastDensityScopeKey = '';
+let categoryDisplaySize = DEFAULT_CATEGORY_DISPLAY_SIZE;
+let categoryVisibleLimit = DEFAULT_CATEGORY_DISPLAY_SIZE;
+let incomeDisplaySize = DEFAULT_INCOME_DISPLAY_SIZE;
+let incomeVisibleLimit = DEFAULT_INCOME_DISPLAY_SIZE;
+let savingsDisplaySize = DEFAULT_SAVINGS_DISPLAY_SIZE;
+let savingsVisibleLimit = DEFAULT_SAVINGS_DISPLAY_SIZE;
+let debtDisplaySize = DEFAULT_DEBT_DISPLAY_SIZE;
+let debtVisibleLimit = DEFAULT_DEBT_DISPLAY_SIZE;
 const STARTER_EMERGENCY_FUND_GOAL = 1000;
 const EMERGENCY_FUND_CARD_NAME = 'Emergency Fund';
 const CATEGORY_SHEET_EXPANDED_TOP_RATIO = 0.25;
@@ -75,6 +94,7 @@ const DEMO_ACCOUNT_DISABLED_MESSAGE = 'Account and recovery settings are availab
 let viewportRepairTimer = null;
 let calendarCursorDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let selectedCalendarDateKey = '';
+let categoryCalendarReturnTab = '';
 let giftCardMerchantCache = null;
 let giftCardMerchantCachePromise = null;
 let lastGiftCardModalSavedId = '';
@@ -4941,6 +4961,8 @@ let selectedCategories = new Set();
 let isCategoryEditMode = false;
 let draggedCategoryName = '';
 let draggedCategoryPosition = 0;
+let activeCategoryAttentionMode = '';
+let categoryAttentionFocusPending = false;
 
 // ==========================================
 // 1. RENDERING ENGINE
@@ -5007,6 +5029,309 @@ function getCategoryBudgetSummary(category) {
     };
 }
 
+function getActiveBudgetMonthBounds(date = calendarCursorDate) {
+    const sourceDate = date instanceof Date && !Number.isNaN(date.getTime()) ? date : new Date();
+    const monthStart = new Date(sourceDate.getFullYear(), sourceDate.getMonth(), 1);
+    const monthEnd = new Date(sourceDate.getFullYear(), sourceDate.getMonth() + 1, 0);
+
+    return {
+        startKey: getLocalDateKey(monthStart),
+        endKey: getLocalDateKey(monthEnd),
+        label: getBudgetCalendarMonthTitle(monthStart)
+    };
+}
+
+function isTransactionInBudgetMonth(tx, bounds = getActiveBudgetMonthBounds()) {
+    const dateKey = getTransactionDateKey(tx);
+    return Boolean(dateKey && dateKey >= bounds.startKey && dateKey <= bounds.endKey);
+}
+
+function getCategoryDetailKind(categoryType = 'expense') {
+    const normalized = String(categoryType || 'expense').trim().toLowerCase();
+    return ['savings', 'sinking_fund', 'external'].includes(normalized) ? 'savings' : normalized;
+}
+
+function getCategoryDetailTransactions(category = {}, bounds = getActiveBudgetMonthBounds()) {
+    const categoryName = String(category?.name || '');
+    const desiredKind = getCategoryDetailKind(category?.type || 'expense');
+
+    return (State.getTransactions ? State.getTransactions() : [])
+        .filter(tx =>
+            tx &&
+            !tx.isDeleted &&
+            tx.category === categoryName &&
+            getTransactionKind(tx) === desiredKind &&
+            isTransactionInBudgetMonth(tx, bounds)
+        )
+        .sort((a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0));
+}
+
+function buildCategoryDetailSummary(category = {}, options = {}) {
+    const bounds = options.bounds || getActiveBudgetMonthBounds(options.month);
+    const categoryType = category?.type || 'expense';
+    const categoryKind = getCategoryDetailKind(categoryType);
+    const assigned = Math.max(0, parseFloat(category?.budget) || 0);
+    const transactions = getCategoryDetailTransactions(category, bounds);
+    const spent = transactions.reduce((sum, tx) => sum + Math.abs(parseFloat(tx.amount) || 0), 0);
+    const remaining = assigned - spent;
+    const overBy = Math.max(0, spent - assigned);
+    const percentUsed = assigned > 0 ? (spent / assigned) * 100 : (spent > 0 ? 100 : 0);
+    const roundedPercent = Math.round(Math.max(0, percentUsed) + 0.000001);
+    const categoryName = category?.name || 'This category';
+
+    let status = 'no-activity';
+    let statusLabel = 'No Activity';
+    let statusTone = 'neutral';
+    let statusIcon = 'i';
+    let statusMessage = `No spending has been recorded in ${categoryName} this month.`;
+    let insightMessage = `No spending has been recorded in ${categoryName} this month.`;
+
+    if (categoryKind !== 'expense') {
+        status = 'current-month';
+        statusLabel = 'Current Month';
+        statusTone = 'neutral';
+        statusIcon = 'i';
+        statusMessage = `${categoryName} has ${transactions.length} current-month entr${transactions.length === 1 ? 'y' : 'ies'}.`;
+        insightMessage = `${categoryName} is showing current-month activity only.`;
+    } else if (assigned <= 0.005 && spent > 0.005) {
+        status = 'needs-assignment';
+        statusLabel = 'Needs Assignment';
+        statusTone = 'warning';
+        statusIcon = '!';
+        statusMessage = `${categoryName} has spending but no assigned money.`;
+        insightMessage = 'This category has spending but no money assigned.';
+    } else if (assigned > 0.005 && overBy > 0.005) {
+        status = 'over-budget';
+        statusLabel = 'Over Budget';
+        statusTone = 'danger';
+        statusIcon = '!';
+        statusMessage = `${categoryName} is over by ${formatCurrencyAmount(overBy)} this month.`;
+        insightMessage = `This category is over by ${formatCurrencyAmount(overBy)} this month. Review recent transactions or adjust the assigned amount.`;
+    } else if (spent <= 0.005) {
+        status = 'no-activity';
+        statusLabel = 'No Activity';
+        statusTone = 'neutral';
+        statusIcon = 'i';
+        statusMessage = `No spending has been recorded in ${categoryName} this month.`;
+        insightMessage = `No spending has been recorded in ${categoryName} this month.`;
+    } else if (assigned > 0.005 && Math.abs(remaining) <= 0.005) {
+        status = 'fully-used';
+        statusLabel = 'Fully Used';
+        statusTone = 'success';
+        statusIcon = 'OK';
+        statusMessage = `${categoryName} has used all assigned money this month.`;
+        insightMessage = 'This category has used all assigned money for the month.';
+    } else if (assigned > 0.005 && percentUsed >= 80) {
+        status = 'getting-close';
+        statusLabel = 'Getting Close';
+        statusTone = 'warning';
+        statusIcon = '!';
+        statusMessage = `${categoryName} has used ${roundedPercent}% of its assigned money.`;
+        insightMessage = `This category has used ${roundedPercent}% of its assigned money this month.`;
+    } else {
+        status = 'on-track';
+        statusLabel = 'On Track';
+        statusTone = 'success';
+        statusIcon = 'OK';
+        statusMessage = `${categoryName} is within its assigned amount.`;
+        insightMessage = 'This category is within its assigned amount.';
+    }
+
+    return {
+        category,
+        categoryName,
+        categoryType,
+        categoryKind,
+        monthLabel: bounds.label,
+        assignedThisMonth: assigned,
+        spentThisMonth: spent,
+        remainingThisMonth: remaining,
+        overBy,
+        percentUsed,
+        roundedPercent,
+        status,
+        statusLabel,
+        statusTone,
+        statusIcon,
+        statusMessage,
+        insightMessage,
+        recentTransactions: transactions
+    };
+}
+
+function formatCurrencyAmount(amount = 0) {
+    const symbol = State.getSymbol ? State.getSymbol() : '$';
+    return `${symbol}${formatMoney(Math.abs(parseFloat(amount) || 0))}`;
+}
+
+function getCategoryAttentionItems(mode = activeCategoryAttentionMode) {
+    const symbol = State.getSymbol ? State.getSymbol() : '$';
+    const categories = (State.getCategories ? State.getCategories() : [])
+        .filter(cat => cat && (cat.type || 'expense') === 'expense');
+
+    const items = categories.reduce((list, cat) => {
+        const summary = getCategoryBudgetSummary(cat);
+        const overBy = summary.spent - summary.budget;
+        if (summary.budget > 0.005 && overBy > 0.005) {
+            list.push({
+                name: cat.name,
+                icon: cat.icon || '',
+                tone: 'danger',
+                priority: 1,
+                action: 'Adjust',
+                detail: `Over by ${symbol}${formatMoney(overBy)}`,
+                help: 'Spending is above the assigned amount.'
+            });
+        } else if (summary.budget <= 0.005 && summary.transactionCount > 0) {
+            list.push({
+                name: cat.name,
+                icon: cat.icon || '',
+                tone: 'warn',
+                priority: mode === 'assign-money' ? 1 : 2,
+                action: 'Assign',
+                detail: `${summary.transactionCount} transaction${summary.transactionCount === 1 ? '' : 's'} with no assigned budget`,
+                help: 'Activity exists, but this category has no assigned amount.'
+            });
+        }
+        return list;
+    }, []);
+
+    return items.sort((a, b) => a.priority - b.priority || String(a.name).localeCompare(String(b.name)));
+}
+
+function getCategoryAttentionCopy(mode = activeCategoryAttentionMode, items = []) {
+    if (mode === 'fix-budget') {
+        return {
+            title: 'Needs Attention',
+            text: items.length
+                ? `You have ${items.length} categor${items.length === 1 ? 'y' : 'ies'} to review before this budget is reliable.`
+                : 'No category issues found. Review assigned amounts below if something still feels off.'
+        };
+    }
+
+    if (mode === 'assign-money') {
+        return {
+            title: 'Assign Money',
+            text: items.length
+                ? `Give this money a job by reviewing ${items.length} categor${items.length === 1 ? 'y' : 'ies'} below.`
+                : 'Choose a category below and update its assigned amount.'
+        };
+    }
+
+    return {
+        title: 'Review Categories',
+        text: items.length
+            ? `You have ${items.length} categor${items.length === 1 ? 'y' : 'ies'} to review.`
+            : 'Review assigned amounts by category below.'
+    };
+}
+
+function renderCategoryAttentionPanel() {
+    const panel = document.getElementById('categoryNeedsAttentionPanel');
+    const titleEl = document.getElementById('categoryNeedsAttentionTitle');
+    const textEl = document.getElementById('categoryNeedsAttentionText');
+    const listEl = document.getElementById('categoryNeedsAttentionList');
+    if (!panel || !titleEl || !textEl || !listEl) return;
+
+    if (!activeCategoryAttentionMode) {
+        panel.hidden = true;
+        listEl.innerHTML = '';
+        return;
+    }
+
+    const items = getCategoryAttentionItems(activeCategoryAttentionMode);
+    const copy = getCategoryAttentionCopy(activeCategoryAttentionMode, items);
+    titleEl.textContent = copy.title;
+    textEl.textContent = copy.text;
+    listEl.innerHTML = items.length
+        ? items.slice(0, 6).map(item => `
+            <button type="button" class="category-attention-item is-${esc(item.tone)}" onclick="window.openCategoryAttentionCategory(${jsArg(item.name)}, ${jsArg(item.action)})">
+                <span class="category-attention-icon" aria-hidden="true">${esc(item.tone === 'danger' ? '!' : '*')}</span>
+                <span class="category-attention-copy">
+                    <strong>${esc(item.name)}</strong>
+                    <span>${esc(item.detail)}</span>
+                    <em>${esc(item.help)}</em>
+                </span>
+                <span class="category-attention-action">${esc(item.action)}</span>
+            </button>
+        `).join('')
+        : `
+            <div class="category-attention-empty">
+                <strong>No category issues found.</strong>
+                <span>Pick a category below to adjust its assigned amount.</span>
+            </div>
+        `;
+    panel.hidden = false;
+}
+
+function highlightCategoryCard(categoryName) {
+    const rows = Array.from(document.querySelectorAll('#categoryList .category-item'));
+    const row = rows.find(item => item.dataset.categoryName === categoryName);
+    if (!row) return;
+    row.classList.add('category-attention-highlight');
+    row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    setTimeout(() => row.classList.remove('category-attention-highlight'), 2400);
+}
+
+function focusOpenDrillDownBudget() {
+    const wrapper = document.getElementById('budgetEditWrapper');
+    const input = document.getElementById('drillDownBudget');
+    wrapper?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    wrapper?.click?.();
+    setTimeout(() => {
+        input?.focus?.({ preventScroll: true });
+        input?.select?.();
+    }, 80);
+}
+
+function openCategoryAttentionTarget(categoryName) {
+    const categories = State.getCategories ? State.getCategories() : [];
+    const category = categories.find(cat => cat.name === categoryName);
+    if (!category) return;
+    highlightCategoryCard(categoryName);
+    window.openCategoryDrillDown?.(category.name, category.icon || '');
+    setTimeout(focusOpenDrillDownBudget, 180);
+}
+
+function routeToCategoryAttention(mode = 'review-budget') {
+    activeCategoryAttentionMode = mode;
+    categoryAttentionFocusPending = true;
+    if (typeof window.switchTab === 'function') window.switchTab('add');
+    renderCategoryList();
+
+    setTimeout(() => {
+        renderCategoryAttentionPanel();
+        const items = getCategoryAttentionItems(mode);
+        if (items.length === 1) {
+            openCategoryAttentionTarget(items[0].name);
+            return;
+        }
+
+        const panel = document.getElementById('categoryNeedsAttentionPanel');
+        panel?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+        const firstAction = panel?.querySelector('.category-attention-item');
+        if (firstAction) {
+            firstAction.focus({ preventScroll: true });
+        } else {
+            document.querySelector('#categoryList .category-item')?.classList.add('category-attention-highlight');
+            setTimeout(() => {
+                document.querySelector('#categoryList .category-item')?.classList.remove('category-attention-highlight');
+            }, 2400);
+        }
+        categoryAttentionFocusPending = false;
+    }, 120);
+}
+
+window.openCategoryAttentionCategory = function(categoryName) {
+    openCategoryAttentionTarget(categoryName);
+};
+
+window.dismissCategoryAttentionPanel = function() {
+    activeCategoryAttentionMode = '';
+    categoryAttentionFocusPending = false;
+    renderCategoryAttentionPanel();
+};
+
 function getCategoryMetricMode() {
     return window.currentDrillDownMetricMode === 'left' ? 'left' : 'spent';
 }
@@ -5060,6 +5385,110 @@ function syncCategorySortSelect() {
     if ([...select.options].some(option => option.value === sort)) {
         select.value = sort;
     }
+}
+
+function normalizeDensityValue(value, fallback = 5) {
+    if (value === LIST_DENSITY_ALL) return LIST_DENSITY_ALL;
+    const parsed = Number(value);
+    return LIST_DENSITY_VALUES.includes(parsed) ? parsed : fallback;
+}
+
+function getDensityStep(displaySize) {
+    return displaySize === LIST_DENSITY_ALL ? 0 : Number(displaySize || 0);
+}
+
+function getDensityVisibleCount(totalCount, visibleLimit) {
+    if (visibleLimit === LIST_DENSITY_ALL) return totalCount;
+    return Math.min(Math.max(0, Number(visibleLimit) || 0), totalCount);
+}
+
+function buildDensityCountText({ visibleCount = 0, totalCount = 0, noun = 'items', filtered = false, editing = false } = {}) {
+    const safeVisible = Math.min(Math.max(0, Number(visibleCount) || 0), Math.max(0, Number(totalCount) || 0));
+    const safeTotal = Math.max(0, Number(totalCount) || 0);
+    if (safeTotal === 0) return '';
+    if (editing) return `Showing all ${safeTotal} ${noun} for editing`;
+    if (safeVisible >= safeTotal) return `Showing all ${safeTotal} ${noun}`;
+    return `Showing ${safeVisible} of ${safeTotal} ${filtered ? `matching ${noun}` : noun}`;
+}
+
+function renderDensityControls({
+    containerId = '',
+    label = 'Show',
+    selectedValue = 5,
+    countText = '',
+    loadMoreLabel = '',
+    loadMoreAction = '',
+    setAction = '',
+    showOptions = true
+} = {}) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const normalizedSelected = normalizeDensityValue(selectedValue, 5);
+    const options = LIST_DENSITY_VALUES.concat(LIST_DENSITY_ALL);
+    const shouldShowOptions = Boolean(showOptions && setAction);
+    const controlsHtml = shouldShowOptions ? `
+        <div class="list-density-choice" role="group" aria-label="${esc(label)} count">
+            <span class="list-density-label">${esc(label)}:</span>
+            <div class="list-density-segmented" aria-hidden="false">
+                ${options.map(value => {
+                    const isActive = String(value) === String(normalizedSelected);
+                    const display = value === LIST_DENSITY_ALL ? 'All' : String(value);
+                    return `<button type="button" class="list-density-option${isActive ? ' is-active' : ''}" onclick="${setAction}(${jsArg(value)})" aria-pressed="${isActive ? 'true' : 'false'}">${esc(display)}</button>`;
+                }).join('')}
+            </div>
+            <label class="list-density-select-wrap">
+                <span class="sr-only">${esc(label)} count</span>
+                <select class="list-density-select" onchange="${setAction}(this.value)" aria-label="${esc(label)} count">
+                    ${options.map(value => {
+                        const display = value === LIST_DENSITY_ALL ? 'All' : String(value);
+                        return `<option value="${esc(value)}" ${String(value) === String(normalizedSelected) ? 'selected' : ''}>${esc(display)}</option>`;
+                    }).join('')}
+                </select>
+            </label>
+        </div>
+    ` : '';
+
+    container.hidden = !countText && !controlsHtml;
+    container.innerHTML = `
+        <div class="list-density-main">
+            ${controlsHtml}
+            ${countText ? `<span class="list-density-count">${esc(countText)}</span>` : ''}
+        </div>
+        ${loadMoreLabel && loadMoreAction ? `
+            <button type="button" class="list-density-load-more" onclick="${loadMoreAction}()">${esc(loadMoreLabel)}</button>
+        ` : ''}
+    `;
+}
+
+function resetRecentVisibleLimit() {
+    recentVisibleLimit = recentDisplaySize === LIST_DENSITY_ALL
+        ? LIST_DENSITY_ALL
+        : Number(recentDisplaySize);
+}
+
+function resetCategoryVisibleLimit() {
+    categoryVisibleLimit = categoryDisplaySize === LIST_DENSITY_ALL
+        ? LIST_DENSITY_ALL
+        : Number(categoryDisplaySize);
+}
+
+function resetIncomeVisibleLimit() {
+    incomeVisibleLimit = incomeDisplaySize === LIST_DENSITY_ALL
+        ? LIST_DENSITY_ALL
+        : Number(incomeDisplaySize);
+}
+
+function resetSavingsVisibleLimit() {
+    savingsVisibleLimit = savingsDisplaySize === LIST_DENSITY_ALL
+        ? LIST_DENSITY_ALL
+        : Number(savingsDisplaySize);
+}
+
+function resetDebtVisibleLimit() {
+    debtVisibleLimit = debtDisplaySize === LIST_DENSITY_ALL
+        ? LIST_DENSITY_ALL
+        : Number(debtDisplaySize);
 }
 
 export function moveCategoryOrder(name, direction, event = null) {
@@ -5170,6 +5599,7 @@ export function renderCategoryList() {
     renderGiftCardManagerList();
     syncCategorySortSelect();
     syncCategoryCalendarMonthLabel();
+    renderCategoryAttentionPanel();
 
     // Grab all categories, but ONLY keep the ones that are NOT income
     const allCategories = State.getCategoriesForSort
@@ -5186,6 +5616,7 @@ export function renderCategoryList() {
     // 1. EMPTY STATE
     if (categories.length === 0) {
         isCategoryEditMode = false;
+        renderDensityControls({ containerId: 'categoryDensityControls' });
         listContainer.innerHTML = `
             <div class="empty-state-container" style="text-align: center; padding: 2rem 1rem;">
                 <div style="font-size: 2.5rem; margin-bottom: 0.5rem; opacity: 0.8;">📁</div>
@@ -5198,8 +5629,33 @@ export function renderCategoryList() {
         return;
     }
 
+    const categoryRows = categories.map((cat, index) => ({ cat, index }));
+    const visibleCategoryCount = isCategoryEditMode
+        ? categories.length
+        : getDensityVisibleCount(categories.length, categoryVisibleLimit);
+    const visibleCategoryRows = isCategoryEditMode
+        ? categoryRows
+        : categoryRows.slice(0, visibleCategoryCount);
+    const categoryStep = getDensityStep(categoryDisplaySize);
+    const hiddenCategoryCount = Math.max(0, categories.length - visibleCategoryRows.length);
+    renderDensityControls({
+        containerId: 'categoryDensityControls',
+        label: 'Show',
+        selectedValue: categoryDisplaySize,
+        countText: buildDensityCountText({
+            visibleCount: visibleCategoryRows.length,
+            totalCount: categories.length,
+            noun: 'categories',
+            editing: isCategoryEditMode
+        }),
+        setAction: 'window.setCategoryDisplaySize',
+        showOptions: !isCategoryEditMode
+    });
+
     // 2. CATEGORY ITEMS (Reactive Version)
-    const categoriesHTML = categories.map((cat, index) => {
+    const categoriesHTML = visibleCategoryRows.map((row) => {
+        const cat = row.cat;
+        const index = row.index;
         // ... [Keep your checkbox/edit mode logic exactly as before] ...
         const isChecked = selectedCategories.has(cat.name) ? 'checked' : '';
         const checkboxHTML = isCategoryEditMode
@@ -5244,7 +5700,7 @@ export function renderCategoryList() {
         const createdDate = cat.createdAt ? formatDate(cat.createdAt.split('T')[0]) : '';
 
         return `
-        <div class="category-item${isCategoryEditMode ? ' is-category-edit-row' : ''}" id="cat-card-${esc(cat.name.replace(/\s+/g, '-'))}" style="display: flex; align-items: center; padding-left: ${isCategoryEditMode ? '0.5rem' : '0'};" ${dragAttrs} ${rowAttrs}>
+        <div class="category-item${isCategoryEditMode ? ' is-category-edit-row' : ''}" id="cat-card-${esc(cat.name.replace(/\s+/g, '-'))}" data-category-name="${esc(cat.name)}" style="display: flex; align-items: center; padding-left: ${isCategoryEditMode ? '0.5rem' : '0'};" ${dragAttrs} ${rowAttrs}>
             ${checkboxHTML}
             ${reorderHTML}
             <div style="flex: 1; display: flex; align-items: center; cursor: ${cursorStyle}; transition: transform 0.1s ease; border: 1px solid transparent; padding: 0.5rem 0;">
@@ -5280,31 +5736,50 @@ export function renderCategoryList() {
         `;
     }).join('');
 
+    const categoryLoadMoreHTML = !isCategoryEditMode && hiddenCategoryCount > 0 && categoryStep > 0
+        ? `
+            <div class="category-density-load-row">
+                <button type="button" class="category-density-load-more" onclick="window.loadMoreCategories()">
+                    Load ${Math.min(categoryStep, hiddenCategoryCount)} more
+                </button>
+            </div>
+        `
+        : '';
+
     // 3. DYNAMIC BOTTOM BAR
     let bottomBarHTML = '';
 
     if (isCategoryEditMode) {
         const selectedCount = selectedCategories.size;
-        const btnDisabledStyle = selectedCount === 0 ? 'opacity: 0.5; cursor: not-allowed; border-color: var(--border); color: var(--text-dim);' : 'cursor: pointer;';
+        const selectedLabel = selectedCount === 0
+            ? 'No categories selected'
+            : `${selectedCount} categor${selectedCount === 1 ? 'y' : 'ies'} selected`;
+        const selectedHint = selectedCount === 0
+            ? '<span class="category-edit-hint">Select categories to edit icons or delete.</span>'
+            : '';
+        const btnDisabled = selectedCount === 0 ? 'disabled aria-disabled="true"' : '';
         const delClick = selectedCount === 0 ? '' : 'onclick="window.executeBulkDelete()"';
         const iconClick = selectedCount === 0 ? '' : 'onclick="window.openBatchIconPicker()"';
 
         bottomBarHTML = `
-            <div style="display: flex; flex-direction: column; gap: 0.75rem; padding: 1.5rem 0 2rem 0; margin-top: auto;">
-                <div style="display: flex; justify-content: space-between; align-items: center; background: var(--surface-hover); border: 1px dashed var(--border); border-radius: 8px; padding: 0.75rem 1rem;">
-                    <span style="font-weight: 600; color: var(--text);">${selectedCount} Selected</span>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <button class="btn-small" style="${btnDisabledStyle} background: transparent; color: var(--text); border: 1px solid var(--border); transition: all 0.2s ease; padding: 0.4rem 0.8rem;" ${iconClick}>
+            <div class="category-edit-toolbar">
+                <div class="category-edit-panel">
+                    <div class="category-edit-status">
+                        <span class="category-edit-count">${selectedLabel}</span>
+                        ${selectedHint}
+                    </div>
+                    <div class="category-edit-actions">
+                        <button type="button" class="btn-small category-edit-action category-edit-action-icon" ${btnDisabled} title="Change selected category icon" aria-label="Change selected category icon" ${iconClick}><span class="category-edit-action-label">Change Icon</span><span hidden>
                             🎨 Icon
-                        </button>
-                        <button class="btn-small" style="${btnDisabledStyle} ${selectedCount > 0 ? 'color: white; background: var(--red); border-color: var(--red);' : ''} transition: all 0.2s ease; padding: 0.4rem 0.8rem;" ${delClick}>
+                        </span></button>
+                        <button type="button" class="btn-small category-edit-action category-edit-action-delete${selectedCount > 0 ? ' is-active' : ''}" ${btnDisabled} ${delClick}>
                             Delete
+                        </button>
+                        <button type="button" class="btn-edit-mode category-edit-done" onclick="window.toggleCategoryEditMode()">
+                            Done Editing
                         </button>
                     </div>
                 </div>
-                <button class="btn-edit-mode" style="width: 100%; text-align: center; padding: 0.75rem; background: transparent; border: 1px solid var(--text-dim); color: var(--text); font-weight: 600; border-radius: 8px; cursor: pointer;" onclick="window.toggleCategoryEditMode()">
-                    Done Editing
-                </button>
             </div>
         `;
     } else {
@@ -5320,8 +5795,22 @@ export function renderCategoryList() {
         `;
     }
 
-    listContainer.innerHTML = categoriesHTML + bottomBarHTML;
+    listContainer.innerHTML = categoriesHTML + categoryLoadMoreHTML + bottomBarHTML;
 }
+
+window.setCategoryDisplaySize = function(value) {
+    categoryDisplaySize = normalizeDensityValue(value, DEFAULT_CATEGORY_DISPLAY_SIZE);
+    resetCategoryVisibleLimit();
+    renderCategoryList();
+};
+
+window.loadMoreCategories = function() {
+    if (categoryVisibleLimit === LIST_DENSITY_ALL) return;
+    const step = getDensityStep(categoryDisplaySize);
+    if (step <= 0) return;
+    categoryVisibleLimit += step;
+    renderCategoryList();
+};
 
 // --- BULK ACTION OVERLAYS ---
 
@@ -5504,7 +5993,7 @@ export function renderZBBDashboard() {
     incEl.textContent = `${symbol}${formatMoney(monthlyIncome)}`;
     setIncomeTotalLabels(treatSavingsAsIncome);
     assEl.textContent = `${symbol}${formatMoney(assignedFunds)}`;
-    tbbEl.textContent = `${tbb < 0 ? '-' : ''}${symbol}${formatMoney(Math.abs(tbb))}`;
+    tbbEl.textContent = `${symbol}${formatMoney(Math.abs(tbb))}`;
 
     const tbbContainer = tbbEl.closest('.money-container');
     if (tbbContainer) {
@@ -5512,11 +6001,32 @@ export function renderZBBDashboard() {
         tbbContainer.classList.add(tbb > 0.01 ? 'positive' : (tbb < -0.01 ? 'negative' : 'neutral'));
     }
 
+    const tbbLabel = document.getElementById('zbbTBBLabel');
     const tbbSub = document.getElementById('zbbTBBSub');
-    if (tbbSub) {
-        if (tbb > 0.01) tbbSub.textContent = "You still have money to assign.";
-        else if (tbb < -0.01) tbbSub.textContent = "Over budget! Move funds from other categories.";
-        else tbbSub.textContent = "Perfect! You've given every dollar a job.";
+    const leftMetric = document.getElementById('zbbLeftMetric');
+    if (leftMetric) {
+        leftMetric.classList.remove('is-left-to-assign', 'is-overassigned', 'is-fully-assigned');
+    }
+    if (tbbLabel && tbbSub) {
+        if (tbb > 0.01) {
+            tbbLabel.textContent = 'Left to Assign';
+            tbbContainer?.setAttribute('data-reveal-label', 'Left to Assign');
+            tbbContainer?.setAttribute('aria-label', 'Left to Assign amount. Currently hidden for privacy.');
+            tbbSub.textContent = 'Money still waiting for a job.';
+            leftMetric?.classList.add('is-left-to-assign');
+        } else if (tbb < -0.01) {
+            tbbLabel.textContent = 'Overassigned';
+            tbbContainer?.setAttribute('data-reveal-label', 'Overassigned');
+            tbbContainer?.setAttribute('aria-label', 'Overassigned amount. Currently hidden for privacy.');
+            tbbSub.textContent = 'You assigned more than your income.';
+            leftMetric?.classList.add('is-overassigned');
+        } else {
+            tbbLabel.textContent = 'Fully Assigned';
+            tbbContainer?.setAttribute('data-reveal-label', 'Fully Assigned');
+            tbbContainer?.setAttribute('aria-label', 'Fully Assigned amount. Currently hidden for privacy.');
+            tbbSub.textContent = 'Your income has a job.';
+            leftMetric?.classList.add('is-fully-assigned');
+        }
     }
 
     const barEl = document.getElementById('zbbAssignedBar');
@@ -5526,9 +6036,81 @@ export function renderZBBDashboard() {
         barEl.style.backgroundColor = tbb < -0.01 ? 'var(--red)' : (tbb > 0.01 ? 'var(--accent)' : 'var(--green)');
     }
 
+    const statusPanel = document.getElementById('zbbPlanStatusCard');
+    const statusTitle = document.getElementById('zbbStatusTitle');
+    const primaryAction = document.getElementById('zbbPrimaryAction');
+    const secondaryAction = document.getElementById('zbbSecondaryAction');
+    if (statusPanel) {
+        statusPanel.classList.remove('is-no-income', 'is-overassigned', 'is-left-to-assign', 'is-ready');
+    }
+
     const statusIcon = document.getElementById('zbbStatusIcon');
     const statusText = document.getElementById('zbbStatusText');
-    if (statusIcon && statusText) {
+    if (statusIcon && statusTitle && statusText) {
+        let state = {
+            className: 'is-ready',
+            icon: String.fromCodePoint(0x1F3AF),
+            title: 'Ready to Track',
+            body: 'Every dollar assigned fits within your income.',
+            primaryText: 'Review Budget',
+            primaryAction: 'review-budget',
+            secondaryText: '',
+            secondaryAction: ''
+        };
+
+        if (monthlyIncome <= 0.01) {
+            state = {
+                className: 'is-no-income',
+                icon: String.fromCodePoint(0x1F4B0),
+                title: 'Add income to start',
+                body: 'Record income before assigning money to categories.',
+                primaryText: 'Add Income',
+                primaryAction: 'add-income',
+                secondaryText: '',
+                secondaryAction: ''
+            };
+        } else if (tbb < -0.01) {
+            state = {
+                className: 'is-overassigned',
+                icon: String.fromCodePoint(0x26A0, 0xFE0F),
+                title: `Overassigned by ${symbol}${formatMoney(Math.abs(tbb))}`,
+                body: 'You assigned more than this month\'s income. Move money from categories or add income before relying on this budget.',
+                primaryText: 'Fix Budget',
+                primaryAction: 'fix-budget',
+                secondaryText: 'Add Income',
+                secondaryAction: 'add-income'
+            };
+        } else if (tbb > 0.01) {
+            state = {
+                className: 'is-left-to-assign',
+                icon: String.fromCodePoint(0x1F4B8),
+                title: `${symbol}${formatMoney(tbb)} left to assign`,
+                body: 'Give this money a job before the month starts.',
+                primaryText: 'Assign Money',
+                primaryAction: 'assign-money',
+                secondaryText: '',
+                secondaryAction: ''
+            };
+        }
+
+        statusPanel?.classList.add(state.className);
+        statusIcon.textContent = state.icon;
+        statusTitle.textContent = state.title;
+        statusText.textContent = state.body;
+
+        if (primaryAction) {
+            primaryAction.textContent = state.primaryText;
+            primaryAction.hidden = false;
+            primaryAction.onclick = () => window.handleZBBPlanAction(state.primaryAction);
+        }
+        if (secondaryAction) {
+            secondaryAction.textContent = state.secondaryText;
+            secondaryAction.hidden = !state.secondaryAction;
+            secondaryAction.onclick = () => window.handleZBBPlanAction(state.secondaryAction);
+        }
+    }
+
+    if (false && statusIcon && statusText) {
         if (Math.abs(tbb) <= 0.01 && monthlyIncome > 0) {
             statusIcon.textContent = '🎯';
             statusText.textContent = 'Your budget is ready. Track your spending below.';
@@ -5537,17 +6119,12 @@ export function renderZBBDashboard() {
             statusText.textContent = 'Add your monthly income to start budgeting.';
         } else {
             statusIcon.textContent = '⚠️';
-            statusText.textContent = `Fix Left to Budget (${symbol}${formatMoney(Math.abs(tbb))}) before tracking.`;
+            statusText.textContent = `Overassigned by ${symbol}${formatMoney(Math.abs(tbb))}.`;
         }
     }
 
-    if (typeof window.zbbSummaryCollapsed === 'undefined') {
-        window.zbbSummaryCollapsed = State.getDashboardSummaryCollapsed ? State.getDashboardSummaryCollapsed() : true;
-    }
-
-    applyDashboardSummaryState();
-    setupDashboardSummaryGestureToggle();
     setupPrivacyBlur();
+    applyZBBAmountRevealState();
 }
 
 function shouldTreatSavingsAsIncome() {
@@ -5583,9 +6160,9 @@ function setIncomeTotalLabels(treatSavingsAsIncome = shouldTreatSavingsAsIncome(
     const incomeTotalTitle = document.getElementById('incomeTotalTitle');
     const calendarIncomeLabel = document.getElementById('calendarMonthIncomeLabel');
     const recentIncomeLabel = document.getElementById('recentOverviewIncomeLabel');
-    const zbbRevealLabel = treatSavingsAsIncome ? 'Monthly Income plus Savings' : 'Monthly Income';
+    const zbbRevealLabel = treatSavingsAsIncome ? 'Income plus Savings' : 'Income';
 
-    if (zbbIncomeLabel) zbbIncomeLabel.textContent = treatSavingsAsIncome ? 'Monthly Income + Savings' : 'Monthly Income';
+    if (zbbIncomeLabel) zbbIncomeLabel.textContent = treatSavingsAsIncome ? 'Income + Savings' : 'Income';
     if (zbbIncomeContainer) {
         zbbIncomeContainer.dataset.revealLabel = zbbRevealLabel;
         zbbIncomeContainer.setAttribute('aria-label', `Show ${zbbRevealLabel} amount. Currently hidden for privacy.`);
@@ -5627,12 +6204,108 @@ function applyDashboardSummaryState() {
 }
 
 export function toggleZBBSummary() {
-    const current = typeof window.zbbSummaryCollapsed === 'undefined'
-        ? (State.getDashboardSummaryCollapsed ? State.getDashboardSummaryCollapsed() : true)
-        : Boolean(window.zbbSummaryCollapsed);
+    toggleZBBAmountReveal();
+}
 
-    window.zbbSummaryCollapsed = !current;
-    applyDashboardSummaryState();
+function getZBBAmountContainers() {
+    return Array.from(document.querySelectorAll('#zbbSummaryCard .money-container[data-reveal-scope="zbb-summary"]'));
+}
+
+function clearZBBSummaryRevealTimer() {
+    if (!privacyTimers.has(ZBB_SUMMARY_REVEAL_ID)) return;
+    const timers = privacyTimers.get(ZBB_SUMMARY_REVEAL_ID);
+    clearTimeout(timers.hide);
+    clearTimeout(timers.warn);
+    privacyTimers.delete(ZBB_SUMMARY_REVEAL_ID);
+}
+
+function applyZBBAmountRevealState() {
+    const card = document.getElementById('zbbSummaryCard');
+    const toggle = document.getElementById('zbbAmountRevealToggle');
+    const textEl = toggle?.querySelector('.zbb-summary-toggle-text');
+    const containers = getZBBAmountContainers();
+    const revealed = containers.some(container => container.classList.contains('revealed'));
+
+    card?.classList.toggle('reveal-active', revealed);
+    if (toggle) {
+        toggle.setAttribute('aria-pressed', revealed ? 'true' : 'false');
+        toggle.setAttribute('aria-label', revealed ? 'Hide plan amounts' : 'Show plan amounts');
+    }
+    if (textEl) textEl.textContent = revealed ? 'Hide amounts' : 'Show amounts';
+}
+
+function setZBBAmountsRevealed(revealed, options = {}) {
+    const { scheduleAutoHide = revealed } = options;
+    const card = document.getElementById('zbbSummaryCard');
+    const containers = getZBBAmountContainers();
+
+    clearZBBSummaryRevealTimer();
+    containers.forEach(container => {
+        const labelText = container.dataset.revealLabel || 'Amount';
+        container.classList.toggle('revealed', Boolean(revealed));
+        container.setAttribute('aria-pressed', revealed ? 'true' : 'false');
+        container.setAttribute(
+            'aria-label',
+            revealed
+                ? `${labelText} revealed. Will hide automatically in 15 seconds.`
+                : `${labelText} amount. Currently hidden for privacy.`
+        );
+        syncPrivacyDisplay(container);
+    });
+
+    if (card) {
+        card.classList.toggle('reveal-active', Boolean(revealed));
+        if (!revealed) {
+            const rect = card.querySelector('.timer-rect');
+            if (rect) {
+                rect.style.animation = 'none';
+                void rect.offsetWidth;
+                rect.style.animation = null;
+            }
+        }
+    }
+
+    if (revealed && scheduleAutoHide) {
+        if (navigator.vibrate) navigator.vibrate(50);
+        const warnTimer = setTimeout(() => {
+            containers.forEach(container => {
+                const labelText = container.dataset.revealLabel || 'Amount';
+                container.setAttribute('aria-label', `${labelText} will hide in 5 seconds.`);
+            });
+        }, 10000);
+        const hideTimer = setTimeout(() => setZBBAmountsRevealed(false, { scheduleAutoHide: false }), 15000);
+        privacyTimers.set(ZBB_SUMMARY_REVEAL_ID, { warn: warnTimer, hide: hideTimer });
+    }
+
+    applyZBBAmountRevealState();
+}
+
+export function toggleZBBAmountReveal() {
+    const shouldReveal = !getZBBAmountContainers().some(container => container.classList.contains('revealed'));
+    setZBBAmountsRevealed(shouldReveal);
+}
+
+export function handleZBBPlanAction(action = 'review-budget') {
+    if (action === 'add-income') {
+        if (typeof window.switchTab === 'function') window.switchTab('add');
+        if (typeof window.setType === 'function') window.setType('income');
+        setTimeout(() => {
+            const amountInput = document.getElementById('txAmount');
+            const amountContainer = document.getElementById('heroAmountContainer') || amountInput;
+            amountContainer?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+            amountContainer?.classList?.add('add-income-cta-highlight');
+            setTimeout(() => amountContainer?.classList?.remove('add-income-cta-highlight'), 1800);
+            setTimeout(() => {
+                amountInput?.focus?.();
+                amountInput?.select?.();
+            }, 160);
+        }, 120);
+        return;
+    }
+
+    if (['fix-budget', 'assign-money', 'review-budget'].includes(action)) {
+        routeToCategoryAttention(action);
+    }
 }
 
 function setupDashboardSummaryGestureToggle() {
@@ -5664,6 +6337,7 @@ function setupPrivacyBlur() {
         const card = container.closest('.zbb-card');
         const labelText = container.dataset.revealLabel || card?.querySelector('.card-label')?.textContent || "Amount";
         const blurId = container.dataset.blurId || (container.dataset.blurId = generateId());
+        const isSectionScoped = container.dataset.revealScope === 'zbb-summary';
 
         if (!container.dataset.blurInit) {
             container.dataset.blurInit = "true";
@@ -5730,13 +6404,15 @@ function setupPrivacyBlur() {
                 syncPrivacyDisplay(container);
             };
 
-            container.addEventListener('click', toggleReveal);
-            container.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    toggleReveal();
-                }
-            });
+            if (!isSectionScoped) {
+                container.addEventListener('click', toggleReveal);
+                container.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleReveal();
+                    }
+                });
+            }
         }
 
         syncPrivacyDisplay(container, valueEl.textContent);
@@ -6747,6 +7423,7 @@ export function renderSavingsTab() {
     grid.innerHTML = '';
 
     if (savingsBuckets.length === 0 && !emergencyFundCardHTML) {
+        renderDensityControls({ containerId: 'savingsDensityControls' });
         grid.innerHTML = `
             <div class="savings-empty-state">
                 <div class="savings-empty-icon" aria-hidden="true">&#128176;</div>
@@ -6758,8 +7435,29 @@ export function renderSavingsTab() {
         return;
     }
 
-    currentSavingsVisibleCount = Math.max(SAVINGS_INITIAL_RENDER, Math.min(currentSavingsVisibleCount, savingsBuckets.length));
-    const visibleBuckets = savingsBuckets.slice(0, Math.min(currentSavingsVisibleCount, savingsBuckets.length));
+    const visibleSavingsCount = getDensityVisibleCount(savingsBuckets.length, savingsVisibleLimit);
+    const visibleBuckets = savingsVisibleLimit === LIST_DENSITY_ALL
+        ? savingsBuckets
+        : savingsBuckets.slice(0, visibleSavingsCount);
+    currentSavingsVisibleCount = visibleBuckets.length;
+    const hiddenSavingsCount = Math.max(0, savingsBuckets.length - visibleBuckets.length);
+    const savingsStep = getDensityStep(savingsDisplaySize);
+    renderDensityControls({
+        containerId: 'savingsDensityControls',
+        label: 'Show',
+        selectedValue: savingsDisplaySize,
+        countText: buildDensityCountText({
+            visibleCount: visibleBuckets.length,
+            totalCount: savingsBuckets.length,
+            noun: 'savings goals'
+        }),
+        loadMoreLabel: hiddenSavingsCount > 0 && savingsStep > 0
+            ? `Load ${Math.min(savingsStep, hiddenSavingsCount)} more`
+            : '',
+        loadMoreAction: 'window.loadMoreSavingsGoals',
+        setAction: 'window.setSavingsDisplaySize',
+        showOptions: savingsBuckets.length > 0
+    });
     grid.innerHTML = `
         ${emergencyFundCardHTML}
         ${visibleBuckets.map(cat => `
@@ -6767,21 +7465,24 @@ export function renderSavingsTab() {
                 ${generateSavingsCardHTML(cat.id, cat)}
             </div>
         `).join('')}
-        ${visibleBuckets.length < savingsBuckets.length ? `
-            <div class="savings-action-row">
-                <button type="button" class="income-show-more-btn" onclick="window.loadMoreSavingsGoals()" aria-label="Show more savings goals">
-                    Show ${Math.min(SAVINGS_LAZY_BATCH, savingsBuckets.length - visibleBuckets.length)} More
-                </button>
-            </div>
-        ` : ''}
         <div class="savings-action-row">
             <button type="button" class="btn-primary-dashed" onclick="window.openSavingsGoalModal()">+ Create Savings Goal</button>
         </div>
     `;
 }
 
+window.setSavingsDisplaySize = function(value) {
+    savingsDisplaySize = normalizeDensityValue(value, DEFAULT_SAVINGS_DISPLAY_SIZE);
+    resetSavingsVisibleLimit();
+    renderSavingsTab();
+};
+
 window.loadMoreSavingsGoals = function() {
-    currentSavingsVisibleCount += SAVINGS_LAZY_BATCH;
+    if (savingsVisibleLimit === LIST_DENSITY_ALL) return;
+    const step = getDensityStep(savingsDisplaySize);
+    if (step <= 0) return;
+    savingsVisibleLimit += step;
+    currentSavingsVisibleCount = savingsVisibleLimit;
     renderSavingsTab();
 };
 
@@ -7622,6 +8323,7 @@ export function renderIncomeTab() {
         // 4. Empty State
         if (incomeSources.length === 0) {
             visibleIncomeSourceCount = INCOME_INITIAL_RENDER_COUNT;
+            renderDensityControls({ containerId: 'incomeDensityControls' });
             breakdownEl.innerHTML = `
                 <div class="empty-state-container income-empty-state">
                     <div class="empty-state-animated-icon" style="font-size: 3.5rem; margin-bottom: 1rem;">💸</div>
@@ -7637,9 +8339,30 @@ export function renderIncomeTab() {
 
         if (actionArea) actionArea.style.display = 'block';
 
-    visibleIncomeSourceCount = Math.max(INCOME_INITIAL_RENDER_COUNT, Math.min(visibleIncomeSourceCount, incomeSources.length));
-    const visibleIncomeSources = incomeSources.slice(0, visibleIncomeSourceCount);
+    const visibleIncomeCount = getDensityVisibleCount(incomeSources.length, incomeVisibleLimit);
+    const visibleIncomeSources = incomeVisibleLimit === LIST_DENSITY_ALL
+        ? incomeSources
+        : incomeSources.slice(0, visibleIncomeCount);
+    visibleIncomeSourceCount = visibleIncomeSources.length;
     const remainingIncomeSources = incomeSources.length - visibleIncomeSources.length;
+    const incomeStep = getDensityStep(incomeDisplaySize);
+
+    renderDensityControls({
+        containerId: 'incomeDensityControls',
+        label: 'Show',
+        selectedValue: incomeDisplaySize,
+        countText: buildDensityCountText({
+            visibleCount: visibleIncomeSources.length,
+            totalCount: incomeSources.length,
+            noun: 'income sources'
+        }),
+        loadMoreLabel: remainingIncomeSources > 0 && incomeStep > 0
+            ? `Load ${Math.min(incomeStep, remainingIncomeSources)} more`
+            : '',
+        loadMoreAction: 'window.loadMoreIncomeSources',
+        setAction: 'window.setIncomeDisplaySize',
+        showOptions: incomeSources.length > 0
+    });
 
     // 5. Build Source Cards
     const incomeSourceCards = visibleIncomeSources.map(src => {
@@ -7667,13 +8390,6 @@ export function renderIncomeTab() {
 
     breakdownEl.innerHTML = `
         ${incomeSourceCards}
-        ${remainingIncomeSources > 0 ? `
-        <div style="display: flex; justify-content: center; padding: 0.25rem 0 0.5rem;">
-            <button type="button" class="income-show-more-btn" onclick="window.loadMoreIncomeSources()" aria-label="Show ${Math.min(INCOME_LAZY_BATCH_SIZE, remainingIncomeSources)} more income sources. ${remainingIncomeSources} remaining.">
-                Show ${Math.min(INCOME_LAZY_BATCH_SIZE, remainingIncomeSources)} More
-            </button>
-        </div>
-        ` : ''}
         <div class="income-source-actions">
             <button type="button" class="btn-primary-dashed" onclick="window.openAddSourceModal()">
                 + Add New Source
@@ -7684,8 +8400,18 @@ export function renderIncomeTab() {
     applyIncomeCelebrationCollapsedState();
 }
 
+window.setIncomeDisplaySize = function(value) {
+    incomeDisplaySize = normalizeDensityValue(value, DEFAULT_INCOME_DISPLAY_SIZE);
+    resetIncomeVisibleLimit();
+    renderIncomeTab();
+};
+
 window.loadMoreIncomeSources = function() {
-    visibleIncomeSourceCount += INCOME_LAZY_BATCH_SIZE;
+    if (incomeVisibleLimit === LIST_DENSITY_ALL) return;
+    const step = getDensityStep(incomeDisplaySize);
+    if (step <= 0) return;
+    incomeVisibleLimit += step;
+    visibleIncomeSourceCount = incomeVisibleLimit;
     renderIncomeTab();
 };
 
@@ -7901,6 +8627,7 @@ export function applyCategorySort() {
     const select = document.getElementById('categorySortSelect');
     if (!select) return;
     State.setCategorySort(select.value);
+    resetCategoryVisibleLimit();
     if (select.value !== 'manual') {
         isCategoryEditMode = false;
         selectedCategories.clear();
@@ -8024,6 +8751,9 @@ export function switchTab(viewName) {
     }
     if (viewName === 'savings') {
         renderSavingsTab();
+    }
+    if (viewName === 'debt') {
+        renderDebtTab();
     }
     if (viewName === 'calendar') {
         renderBudgetCalendar();
@@ -11487,9 +12217,17 @@ export function executeCategoryDelete(directName = null, targetReplacement = nul
 // ==========================================
 
 // Global state for lazy loading within the drill-down panel
-let txScrollObserver = null;
-const TX_SCROLL_TRIGGER_ID = 'drillDownScrollTrigger';
 let openDrillDownSwipeTxId = '';
+const SLIDE_OVER_RECENT_DEFAULT_DISPLAY_SIZE = 5;
+let slideOverRecentState = {
+    contextKey: '',
+    displaySize: SLIDE_OVER_RECENT_DEFAULT_DISPLAY_SIZE,
+    visibleLimit: SLIDE_OVER_RECENT_DEFAULT_DISPLAY_SIZE,
+    transactions: [],
+    categoryName: '',
+    categoryType: 'expense',
+    symbol: '$'
+};
 const DRILLDOWN_ACTION_REVEAL_OFFSET = -216;
 const DRILLDOWN_ACTION_REVEAL_THRESHOLD = -68;
 const ACTION_WHEEL_REVEAL_THRESHOLD = 42;
@@ -11510,105 +12248,116 @@ function getHorizontalActionWheelDelta(event) {
     return deltaX;
 }
 
-/**
- * NEW HELPER: Renders the transaction list with infinite scroll.
- * Shows first 3 transactions, then auto-loads more as user scrolls down.
- */
-function renderDrillDownTransactionHistory(categoryName, categoryType, symbol) {
+function getSlideOverRecentContextKey(categoryName, categoryType) {
+    return `${String(categoryType || 'expense').toLowerCase()}::${String(categoryName || '').toLowerCase()}`;
+}
+
+function resetSlideOverRecentState(contextKey = '') {
+    slideOverRecentState = {
+        contextKey,
+        displaySize: SLIDE_OVER_RECENT_DEFAULT_DISPLAY_SIZE,
+        visibleLimit: SLIDE_OVER_RECENT_DEFAULT_DISPLAY_SIZE,
+        transactions: [],
+        categoryName: '',
+        categoryType: 'expense',
+        symbol: State.getSymbol ? State.getSymbol() : '$'
+    };
+}
+
+function syncSlideOverRecentControls(totalCount = 0) {
+    const select = document.getElementById('drillDownRecentDisplaySize');
+    if (!select) return;
+    const displaySize = slideOverRecentState.displaySize === LIST_DENSITY_ALL
+        ? LIST_DENSITY_ALL
+        : String(slideOverRecentState.displaySize || SLIDE_OVER_RECENT_DEFAULT_DISPLAY_SIZE);
+    select.value = displaySize;
+    select.disabled = totalCount === 0;
+    select.onchange = (event) => {
+        const nextSize = normalizeDensityValue(event.target.value, SLIDE_OVER_RECENT_DEFAULT_DISPLAY_SIZE);
+        slideOverRecentState.displaySize = nextSize;
+        slideOverRecentState.visibleLimit = nextSize === LIST_DENSITY_ALL
+            ? LIST_DENSITY_ALL
+            : Number(nextSize || SLIDE_OVER_RECENT_DEFAULT_DISPLAY_SIZE);
+        renderSlideOverRecentRows();
+    };
+}
+
+function renderSlideOverRecentRows() {
+    const txHistoryList = document.getElementById('drillDownTxList');
+    if (!txHistoryList) return;
+
+    const relatedTransactions = Array.isArray(slideOverRecentState.transactions)
+        ? slideOverRecentState.transactions
+        : [];
+    const totalCount = relatedTransactions.length;
+    syncSlideOverRecentControls(totalCount);
+    closeDrillDownSwipeActions();
+
+    if (totalCount === 0) {
+        txHistoryList.innerHTML = `
+            <div class="drilldown-empty" style="text-align:center; padding: 2rem; color: var(--text-dim);">
+                No transactions in this category this month.
+            </div>`;
+        return;
+    }
+
+    const visibleCount = getDensityVisibleCount(totalCount, slideOverRecentState.visibleLimit);
+    const visibleTransactions = slideOverRecentState.visibleLimit === LIST_DENSITY_ALL
+        ? relatedTransactions
+        : relatedTransactions.slice(0, visibleCount);
+    const hiddenCount = Math.max(0, totalCount - visibleTransactions.length);
+    const step = getDensityStep(slideOverRecentState.displaySize);
+
+    txHistoryList.innerHTML = `
+        ${visibleTransactions.map(tx => createTransactionCardHTML(tx, slideOverRecentState.symbol)).join('')}
+        <div class="drill-down-recent-footer">
+            <div class="drill-down-recent-count">
+                Showing ${visibleTransactions.length} of ${totalCount} related transaction${totalCount === 1 ? '' : 's'}
+            </div>
+            ${hiddenCount > 0 && step > 0 ? `
+                <button type="button" class="drill-down-load-more-btn" onclick="window.loadMoreSlideOverRecentTransactions()">
+                    Load ${Math.min(step, hiddenCount)} more
+                </button>
+            ` : ''}
+        </div>
+    `;
+    bindDrillDownSwipeActions(txHistoryList);
+}
+
+function renderDrillDownTransactionHistory(categoryName, categoryType, symbol, transactionsOverride = null) {
     const txHistoryList = document.getElementById('drillDownTxList');
     if (!txHistoryList) {
         console.warn('[DrillDown] #drillDownTxList element not found.');
         return;
     }
 
-    // Disconnect any previous observer to prevent double-listeners
-    if (txScrollObserver) {
-        txScrollObserver.disconnect();
-        txScrollObserver = null;
+    const contextKey = getSlideOverRecentContextKey(categoryName, categoryType);
+    if (slideOverRecentState.contextKey !== contextKey) {
+        resetSlideOverRecentState(contextKey);
     }
 
-    // 1. Get Data
-    const allTxs = State.getTransactions() || [];
+    const categoryTransactions = Array.isArray(transactionsOverride)
+        ? [...transactionsOverride]
+        : getCategoryDetailTransactions({ name: categoryName, type: categoryType });
 
-    // Filter by transaction kind so expense, income, savings, and debt histories all use the same action rail.
-    const desiredKind = ['savings', 'sinking_fund', 'external'].includes(categoryType)
-        ? 'savings'
-        : categoryType;
-    let categoryTransactions = allTxs.filter(tx =>
-        tx &&
-        !tx.isDeleted &&
-        tx.category === categoryName &&
-        getTransactionKind(tx) === desiredKind
-    );
-
-    // 2. Sort (Newest First)
     categoryTransactions.sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
+    slideOverRecentState = {
+        ...slideOverRecentState,
+        contextKey,
+        categoryName,
+        categoryType,
+        symbol,
+        transactions: categoryTransactions
+    };
+    renderSlideOverRecentRows();
+}
 
-    // Handle empty state immediately
-    if (categoryTransactions.length === 0) {
-        txHistoryList.innerHTML = `
-            <div class="drilldown-empty" style="text-align:center; padding: 2rem; color: var(--text-dim);">
-                No transactions yet for this category.
-            </div>`;
-        return;
-    }
-
-    // 3. Render Initial Batch (First 3)
-    const initialLimit = Math.min(3, categoryTransactions.length);
-    const initialTransactions = categoryTransactions.slice(0, initialLimit);
-
-    txHistoryList.innerHTML = initialTransactions.map(tx => createTransactionCardHTML(tx, symbol)).join('');
-    bindDrillDownSwipeActions(txHistoryList);
-
-    // 4. Setup Infinite Scroll Trigger if there are more items
-    if (initialTransactions.length < categoryTransactions.length) {
-        const triggerDiv = document.createElement('div');
-        triggerDiv.id = TX_SCROLL_TRIGGER_ID;
-        triggerDiv.style.cssText = `
-            height: 1px;
-            width: 100%;
-            opacity: 0;
-            pointer-events: none;
-            margin-top: 1rem;
-        `;
-
-        // Initialize Intersection Observer
-        if ('IntersectionObserver' in window) {
-            txScrollObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        // Unobserve to prevent re-firing immediately
-                        txScrollObserver.unobserve(entry.target);
-
-                        // Load next batch
-                        loadNextBatch(categoryName, categoryType, symbol, categoryTransactions, txHistoryList, entry.target);
-                    }
-                });
-            }, {
-                root: txHistoryList,
-                rootMargin: '50px', // Start loading 50px before bottom
-                threshold: 0.1
-            });
-
-            txScrollObserver.observe(triggerDiv);
-        } else {
-            // Fallback for old browsers: Show a "Load More" button
-            const fallbackBtn = document.createElement('button');
-            fallbackBtn.textContent = 'Load More Transactions';
-            fallbackBtn.style.cssText = `
-                width: 100%; margin-top: 1rem; padding: 0.75rem;
-                background: var(--accent); color: white; border: none;
-                border-radius: 8px; font-weight: 600; cursor: pointer;
-            `;
-            fallbackBtn.onclick = () => {
-                loadNextBatch(categoryName, categoryType, symbol, categoryTransactions, txHistoryList, null);
-                fallbackBtn.remove();
-            };
-            txHistoryList.appendChild(fallbackBtn);
-        }
-
-        txHistoryList.appendChild(triggerDiv);
-    }
+window.loadMoreSlideOverRecentTransactions = function() {
+    if (slideOverRecentState.visibleLimit === LIST_DENSITY_ALL) return;
+    const step = getDensityStep(slideOverRecentState.displaySize);
+    if (step <= 0) return;
+    slideOverRecentState.visibleLimit += step;
+    renderSlideOverRecentRows();
 }
 
 /**
@@ -11872,39 +12621,218 @@ document.addEventListener('keydown', (event) => {
     closeDrillDownSwipeActions();
 });
 
-/**
- * Helper: Loads the next batch of transactions (5 at a time)
- */
-function loadNextBatch(categoryName, categoryType, symbol, allCategoryTxs, container, triggerElement) {
-    // Count existing cards to determine next slice position
-    const existingCards = container.querySelectorAll('.subcategory-item').length;
-    const batchSize = 5;
+function getDrillDownMetricLabels(categoryType = 'expense') {
+    const normalized = String(categoryType || 'expense').toLowerCase();
+    if (normalized === 'income') {
+        return {
+            assigned: 'Expected',
+            spent: 'Logged',
+            remaining: 'Expected Left',
+            assignedHelp: 'What you expected',
+            spentHelp: 'This month',
+            remainingHelp: 'Still expected'
+        };
+    }
+    if (['savings', 'sinking_fund', 'external'].includes(normalized)) {
+        return {
+            assigned: 'Goal',
+            spent: 'Saved',
+            remaining: 'Remaining',
+            assignedHelp: 'What you planned',
+            spentHelp: 'This month',
+            remainingHelp: 'Left to save'
+        };
+    }
+    if (normalized === 'debt') {
+        return {
+            assigned: 'Starting Balance',
+            spent: 'Paid',
+            remaining: 'Remaining',
+            assignedHelp: 'Original amount',
+            spentHelp: 'This month',
+            remainingHelp: 'Left to pay'
+        };
+    }
+    return {
+        assigned: 'Assigned',
+        spent: 'Spent',
+        remaining: 'Remaining',
+        assignedHelp: 'What you planned',
+        spentHelp: 'This month',
+        remainingHelp: 'Left to spend'
+    };
+}
 
-    // Safety check: Don't go out of bounds
-    if (existingCards >= allCategoryTxs.length) {
-        if (triggerElement) triggerElement.remove();
-        return;
+function getDrillDownActionPlan(summary = {}) {
+    if (summary.status === 'over-budget') {
+        return { primary: 'Adjust Assigned', primaryAction: 'adjust', secondary: 'View Transactions', secondaryAction: 'view' };
+    }
+    if (summary.status === 'needs-assignment') {
+        return { primary: 'Assign Money', primaryAction: 'adjust', secondary: 'View Transactions', secondaryAction: 'view' };
+    }
+    if (summary.status === 'no-activity') {
+        return { primary: 'Add Transaction', primaryAction: 'add', secondary: 'View Transactions', secondaryAction: 'view' };
+    }
+    if (['fully-used', 'on-track', 'getting-close'].includes(summary.status)) {
+        return { primary: 'Adjust Assigned', primaryAction: 'adjust', secondary: 'View Transactions', secondaryAction: 'view', primaryEmphasis: false };
+    }
+    return { primary: 'Add Transaction', primaryAction: 'add', secondary: 'View Transactions', secondaryAction: 'view' };
+}
+
+function setDrillDownText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+
+function setDrillDownMetricValue(el, value) {
+    if (!el) return;
+    const text = String(value ?? '');
+    el.textContent = text;
+    el.title = text;
+    el.classList.remove('is-long-number', 'is-extra-long-number', 'is-ultra-long-number');
+    const compactLength = text.replace(/[^\dA-Za-z]/g, '').length;
+    if (compactLength >= 12) {
+        el.classList.add('is-ultra-long-number');
+    } else if (compactLength >= 10) {
+        el.classList.add('is-extra-long-number');
+    } else if (compactLength >= 7) {
+        el.classList.add('is-long-number');
+    }
+}
+
+function shouldShowDrillDownInsight(summary = {}) {
+    if (!summary) return false;
+    const duplicateCurrentStates = new Set([
+        'current-month',
+        'needs-assignment',
+        'over-budget',
+        'no-activity',
+        'fully-used',
+        'getting-close',
+        'on-track'
+    ]);
+    if (duplicateCurrentStates.has(summary.status)) return false;
+    const insight = String(summary.insightMessage || '').trim().toLowerCase();
+    const status = String(summary.statusMessage || '').trim().toLowerCase();
+    return Boolean(insight) && insight !== status;
+}
+
+function renderCategoryDetailCard(summary) {
+    if (!summary) return;
+
+    const statusCard = document.getElementById('drillDownStatusCard');
+    const statusIcon = document.getElementById('drillDownStatusIcon');
+    const labels = getDrillDownMetricLabels(summary.categoryType);
+    const remaining = summary.remainingThisMonth;
+    const remainingLabel = remaining < -0.005 ? 'Over By' : labels.remaining;
+    const actionPlan = getDrillDownActionPlan(summary);
+
+    setDrillDownText('drillDownSubtitle', `${labels.assigned} view for ${summary.monthLabel}`);
+    setDrillDownText('drillDownStatusIcon', summary.statusIcon);
+    setDrillDownText('drillDownStatusLabel', summary.statusLabel);
+    setDrillDownText('drillDownStatusMessage', summary.statusMessage);
+    setDrillDownText('drillDownAssignedLabel', labels.assigned);
+    setDrillDownText('drillDownToggleLabel', labels.spent);
+    setDrillDownText('drillDownRemainingLabel', remainingLabel);
+    setDrillDownText('drillDownSpentHelp', labels.spentHelp);
+    setDrillDownText('drillDownRemainingHelp', remaining < -0.005 ? 'Needs attention' : labels.remainingHelp);
+    setDrillDownText('drillDownPrimaryActionBtn', actionPlan.primary);
+
+    const insightCard = document.getElementById('drillDownInsightCard');
+    if (insightCard) {
+        const showInsight = shouldShowDrillDownInsight(summary);
+        insightCard.hidden = !showInsight;
+        if (showInsight) setDrillDownText('drillDownInsight', summary.insightMessage);
     }
 
-    const endIdx = Math.min(existingCards + batchSize, allCategoryTxs.length);
-    const newTransactions = allCategoryTxs.slice(existingCards, endIdx);
+    const assignedHelp = document.querySelector('#budgetEditWrapper + .metric-help');
+    if (assignedHelp) assignedHelp.textContent = labels.assignedHelp;
 
-    // FIX: Use insertAdjacentHTML for strings instead of insertBefore with strings
-    const newHTML = newTransactions.map(tx => createTransactionCardHTML(tx, symbol)).join('');
-
-    if (triggerElement && container.contains(triggerElement)) {
-        // Insert before the trigger element
-        triggerElement.insertAdjacentHTML('beforebegin', newHTML);
-    } else {
-        // Append to end
-        container.insertAdjacentHTML('beforeend', newHTML);
+    if (statusCard) {
+        statusCard.classList.remove('is-neutral', 'is-success', 'is-warning', 'is-danger', 'is-compact');
+        statusCard.classList.add(`is-${summary.statusTone || 'neutral'}`);
+        statusCard.classList.toggle('is-compact', [
+            'current-month',
+            'needs-assignment',
+            'over-budget',
+            'no-activity',
+            'fully-used',
+            'getting-close',
+            'on-track'
+        ].includes(summary.status));
     }
-    bindDrillDownSwipeActions(container);
+    if (statusIcon) statusIcon.setAttribute('aria-label', summary.statusLabel);
 
-    // If we reached the end, remove the trigger/stop observing
-    if (endIdx >= allCategoryTxs.length && triggerElement) {
-        triggerElement.remove();
-        if (txScrollObserver) txScrollObserver.disconnect();
+    const primary = document.getElementById('drillDownPrimaryActionBtn');
+    const secondary = document.getElementById('drillDownSecondaryActionBtn');
+    if (primary) {
+        primary.hidden = false;
+        primary.classList.toggle('btn-drill-primary', actionPlan.primaryEmphasis !== false);
+        primary.dataset.action = actionPlan.primaryAction;
+        primary.setAttribute('aria-label', `${actionPlan.primary} for ${summary.categoryName}`);
+        primary.onclick = () => handleDrillDownAction(actionPlan.primaryAction);
+    }
+    if (secondary) {
+        secondary.hidden = Boolean(actionPlan.secondaryHidden);
+        if (actionPlan.secondaryHidden) {
+            secondary.textContent = '';
+            secondary.dataset.action = '';
+            secondary.removeAttribute('aria-label');
+            secondary.onclick = null;
+        } else {
+            setDrillDownText('drillDownSecondaryActionBtn', actionPlan.secondary);
+            secondary.dataset.action = actionPlan.secondaryAction;
+            secondary.setAttribute('aria-label', `${actionPlan.secondary} for ${summary.categoryName}`);
+            secondary.onclick = () => handleDrillDownAction(actionPlan.secondaryAction);
+        }
+    }
+
+    renderDrillDownBudgetMetrics({ summary });
+    updateDrillDownCategoryProgress({ summary });
+}
+
+function focusDrillDownAssignedAmount() {
+    const wrapper = document.getElementById('budgetEditWrapper');
+    if (!wrapper) return;
+    wrapper.click();
+}
+
+function openDrillDownAddTransaction(category) {
+    if (!category) return;
+    window.closeCategoryDrillDown();
+    window.switchTab?.('add');
+    window.setType?.(getCategoryDetailKind(category.type || 'expense'));
+    window.selectFormCategory?.(category.name);
+    setTimeout(() => {
+        const amountInput = document.getElementById('txAmount');
+        amountInput?.focus();
+    }, 300);
+}
+
+function openDrillDownRecentTransactions(category) {
+    if (!category) return;
+    window.closeCategoryDrillDown();
+    window.clearBudgetCalendarDate?.();
+    window.currentTxFilter = getCategoryDetailKind(category.type || 'expense');
+    window.switchTab?.('recent');
+    window.filterTransactions?.(window.currentTxFilter);
+    const searchInput = document.getElementById('txSearch');
+    if (searchInput) {
+        searchInput.value = category.name || '';
+        window.toggleRecentSearch?.(true);
+        window.filterRecentTransactions?.();
+    }
+}
+
+function handleDrillDownAction(action) {
+    const category = getCategoryByName(getOpenDrillDownCategoryName());
+    if (!category) return;
+    if (action === 'adjust') {
+        focusDrillDownAssignedAmount();
+    } else if (action === 'view') {
+        openDrillDownRecentTransactions(category);
+    } else if (action === 'add') {
+        openDrillDownAddTransaction(category);
     }
 }
 
@@ -11922,84 +12850,66 @@ function getBudgetMetricStatusClass(value) {
     return 'zbb-neutral';
 }
 
-function renderDrillDownBudgetMetrics({ budget = 0, spent = 0, catType = 'expense' } = {}) {
+function renderDrillDownBudgetMetrics({ budget = 0, spent = 0, catType = 'expense', summary = null } = {}) {
     const symbol = State.getSymbol ? State.getSymbol() : '$';
-    const budgetAmount = Math.max(0, parseFloat(budget) || 0);
-    const spentAmount = Math.max(0, parseFloat(spent) || 0);
+    const budgetAmount = summary ? summary.assignedThisMonth : Math.max(0, parseFloat(budget) || 0);
+    const spentAmount = summary ? summary.spentThisMonth : Math.max(0, parseFloat(spent) || 0);
     const leftAmount = budgetAmount - spentAmount;
-    const mode = window.currentDrillDownMetricMode === 'left' ? 'left' : 'spent';
-    const value = mode === 'left' ? leftAmount : spentAmount;
-    const toggleBtn = document.getElementById('drillDownToggleMetric');
     const toggleLabel = document.getElementById('drillDownToggleLabel');
     const valueEl = document.getElementById('drillDownTotal');
+    const remainingEl = document.getElementById('drillDownRemaining');
     const zbbMessage = document.getElementById('zbbMessage');
     const budgetDisplay = document.getElementById('drillDownBudgetText');
 
-    if (budgetDisplay) budgetDisplay.textContent = `${symbol}${formatMoney(budgetAmount)}`;
-
-    if (catType !== 'expense') {
-        const labels = {
-            income: 'Logged',
-            savings: 'Saved',
-            debt: 'Paid So Far'
-        };
-        if (toggleLabel) toggleLabel.textContent = labels[catType] || 'Spent';
-        if (valueEl) {
-            valueEl.textContent = `${symbol}${formatMoney(spentAmount)}`;
-            valueEl.style.color = getBudgetMetricColor(spentAmount);
-        }
-        if (toggleBtn) {
-            toggleBtn.disabled = true;
-            toggleBtn.removeAttribute('title');
-            toggleBtn.setAttribute('aria-label', `${labels[catType] || 'Spent'} amount`);
-        }
-        if (zbbMessage) zbbMessage.hidden = true;
-        return;
-    }
-
-    if (toggleLabel) toggleLabel.textContent = mode === 'left' ? 'Left' : 'Spent';
+    setDrillDownMetricValue(budgetDisplay, `${symbol}${formatMoney(budgetAmount)}`);
+    if (toggleLabel && !summary) toggleLabel.textContent = catType === 'income' ? 'Logged' : 'Spent';
     if (valueEl) {
-        const prefix = mode === 'left' && leftAmount < -0.005 ? '-' : '';
-        valueEl.textContent = `${prefix}${symbol}${formatMoney(Math.abs(value))}`;
-        const colorValue = mode === 'left'
-            ? leftAmount
-            : (spentAmount <= 0.005 ? 0 : (leftAmount < -0.005 ? -spentAmount : spentAmount));
-        valueEl.style.color = getBudgetMetricColor(colorValue);
+        setDrillDownMetricValue(valueEl, `${symbol}${formatMoney(spentAmount)}`);
+        valueEl.style.color = catType === 'expense' && leftAmount < -0.005
+            ? 'var(--red, #ef4444)'
+            : 'var(--text, #0f172a)';
     }
-
-    if (toggleBtn) {
-        toggleBtn.dataset.metricMode = mode;
-        toggleBtn.disabled = catType !== 'expense';
-        toggleBtn.setAttribute('aria-label', mode === 'left' ? 'Show amount spent' : 'Show amount left');
-        toggleBtn.title = mode === 'left' ? 'Click to show spent' : 'Click to show left';
+    if (remainingEl) {
+        const prefix = leftAmount < -0.005 ? '' : '';
+        setDrillDownMetricValue(remainingEl, `${prefix}${symbol}${formatMoney(Math.abs(leftAmount))}`);
+        remainingEl.style.color = getBudgetMetricColor(leftAmount);
     }
 
     if (zbbMessage) {
-        const shouldShowStart = budgetAmount <= 0.005 && spentAmount <= 0.005;
-        const statusMode = mode === 'left' ? 'spent' : 'left';
-        const statusValue = statusMode === 'left' ? leftAmount : spentAmount;
-        const statusColorValue = statusMode === 'left'
-            ? leftAmount
-            : (spentAmount <= 0.005 ? 0 : (leftAmount < -0.005 ? -spentAmount : spentAmount));
-        const statusPrefix = statusMode === 'left' && leftAmount < -0.005 ? '-' : '';
-
-        zbbMessage.hidden = false;
+        zbbMessage.hidden = true;
         zbbMessage.classList.remove('zbb-positive', 'zbb-neutral', 'zbb-danger', 'zbb-budget-status');
-
-        if (shouldShowStart) {
-            zbbMessage.textContent = 'Set a budget to get started';
-            zbbMessage.classList.add('zbb-neutral');
-        } else {
-            zbbMessage.textContent = `Budgeted amount ${statusMode === 'left' ? 'left' : 'spent'} ${statusPrefix}${symbol}${formatMoney(Math.abs(statusValue))}`;
-            zbbMessage.classList.add('zbb-budget-status', getBudgetMetricStatusClass(statusColorValue));
-        }
     }
 }
 
-function updateDrillDownCategoryProgress({ budget = 0, spent = 0, catType = 'expense', category = null } = {}) {
+function updateDrillDownCategoryProgress({ budget = 0, spent = 0, catType = 'expense', category = null, summary = null } = {}) {
     const progressBar = document.getElementById('drillDownProgress');
     const progressTrack = document.getElementById('drillDownProgressTrack');
     if (!progressBar || !progressTrack) return;
+
+    if (summary) {
+        const clampedPercent = Math.min(Math.max(summary.percentUsed, 0), 100);
+        const roundedPercent = summary.roundedPercent;
+        let fillColor = 'var(--green, #10b981)';
+        if (summary.statusTone === 'danger') fillColor = 'var(--red, #ef4444)';
+        else if (summary.statusTone === 'warning') fillColor = 'var(--yellow, #f59e0b)';
+        else if (summary.status === 'no-activity') fillColor = 'var(--text-dim, #64748b)';
+
+        progressTrack.style.backgroundColor = 'var(--border, #e2e8f0)';
+        progressTrack.setAttribute('aria-label', `${summary.categoryName} progress: ${roundedPercent} percent used.`);
+        progressTrack.setAttribute('aria-valuenow', String(Math.round(clampedPercent)));
+        progressBar.style.width = `${clampedPercent}%`;
+        progressBar.style.backgroundColor = fillColor;
+        progressTrack.style.setProperty('--progress-fill-segment-width', `${clampedPercent}%`);
+        progressTrack.style.setProperty('--progress-track-segment-width', `${100 - clampedPercent}%`);
+        progressTrack.style.setProperty('--progress-fill-label-left', `${Math.max(5, Math.min(clampedPercent / 2, 95))}%`);
+        progressTrack.style.setProperty('--progress-track-label-left', `${Math.max(5, Math.min(clampedPercent + ((100 - clampedPercent) / 2), 95))}%`);
+
+        const fillPctLabel = document.getElementById('drillDownProgressFillPct');
+        const trackPctLabel = document.getElementById('drillDownProgressTrackPct');
+        if (fillPctLabel) fillPctLabel.textContent = `${roundedPercent}% used`;
+        if (trackPctLabel) trackPctLabel.textContent = `${Math.max(0, 100 - Math.round(clampedPercent))}% left`;
+        return;
+    }
 
     const budgetAmount = Math.max(0, parseFloat(budget) || 0);
     const spentAmount = Math.max(0, parseFloat(spent) || 0);
@@ -12239,7 +13149,7 @@ window.openCategoryDrillDown = function(categoryName, categoryIcon) {
     const panel = document.getElementById('categoryDrillDownPanel');
     if (panel) panel.dataset.categoryName = categoryName;
 
-    document.getElementById('drillDownIcon').textContent = categoryIcon || '📁';
+    document.getElementById('drillDownIcon').textContent = categoryIcon || '?';
     document.getElementById('drillDownTitle').textContent = categoryName;
 
     const categories = State.getCategories() || [];
@@ -12262,6 +13172,7 @@ window.openCategoryDrillDown = function(categoryName, categoryIcon) {
         el.setAttribute('aria-label', label);
         el.onclick = handler;
         el.onkeydown = (event) => {
+            if (event.target?.closest?.('input, textarea, select, button, a, [contenteditable="true"], [role="textbox"]')) return;
             if (event.key !== 'Enter' && event.key !== ' ') return;
             event.preventDefault();
             handler(event);
@@ -12277,9 +13188,6 @@ window.openCategoryDrillDown = function(categoryName, categoryIcon) {
         startDrillDownTitleEdit(document.getElementById('drillDownTitle'), getOpenDrillDownCategoryName() || categoryName);
     });
 
-    // 2. Sum up ONLY the transactions that match this category's type
-    const totalAmount = getCategoryTransactionSummary(categoryName, catType).total;
-
     const symbol = State.getSymbol ? State.getSymbol() : '$';
 
     const budgetDisplay = document.getElementById('drillDownBudgetText');
@@ -12287,23 +13195,8 @@ window.openCategoryDrillDown = function(categoryName, categoryIcon) {
     const sourceBudget = Number(targetCategory.budget) || 0;
     if (budgetInput) budgetInput.value = sourceBudget ? sourceBudget.toFixed(2) : '';
 
-    // 3. --- THE MAGIC: DYNAMIC LABELS ---
-    const metricLabels = document.querySelectorAll('.drill-down-metrics .metric-label');
-    if (metricLabels.length >= 2) {
-        if (catType === 'income') {
-            metricLabels[0].textContent = 'Expected';
-            metricLabels[1].textContent = 'Logged';
-        } else if (catType === 'savings') {
-            metricLabels[0].textContent = 'Goal';
-            metricLabels[1].textContent = 'Saved';
-        } else if (catType === 'debt') {
-            metricLabels[0].textContent = 'Starting Balance';
-            metricLabels[1].textContent = 'Paid So Far';
-        } else {
-            metricLabels[0].textContent = 'Budgeted';
-        }
-    }
-    renderDrillDownBudgetMetrics({ budget: sourceBudget, spent: totalAmount, catType });
+    const detailSummary = buildCategoryDetailSummary(targetCategory);
+    renderCategoryDetailCard(detailSummary);
 
     const editBtn = document.getElementById('drillDownEditBtn');
     const deleteBtn = document.getElementById('drillDownDeleteBtn');
@@ -12326,27 +13219,16 @@ window.openCategoryDrillDown = function(categoryName, categoryIcon) {
 
     // 4. --- THE MAGIC: DYNAMIC BUTTON ACTIONS ---
     if (logActionBtn) {
-        if (catType === 'income') logActionBtn.textContent = '+ Log Income';
-        else if (catType === 'savings') logActionBtn.textContent = '+ Log Savings';
-        else if (catType === 'debt') logActionBtn.textContent = '+ Log Payment';
-        else logActionBtn.textContent = '+ Log Expense';
+        let logActionLabel = 'Log Expense';
+        if (catType === 'income') logActionLabel = 'Log Income';
+        else if (catType === 'savings') logActionLabel = 'Log Savings';
+        else if (catType === 'debt') logActionLabel = 'Log Payment';
+        logActionBtn.textContent = '+';
+        logActionBtn.setAttribute('aria-label', logActionLabel);
+        logActionBtn.title = logActionLabel;
 
-        // FIX: Use arrow function to capture current values of categoryName & catType
         logActionBtn.onclick = () => {
-            window.closeCategoryDrillDown();
-            window.switchTab('add');
-            window.setType(catType); // Sets Expense/Income mode correctly
-
-            // Pre-select the correct category in the form
-            if (window.selectFormCategory) {
-                window.selectFormCategory(categoryName);
-            }
-
-            // Optional: Auto-focus amount input
-            setTimeout(() => {
-                const amtInput = document.getElementById('txAmount');
-                if (amtInput) amtInput.focus();
-            }, 300);
+            openDrillDownAddTransaction(targetCategory);
         };
     }
 
@@ -12460,7 +13342,7 @@ window.openCategoryDrillDown = function(categoryName, categoryIcon) {
 
         if (catType === 'income') {
             const expected = sourceBudget;
-            const logged = totalAmount;
+            const logged = detailSummary.spentThisMonth;
 
             if (expected <= 0 && logged <= 0) {
                 if (progressTrack) progressTrack.style.backgroundColor = 'var(--text-dim, #64748b)';
@@ -12579,9 +13461,10 @@ window.openCategoryDrillDown = function(categoryName, categoryIcon) {
     }
     updateDrillDownCategoryProgress({
         budget: sourceBudget,
-        spent: totalAmount,
+        spent: detailSummary.spentThisMonth,
         catType,
-        category: targetCategory
+        category: targetCategory,
+        summary: detailSummary
     });
 
     setupDrillDownBudgetEdit(categoryName);
@@ -12589,7 +13472,7 @@ window.openCategoryDrillDown = function(categoryName, categoryIcon) {
     // --- FIX APPLIED HERE ---
     // Call the new helper function to populate the history list IMMEDIATELY
     // We do this BEFORE opening the panel so the user sees data instantly.
-    renderDrillDownTransactionHistory(categoryName, catType, symbol);
+    renderDrillDownTransactionHistory(categoryName, catType, symbol, detailSummary.recentTransactions);
 
     // -----------------------------------------------------------
     // OLD BROKEN CODE (COMMENTED OUT):
@@ -12607,6 +13490,7 @@ window.closeCategoryDrillDown = function() {
     const panel = document.getElementById('categoryDrillDownPanel');
     closeDrillDownSwipeActions();
     closeDrillDownEmojiPicker();
+    resetSlideOverRecentState();
     if (overlay) overlay.classList.remove('active');
     if (panel) panel.classList.remove('active');
     if (panel) delete panel.dataset.categoryName;
@@ -12685,14 +13569,12 @@ function setupDrillDownBudgetEdit(categoryName) {
         const categories = State.getCategories ? State.getCategories() : [];
         const targetCategory = categories.find(c => c.name === categoryName) || { type: 'expense' };
         const catType = targetCategory.type || 'expense';
-        const totalAmount = getCategoryTransactionSummary(categoryName, catType).total;
-        renderDrillDownBudgetMetrics({ budget: newVal, spent: totalAmount, catType });
-        updateDrillDownCategoryProgress({
-            budget: newVal,
-            spent: totalAmount,
-            catType,
-            category: targetCategory
+        const detailSummary = buildCategoryDetailSummary({
+            ...targetCategory,
+            budget: newVal
         });
+        renderCategoryDetailCard(detailSummary);
+        renderDrillDownTransactionHistory(categoryName, catType, State.getSymbol ? State.getSymbol() : '$', detailSummary.recentTransactions);
         renderCategoryList();
         renderFormCategories();
 
@@ -13854,6 +14736,12 @@ export function renderDebtTab() {
             .slice()
             .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))[0];
         const nextDueText = nextDue ? `${nextDue.name} ${formatDate(nextDue.dueDate)}` : 'No due date';
+        const visibleDebtCount = getDensityVisibleCount(sortedDebts.length, debtVisibleLimit);
+        const visibleDebts = debtVisibleLimit === LIST_DENSITY_ALL
+            ? sortedDebts
+            : sortedDebts.slice(0, visibleDebtCount);
+        const hiddenDebtCount = Math.max(0, sortedDebts.length - visibleDebts.length);
+        const debtStep = getDensityStep(debtDisplaySize);
         const formatDebtApr = value => {
             const parsed = parseFloat(value);
             if (!Number.isFinite(parsed)) return '0%';
@@ -13884,7 +14772,7 @@ export function renderDebtTab() {
             return;
         }
 
-        const debtCardsHtml = sortedDebts.map(debt => {
+        const debtCardsHtml = visibleDebts.map(debt => {
             const balance = Math.max(0, parseFloat(debt.balance) || 0);
             const startingBalance = Math.max(balance, parseFloat(debt.startingBalance) || balance);
             const isPaidOff = balance <= 0;
@@ -13943,9 +14831,26 @@ export function renderDebtTab() {
                         <strong>${esc(nextDueText)}</strong>
                     </div>
                 </div>
+                <div id="debtDensityControls" class="list-density-controls list-density-controls-debt" aria-live="polite"></div>
                 <div class="debt-card-list">${debtCardsHtml}</div>
             </section>
         `;
+        renderDensityControls({
+            containerId: 'debtDensityControls',
+            label: 'Show',
+            selectedValue: debtDisplaySize,
+            countText: buildDensityCountText({
+                visibleCount: visibleDebts.length,
+                totalCount: sortedDebts.length,
+                noun: 'debt accounts'
+            }),
+            loadMoreLabel: hiddenDebtCount > 0 && debtStep > 0
+                ? `Load ${Math.min(debtStep, hiddenDebtCount)} more`
+                : '',
+            loadMoreAction: 'window.loadMoreDebtAccounts',
+            setAction: 'window.setDebtDisplaySize',
+            showOptions: sortedDebts.length > 0
+        });
         return;
     }
 
@@ -14056,6 +14961,20 @@ export function renderDebtTab() {
         `;
     }).join('');
 }
+
+window.setDebtDisplaySize = function(value) {
+    debtDisplaySize = normalizeDensityValue(value, DEFAULT_DEBT_DISPLAY_SIZE);
+    resetDebtVisibleLimit();
+    renderDebtTab();
+};
+
+window.loadMoreDebtAccounts = function() {
+    if (debtVisibleLimit === LIST_DENSITY_ALL) return;
+    const step = getDensityStep(debtDisplaySize);
+    if (step <= 0) return;
+    debtVisibleLimit += step;
+    renderDebtTab();
+};
 
 // --- ADD DEBT MODAL & 2-YEAR FREEDOM MATH ---
 window.openAddDebtModal = function() {
@@ -15731,6 +16650,7 @@ window.currentTxFilter = window.currentTxFilter || 'all';
 window.isBulkMode = Boolean(window.isBulkMode);
 window.selectedTxIds = window.selectedTxIds instanceof Set ? window.selectedTxIds : new Set();
 window.visibleRecentTxIds = Array.isArray(window.visibleRecentTxIds) ? window.visibleRecentTxIds : [];
+window.filteredRecentTxIds = Array.isArray(window.filteredRecentTxIds) ? window.filteredRecentTxIds : [];
 window.openRecentMenuTxId = window.openRecentMenuTxId || '';
 window.openRecentSwipeDeleteTxId = window.openRecentSwipeDeleteTxId || '';
 window.currentDrillDownMetricMode = window.currentDrillDownMetricMode || 'spent';
@@ -15937,6 +16857,29 @@ function getFilteredRecentTransactions(options = {}) {
         .sort((a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0));
 }
 
+function getRecentDensityScopeKey() {
+    const searchTerm = String(document.getElementById('txSearch')?.value || '').toLowerCase().trim();
+    return [
+        normalizeRecentFilter(window.currentTxFilter),
+        selectedCalendarDateKey || '',
+        searchTerm
+    ].join('|');
+}
+
+function isRecentFilteredScopeActive() {
+    const searchTerm = String(document.getElementById('txSearch')?.value || '').trim();
+    return normalizeRecentFilter(window.currentTxFilter) !== 'all'
+        || Boolean(selectedCalendarDateKey)
+        || Boolean(searchTerm);
+}
+
+function pruneSelectedRecentTransactions(validIds = []) {
+    const validSet = new Set(validIds.map(String));
+    Array.from(window.selectedTxIds || []).forEach(id => {
+        if (!validSet.has(String(id))) window.selectedTxIds.delete(id);
+    });
+}
+
 function getBudgetCalendarMonthTitle(date = calendarCursorDate) {
     return new Intl.DateTimeFormat('en-US', {
         month: 'long',
@@ -15957,12 +16900,18 @@ function getBudgetCalendarDayMap(transactions = []) {
             net: 0,
             income: 0,
             outflow: 0,
+            hasGiftCard: false,
             transactions: []
         };
         const signed = getSignedTransactionAmount(tx);
         const kind = getTransactionKind(tx);
+        const isGiftCardTransaction = String(tx.paymentMethod || '').toLowerCase() === GIFT_CARD_PAYMENT_METHOD
+            || Boolean(tx.giftCardId);
         existing.count += 1;
         existing.net += signed;
+        if (isGiftCardTransaction) {
+            existing.hasGiftCard = true;
+        }
         if (kind === 'income' || (treatSavingsAsIncome && kind === 'savings')) {
             existing.income += signed;
         } else if (signed < 0) {
@@ -16029,22 +16978,44 @@ function renderBudgetCalendar() {
         const isToday = dateKey === todayKey;
         const isSelected = dateKey === selectedCalendarDateKey;
         const hasActivity = Boolean(day?.count);
+        const activityToneClass = hasActivity
+            ? (day.hasGiftCard
+                ? ' calendar-activity-gift-card'
+                : (day.net > 0
+                    ? ' calendar-activity-positive'
+                    : (day.outflow > 0 ? ' calendar-activity-expense' : '')))
+            : '';
         const labelParts = [
             formatCalendarDateLabel(dateKey),
             hasActivity ? `${day.count} transaction${day.count === 1 ? '' : 's'}` : 'No transactions',
             hasActivity ? `Net ${day.net < 0 ? '-' : '+'}${symbol}${formatMoney(Math.abs(day.net))}` : ''
         ].filter(Boolean);
+        const daySummary = hasActivity
+            ? `${formatCalendarDateLabel(dateKey)} | ${day.count} transaction${day.count === 1 ? '' : 's'} | Net ${day.net < 0 ? '-' : '+'}${symbol}${formatMoney(Math.abs(day.net))}`
+            : `${formatCalendarDateLabel(dateKey)} | No transactions`;
+        const dayNetText = hasActivity
+            ? `${day.net < 0 ? '-' : '+'}${symbol}${formatMoney(Math.abs(day.net))}`
+            : '';
 
         cells.push(`
             <button type="button"
-                class="calendar-day${inMonth ? '' : ' is-outside-month'}${isToday ? ' is-today' : ''}${isSelected ? ' is-selected' : ''}${hasActivity ? ' has-activity' : ''}"
+                class="calendar-day${inMonth ? '' : ' is-outside-month'}${isToday ? ' is-today' : ''}${isSelected ? ' is-selected' : ''}${hasActivity ? ' has-activity' : ''}${activityToneClass}"
                 onclick="window.selectBudgetCalendarDate(${jsArg(dateKey)})"
                 role="gridcell"
                 aria-selected="${isSelected ? 'true' : 'false'}"
-                aria-label="${esc(labelParts.join('. '))}">
+                aria-label="${esc(labelParts.join('. '))}"
+                data-calendar-date="${esc(dateKey)}"
+                data-calendar-summary="${esc(daySummary)}">
                 <span class="calendar-day-number">${date.getDate()}</span>
-                <span class="calendar-day-count">${hasActivity ? day.count : ''}</span>
-                <span class="calendar-day-net">${hasActivity ? `${day.net < 0 ? '-' : '+'}${symbol}${formatMoney(Math.abs(day.net))}` : ''}</span>
+                <span class="calendar-day-count" aria-hidden="true"></span>
+                <span class="calendar-day-net" aria-hidden="true"></span>
+                ${hasActivity ? `
+                    <span class="calendar-day-popover" aria-hidden="true">
+                        <strong>${esc(formatCalendarDateLabel(dateKey))}</strong>
+                        <span>${day.count} transaction${day.count === 1 ? '' : 's'}</span>
+                        <span>Net ${esc(dayNetText)}</span>
+                    </span>
+                ` : ''}
             </button>
         `);
     }
@@ -16056,10 +17027,12 @@ function renderBudgetCalendar() {
     const selectedPanel = document.getElementById('calendarSelectedPanel');
     const selectedTitle = document.getElementById('calendarSelectedTitle');
     const selectedMeta = document.getElementById('calendarSelectedMeta');
+    const selectedList = document.getElementById('calendarSelectedList');
     if (!selectedPanel || !selectedTitle || !selectedMeta) return;
 
     if (!selectedCalendarDateKey) {
         selectedPanel.hidden = true;
+        if (selectedList) selectedList.innerHTML = '';
         return;
     }
 
@@ -16069,6 +17042,29 @@ function renderBudgetCalendar() {
     selectedMeta.textContent = selectedDay
         ? `${selectedDay.count} transaction${selectedDay.count === 1 ? '' : 's'} - net ${selectedDay.net < 0 ? '-' : '+'}${symbol}${formatMoney(Math.abs(selectedDay.net))}`
         : 'No transactions on this day';
+    if (selectedList) {
+        const selectedTransactions = selectedDay?.transactions || [];
+        const visibleTransactions = selectedTransactions.slice(0, 4);
+        selectedList.innerHTML = visibleTransactions.length
+            ? `
+                ${visibleTransactions.map(tx => {
+                    const display = getTransactionDisplay(tx);
+                    return `
+                        <div class="calendar-selected-tx">
+                            <div class="calendar-selected-tx-main">
+                                <span class="calendar-selected-tx-description">${esc(display.description)}</span>
+                                <span class="calendar-selected-tx-kind">${esc(display.kindLabel)}</span>
+                            </div>
+                            <span class="calendar-selected-tx-amount" style="color: ${display.color};">${esc(display.amountText)}</span>
+                        </div>
+                    `;
+                }).join('')}
+                ${selectedTransactions.length > visibleTransactions.length ? `
+                    <div class="calendar-selected-tx-more">+${selectedTransactions.length - visibleTransactions.length} more in Recent</div>
+                ` : ''}
+            `
+            : '';
+    }
 }
 
 window.moveBudgetCalendarMonth = function(delta = 0) {
@@ -16104,11 +17100,27 @@ window.openBudgetCalendarRecent = function() {
 };
 
 window.openBudgetCalendarFromCategory = function() {
-    if (typeof window.switchTab === 'function') {
-        window.switchTab('calendar');
-    } else {
+    if (typeof window.switchTab !== 'function') {
         renderBudgetCalendar();
+        return;
     }
+
+    const activeTabName = getActiveCommandTabName();
+    if (activeTabName === 'calendar') {
+        const returnTab = categoryCalendarReturnTab && COMMAND_TAB_NAMES.has(categoryCalendarReturnTab)
+            ? categoryCalendarReturnTab
+            : (lastMobileCommandTab && COMMAND_TAB_NAMES.has(lastMobileCommandTab) && lastMobileCommandTab !== 'calendar'
+                ? lastMobileCommandTab
+                : 'add');
+        categoryCalendarReturnTab = '';
+        window.switchTab(returnTab);
+        return;
+    }
+
+    categoryCalendarReturnTab = activeTabName && activeTabName !== 'calendar'
+        ? activeTabName
+        : (lastMobileCommandTab && lastMobileCommandTab !== 'calendar' ? lastMobileCommandTab : 'add');
+    window.switchTab('calendar');
 };
 
 function saveTransactionArray(txArray) {
@@ -17327,14 +18339,22 @@ function renderRecentBulkControls() {
     const countEl = document.getElementById('recentSelectedCount');
     const actionsEl = panel?.querySelector('.recent-bulk-actions');
     const selectBtn = document.getElementById('recentBulkSelectBtn');
+    const selectFilteredBtn = document.getElementById('recentBulkSelectFilteredBtn');
     const deleteBtn = document.getElementById('recentBulkDeleteBtn');
     const toggleBtn = document.getElementById('recentBulkToggleBtn');
     const count = window.selectedTxIds.size;
+    const filteredCount = Array.isArray(window.filteredRecentTxIds) ? window.filteredRecentTxIds.length : 0;
+    const visibleCount = Array.isArray(window.visibleRecentTxIds) ? window.visibleRecentTxIds.length : 0;
+    const hasHiddenFilteredItems = filteredCount > visibleCount;
 
     if (panel) panel.hidden = !window.isBulkMode;
     if (countEl) countEl.textContent = count;
     if (selectBtn) selectBtn.textContent = count > 0 ? 'Clear Selection' : 'Select Visible';
     if (actionsEl) actionsEl.classList.toggle('has-selection', count > 0);
+    if (selectFilteredBtn) {
+        selectFilteredBtn.hidden = !hasHiddenFilteredItems || count > 0;
+        selectFilteredBtn.disabled = !hasHiddenFilteredItems || count > 0;
+    }
     if (deleteBtn) {
         deleteBtn.hidden = count === 0;
         deleteBtn.disabled = count === 0;
@@ -17538,21 +18558,53 @@ window.renderRecentTransactions = function() {
     initRecentPillPull();
     syncRecentFilterPills();
 
-    const visibleTx = getFilteredRecentTransactions();
+    const densityScopeKey = getRecentDensityScopeKey();
+    if (densityScopeKey !== recentLastDensityScopeKey) {
+        recentLastDensityScopeKey = densityScopeKey;
+        resetRecentVisibleLimit();
+    }
+
+    const filteredTx = getFilteredRecentTransactions();
+    const visibleRecentCount = getDensityVisibleCount(filteredTx.length, recentVisibleLimit);
+    const visibleTx = recentVisibleLimit === LIST_DENSITY_ALL
+        ? filteredTx
+        : filteredTx.slice(0, visibleRecentCount);
+    const recentStep = getDensityStep(recentDisplaySize);
+    const hiddenRecentCount = Math.max(0, filteredTx.length - visibleTx.length);
+    window.filteredRecentTxIds = filteredTx.map(tx => tx.id).filter(Boolean);
     window.visibleRecentTxIds = visibleTx.map(tx => tx.id).filter(Boolean);
+    pruneSelectedRecentTransactions(window.filteredRecentTxIds);
     if (window.openRecentSwipeDeleteTxId && !window.visibleRecentTxIds.map(String).includes(String(window.openRecentSwipeDeleteTxId))) {
         window.openRecentSwipeDeleteTxId = '';
     }
 
+    renderDensityControls({
+        containerId: 'recentDensityControls',
+        label: 'Show',
+        selectedValue: recentDisplaySize,
+        countText: buildDensityCountText({
+            visibleCount: visibleTx.length,
+            totalCount: filteredTx.length,
+            noun: 'transactions',
+            filtered: isRecentFilteredScopeActive()
+        }),
+        loadMoreLabel: hiddenRecentCount > 0 && recentStep > 0
+            ? `Load ${Math.min(recentStep, hiddenRecentCount)} more`
+            : '',
+        loadMoreAction: 'window.loadMoreRecentTransactions',
+        setAction: 'window.setRecentDisplaySize',
+        showOptions: filteredTx.length > 0
+    });
+
     renderRecentBulkControls();
     renderRecentDateFilterBar();
-    renderRecentOverview(visibleTx);
+    renderRecentOverview(filteredTx);
 
-    if (visibleTx.length === 0) {
+    if (filteredTx.length === 0) {
         listContainer.innerHTML = `
             <div class="recent-empty-state">
-                <div class="recent-empty-title">No transactions found</div>
-                <div>${selectedCalendarDateKey ? 'Clear the selected calendar day or choose another date.' : 'Try another filter, search term, or add a transaction.'}</div>
+                <div class="recent-empty-title">${getRecentTransactions().length === 0 ? 'No recent transactions yet' : 'No transactions found'}</div>
+                <div>${getRecentTransactions().length === 0 ? 'Add a transaction or import a CSV to get started.' : (selectedCalendarDateKey ? 'Clear the selected calendar day or choose another date.' : 'Try another filter, search term, or add a transaction.')}</div>
             </div>
         `;
         return;
@@ -17655,6 +18707,20 @@ window.handleRecentSearchBlur = function() {
     }
 };
 
+window.setRecentDisplaySize = function(value) {
+    recentDisplaySize = normalizeDensityValue(value, DEFAULT_RECENT_DISPLAY_SIZE);
+    resetRecentVisibleLimit();
+    window.renderRecentTransactions();
+};
+
+window.loadMoreRecentTransactions = function() {
+    if (recentVisibleLimit === LIST_DENSITY_ALL) return;
+    const step = getDensityStep(recentDisplaySize);
+    if (step <= 0) return;
+    recentVisibleLimit += step;
+    window.renderRecentTransactions();
+};
+
 window.filterTransactions = function(filterType) {
     window.currentTxFilter = normalizeRecentFilter(filterType);
     syncRecentFilterPills();
@@ -17686,6 +18752,17 @@ window.selectVisibleTransactions = function() {
     }
 
     window.visibleRecentTxIds.forEach(id => window.selectedTxIds.add(id));
+    window.renderRecentTransactions();
+};
+
+window.selectAllFilteredTransactions = function() {
+    if (window.selectedTxIds.size > 0) {
+        window.selectedTxIds.clear();
+        window.renderRecentTransactions();
+        return;
+    }
+
+    window.filteredRecentTxIds.forEach(id => window.selectedTxIds.add(id));
     window.renderRecentTransactions();
 };
 
@@ -22194,6 +23271,7 @@ window.renderSavingsTab = function() {
     // --- EMPTY STATE HANDLER ---
     if (savingsBuckets.length === 0 && !emergencyFundCard) {
         if (btnContainer) btnContainer.style.display = 'none';
+        renderDensityControls({ containerId: 'savingsDensityControls' });
 
         // Note: Corrected onclick to match your design spec routing
         grid.innerHTML = `
@@ -22211,9 +23289,31 @@ window.renderSavingsTab = function() {
     }
 
     const totalItems = savingsBuckets.length;
-    let renderLimit = Math.min(SAVINGS_INITIAL_RENDER, totalItems);
+    const visibleSavingsCount = getDensityVisibleCount(totalItems, savingsVisibleLimit);
+    const visibleBuckets = savingsVisibleLimit === LIST_DENSITY_ALL
+        ? savingsBuckets
+        : savingsBuckets.slice(0, visibleSavingsCount);
+    currentSavingsVisibleCount = visibleBuckets.length;
+    const hiddenSavingsCount = Math.max(0, totalItems - visibleBuckets.length);
+    const savingsStep = getDensityStep(savingsDisplaySize);
+    renderDensityControls({
+        containerId: 'savingsDensityControls',
+        label: 'Show',
+        selectedValue: savingsDisplaySize,
+        countText: buildDensityCountText({
+            visibleCount: visibleBuckets.length,
+            totalCount: totalItems,
+            noun: 'savings goals'
+        }),
+        loadMoreLabel: hiddenSavingsCount > 0 && savingsStep > 0
+            ? `Load ${Math.min(savingsStep, hiddenSavingsCount)} more`
+            : '',
+        loadMoreAction: 'window.loadMoreSavingsGoals',
+        setAction: 'window.setSavingsDisplaySize',
+        showOptions: totalItems > 0
+    });
 
-    savingsBuckets.forEach((cat, index) => {
+    visibleBuckets.forEach((cat) => {
         const cardWrapper = document.createElement('div');
         cardWrapper.className = 'savings-goal-card';
         cardWrapper.dataset.id = cat.id;
@@ -22235,16 +23335,8 @@ window.renderSavingsTab = function() {
             }
         };
 
-        if (index < renderLimit) {
-            cardWrapper.innerHTML = generateSavingsCardHTML(cat.id, cat);
-            cardWrapper.dataset.state = 'loaded';
-        } else if (totalItems > SAVINGS_MAX_AUTO_RENDER && index >= SAVINGS_MAX_AUTO_RENDER) {
-            return; // Hard cap
-        } else {
-            cardWrapper.dataset.state = 'placeholder';
-            cardWrapper.classList.add('card-skeleton');
-            if (savingsObserver) savingsObserver.observe(cardWrapper);
-        }
+        cardWrapper.innerHTML = generateSavingsCardHTML(cat.id, cat);
+        cardWrapper.dataset.state = 'loaded';
         grid.appendChild(cardWrapper);
     });
 
@@ -22256,12 +23348,7 @@ window.renderSavingsTab = function() {
     grid.appendChild(actionRow);
 
     // C. The Button Logic
-    if (totalItems > SAVINGS_MAX_AUTO_RENDER && btnContainer && loadMoreBtn) {
-        btnContainer.style.display = 'block';
-        const remaining = totalItems - currentSavingsVisibleCount;
-        loadMoreBtn.textContent = `Show ${Math.min(SAVINGS_LAZY_BATCH, remaining)} More`;
-        loadMoreBtn.onclick = () => handleSavingsLoadMore(savingsBuckets, totalItems);
-    } else if (btnContainer) {
+    if (btnContainer) {
         btnContainer.style.display = 'none';
     }
 };
@@ -24051,6 +25138,8 @@ window.closeMobileAddOverlay = closeMobileAddOverlay;
 window.setType = setType;
 window.showToast = showToast;
 window.toggleZBBSummary = toggleZBBSummary;
+window.toggleZBBAmountReveal = toggleZBBAmountReveal;
+window.handleZBBPlanAction = handleZBBPlanAction;
 window.submitTransaction = submitTransaction;
 window.handleDateChange = handleDateChange;
 window.setAddTransactionDate = setAddTransactionDate;
