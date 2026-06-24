@@ -1,14 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-labelledby="zamLogoMarkTitle">
-  <title id="zamLogoMarkTitle">Zam!</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Zam animated logo mark">
   <defs>
-    <linearGradient id="zam-logo-mark-gradient" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0" stop-color="#0f766e"/>
-      <stop offset="0.58" stop-color="#14b8a6"/>
-      <stop offset="1" stop-color="#f59e0b"/>
+    <linearGradient id="zamGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#14B8A6"><animate attributeName="stop-color" values="#14B8A6;#3B82F6;#22C55E;#F59E0B;#F43F5E;#6366F1;#64748B;#F97316;#06B6D4;#0EA5E9;#84CC16;#10B981;#EF4444;#EC4899;#71717A;#8B5CF6;#A855F7;#D946EF;#DB2777;#FB7185;#2DD4BF;#00A86B;#EAB308;#A78BFA;#4B5563;#1E40AF;#B45309;#4D7C0F" dur="56s" repeatCount="indefinite" /></stop>
+      <stop offset="58%" stop-color="#22C55E"><animate attributeName="stop-color" values="#22C55E;#F59E0B;#F43F5E;#6366F1;#64748B;#F97316;#06B6D4;#0EA5E9;#84CC16;#10B981;#EF4444;#EC4899;#71717A;#8B5CF6;#A855F7;#D946EF;#DB2777;#FB7185;#2DD4BF;#00A86B;#EAB308;#A78BFA;#4B5563;#1E40AF;#B45309;#4D7C0F;#14B8A6;#3B82F6" dur="56s" repeatCount="indefinite" /></stop>
+      <stop offset="100%" stop-color="#F59E0B"><animate attributeName="stop-color" values="#F59E0B;#F43F5E;#6366F1;#64748B;#F97316;#06B6D4;#0EA5E9;#84CC16;#10B981;#EF4444;#EC4899;#71717A;#8B5CF6;#A855F7;#D946EF;#DB2777;#FB7185;#2DD4BF;#00A86B;#EAB308;#A78BFA;#4B5563;#1E40AF;#B45309;#4D7C0F;#14B8A6;#3B82F6;#22C55E" dur="56s" repeatCount="indefinite" /></stop>
     </linearGradient>
+    <filter id="zShadow" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="5" dy="10" stdDeviation="8" flood-color="#001824" flood-opacity="0.30"/></filter>
   </defs>
-  <rect width="48" height="48" rx="10" fill="url(#zam-logo-mark-gradient)"/>
-  <path d="M14 15h18L15 33h19" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M36 14v11" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="36" cy="33" r="2.5" fill="#fff"/>
+  <rect x="0" y="0" width="512" height="512" rx="120" fill="url(#zamGradient)"/>
+  <rect x="10" y="10" width="492" height="492" rx="112" fill="none" stroke="#FFFFFF" stroke-opacity="0.16" stroke-width="6"/>
+  <path d="M141 177 H366 L167 361 H374" fill="none" stroke="#FFFFFF" stroke-width="66" stroke-linecap="round" stroke-linejoin="round" filter="url(#zShadow)"/>
 </svg>
