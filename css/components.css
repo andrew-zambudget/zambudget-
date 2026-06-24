@@ -4571,26 +4571,28 @@ input.error, select.error {
     grid-template-columns: minmax(3.8rem, 0.7fr) minmax(7.4rem, 1.3fr);
     gap: 0.4rem;
     margin-top: 0.62rem;
+    margin-bottom: 0.58rem;
     padding-top: 0.62rem;
     border-top: 1px solid var(--border, #e2e8f0);
 }
 
 .sync-cloud-actions.is-cloud-active {
-    grid-template-columns: minmax(7.25rem, 1fr) minmax(0, auto);
+    grid-template-columns: minmax(9.75rem, 0.52fr) minmax(11.5rem, 1fr);
     align-items: center;
-    column-gap: 0.58rem;
+    column-gap: 0.85rem;
 }
 
 .sync-cloud-actions.is-cloud-active #syncKeyBtn {
     grid-column: 1 / 2;
     min-width: 0;
+    width: 100%;
 }
 
 .sync-cloud-actions.is-cloud-active .sync-cloud-footer {
     grid-column: 2 / 3;
     grid-row: 1;
     align-self: center;
-    justify-content: flex-end;
+    justify-content: stretch;
 }
 
 .sync-cloud-nudge {
@@ -4763,10 +4765,11 @@ input.error, select.error {
 
 .sync-cloud-footer {
     grid-column: 1 / -1;
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content;
     align-items: center;
-    justify-content: flex-end;
-    gap: 0.42rem;
+    justify-content: stretch;
+    gap: 0.72rem;
     min-width: 0;
     white-space: nowrap;
 }
@@ -4775,9 +4778,10 @@ input.error, select.error {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 0;
+    justify-self: end;
+    min-width: 4.2rem;
     min-height: 1.35rem;
-    padding: 0 0.1rem;
+    padding: 0 0.18rem;
     border: 0;
     background: transparent;
     color: color-mix(in srgb, var(--text-dim, #64748b) 86%, transparent);
@@ -4839,7 +4843,7 @@ input.error, select.error {
 }
 
 .sync-device-count-fineprint {
-    flex: 0 1 auto;
+    justify-self: end;
     min-width: 0;
     color: color-mix(in srgb, var(--text-dim, #64748b) 72%, transparent);
     font-size: 0.58rem;
@@ -6132,7 +6136,7 @@ input.error, select.error {
     white-space: nowrap;
 }
   
-  @media (max-width: 767px) {
+@media (max-width: 767px) {
   .sync-history-popover {
     position: fixed;
     top: var(--sync-menu-top, calc(4.75rem + env(safe-area-inset-top)));
@@ -6145,6 +6149,27 @@ input.error, select.error {
 
   .sync-history-popover::before {
     display: none;
+  }
+
+  .sync-cloud-actions.is-cloud-active {
+    grid-template-columns: minmax(9.5rem, 0.48fr) minmax(10.5rem, 1fr);
+    column-gap: 0.72rem;
+  }
+}
+
+@media (max-width: 430px) {
+  .sync-cloud-actions.is-cloud-active {
+    grid-template-columns: 1fr;
+    row-gap: 0.54rem;
+  }
+
+  .sync-cloud-actions.is-cloud-active .sync-cloud-footer {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .sync-cloud-footer {
+    grid-template-columns: minmax(0, 1fr) max-content;
   }
 }
 
