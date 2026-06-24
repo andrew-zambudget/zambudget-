@@ -232,10 +232,10 @@ test.describe('recovery key setup guardrails', () => {
         });
 
         const nudge = page.locator('.sync-cloud-nudge');
-        await expect(nudge).toContainText('Recovery key reminder');
-        await expect(nudge).toContainText('Recovery key not verified');
-        await expect(nudge).toContainText('This browser can sync, but the key cannot be viewed after refresh');
-        await expect(nudge).toContainText('reset Cloud Sync before relying on this backup');
+        await expect(nudge).toContainText('Recovery key backup not verified');
+        await expect(nudge).toContainText('Cloud Sync can run on this browser');
+        await expect(nudge).toContainText('recovery-key backup is not verified');
+        await expect(nudge).toContainText('reset Cloud Sync if the key is lost');
     });
 
     test('recovery help does not offer save key when trusted key is not viewable', async ({ page }) => {
@@ -309,6 +309,51 @@ test.describe('recovery key setup guardrails', () => {
         expect(flags.saved).toMatch(/^zrk:v1:/);
         expect(flags.graceStarted).toBeNull();
         expect(flags.status.hasExportableKey).toBe(true);
+    });
+
+    test('verified recovery key suppresses stale trusted-browser grace reminder after refresh', async ({ page }) => {
+        const modal = await waitForRecoveryKeySetupModal(page);
+        const recoveryKey = await page.locator('#buddyCloudModalInput').inputValue();
+
+        await page.waitForTimeout(11000);
+        await modal.getByRole('button', { name: 'I saved my Recovery Key' }).click();
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Important: We Cannot Recover This Key');
+        await page.locator('#buddyCloudModalInput').fill(recoveryKey);
+        await modal.getByRole('button', { name: 'I saved my Recovery Key' }).click();
+        await expect(modal).toBeHidden();
+
+        await page.evaluate((userId) => {
+            localStorage.setItem('bb_cloud_recovery_key_grace_started_' + userId, '2026-06-13T01:00:00.000Z');
+        }, TEST_USER_ID);
+
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await waitForAppReady(page);
+        await page.waitForFunction(() => {
+            const status = window.BuddyCloud?.getStatus?.() || {};
+            return Boolean(status.signedIn && status.enabled && status.hasKey && !status.hasExportableKey);
+        });
+
+        await page.locator('#syncStatusBtn').click();
+        const panel = page.locator('#syncHistoryPanel');
+        const nudge = page.locator('#syncCloudNudge');
+        await expect(panel).toBeVisible();
+        await expect(page.locator('#syncHistoryStatusBadge')).toHaveText(/saved/i);
+        await expect(nudge).not.toContainText('Recovery key backup not verified');
+        await expect(nudge).not.toContainText('Recovery key reminder');
+        await expect(nudge).toContainText('Cloud Sync active');
+
+        const flags = await page.evaluate((userId) => ({
+            backedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_v1'),
+            saved: localStorage.getItem('bb_cloud_recovery_key_saved_v1'),
+            graceStarted: localStorage.getItem('bb_cloud_recovery_key_grace_started_' + userId),
+            status: window.BuddyCloud?.getStatus?.() || {}
+        }), TEST_USER_ID);
+
+        expect(flags.backedUp).toMatch(/^zrk:v1:/);
+        expect(flags.saved).toMatch(/^zrk:v1:/);
+        expect(flags.graceStarted).toBeNull();
+        expect(flags.status.hasKey).toBe(true);
+        expect(flags.status.hasExportableKey).toBe(false);
     });
 
     test('fresh setup validates pasted recovery key before marking it saved', async ({ page }) => {

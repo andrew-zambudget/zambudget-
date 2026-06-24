@@ -203,10 +203,10 @@ test.describe('logout safety', () => {
 
         const modal = page.locator('#buddyCloudModal');
         await expect(modal).toBeVisible();
-        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Recovery Key Not Verified');
-        await expect(modal).toContainText('Recovery key not verified. This browser can sync, but the key cannot be viewed after refresh.');
-        await expect(modal).toContainText('Save or verify your key within');
-        await expect(modal).toContainText('reset Cloud Sync before relying on this backup');
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Recovery key backup not verified');
+        await expect(modal).toContainText('Cloud Sync can run on this browser');
+        await expect(modal).toContainText('recovery-key backup is not verified');
+        await expect(modal).toContainText('reset Cloud Sync if the key is lost');
         await expect(modal.getByRole('button', { name: 'Recovery Help' })).toBeVisible();
         await expect(modal.getByRole('button', { name: 'Sign Out Anyway' })).toBeVisible();
         await expect(modal.getByRole('button', { name: 'Import Key' })).toHaveCount(0);

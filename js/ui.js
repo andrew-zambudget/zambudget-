@@ -369,7 +369,15 @@ function applySyncStatusDisplay() {
         if (!isSyncHistoryPanelOpen()) button.dataset.tooltip = statusMessage;
     }
     if (text) text.textContent = statusMessage;
-    if (badge) badge.textContent = displayLabel;
+    if (badge) {
+        const cloudStatus = window.BuddyCloud?.getStatus?.() || {};
+        if (!cloudStatus.signedIn) {
+            badge.className = 'sync-history-badge sync-history-badge-local';
+            badge.textContent = 'SYNC OFF';
+        } else {
+            badge.textContent = displayLabel;
+        }
+    }
 }
 
 function syncRecoveryKeyStatusAlternation() {
@@ -722,6 +730,7 @@ function syncCloudActionButtons() {
     const actions = document.getElementById('syncCloudActions');
     const nudge = document.getElementById('syncCloudNudge');
     const deviceCount = document.getElementById('syncDeviceCountFineprint');
+    const recoveryState = getRecoveryKeyBackupState(status);
 
     if (actions) {
         actions.classList.toggle('is-cloud-active', signedIn && enabled);
@@ -741,8 +750,8 @@ function syncCloudActionButtons() {
             : !status.hasKey
             ? 'Import Key'
             : !hasExportableKey
-            ? hasRecoveryKeyBackedUpFlag() ? 'Import to View' : 'Recovery Help'
-            : !hasRecoveryKeyBackedUpFlag()
+            ? recoveryState.backupVerified ? 'Import to View' : 'Recovery Help'
+            : !recoveryState.backupVerified
             ? 'Save Key'
             : isRecoveryKeyDisplayUnlocked()
             ? 'Recovery Key'
@@ -780,7 +789,7 @@ function syncCloudActionButtons() {
 
     if (nudge) {
         if (enabled && signedIn) {
-            const showKeyReminder = needsRecoveryKeySaveReminder() && !hasUnbackedLocalChangesStatus(status);
+            const showKeyReminder = needsRecoveryKeySaveReminder(status) && !hasUnbackedLocalChangesStatus(status);
             const grace = getRecoveryKeyGraceState();
             const nudgeSeverity = showKeyReminder && grace.expired
                 ? 'error'
@@ -788,9 +797,11 @@ function syncCloudActionButtons() {
                 ? 'warning'
                 : humanStatus.severity;
             const reminderTitle = showKeyReminder
-                ? getRecoveryKeyReminderTitle(grace)
+                ? getRecoveryKeyReminderTitle(grace, recoveryState)
                 : humanStatus.title;
-            const reminderDetail = getRecoveryKeyReminderDetail(status, grace);
+            const reminderDetail = showKeyReminder
+                ? getRecoveryKeyReminderDetail(status, grace, recoveryState)
+                : '';
             nudge.classList.toggle('is-synced', nudgeSeverity === 'synced');
             nudge.classList.toggle('is-warning', nudgeSeverity === 'warning');
             nudge.classList.toggle('is-error', nudgeSeverity === 'error');
@@ -1695,38 +1706,61 @@ function formatGraceHours(ms) {
     return `${hours} hours`;
 }
 
-function needsRecoveryKeySaveReminder() {
-    const status = window.BuddyCloud?.getStatus?.() || {};
+function getRecoveryKeyBackupState(status = window.BuddyCloud?.getStatus?.() || {}) {
+    const signedIn = Boolean(status.signedIn);
+    const enabled = Boolean(status.enabled);
+    const hasKey = Boolean(status.hasKey);
+    const hasExportableKey = Boolean(status.hasExportableKey);
+    const backupVerified = signedIn && enabled && hasKey && hasRecoveryKeyBackedUpFlag();
+
+    if (!signedIn || !enabled) {
+        return { kind: 'inactive', needsReminder: false, backupVerified: false };
+    }
+
+    if (!hasKey) {
+        return { kind: 'missing', needsReminder: false, backupVerified: false };
+    }
+
+    if (backupVerified) {
+        clearRecoveryKeyGracePeriod();
+        return { kind: 'verified', needsReminder: false, backupVerified: true };
+    }
+
+    return {
+        kind: hasExportableKey ? 'save-needed' : 'verify-needed',
+        needsReminder: true,
+        backupVerified: false
+    };
+}
+
+function needsRecoveryKeySaveReminder(status = window.BuddyCloud?.getStatus?.() || {}) {
+    const recoveryState = getRecoveryKeyBackupState(status);
     const grace = getRecoveryKeyGraceState();
     const hasActiveGrace = Boolean(grace.startedAt);
-    const needsReminder = Boolean(
-        status.signedIn
-        && status.enabled
-        && status.hasKey
-        && !hasRecoveryKeyBackedUpFlag()
-    );
+    const needsReminder = Boolean(recoveryState.needsReminder);
     if (needsReminder && !hasActiveGrace) startRecoveryKeyGracePeriod();
     return needsReminder;
 }
 
-function getRecoveryKeyReminderTitle(grace = getRecoveryKeyGraceState()) {
+function getRecoveryKeyReminderTitle(grace = getRecoveryKeyGraceState(), recoveryState = getRecoveryKeyBackupState()) {
+    if (recoveryState.kind === 'verify-needed') return 'Recovery key backup not verified';
     return grace.expired ? 'Recovery key not saved' : 'Recovery key reminder';
 }
 
-function getRecoveryKeyReminderDetail(status = window.BuddyCloud?.getStatus?.() || {}, grace = getRecoveryKeyGraceState()) {
+function getRecoveryKeyReminderDetail(status = window.BuddyCloud?.getStatus?.() || {}, grace = getRecoveryKeyGraceState(), recoveryState = getRecoveryKeyBackupState(status)) {
     const remaining = formatGraceHours(grace.remainingMs);
-    if (status.hasExportableKey) {
+    if (recoveryState.kind === 'save-needed' || status.hasExportableKey) {
         return grace.expired
             ? 'Save your recovery key before relying on Cloud Sync as your backup. If this browser is lost or cleared, we cannot recover your encrypted cloud budget.'
             : `Save your recovery key within ${remaining}. Clearing this browser or losing this device can remove trusted key access.`;
     }
 
-    return `Recovery key not verified. This browser can sync, but the key cannot be viewed after refresh. Save or verify your key within ${remaining}, or reset Cloud Sync before relying on this backup.`;
+    return `Cloud Sync can run on this browser, but recovery-key backup is not verified. Import a saved key within ${remaining} to confirm another trusted copy exists, or reset Cloud Sync if the key is lost.`;
 }
 
-function getRecoveryKeyRecommendedStep(status = window.BuddyCloud?.getStatus?.() || {}, grace = getRecoveryKeyGraceState()) {
-    if (hasRecoveryKeyBackedUpFlag()) return 'No action needed.';
-    if (status.hasExportableKey) return 'Save and verify your recovery key.';
+function getRecoveryKeyRecommendedStep(status = window.BuddyCloud?.getStatus?.() || {}, grace = getRecoveryKeyGraceState(), recoveryState = getRecoveryKeyBackupState(status)) {
+    if (recoveryState.backupVerified) return 'No action needed.';
+    if (recoveryState.kind === 'save-needed' || status.hasExportableKey) return 'Save and verify your recovery key.';
     return grace.expired
         ? 'Open Recovery Help. Import a saved key to verify it, or reset Cloud Sync to create a new key.'
         : 'Open Recovery Help. If you saved the key, import it to verify; if not, reset Cloud Sync to create a new key.';
@@ -2077,6 +2111,7 @@ function getBuddyCloudHumanStatus(status = window.BuddyCloud?.getStatus?.() || {
     const lastError = String(status.lastError || '').trim();
     const lastVerifiedAt = status.lastRemoteAt || status.lastPushedAt || '';
     const lastVerifiedText = formatBuddyCloudReviewTime(lastVerifiedAt);
+    const recoveryState = getRecoveryKeyBackupState(status);
 
     if (!signedIn) {
         return {
@@ -2174,13 +2209,13 @@ function getBuddyCloudHumanStatus(status = window.BuddyCloud?.getStatus?.() || {
         };
     }
 
-    if (status.hasKey && !status.hasExportableKey && !hasRecoveryKeyBackedUpFlag()) {
+    if (recoveryState.needsReminder) {
         const grace = getRecoveryKeyGraceState();
         return {
             severity: 'warning',
-            title: getRecoveryKeyReminderTitle(grace),
-            detail: getRecoveryKeyReminderDetail(status, grace),
-            recommendedNextStep: getRecoveryKeyRecommendedStep(status, grace)
+            title: getRecoveryKeyReminderTitle(grace, recoveryState),
+            detail: getRecoveryKeyReminderDetail(status, grace, recoveryState),
+            recommendedNextStep: getRecoveryKeyRecommendedStep(status, grace, recoveryState)
         };
     }
 
@@ -2190,8 +2225,8 @@ function getBuddyCloudHumanStatus(status = window.BuddyCloud?.getStatus?.() || {
         detail: lastVerifiedAt
             ? `Encrypted backup verified.\nLast verified sync: ${lastVerifiedText}.`
             : 'Encrypted backup is active. Keep your recovery key somewhere safe for another trusted device.',
-        recommendedNextStep: needsRecoveryKeySaveReminder()
-            ? getRecoveryKeyRecommendedStep(status)
+        recommendedNextStep: needsRecoveryKeySaveReminder(status)
+            ? getRecoveryKeyRecommendedStep(status, getRecoveryKeyGraceState(), recoveryState)
             : 'No action needed.'
     };
 }
@@ -3823,6 +3858,8 @@ export async function handleBuddyCloudVersionHistory(event) {
 async function showBuddyCloudRecoveryHelpModal() {
     const status = window.BuddyCloud?.getStatus?.() || {};
     const humanStatus = getBuddyCloudHumanStatus(status);
+    const recoveryState = getRecoveryKeyBackupState(status);
+    const recoveryGrace = getRecoveryKeyGraceState();
     const actions = [];
 
     if (status.signedIn && status.enabled && !status.hasKey) {
@@ -3830,11 +3867,11 @@ async function showBuddyCloudRecoveryHelpModal() {
         actions.push({ id: 'lost-key', label: 'Lost Recovery Key', className: 'btn-danger' });
     }
 
-    if (status.signedIn && status.enabled && status.hasKey && status.hasExportableKey && !hasRecoveryKeyBackedUpFlag()) {
+    if (recoveryState.kind === 'save-needed') {
         actions.push({ id: 'save-key', label: 'Save Key', className: 'btn-create' });
     }
 
-    if (status.signedIn && status.enabled && status.hasKey && !status.hasExportableKey && !hasRecoveryKeyBackedUpFlag()) {
+    if (recoveryState.kind === 'verify-needed') {
         actions.push({ id: 'import-key', label: 'Import Key', className: 'btn-create' });
         actions.push({ id: 'lost-key', label: 'Lost Recovery Key', className: 'btn-danger' });
     }
@@ -3853,7 +3890,9 @@ async function showBuddyCloudRecoveryHelpModal() {
     const result = await showBuddyCloudModal({
         eyebrow: 'Priority Recovery',
         title: 'Recovery Help',
-        body: humanStatus.detail,
+        body: recoveryState.needsReminder
+            ? getRecoveryKeyReminderDetail(status, recoveryGrace, recoveryState)
+            : humanStatus.detail,
         compact: true,
         modalClass: 'buddy-cloud-recovery-modal',
         assurance: 'Choose the next recovery step below. Diagnostics stay local unless you share them.',
@@ -16212,8 +16251,9 @@ function syncAccountRecoveryUi() {
     if (!el) return;
     const status = window.BuddyCloud?.getStatus?.() || {};
     const needsRecoveryKeyImport = Boolean(status.signedIn && status.enabled && !status.hasKey);
+    const recoveryState = getRecoveryKeyBackupState(status);
 
-    if (!needsRecoveryKeyImport && !needsRecoveryKeySaveReminder()) {
+    if (!needsRecoveryKeyImport && !needsRecoveryKeySaveReminder(status)) {
         el.hidden = true;
         el.classList.remove('is-expired', 'is-required');
         el.replaceChildren();
@@ -16236,8 +16276,8 @@ function syncAccountRecoveryUi() {
 
     const grace = getRecoveryKeyGraceState();
     const hasExportableKey = Boolean(status.hasExportableKey);
-    const title = getRecoveryKeyReminderTitle(grace);
-    const message = getRecoveryKeyReminderDetail(status, grace);
+    const title = getRecoveryKeyReminderTitle(grace, recoveryState);
+    const message = getRecoveryKeyReminderDetail(status, grace, recoveryState);
     const actionLabel = hasExportableKey ? 'Save Key' : 'Recovery Help';
     const actionHandler = hasExportableKey
         ? 'window.showBuddyCloudRecoveryKey(event)'
@@ -25673,12 +25713,15 @@ async function requireRecoveryKeySavedBeforeLocalClear(options = {}) {
 
 async function showUnverifiedRecoveryKeyLogoutModal() {
     if (!getRecoveryKeyGraceState().startedAt) startRecoveryKeyGracePeriod();
+    const status = window.BuddyCloud?.getStatus?.() || {};
+    const recoveryState = getRecoveryKeyBackupState(status);
+    const grace = getRecoveryKeyGraceState();
     const result = await showBuddyCloudModal({
         eyebrow: 'Recovery Key',
-        title: 'Recovery Key Not Verified',
+        title: getRecoveryKeyReminderTitle(grace, recoveryState),
         compact: true,
-        body: 'Recovery key not verified. This browser can sync, but the key cannot be viewed after refresh.',
-        assurance: `Save or verify your key within ${formatGraceHours(getRecoveryKeyGraceState().remainingMs)}, or reset Cloud Sync before relying on this backup.`,
+        body: getRecoveryKeyReminderDetail(status, grace, recoveryState),
+        assurance: getRecoveryKeyRecommendedStep(status, grace, recoveryState),
         warning: 'Signing out is allowed, but Zam! cannot recover the encrypted cloud budget if this browser is lost or cleared and no saved recovery key exists.',
         actions: [
             { id: 'back', label: 'Back', className: 'btn-cancel' },
