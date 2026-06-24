@@ -28,4 +28,17 @@ test.describe('clipboard privacy guardrails', () => {
 
         expect(headers).toContain('Permissions-Policy: clipboard-read=()');
     });
+
+    test('self-host serving configs block clipboard read permission', () => {
+        const filesToCheck = [
+            path.join(root, 'self-host', 'caddy', 'Caddyfile'),
+            path.join(root, 'self-host', 'ansible', 'templates', 'Caddyfile.j2')
+        ];
+
+        for (const filePath of filesToCheck) {
+            const content = fs.readFileSync(filePath, 'utf8');
+
+            expect(content).toContain('Permissions-Policy clipboard-read=()');
+        }
+    });
 });
