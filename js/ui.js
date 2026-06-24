@@ -9286,8 +9286,8 @@ export function renderFormCategories() {
             : "window.openCategoryModal('create')";
         const createLabel = currentType === 'income' ? '+ Add Income Source' : '+ Create Category';
         container.innerHTML = `
-            <button type="button" class="cat-pill-v2" onclick="${createAction}" style="border-style: dashed; border-color: var(--text-dim);" aria-label="${esc(createLabel)}">
-                ${createLabel}
+            <button type="button" class="cat-pill-v2 cat-pill-create" onclick="${createAction}" style="border-style: dashed; border-color: var(--text-dim);" aria-label="${esc(createLabel)}">
+                <span class="cat-pill-label">${esc(createLabel)}</span>
             </button>
         `;
         const hiddenInput = document.getElementById('txCategory');

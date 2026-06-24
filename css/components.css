@@ -12029,6 +12029,84 @@ input.error, select.error {
     }
 }
 
+/* Add Transaction category shortcuts: scoped responsive chip polish. */
+#view-add #addTxCategoryContainer {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    max-width: 100%;
+    padding: 0.2rem 0 0.55rem;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--accent, #14b8a6) 36%, transparent) transparent;
+}
+
+#view-add #addTxCategoryContainer::-webkit-scrollbar {
+    height: 4px;
+}
+
+#view-add #addTxCategoryContainer::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--accent, #14b8a6) 36%, transparent);
+    border-radius: 999px;
+}
+
+#view-add #addTxCategoryContainer .cat-pill-v2 {
+    flex: 0 1 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    min-width: 0;
+    max-width: min(240px, 100%);
+    min-height: 44px;
+    padding: 0.54rem 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border-radius: 999px;
+    scroll-snap-align: start;
+}
+
+#view-add #addTxCategoryContainer .cat-pill-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#view-add #addTxCategoryContainer .cat-pill-icon {
+    flex: 0 0 auto;
+    line-height: 1;
+}
+
+@media (min-width: 769px) {
+    #view-add #addTxCategoryContainer {
+        flex-wrap: wrap;
+        overflow: visible;
+        margin: 0.1rem 0 0.65rem;
+    }
+}
+
+@media (max-width: 768px) {
+    #view-add #addTxCategoryContainer {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x proximity;
+        margin: 0 -0.75rem;
+        padding: 0.15rem 0.75rem 0.5rem;
+        scroll-padding-inline: 0.75rem;
+    }
+
+    #view-add #addTxCategoryContainer .cat-pill-v2 {
+        flex: 0 0 auto;
+        max-width: min(210px, 76vw);
+        min-height: 42px;
+        padding-inline: 0.78rem;
+        font-size: 0.88rem;
+    }
+}
+
 @keyframes float {
     0% { transform: translateY(0px); }
     50% { transform: translateY(-5px); } /* Reduced bob distance */
