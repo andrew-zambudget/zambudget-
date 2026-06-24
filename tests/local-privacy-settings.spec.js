@@ -11,7 +11,7 @@ test.describe('local privacy settings copy', () => {
         await resetBrowserStorage(page);
     });
 
-    test('shows quiet local storage protection status in settings only', async ({ page }) => {
+    test('does not show local storage protection as a visible settings card', async ({ page }) => {
         await page.goto('/index.html');
         await waitForAppReady(page);
 
@@ -19,12 +19,8 @@ test.describe('local privacy settings copy', () => {
         await expect(page.locator('#settingsModal')).toBeVisible();
 
         const dataPrivacyCard = page.locator('#settingsData');
-        await expect(dataPrivacyCard).toContainText('Local Storage Protection');
-        await expect(dataPrivacyCard).toContainText('Active');
-        await expect(dataPrivacyCard).toContainText('Saved budget data and local sync history are encrypted in this browser.');
-        await expect(dataPrivacyCard).toContainText('Local storage protection makes saved browser data harder to read at rest.');
-        await expect(dataPrivacyCard).toContainText('Cloud Sync and recovery keys remain the recovery path for synced budgets.');
-        await expect(dataPrivacyCard).toContainText('Browser-only budgets still need user-managed backups.');
+        await expect(dataPrivacyCard).not.toContainText('Local Storage Protection');
+        await expect(dataPrivacyCard).not.toContainText('Saved budget data and local sync history are encrypted in this browser.');
     });
 
     test('requires unlocking before the local erase confirmation is reachable', async ({ page }) => {
@@ -55,5 +51,28 @@ test.describe('local privacy settings copy', () => {
         await expect(page.locator('#settingsModal')).toBeVisible();
         await expect(unlockButton).toBeVisible();
         await expect(eraseButton).toBeHidden();
+    });
+
+    test('auto-locks the local erase action after the short unlock window', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await page.evaluate(() => window.openSettingsModal());
+        await expect(page.locator('#settingsModal')).toBeVisible();
+
+        const unlockButton = page.locator('#unlockLocalEraseBtn');
+        const eraseButton = page.locator('#openLocalEraseBtn');
+        const timer = page.locator('#localEraseTimer');
+
+        await unlockButton.click();
+
+        await expect(unlockButton).toBeHidden();
+        await expect(eraseButton).toBeVisible();
+        await expect(timer).toBeVisible();
+        await expect(timer).toContainText(/Locks in \d+s/);
+
+        await expect(eraseButton).toBeHidden({ timeout: 17000 });
+        await expect(unlockButton).toBeVisible();
+        await expect(timer).toBeHidden();
     });
 });

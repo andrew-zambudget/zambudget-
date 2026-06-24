@@ -297,3 +297,24 @@
   --accent-on: #ffffff;
   --accent-rgb: 75, 85, 99;
 }
+
+[data-accent="navy"] {
+  --accent: #1e40af;
+  --accent-strong: #172554;
+  --accent-on: #ffffff;
+  --accent-rgb: 30, 64, 175;
+}
+
+[data-accent="copper"] {
+  --accent: #b45309;
+  --accent-strong: #7c2d12;
+  --accent-on: #ffffff;
+  --accent-rgb: 180, 83, 9;
+}
+
+[data-accent="olive"] {
+  --accent: #4d7c0f;
+  --accent-strong: #365314;
+  --accent-on: #ffffff;
+  --accent-rgb: 77, 124, 15;
+}

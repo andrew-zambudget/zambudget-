@@ -5,13 +5,15 @@ const {
     waitForAppReady
 } = require('./helpers/appHarness');
 
-function makeTransaction({ id, date, type, amount, paymentMethod = 'card', giftCardId = '' }) {
+function makeTransaction({ id, date, type, amount, paymentMethod = 'card', giftCardId = '', tag = '', signedAmount = undefined }) {
     return {
         id,
         type,
+        tag,
         description: id,
         category: type === 'income' ? 'Paycheck' : 'Groceries',
         amount,
+        ...(signedAmount !== undefined ? { signedAmount } : {}),
         date,
         paymentMethod,
         giftCardId,
@@ -28,6 +30,15 @@ function makeCalendarBudget() {
                 date: '2026-06-10',
                 type: 'income',
                 amount: 2600,
+                paymentMethod: 'bank'
+            }),
+            makeTransaction({
+                id: 'tagged-income-day',
+                date: '2026-06-11',
+                type: 'expense',
+                tag: 'income',
+                amount: 800,
+                signedAmount: 800,
                 paymentMethod: 'bank'
             }),
             makeTransaction({
@@ -94,8 +105,30 @@ test.describe('calendar activity dots', () => {
 
     test('uses green, red, and blue activity dot classes by transaction type', async ({ page }) => {
         await expect(page.locator('.calendar-day[data-calendar-date="2026-06-10"]')).toHaveClass(/calendar-activity-positive/);
+        await expect(page.locator('.calendar-day[data-calendar-date="2026-06-11"]')).toHaveClass(/calendar-activity-positive/);
         await expect(page.locator('.calendar-day[data-calendar-date="2026-06-12"]')).toHaveClass(/calendar-activity-expense/);
         await expect(page.locator('.calendar-day[data-calendar-date="2026-06-14"]')).toHaveClass(/calendar-activity-gift-card/);
+    });
+
+    test('calendar ignores stale Recent filters and still includes income in month totals', async ({ page }) => {
+        await page.evaluate(() => {
+            window.switchTab?.('recent');
+            window.currentTxFilter = 'expense';
+            const search = document.getElementById('txSearch');
+            if (search) search.value = 'expense-day';
+            window.renderRecentTransactions?.();
+            window.switchTab?.('calendar');
+        });
+
+        await expect(page.locator('#calendarScope')).toHaveText('All transactions');
+        await expect(page.locator('#calendarMonthIncome')).toHaveText('$3,400.00');
+        await expect(page.locator('.calendar-day[data-calendar-date="2026-06-10"]')).toHaveClass(/calendar-activity-positive/);
+        await expect(page.locator('.calendar-day[data-calendar-date="2026-06-11"]')).toHaveClass(/calendar-activity-positive/);
+
+        await page.locator('.calendar-day[data-calendar-date="2026-06-11"]').click();
+        await expect(page.locator('#calendarSelectedMeta')).toContainText('1 transaction - net +$800.00');
+        await expect(page.locator('#calendarSelectedList .calendar-selected-tx-kind')).toContainText('Income');
+        await expect(page.locator('#calendarSelectedList .calendar-selected-tx-amount')).toContainText('+$800.00');
     });
 
     test('category calendar button toggles back to the previous tab', async ({ page }) => {

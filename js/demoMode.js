@@ -21,6 +21,7 @@ const ENDED_NOTICE_KEY = 'bb_demo_ended_notice';
 const ACCOUNT_PROMPT_DISMISSED_KEY = 'bb_demo_account_prompt_dismissed';
 const TUTORIAL_SKIPPED_KEY = 'bb_demo_tutorial_skipped';
 const BANNER_MINIMIZED_KEY = 'bb_demo_banner_minimized';
+const BANNER_POSITION_KEY = 'bb_demo_banner_position';
 const BANNER_ID = 'bbDemoModeBanner';
 const MODAL_ID = 'bbDemoEndedModal';
 const ACCOUNT_PROMPT_BANNER_ID = 'bbAccountPromptBanner';
@@ -40,6 +41,8 @@ let loginCaptureAttached = false;
 let tutorialIndex = 0;
 let tutorialResizeAttached = false;
 let accountPromptTimer = null;
+let demoBannerDragState = null;
+let demoBannerResizeAttached = false;
 
 const TUTORIAL_STEPS = [
     {
@@ -209,7 +212,8 @@ function clearDemoSessionKeys() {
         STARTED_AT_KEY,
         EXPIRES_AT_KEY,
         DEMO_DATA_KEY,
-        DEMO_LOCAL_UPDATED_AT_KEY
+        DEMO_LOCAL_UPDATED_AT_KEY,
+        BANNER_POSITION_KEY
     ].forEach(sessionRemove);
     sessionRemove(BANNER_MINIMIZED_KEY);
 }
@@ -665,6 +669,9 @@ function injectStyles() {
             padding: 8px 10px;
             border-radius: 999px;
             transform: none;
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
         }
 
         .bb-demo-banner.is-minimized::before {
@@ -683,6 +690,12 @@ function injectStyles() {
 
         .bb-demo-banner.is-minimized .bb-demo-banner-actions {
             flex-wrap: nowrap;
+        }
+
+        .bb-demo-banner.is-minimized.is-dragging {
+            cursor: grabbing;
+            animation: none;
+            transition: none;
         }
 
         .bb-account-banner {
@@ -1073,6 +1086,150 @@ function injectStyles() {
     document.head.appendChild(style);
 }
 
+function getDemoBannerViewport() {
+    return {
+        width: Math.max(0, window.innerWidth || document.documentElement.clientWidth || 0),
+        height: Math.max(0, window.innerHeight || document.documentElement.clientHeight || 0)
+    };
+}
+
+function clampDemoBannerPosition(position = {}, banner = document.getElementById(BANNER_ID)) {
+    const viewport = getDemoBannerViewport();
+    const rect = banner?.getBoundingClientRect?.();
+    const width = Math.max(1, rect?.width || 0);
+    const height = Math.max(1, rect?.height || 0);
+    const margin = 8;
+    const maxLeft = Math.max(margin, viewport.width - width - margin);
+    const maxTop = Math.max(margin, viewport.height - height - margin);
+    const left = Math.max(margin, Math.min(Number(position.left) || margin, maxLeft));
+    const top = Math.max(margin, Math.min(Number(position.top) || margin, maxTop));
+
+    return { left, top };
+}
+
+function readDemoBannerPosition() {
+    try {
+        const raw = sessionGet(BANNER_POSITION_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        const left = Number(parsed?.left);
+        const top = Number(parsed?.top);
+        if (!Number.isFinite(left) || !Number.isFinite(top)) return null;
+        return { left, top };
+    } catch {
+        return null;
+    }
+}
+
+function writeDemoBannerPosition(position) {
+    const banner = document.getElementById(BANNER_ID);
+    if (!banner || !position) return;
+    const nextPosition = clampDemoBannerPosition(position, banner);
+    sessionSet(BANNER_POSITION_KEY, JSON.stringify(nextPosition));
+    applyDemoBannerPosition(nextPosition);
+}
+
+function clearDemoBannerInlinePosition() {
+    const banner = document.getElementById(BANNER_ID);
+    if (!banner) return;
+    banner.style.removeProperty('left');
+    banner.style.removeProperty('top');
+    banner.style.removeProperty('right');
+    banner.style.removeProperty('bottom');
+}
+
+function applyDemoBannerPosition(position = readDemoBannerPosition()) {
+    const banner = document.getElementById(BANNER_ID);
+    if (!banner || !banner.classList.contains('is-minimized') || !position) return;
+    const nextPosition = clampDemoBannerPosition(position, banner);
+    banner.style.left = `${nextPosition.left}px`;
+    banner.style.top = `${nextPosition.top}px`;
+    banner.style.right = 'auto';
+    banner.style.bottom = 'auto';
+}
+
+function handleDemoBannerViewportChange() {
+    const banner = document.getElementById(BANNER_ID);
+    if (!banner?.classList.contains('is-minimized')) return;
+    const current = readDemoBannerPosition();
+    if (current) writeDemoBannerPosition(current);
+}
+
+function consumeDemoBannerDragClick() {
+    if (!demoBannerDragState?.suppressClick) return false;
+    demoBannerDragState = null;
+    return true;
+}
+
+function attachDemoBannerDrag(banner) {
+    if (!banner || banner.dataset.demoDragAttached === 'true') return;
+    banner.dataset.demoDragAttached = 'true';
+
+    banner.addEventListener('pointerdown', (event) => {
+        if (!banner.classList.contains('is-minimized')) return;
+        if (event.button !== undefined && event.button !== 0) return;
+        if (event.target.closest?.('[data-demo-action]')) return;
+
+        const rect = banner.getBoundingClientRect();
+        demoBannerDragState = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            startLeft: rect.left,
+            startTop: rect.top,
+            moved: false,
+            suppressClick: false
+        };
+
+        banner.setPointerCapture?.(event.pointerId);
+    });
+
+    banner.addEventListener('pointermove', (event) => {
+        const state = demoBannerDragState;
+        if (!state || state.pointerId !== event.pointerId || !banner.classList.contains('is-minimized')) return;
+
+        const deltaX = event.clientX - state.startX;
+        const deltaY = event.clientY - state.startY;
+        const hasMoved = Math.hypot(deltaX, deltaY) > 6;
+        if (!hasMoved && !state.moved) return;
+
+        state.moved = true;
+        banner.classList.add('is-dragging');
+        applyDemoBannerPosition({
+            left: state.startLeft + deltaX,
+            top: state.startTop + deltaY
+        });
+        event.preventDefault();
+    });
+
+    const finishDrag = (event) => {
+        const state = demoBannerDragState;
+        if (!state || state.pointerId !== event.pointerId) return;
+
+        banner.releasePointerCapture?.(event.pointerId);
+        banner.classList.remove('is-dragging');
+
+        if (state.moved) {
+            const rect = banner.getBoundingClientRect();
+            writeDemoBannerPosition({ left: rect.left, top: rect.top });
+            state.suppressClick = true;
+            window.setTimeout(() => {
+                if (demoBannerDragState === state) demoBannerDragState = null;
+            }, 350);
+        } else {
+            demoBannerDragState = null;
+        }
+    };
+
+    banner.addEventListener('pointerup', finishDrag);
+    banner.addEventListener('pointercancel', (event) => {
+        if (demoBannerDragState?.pointerId === event.pointerId) {
+            banner.classList.remove('is-dragging');
+            demoBannerDragState = null;
+        }
+    });
+}
+
 function renderBanner() {
     if (document.getElementById(BANNER_ID)) return;
 
@@ -1097,7 +1254,15 @@ function renderBanner() {
         </div>
     `;
 
+    attachDemoBannerDrag(banner);
+
     banner.addEventListener('click', (event) => {
+        if (consumeDemoBannerDragClick()) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
+
         const button = event.target.closest('[data-demo-action]');
         if (!button) return;
 
@@ -1144,6 +1309,12 @@ function setDemoBannerMinimized(minimized) {
 
     document.body.classList.toggle('bb-demo-banner-minimized', nextValue);
     banner?.classList.toggle('is-minimized', nextValue);
+    banner?.classList.remove('is-dragging');
+    if (nextValue) {
+        applyDemoBannerPosition();
+    } else {
+        clearDemoBannerInlinePosition();
+    }
 
     if (toggle) {
         toggle.textContent = nextValue ? 'Show' : 'Minimize';
@@ -1632,6 +1803,10 @@ export function initDemoMode({ demoModeState, user, accountTier = '' } = {}) {
     if (!demoModeState?.active && !isDemoModeActive()) return;
 
     renderBanner();
+    if (!demoBannerResizeAttached) {
+        demoBannerResizeAttached = true;
+        window.addEventListener('resize', handleDemoBannerViewportChange);
+    }
     startCountdown();
     attachLoginCapture();
     window.setTimeout(() => startTutorial(), 450);

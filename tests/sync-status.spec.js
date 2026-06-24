@@ -77,6 +77,7 @@ test.describe('Cloud Sync local save status', () => {
         await expect(signInButton).toHaveText('Sign In');
         await expect(signInButton).toBeEnabled();
         await expect(page.locator('#syncKeyBtn')).toBeDisabled();
+        await expect(page.locator('#syncManualBtn')).not.toHaveAttribute('data-tooltip', /.+/);
 
         await expect(page.locator('#syncHistoryList .sync-history-item')).toHaveCount(1);
         await expect(page.locator('#syncHistoryList')).toContainText('Last saved locally. Sign in to protect this budget with Cloud Sync.');
@@ -92,6 +93,39 @@ test.describe('Cloud Sync local save status', () => {
         });
         expect(order.nudgeBeforeList).toBe(true);
         expect(order.actionsBeforeList).toBe(true);
+    });
+
+    test('manual Sync now action does not render a panel-overlapping tooltip', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await page.evaluate(() => {
+            window.BuddyCloud = {
+                ...(window.BuddyCloud || {}),
+                getStatus: () => ({
+                    signedIn: true,
+                    enabled: true,
+                    hasKey: false,
+                    canUseCloud: false,
+                    syncing: false,
+                    isPremium: false,
+                    freeDeviceLimit: 2,
+                    syncSlotLimit: 2,
+                    syncSlotDeviceCount: 1
+                })
+            };
+            window.openSyncHistoryPanel?.();
+        });
+
+        const panel = page.locator('#syncHistoryPanel');
+        const syncNowButton = page.locator('#syncManualBtn');
+
+        await expect(panel).toBeVisible();
+        await expect(syncNowButton).toBeVisible();
+        await expect(syncNowButton).toBeDisabled();
+        await expect(syncNowButton).toHaveAttribute('aria-label', /Import your recovery key/);
+        await expect(syncNowButton).not.toHaveAttribute('data-tooltip', /.+/);
+        await expect(syncNowButton).not.toHaveAttribute('title', /.+/);
     });
 
     test('Add transaction while offline is labeled as local and not backed up', async ({ page, context }) => {

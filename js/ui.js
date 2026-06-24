@@ -700,6 +700,8 @@ function renderManualSyncButtonSyncing(button) {
     button.classList.add('is-syncing');
     button.innerHTML = getManualSyncCloudIconHtml();
     button.setAttribute('aria-label', 'Cloud Sync is syncing.');
+    button.removeAttribute('data-tooltip');
+    button.removeAttribute('title');
 }
 
 function syncCloudActionButtons() {
@@ -760,7 +762,7 @@ function syncCloudActionButtons() {
         const manualTooltip = getManualSyncButtonTooltip(status, { hasConflict, canUseManualSync });
         manualBtn.disabled = !canUseManualSync;
         manualBtn.setAttribute('aria-label', manualTooltip.replace(/\s+/g, ' ').trim());
-        manualBtn.setAttribute('data-tooltip', manualTooltip);
+        manualBtn.removeAttribute('data-tooltip');
         manualBtn.removeAttribute('title');
     }
     if (deviceCount) {
@@ -1261,6 +1263,24 @@ function getLegacyRecoveryKeyBackedUpFlagName() {
     return window.currentUser?.id ? `${RECOVERY_KEY_BACKED_UP_PREFIX}${window.currentUser.id}` : '';
 }
 
+function getLegacyRecoveryKeyFlagNames(prefix, exactName = '') {
+    if (!window.currentUser?.id) return [];
+    const names = new Set();
+    const currentFlagNames = new Set([
+        RECOVERY_KEY_SAVED_STORAGE_KEY,
+        RECOVERY_KEY_BACKED_UP_STORAGE_KEY
+    ]);
+    if (exactName) names.add(exactName);
+    try {
+        Object.keys(localStorage)
+            .filter(key => key.startsWith(prefix) && !currentFlagNames.has(key))
+            .forEach(key => names.add(key));
+    } catch {
+        // Local storage can be unavailable in some hardened browsers.
+    }
+    return Array.from(names);
+}
+
 function getRecoveryKeyGraceStartedName() {
     return window.currentUser?.id ? `${RECOVERY_KEY_GRACE_STARTED_PREFIX}${window.currentUser.id}` : '';
 }
@@ -1308,18 +1328,17 @@ function markBuddyCloudDefaultSetupAttempted() {
 function markRecoveryKeySaved() {
     const keyName = getRecoveryKeySavedFlagName();
     if (keyName) localStorage.setItem(keyName, RECOVERY_KEY_SAVED_STORAGE_VALUE);
-    const legacyName = getLegacyRecoveryKeySavedFlagName();
-    if (legacyName) localStorage.removeItem(legacyName);
-    const graceName = getRecoveryKeyGraceStartedName();
-    if (graceName) localStorage.removeItem(graceName);
+    getLegacyRecoveryKeyFlagNames(RECOVERY_KEY_SAVED_PREFIX, getLegacyRecoveryKeySavedFlagName())
+        .forEach(name => localStorage.removeItem(name));
+    clearRecoveryKeyGracePeriod();
 }
 
 function hasRecoveryKeySavedFlag() {
     const keyName = getRecoveryKeySavedFlagName();
-    const legacyName = getLegacyRecoveryKeySavedFlagName();
-    if (legacyName && localStorage.getItem(legacyName) === 'true') {
+    const legacyNames = getLegacyRecoveryKeyFlagNames(RECOVERY_KEY_SAVED_PREFIX, getLegacyRecoveryKeySavedFlagName());
+    if (legacyNames.some(name => localStorage.getItem(name) === 'true' || localStorage.getItem(name) === RECOVERY_KEY_SAVED_STORAGE_VALUE)) {
         if (keyName) localStorage.setItem(keyName, RECOVERY_KEY_SAVED_STORAGE_VALUE);
-        localStorage.removeItem(legacyName);
+        legacyNames.forEach(name => localStorage.removeItem(name));
     }
     const value = keyName ? localStorage.getItem(keyName) : '';
     if (value === 'true') {
@@ -1332,28 +1351,32 @@ function hasRecoveryKeySavedFlag() {
 function markRecoveryKeyBackedUp() {
     const keyName = getRecoveryKeyBackedUpFlagName();
     if (keyName) localStorage.setItem(keyName, RECOVERY_KEY_BACKED_UP_STORAGE_VALUE);
-    const legacyName = getLegacyRecoveryKeyBackedUpFlagName();
-    if (legacyName) localStorage.removeItem(legacyName);
+    getLegacyRecoveryKeyFlagNames(RECOVERY_KEY_BACKED_UP_PREFIX, getLegacyRecoveryKeyBackedUpFlagName())
+        .forEach(name => localStorage.removeItem(name));
     markRecoveryKeySaved();
 }
 
 function hasRecoveryKeyBackedUpFlag() {
     const keyName = getRecoveryKeyBackedUpFlagName();
-    const legacyName = getLegacyRecoveryKeyBackedUpFlagName();
-    if (legacyName && localStorage.getItem(legacyName) === 'true') {
+    const legacyNames = getLegacyRecoveryKeyFlagNames(RECOVERY_KEY_BACKED_UP_PREFIX, getLegacyRecoveryKeyBackedUpFlagName());
+    if (legacyNames.some(name => localStorage.getItem(name) === 'true' || localStorage.getItem(name) === RECOVERY_KEY_BACKED_UP_STORAGE_VALUE)) {
         if (keyName) localStorage.setItem(keyName, RECOVERY_KEY_BACKED_UP_STORAGE_VALUE);
         const savedKeyName = getRecoveryKeySavedFlagName();
         if (savedKeyName) localStorage.setItem(savedKeyName, RECOVERY_KEY_SAVED_STORAGE_VALUE);
-        const legacySavedName = getLegacyRecoveryKeySavedFlagName();
-        if (legacySavedName) localStorage.removeItem(legacySavedName);
-        localStorage.removeItem(legacyName);
+        getLegacyRecoveryKeyFlagNames(RECOVERY_KEY_SAVED_PREFIX, getLegacyRecoveryKeySavedFlagName())
+            .forEach(name => localStorage.removeItem(name));
+        legacyNames.forEach(name => localStorage.removeItem(name));
+        clearRecoveryKeyGracePeriod();
     }
     const value = keyName ? localStorage.getItem(keyName) : '';
     if (value === 'true') {
         localStorage.setItem(keyName, RECOVERY_KEY_BACKED_UP_STORAGE_VALUE);
+        clearRecoveryKeyGracePeriod();
         return true;
     }
-    return value === RECOVERY_KEY_BACKED_UP_STORAGE_VALUE;
+    const backedUp = value === RECOVERY_KEY_BACKED_UP_STORAGE_VALUE;
+    if (backedUp) clearRecoveryKeyGracePeriod();
+    return backedUp;
 }
 
 function isRecoveryKeyDisplayUnlocked() {
@@ -1592,6 +1615,11 @@ function startRecoveryKeyGracePeriod() {
     if (keyName && !localStorage.getItem(keyName)) {
         localStorage.setItem(keyName, new Date().toISOString());
     }
+}
+
+function clearRecoveryKeyGracePeriod() {
+    getLegacyRecoveryKeyFlagNames(RECOVERY_KEY_GRACE_STARTED_PREFIX, getRecoveryKeyGraceStartedName())
+        .forEach(name => localStorage.removeItem(name));
 }
 
 function getRecoveryKeyGraceState() {
@@ -3756,8 +3784,16 @@ async function showBuddyCloudRecoveryHelpModal() {
         actions.push({ id: 'lost-key', label: 'Lost Recovery Key', className: 'btn-danger' });
     }
 
-    if (status.signedIn && status.enabled && status.hasKey) {
+    if (status.signedIn && status.enabled && status.hasKey && status.hasExportableKey && !hasRecoveryKeyBackedUpFlag()) {
         actions.push({ id: 'save-key', label: 'Save Key', className: 'btn-create' });
+    }
+
+    if (status.signedIn && status.enabled && status.hasKey && !status.hasExportableKey && !hasRecoveryKeyBackedUpFlag()) {
+        actions.push({ id: 'import-key', label: 'Import Key', className: 'btn-create' });
+        actions.push({ id: 'lost-key', label: 'Lost Recovery Key', className: 'btn-danger' });
+    }
+
+    if (status.signedIn && status.enabled && status.hasKey) {
         actions.push({ id: 'version-history', label: 'Version History', className: 'btn-cancel' });
     }
 
@@ -4984,7 +5020,7 @@ let selectedCategories = new Set();
 let isCategoryEditMode = false;
 let draggedCategoryName = '';
 let draggedCategoryPosition = 0;
-let categoryReorderFeedback = null;
+let categoryReorderFeedback = [];
 let categoryReorderFeedbackTimer = null;
 let activeCategoryAttentionMode = '';
 let categoryAttentionFocusPending = false;
@@ -5438,6 +5474,21 @@ function getCategoryMetricDisplay({ budget = 0, spent = 0 } = {}) {
     };
 }
 
+function getCategorySpentMetricDisplay({ budget = 0, spent = 0 } = {}) {
+    const budgetAmount = Math.max(0, parseFloat(budget) || 0);
+    const spentAmount = Math.max(0, parseFloat(spent) || 0);
+    const leftAmount = budgetAmount - spentAmount;
+    const colorValue = spentAmount <= 0.005 ? 0 : (leftAmount < -0.005 ? -spentAmount : spentAmount);
+
+    return {
+        mode: 'spent',
+        label: 'Spent',
+        prefix: '',
+        amount: spentAmount,
+        color: getBudgetMetricColor(colorValue)
+    };
+}
+
 // ==========================================
 // 2. CATEGORY LIST & BULK EDIT (Fixed)
 // ==========================================
@@ -5445,7 +5496,7 @@ function getCategoryMetricDisplay({ budget = 0, spent = 0 } = {}) {
 export function toggleCategoryEditMode() {
     isCategoryEditMode = !isCategoryEditMode;
     selectedCategories.clear();
-    categoryReorderFeedback = null;
+    categoryReorderFeedback = [];
     clearCategoryReorderFeedbackTimer();
     if (isCategoryEditMode && State.getCategorySort?.() !== 'manual') {
         State.setCategorySort?.('manual');
@@ -5587,6 +5638,18 @@ function getManualCategoryPosition(name) {
     return index >= 0 ? index + 1 : 0;
 }
 
+function getManualCategoryOrderNames() {
+    return (State.getCategoriesForSort?.('manual') || [])
+        .filter(cat =>
+            cat?.type !== 'income' &&
+            cat?.type !== 'debt' &&
+            cat?.type !== 'savings' &&
+            cat?.type !== 'sinking_fund'
+        )
+        .map(cat => cat?.name)
+        .filter(Boolean);
+}
+
 function clearCategoryReorderFeedbackTimer() {
     if (categoryReorderFeedbackTimer) {
         clearTimeout(categoryReorderFeedbackTimer);
@@ -5594,23 +5657,49 @@ function clearCategoryReorderFeedbackTimer() {
     }
 }
 
-function setCategoryReorderFeedback(name, position) {
-    const safePosition = Number(position) || getManualCategoryPosition(name);
-    if (!name || safePosition <= 0) return;
-
+function setCategoryReorderFeedback(feedbackItems = []) {
     clearCategoryReorderFeedbackTimer();
-    categoryReorderFeedback = {
-        name,
-        position: safePosition,
-        message: `Moved to position ${safePosition}`
-    };
+    categoryReorderFeedback = feedbackItems
+        .map(item => ({
+            name: String(item?.name || ''),
+            from: Number(item?.from) || 0,
+            to: Number(item?.to) || 0
+        }))
+        .filter(item => item.name && item.from > 0 && item.to > 0 && item.from !== item.to)
+        .map(item => ({
+            ...item,
+            direction: item.to < item.from ? 'up' : 'down',
+            message: `Moved from ${item.from} to ${item.to}`
+        }));
+
+    if (!categoryReorderFeedback.length) return;
 
     categoryReorderFeedbackTimer = setTimeout(() => {
-        if (categoryReorderFeedback?.name === name && categoryReorderFeedback?.position === safePosition) {
-            categoryReorderFeedback = null;
-            renderCategoryList();
-        }
+        categoryReorderFeedback = [];
+        renderCategoryList();
     }, 2400);
+}
+
+function buildCategoryReorderFeedback(beforeOrder = [], afterOrder = []) {
+    const afterPositions = new Map(afterOrder.map((name, index) => [name, index + 1]));
+
+    return beforeOrder
+        .map((name, index) => ({
+            name,
+            from: index + 1,
+            to: afterPositions.get(name) || 0
+        }))
+        .filter(item => item.to > 0 && item.from !== item.to);
+}
+
+function getCategoryReorderFeedback(name) {
+    return categoryReorderFeedback.find(item => item.name === name) || null;
+}
+
+function getCategoryReorderFeedbackSummary() {
+    return categoryReorderFeedback
+        .map(item => `${item.name} moved from ${item.from} to ${item.to}`)
+        .join('; ');
 }
 
 function updateCategoryReorderLiveRegion(message) {
@@ -5622,6 +5711,7 @@ export function moveCategoryOrder(name, direction, event = null) {
     event?.preventDefault?.();
     event?.stopPropagation?.();
 
+    const beforeOrder = getManualCategoryOrderNames();
     const result = State.moveCategory?.(name, direction);
     if (!result?.success) {
         if (window.showToast) window.showToast(result?.error || 'Category order could not be changed.');
@@ -5629,17 +5719,19 @@ export function moveCategoryOrder(name, direction, event = null) {
     }
 
     selectedCategories.clear();
-    const nextPosition = getManualCategoryPosition(name);
-    setCategoryReorderFeedback(name, nextPosition);
-    updateCategoryReorderLiveRegion(`Moved ${name} to position ${nextPosition}`);
+    const afterOrder = getManualCategoryOrderNames();
+    setCategoryReorderFeedback(buildCategoryReorderFeedback(beforeOrder, afterOrder));
+    const summary = getCategoryReorderFeedbackSummary();
+    updateCategoryReorderLiveRegion(summary || `Moved ${name}.`);
     finishCategoryReorder();
 }
 
 function finishCategoryReorder() {
     syncCategorySortSelect();
     renderCategoryList();
-    if (categoryReorderFeedback?.name && categoryReorderFeedback?.position) {
-        updateCategoryReorderLiveRegion(`Moved ${categoryReorderFeedback.name} to position ${categoryReorderFeedback.position}`);
+    const summary = getCategoryReorderFeedbackSummary();
+    if (summary) {
+        updateCategoryReorderLiveRegion(summary);
     }
     renderFormCategories();
     refreshOpenCategoryDrillDown();
@@ -5649,6 +5741,13 @@ export function moveCategoryToPosition(name, position, event = null) {
     event?.preventDefault?.();
     event?.stopPropagation?.();
 
+    const requestedPosition = Number.parseInt(position, 10);
+    const currentPosition = getManualCategoryPosition(name);
+    if (!Number.isFinite(requestedPosition) || requestedPosition === currentPosition) {
+        return;
+    }
+
+    const beforeOrder = getManualCategoryOrderNames();
     const result = State.moveCategoryToPosition?.(name, position);
     if (!result?.success) {
         if (window.showToast) window.showToast(result?.error || 'Category order could not be changed.');
@@ -5656,9 +5755,10 @@ export function moveCategoryToPosition(name, position, event = null) {
     }
 
     selectedCategories.clear();
-    const nextPosition = result.position || getManualCategoryPosition(name);
-    setCategoryReorderFeedback(name, nextPosition);
-    updateCategoryReorderLiveRegion(`Moved ${name} to position ${nextPosition}`);
+    const afterOrder = getManualCategoryOrderNames();
+    setCategoryReorderFeedback(buildCategoryReorderFeedback(beforeOrder, afterOrder));
+    const summary = getCategoryReorderFeedbackSummary();
+    updateCategoryReorderLiveRegion(summary || `Moved ${name}.`);
     finishCategoryReorder();
 }
 
@@ -5807,8 +5907,9 @@ export function renderCategoryList() {
         const index = row.index;
         // ... [Keep your checkbox/edit mode logic exactly as before] ...
         const isChecked = selectedCategories.has(cat.name) ? 'checked' : '';
-        const reorderFeedbackHTML = isCategoryEditMode && categoryReorderFeedback?.name === cat.name
-            ? `<span class="category-reorder-feedback" aria-hidden="true">${esc(categoryReorderFeedback.message)}</span>`
+        const rowReorderFeedback = isCategoryEditMode ? getCategoryReorderFeedback(cat.name) : null;
+        const reorderFeedbackHTML = rowReorderFeedback
+            ? `<span class="category-reorder-feedback category-reorder-feedback-${esc(rowReorderFeedback.direction)}" aria-hidden="true">${esc(rowReorderFeedback.message)}</span>`
             : '';
         const checkboxHTML = isCategoryEditMode
             ? `<input type="checkbox" class="bulk-select-cb" data-cat-name="${esc(cat.name)}" ${isChecked} onclick="event.stopPropagation()" onchange="window.toggleCategorySelection(${jsArg(cat.name)}, this.checked)">`
@@ -5840,7 +5941,7 @@ export function renderCategoryList() {
         // --- Calculate Data for Render ---
         const { budget, spent, left: remaining, transactionCount } = getCategoryBudgetSummary(cat);
         const symbol = State.getSymbol ? State.getSymbol() : '$';
-        const metric = getCategoryMetricDisplay({ budget, spent });
+        const metric = getCategorySpentMetricDisplay({ budget, spent });
 
         let pct = budget > 0 ? (spent / budget) * 100 : 0;
         let barColor = 'var(--green)';
@@ -10569,6 +10670,7 @@ function getAddTransactionCategories(type) {
     const categories = State.getCategories() || [];
     return categories.filter(cat => {
         if (type === 'income') return cat.type === 'income';
+        if (window.isTemporaryDebtMode && cat.type === 'debt') return true;
         return !cat.type || cat.type === 'expense';
     });
 }
@@ -11140,7 +11242,7 @@ function playExpenseSlotMachine({ category, remaining, symbol, spent, budgetAmou
         const spentEl = document.getElementById(`spent-val-${String(category || '').replace(/\s+/g, '-')}`);
         const metricLabelEl = document.getElementById(`metric-label-${String(category || '').replace(/\s+/g, '-')}`);
         if (spentEl) {
-            const metric = getCategoryMetricDisplay({ budget: budgetAmount, spent });
+            const metric = getCategorySpentMetricDisplay({ budget: budgetAmount, spent });
             if (metricLabelEl) metricLabelEl.textContent = metric.label;
             spentEl.style.color = metric.color;
             spentEl.classList.add('slot-roll-active');
@@ -11199,6 +11301,7 @@ export function submitTransaction() {
         const category = String(catInput?.value || '').trim();
         const amount = parseAddAmountInput(amtInput?.value || '0');
         const currentType = State.getCurrentType();
+        const isDebtPayment = Boolean(window.isTemporaryDebtMode);
         const validCategories = getAddTransactionCategories(currentType);
         const categoryIsValid = validCategories.some(cat => cat.name === category);
         const dateValue = dateInput?.value || getLocalISODate();
@@ -11281,7 +11384,7 @@ export function submitTransaction() {
 
         const newTx = {
             id: generateId(),
-            type: currentType,
+            type: isDebtPayment ? 'debt' : currentType,
             description: desc,
             category,
             amount,
@@ -11289,7 +11392,7 @@ export function submitTransaction() {
             paymentMethod,
             giftCardId: giftCard?.id || '',
             notes,
-            tag: currentType,
+            tag: isDebtPayment ? 'debt' : currentType,
             createdAt: new Date().toISOString()
         };
 
@@ -11309,6 +11412,16 @@ export function submitTransaction() {
         }
         observeLocalSave('1 transaction saved partially.');
         lastSavedTxId = newTx.id;
+        if (isDebtPayment) {
+            window.isTemporaryDebtMode = false;
+            setAddFormStatus('Debt payment saved.');
+            showToast('Debt payment saved.');
+            render();
+            if (window.renderDebtTab) window.renderDebtTab();
+            hardResetForm();
+            if (typeof window.switchTab === 'function') window.switchTab('recent');
+            return;
+        }
         const targetCategory = validCategories.find(c => c.name === category) || {};
         const budgetAmount = targetCategory.budget || 0;
         const spent = getCategoryTransactionSummary(category, currentType === 'income' ? 'income' : 'expense').total;
@@ -13803,7 +13916,10 @@ const ACCENT_THEME_VALUES = new Set([
     'jade',
     'gold',
     'lavender',
-    'graphite'
+    'graphite',
+    'navy',
+    'copper',
+    'olive'
 ]);
 
 const ACCENT_THEME_LABELS = {
@@ -13831,7 +13947,10 @@ const ACCENT_THEME_LABELS = {
     jade: 'Jade',
     gold: 'Gold',
     lavender: 'Lavender',
-    graphite: 'Graphite'
+    graphite: 'Graphite',
+    navy: 'Navy',
+    copper: 'Copper',
+    olive: 'Olive'
 };
 
 const BUILT_IN_THEME_PRESETS = {
@@ -14344,12 +14463,32 @@ export function updateCurrencyUI() {
 
 let localEraseUnlocked = false;
 let localEraseUnlockTimer = null;
-const LOCAL_ERASE_UNLOCK_MS = 30000;
+let localEraseUnlockInterval = null;
+let localEraseUnlockedAt = 0;
+const LOCAL_ERASE_UNLOCK_MS = 15000;
+
+function updateLocalEraseTimerUI() {
+    const timer = document.getElementById('localEraseTimer');
+    const text = document.getElementById('localEraseTimerText');
+    const fill = document.getElementById('localEraseTimerFill');
+    const elapsedMs = localEraseUnlockedAt ? Date.now() - localEraseUnlockedAt : 0;
+    const remainingMs = Math.max(0, LOCAL_ERASE_UNLOCK_MS - elapsedMs);
+    const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+    const progress = Math.max(0, Math.min(100, (remainingMs / LOCAL_ERASE_UNLOCK_MS) * 100));
+
+    if (timer) timer.hidden = !localEraseUnlocked;
+    if (text) text.textContent = `Locks in ${remainingSeconds}s`;
+    if (fill) fill.style.width = `${progress}%`;
+}
 
 function clearLocalEraseUnlockTimer() {
     if (localEraseUnlockTimer) {
         clearTimeout(localEraseUnlockTimer);
         localEraseUnlockTimer = null;
+    }
+    if (localEraseUnlockInterval) {
+        clearInterval(localEraseUnlockInterval);
+        localEraseUnlockInterval = null;
     }
 }
 
@@ -14365,20 +14504,25 @@ function syncLocalEraseUnlockUI() {
         eraseBtn.hidden = !localEraseUnlocked;
         eraseBtn.setAttribute('aria-disabled', localEraseUnlocked ? 'false' : 'true');
     }
+
+    updateLocalEraseTimerUI();
 }
 
 function relockLocalErase() {
     localEraseUnlocked = false;
+    localEraseUnlockedAt = 0;
     clearLocalEraseUnlockTimer();
     syncLocalEraseUnlockUI();
 }
 
 export function unlockLocalErase() {
     localEraseUnlocked = true;
+    localEraseUnlockedAt = Date.now();
     clearLocalEraseUnlockTimer();
     localEraseUnlockTimer = setTimeout(() => {
         relockLocalErase();
     }, LOCAL_ERASE_UNLOCK_MS);
+    localEraseUnlockInterval = setInterval(updateLocalEraseTimerUI, 250);
     syncLocalEraseUnlockUI();
 }
 
@@ -17149,7 +17293,7 @@ function getTransactionKind(tx) {
 
     if (tag === 'savings' || type === 'savings') return 'savings';
     if (tag === 'debt' || type === 'debt') return 'debt';
-    if (type === 'income') return 'income';
+    if (tag === 'income' || type === 'income') return 'income';
     return 'expense';
 }
 
@@ -17217,8 +17361,11 @@ function formatLocalTransactionTimestamp(tx) {
 
 function getSignedTransactionAmount(tx) {
     const amount = Math.abs(parseFloat(tx.amount) || 0);
-    const type = String(tx.type || '').toLowerCase();
-    return (type === 'income' || type === 'savings') ? amount : -amount;
+    const explicitSigned = Number.parseFloat(tx.signedAmount ?? tx.signed_amount);
+    if (Number.isFinite(explicitSigned) && explicitSigned !== 0) return explicitSigned;
+
+    const kind = getTransactionKind(tx);
+    return (kind === 'income' || kind === 'savings') ? amount : -amount;
 }
 
 function getTransactionDisplay(tx) {
@@ -17277,6 +17424,10 @@ function getFilteredRecentTransactions(options = {}) {
             return fields.some(value => String(value ?? '').toLowerCase().includes(searchTerm));
         })
         .sort((a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0));
+}
+
+function getBudgetCalendarTransactions() {
+    return getRecentTransactions();
 }
 
 function getRecentDensityScopeKey() {
@@ -17368,8 +17519,8 @@ function renderBudgetCalendar() {
 
     if (!grid) return;
 
-    const visibleTx = getFilteredRecentTransactions({ includeSelectedDate: false });
-    const dayMap = getBudgetCalendarDayMap(visibleTx);
+    const calendarTx = getBudgetCalendarTransactions();
+    const dayMap = getBudgetCalendarDayMap(calendarTx);
     const monthKeyPrefix = `${monthStart.getFullYear()}-${padDatePart(monthStart.getMonth() + 1)}-`;
     const monthTotals = { net: 0, income: 0, outflow: 0, activeDays: 0 };
 
@@ -17382,7 +17533,7 @@ function renderBudgetCalendar() {
     });
 
     setBudgetCalendarText('calendarMonthLabel', getBudgetCalendarMonthTitle(monthStart));
-    setBudgetCalendarText('calendarScope', getRecentScopeLabel());
+    setBudgetCalendarText('calendarScope', 'All transactions');
     setIncomeTotalLabels();
     setBudgetCalendarText('calendarMonthNet', `${monthTotals.net < 0 ? '-' : ''}${symbol}${formatMoney(Math.abs(monthTotals.net))}`);
     setBudgetCalendarText('calendarMonthIncome', `${symbol}${formatMoney(monthTotals.income)}`);
@@ -23572,32 +23723,44 @@ window.submitUnifiedTransaction = function() {
 // 🔗 INVISIBLE PAYMENT SWITCH (Triggered from Debt Tab)
 // ==========================================
 window.triggerDebtPayment = function(debtName, minPaymentAmount) {
-    // 1. Jump to the Add Tab
-    if (typeof window.switchTab === 'function') window.switchTab('add');
-
-    // 2. Temporarily hijack the "Income" button to say "Debt"
-    const incomeBtn = document.getElementById('btnIncome');
-    if (incomeBtn) {
-        incomeBtn.innerText = 'Debt';
+    const cleanDebtName = String(debtName || '').trim();
+    if (!cleanDebtName) {
+        if (typeof showToast === 'function') showToast('Choose a debt account first.');
+        return;
     }
 
-    // 3. Force the form to behave as an Expense (money leaving checking)
-    if (typeof window.setUnifiedType === 'function') window.setUnifiedType('expense');
+    window.isTemporaryDebtMode = true;
 
-    // 4. Pre-fill the transaction data
+    if (typeof window.switchTab === 'function') window.switchTab('add');
+    if (typeof window.setType === 'function') window.setType('expense');
+
     const amountInput = document.getElementById('txAmount');
     const descInput = document.getElementById('txDescription');
-    const catInput = document.getElementById('txCategory');
+    const methodInput = document.getElementById('txPaymentMethod');
+    const amount = Math.max(0, Number.parseFloat(minPaymentAmount) || 0);
 
-    if (amountInput) amountInput.value = minPaymentAmount || '';
-    if (descInput) {
-        setTransactionDescription("Payment: " + debtName);
-        if (typeof window.autoFillIcon === 'function') window.autoFillIcon(); // Auto-grab the smart icon
+    if (amountInput) {
+        amountInput.value = amount > 0 ? formatMoney(amount) : '';
+        rawAmountString = sanitizeMoneyValue(amountInput.value);
+        updateAmountInputPresentation();
+        setAddFieldError('amount', '');
     }
-    if (catInput) catInput.value = debtName;
+    if (descInput) {
+        setTransactionDescription(`Payment: ${cleanDebtName}`);
+        setAddFieldError('description', '');
+    }
+    if (methodInput && !methodInput.value) methodInput.value = 'bank';
 
-    // 5. Engage the override flag
-    window.isTemporaryDebtMode = true;
+    if (typeof window.renderFormCategories === 'function') window.renderFormCategories();
+    if (typeof window.selectFormCategory === 'function') {
+        window.selectFormCategory(cleanDebtName);
+    } else {
+        const catInput = document.getElementById('txCategory');
+        if (catInput) catInput.value = cleanDebtName;
+    }
+
+    setAddFormStatus(`Debt payment ready for ${cleanDebtName}.`);
+    document.getElementById('txAmount')?.focus?.({ preventScroll: true });
 };
 
 // ==========================================
@@ -25466,7 +25629,6 @@ async function showLogoutBackupBlockedModal(error) {
 async function executeLogout(options = {}) {
     const { allowBackupSkip = false } = options;
     markBuddyCloudForcePullAfterSignIn();
-    const preservedLocalStorage = getTrustedBuddyCloudPreservedLocalStorage();
     closeAccountConfirmModal();
     closeAccountModal();
     const keySafe = await requireRecoveryKeySavedBeforeLocalClear({ allowSignOutAnyway: true });
@@ -25477,6 +25639,7 @@ async function executeLogout(options = {}) {
     showSessionClearingScreen('Clearing Session...', 'Signing out and clearing the budget screen.');
     try {
         await verifyBuddyCloudBeforeLogout({ allowBackupSkip });
+        const preservedLocalStorage = getTrustedBuddyCloudPreservedLocalStorage();
         if (window.sb) {
             await window.sb.auth.signOut();
         }

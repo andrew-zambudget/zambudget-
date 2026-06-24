@@ -31,7 +31,10 @@
         jade: ['#00a86b', '#047857', '0, 168, 107', '#ffffff'],
         gold: ['#eab308', '#854d0e', '234, 179, 8', '#ffffff'],
         lavender: ['#a78bfa', '#5b21b6', '167, 139, 250', '#ffffff'],
-        graphite: ['#4b5563', '#1f2937', '75, 85, 99', '#ffffff']
+        graphite: ['#4b5563', '#1f2937', '75, 85, 99', '#ffffff'],
+        navy: ['#1e40af', '#172554', '30, 64, 175', '#ffffff'],
+        copper: ['#b45309', '#7c2d12', '180, 83, 9', '#ffffff'],
+        olive: ['#4d7c0f', '#365314', '77, 124, 15', '#ffffff']
     };
 
     function isValidAccent(accent) {

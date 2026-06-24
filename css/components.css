@@ -4398,11 +4398,14 @@ input.error, select.error {
 .sync-history-status-dot[data-tooltip]::after {
   left: 50%;
   bottom: calc(100% + 0.44rem);
-  min-width: max-content;
+  min-width: 0;
+  width: max-content;
+  max-width: min(9rem, calc(100vw - 2rem));
   font-size: 0.66rem;
   font-weight: 850;
-  line-height: 1;
-  white-space: nowrap;
+  line-height: 1.15;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .sync-history-status-dot[data-tooltip]::before {
@@ -4780,47 +4783,6 @@ input.error, select.error {
     color: color-mix(in srgb, var(--text-dim, #64748b) 86%, transparent);
     font-size: 0.62rem;
     font-weight: 850;
-}
-
-.sync-cloud-manual[data-tooltip] {
-    overflow: visible;
-}
-
-.sync-cloud-manual[data-tooltip]::after {
-    left: auto;
-    right: 0;
-    bottom: calc(100% + 0.42rem);
-    transform: translateY(0);
-    min-width: min(18rem, calc(100vw - 2rem));
-    max-width: min(18rem, calc(100vw - 2rem));
-    text-align: left;
-    z-index: 4100;
-}
-
-.sync-cloud-manual[data-tooltip]::before {
-    left: auto;
-    right: 0.72rem;
-    bottom: calc(100% + 0.12rem);
-    transform: translateY(0);
-    z-index: 4100;
-}
-
-.sync-cloud-manual[data-tooltip]:hover::after,
-.sync-cloud-manual[data-tooltip]:focus-visible::after,
-.sync-cloud-footer:hover .sync-cloud-manual[data-tooltip]::after,
-.sync-cloud-footer:focus-within .sync-cloud-manual[data-tooltip]::after {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(-0.18rem);
-}
-
-.sync-cloud-manual[data-tooltip]:hover::before,
-.sync-cloud-manual[data-tooltip]:focus-visible::before,
-.sync-cloud-footer:hover .sync-cloud-manual[data-tooltip]::before,
-.sync-cloud-footer:focus-within .sync-cloud-manual[data-tooltip]::before {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0.22rem);
 }
 
 .sync-cloud-manual:hover,
@@ -10476,8 +10438,8 @@ input.error, select.error {
 #view-add .hidden-details-drawer .payment-method-select {
     box-sizing: border-box;
     width: 100%;
-    height: 64px;
-    min-height: 64px;
+    height: 68px;
+    min-height: 68px;
     line-height: 1.2;
 }
 
@@ -10538,25 +10500,36 @@ input.error, select.error {
 }
 .hero-save-btn {
     width: 100%;
-    min-height: 52px;
-    padding: 0.95rem 1rem;
-    border: 1px solid color-mix(in srgb, var(--accent-strong, #334155) 74%, transparent);
-    border-radius: 12px;
-    background: linear-gradient(135deg, var(--accent-strong, #334155), color-mix(in srgb, var(--accent-strong, #334155) 76%, #0f172a));
+    min-height: 54px;
+    padding: 0.95rem 1.15rem;
+    border: 1px solid color-mix(in srgb, var(--accent, #14b8a6) 58%, var(--accent-strong, #0f766e));
+    border-radius: 16px;
+    background:
+        linear-gradient(180deg, color-mix(in srgb, #ffffff 14%, transparent), transparent 42%),
+        linear-gradient(135deg, var(--accent-strong, #0f766e), color-mix(in srgb, var(--accent-strong, #0f766e) 72%, #0f172a));
     color: var(--accent-on, #ffffff);
     font-size: 1.04rem;
-    font-weight: 850;
+    font-weight: 900;
     letter-spacing: 0;
-    box-shadow: 0 12px 26px color-mix(in srgb, var(--accent, #14b8a6) 28%, transparent);
+    box-shadow:
+        0 10px 22px color-mix(in srgb, var(--accent, #14b8a6) 22%, transparent),
+        inset 0 1px 0 color-mix(in srgb, #ffffff 22%, transparent);
     cursor: pointer;
     touch-action: manipulation;
-    transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+    transition:
+        transform 0.16s ease,
+        box-shadow 0.16s ease,
+        filter 0.16s ease,
+        border-color 0.16s ease;
 }
 
 .hero-save-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 16px 30px color-mix(in srgb, var(--accent, #14b8a6) 34%, transparent);
-    filter: saturate(1.06);
+    border-color: color-mix(in srgb, var(--accent, #14b8a6) 72%, #ffffff);
+    box-shadow:
+        0 14px 28px color-mix(in srgb, var(--accent, #14b8a6) 26%, transparent),
+        inset 0 1px 0 color-mix(in srgb, #ffffff 26%, transparent);
+    filter: saturate(1.05) brightness(1.01);
 }
 
 .hero-save-btn:active {
@@ -10569,6 +10542,11 @@ input.error, select.error {
     opacity: 0.72;
     transform: none;
     filter: grayscale(0.2);
+}
+
+.hero-save-btn:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent, #14b8a6) 78%, #ffffff);
+    outline-offset: 3px;
 }
 
 [data-theme="light"][data-theme-preset="light:burger-stand"] .hero-save-btn {

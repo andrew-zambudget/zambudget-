@@ -163,6 +163,71 @@ test.describe('Zam! demo app flow', () => {
         expect(activeState).toBe('true');
     });
 
+    test('minimized demo badge can be dragged without triggering Show', async ({ page }) => {
+        await page.evaluate(() => {
+            sessionStorage.setItem('bb_demo_tutorial_skipped', 'true');
+        });
+
+        await page.goto('/index.html?demo=1');
+        await waitForAppReady(page);
+
+        const banner = page.locator('#bbDemoModeBanner');
+        const toggle = banner.locator('[data-demo-action="toggle-banner"]');
+        await toggle.click();
+        await expect(banner).toHaveClass(/is-minimized/);
+        await expect(toggle).toHaveText('Show');
+        await page.evaluate(() => document.fonts?.ready || Promise.resolve());
+
+        const before = await banner.boundingBox();
+        const dragSurface = await banner.locator('.bb-demo-banner-content').boundingBox();
+        expect(before).not.toBeNull();
+        expect(dragSurface).not.toBeNull();
+
+        const startX = dragSurface.x + dragSurface.width / 2;
+        const startY = dragSurface.y + dragSurface.height / 2;
+        const targetX = Math.max(42, startX - 180);
+        const targetY = Math.max(42, startY - 120);
+
+        await page.mouse.move(startX, startY);
+        await page.mouse.down();
+        await page.mouse.move(targetX, targetY, { steps: 8 });
+        await page.mouse.up();
+
+        await expect(banner).toHaveClass(/is-minimized/);
+        await expect(toggle).toHaveText('Show');
+
+        const after = await banner.boundingBox();
+        expect(after).not.toBeNull();
+        expect(Math.abs(after.x - before.x)).toBeGreaterThan(40);
+        expect(Math.abs(after.y - before.y)).toBeGreaterThan(40);
+        const viewport = page.viewportSize() || { width: 1280, height: 720 };
+        expect(after.x).toBeGreaterThanOrEqual(0);
+        expect(after.y).toBeGreaterThanOrEqual(0);
+        expect(after.x + after.width).toBeLessThanOrEqual(viewport.width);
+        expect(after.y + after.height).toBeLessThanOrEqual(viewport.height);
+
+        const savedPosition = await page.evaluate(() => sessionStorage.getItem('bb_demo_banner_position'));
+        expect(savedPosition).toContain('left');
+
+        await page.reload();
+        await waitForAppReady(page);
+        await expect(banner).toHaveClass(/is-minimized/);
+        await page.evaluate(() => document.fonts?.ready || Promise.resolve());
+
+        const reloaded = await banner.boundingBox();
+        expect(reloaded).not.toBeNull();
+        expect(Math.abs(reloaded.x - before.x)).toBeGreaterThan(40);
+        expect(Math.abs(reloaded.y - before.y)).toBeGreaterThan(40);
+        expect(reloaded.x).toBeGreaterThanOrEqual(0);
+        expect(reloaded.y).toBeGreaterThanOrEqual(0);
+        expect(reloaded.x + reloaded.width).toBeLessThanOrEqual(viewport.width);
+        expect(reloaded.y + reloaded.height).toBeLessThanOrEqual(viewport.height);
+
+        await toggle.click();
+        await expect(banner).not.toHaveClass(/is-minimized/);
+        await expect(toggle).toHaveText('Minimize');
+    });
+
     test('demo budget edits persist only to zam_demo_data', async ({ page }) => {
         await page.evaluate((budget) => {
             localStorage.setItem('bb_data', JSON.stringify(budget));

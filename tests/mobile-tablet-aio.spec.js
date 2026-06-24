@@ -51,7 +51,10 @@ const ACCENT_PALETTES = [
     'jade',
     'gold',
     'lavender',
-    'graphite'
+    'graphite',
+    'navy',
+    'copper',
+    'olive'
 ];
 
 async function startDemo(page, viewport) {

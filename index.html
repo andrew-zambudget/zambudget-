@@ -146,7 +146,7 @@
         </div>
         <div class="beta-support-actions">
             <a href="https://app.zambudget.com/login" class="beta-support-primary" id="betaSupportPrimaryAction">Join Beta</a>
-            <a href="support.html" class="beta-support-secondary">Send Feedback</a>
+            <a href="https://zambudget.com/featurerequest" class="beta-support-secondary">Send Feedback</a>
         </div>
     </section>
 
@@ -1013,6 +1013,21 @@
                                             <span class="accent-swatch" aria-hidden="true"></span>
                                             <span>Graphite</span>
                                         </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#1e40af">
+                                            <input type="radio" name="accentColor" value="navy">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Navy</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#b45309">
+                                            <input type="radio" name="accentColor" value="copper">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Copper</span>
+                                        </label>
+                                        <label class="accent-swatch-option" style="--swatch-color:#4d7c0f">
+                                            <input type="radio" name="accentColor" value="olive">
+                                            <span class="accent-swatch" aria-hidden="true"></span>
+                                            <span>Olive</span>
+                                        </label>
                                     </div>
                                     <div class="settings-palette-actions" aria-label="Palette controls">
                                         <button type="button" id="settingsAccentRandomizeBtn" class="btn-cancel settings-palette-btn" onclick="window.randomizeAccentTheme()">Randomize</button>
@@ -1031,19 +1046,6 @@
                                                 <h4 class="settings-card-title">Data &amp; Privacy</h4>
                                                 <p class="settings-card-copy">Manage local protection, gift card metadata, and transaction files.</p>
                                             </div>
-
-	                                <div class="form-group settings-field settings-data-tools">
-	                                    <div class="settings-local-protection-card" aria-label="Local storage protection status">
-	                                        <div class="settings-local-protection-heading">
-	                                            <div>
-	                                                <div class="settings-field-label">Local Storage Protection</div>
-	                                                <div class="settings-local-protection-status">Active</div>
-	                                            </div>
-	                                        </div>
-	                                        <p>Saved budget data and local sync history are encrypted in this browser.</p>
-	                                        <p class="settings-local-protection-detail">Local storage protection makes saved browser data harder to read at rest. Cloud Sync and recovery keys remain the recovery path for synced budgets. Browser-only budgets still need user-managed backups.</p>
-	                                    </div>
-	                                </div>
 
 	                                <div class="form-group settings-field settings-data-tools">
 	                                    <div class="settings-field-label">Gift Card Merchant Cache</div>
@@ -1107,6 +1109,12 @@
                                                 <div class="settings-danger-actions">
                                                     <button type="button" id="unlockLocalEraseBtn" class="btn-muted-danger" onclick="window.unlockLocalErase()">Unlock Erase</button>
                                                     <button type="button" id="openLocalEraseBtn" class="btn-outline-danger" onclick="window.openUnlockedResetModal()" hidden aria-disabled="true">Erase Local Budget Data</button>
+                                                </div>
+                                                <div id="localEraseTimer" class="settings-danger-timer" hidden aria-live="polite">
+                                                    <span id="localEraseTimerText">Locks in 15s</span>
+                                                    <span class="settings-danger-timer-track" aria-hidden="true">
+                                                        <span id="localEraseTimerFill" class="settings-danger-timer-fill"></span>
+                                                    </span>
                                                 </div>
                                             </div>
                                         </section>

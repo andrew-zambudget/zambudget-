@@ -169,7 +169,7 @@
   gap: 0.24rem;
   align-self: stretch;
   padding: 0.12rem 0.28rem 0.12rem 0;
-  flex: 0 0 3.2rem;
+  flex: 0 0 3.75rem;
   border-right: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 78%, transparent);
 }
 
@@ -245,7 +245,7 @@
 }
 
 .category-position-control {
-  width: 2.55rem;
+  width: 3rem;
 }
 
 .category-position-row {
@@ -257,19 +257,20 @@
 
 .category-position-input {
   width: 100%;
-  min-width: 2.55rem;
-  height: 1.9rem;
+  min-width: 3rem;
+  height: 2rem;
   -moz-appearance: textfield;
   appearance: textfield;
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 999px;
   background: color-mix(in srgb, var(--surface-hover, #f1f5f9) 72%, var(--surface, #ffffff));
   color: var(--text-dim, #64748b);
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   font-weight: 900;
   text-align: center;
   font-variant-numeric: tabular-nums;
   outline: none;
+  overflow: visible;
 }
 
 .category-position-input:focus {
@@ -281,7 +282,7 @@
 
 .category-reorder-feedback {
   position: absolute;
-  left: 4.15rem;
+  left: 4.65rem;
   top: 0.55rem;
   z-index: 5;
   max-width: min(13rem, calc(100% - 8rem));
@@ -297,6 +298,18 @@
   pointer-events: none;
   white-space: nowrap;
   animation: categoryReorderFeedbackIn 180ms ease both;
+}
+
+.category-reorder-feedback-up {
+  border-color: color-mix(in srgb, var(--accent, #14b8a6) 38%, var(--border, #e2e8f0));
+  background: color-mix(in srgb, var(--accent, #14b8a6) 14%, var(--surface, #ffffff));
+  color: var(--accent, #14b8a6);
+}
+
+.category-reorder-feedback-down {
+  border-color: color-mix(in srgb, var(--red, #ef4444) 34%, var(--border, #e2e8f0));
+  background: color-mix(in srgb, var(--red, #ef4444) 11%, var(--surface, #ffffff));
+  color: var(--red, #ef4444);
 }
 
 @keyframes categoryReorderFeedbackIn {
@@ -317,7 +330,7 @@
   }
 
   .category-reorder-controls {
-    flex-basis: 3rem;
+    flex-basis: 3.45rem;
   }
 
   .category-drag-handle,
@@ -327,15 +340,15 @@
   }
 
   .category-position-control {
-    width: 2.45rem;
+    width: 2.85rem;
   }
 
   .category-position-input {
-    min-width: 2.45rem;
+    min-width: 2.85rem;
   }
 
   .category-reorder-feedback {
-    left: 3.95rem;
+    left: 4.15rem;
     top: 0.45rem;
     max-width: calc(100% - 6.5rem);
     font-size: 0.64rem;

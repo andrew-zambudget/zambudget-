@@ -105,6 +105,71 @@ test.describe('logout safety', () => {
         await expect(modal.getByRole('button', { name: 'Sign Out Anyway' })).toBeVisible();
     });
 
+    test('recovery key verified during logout is preserved without stale grace reminder', async ({ page }) => {
+        await page.goto('/index.html');
+        await waitForAppReady(page);
+
+        await page.evaluate(async () => {
+            const Operational = await import('/js/localOperationalMetadataStorage.js');
+            window.currentUser = {
+                id: 'logout-recovery-key-preserve-user',
+                email: 'logout-preserve@example.com'
+            };
+            window.sb = {
+                auth: {
+                    signOut: async () => ({ error: null })
+                }
+            };
+            window.BuddyCloud = {
+                getStatus: () => ({
+                    signedIn: true,
+                    enabled: true,
+                    hasKey: true,
+                    canUseCloud: true,
+                    hasExportableKey: true
+                }),
+                exportRecoveryKey: () => 'test-logout-preserved-recovery-key',
+                forcePush: async () => {
+                    const updatedAt = Operational.getLocalUpdatedAt() || new Date().toISOString();
+                    Operational.setCloudLastPushedAt(updatedAt);
+                    await Operational.flushLocalOperationalMetadataWrites();
+                    return true;
+                }
+            };
+            localStorage.setItem('bb_cloud_recovery_key_grace_started_logout-recovery-key-preserve-user', '2026-06-13T01:00:00.000Z');
+
+            window.handleLogout();
+        });
+
+        await expect(page.locator('#accountConfirmTitle')).toHaveText('Log out?');
+        await page.getByRole('button', { name: 'Secure Sign Out' }).click();
+
+        const modal = page.locator('#buddyCloudModal');
+        await expect(modal).toBeVisible();
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Recovery Key');
+
+        const downloadEvent = page.waitForEvent('download', { timeout: 3000 }).catch(() => null);
+        await modal.getByRole('button', { name: 'Download Key' }).click();
+        await downloadEvent;
+
+        await modal.getByRole('button', { name: 'I saved my Recovery Key' }).click();
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Important: We Cannot Recover This Key');
+        await page.locator('#buddyCloudModalInput').fill('test-logout-preserved-recovery-key');
+        await modal.getByRole('button', { name: 'I saved my Recovery Key' }).click();
+
+        await page.waitForURL(/sessionCleared=/, { timeout: 10000 });
+
+        const flags = await page.evaluate(() => ({
+            backedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_v1'),
+            saved: localStorage.getItem('bb_cloud_recovery_key_saved_v1'),
+            graceStarted: localStorage.getItem('bb_cloud_recovery_key_grace_started_logout-recovery-key-preserve-user')
+        }));
+
+        expect(flags.backedUp).toMatch(/^zrk:v1:/);
+        expect(flags.saved).toMatch(/^zrk:v1:/);
+        expect(flags.graceStarted).toBeNull();
+    });
+
     test('trusted key without verified backup shows recovery warning before sign out', async ({ page }) => {
         await page.goto('/index.html');
         await waitForAppReady(page);

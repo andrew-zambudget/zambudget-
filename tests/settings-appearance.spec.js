@@ -79,10 +79,13 @@ test.describe('settings appearance panel', () => {
         await expect(appearance.locator('label.accent-swatch-option', { hasText: 'Jade' })).toBeVisible();
         await expect(appearance.locator('label.accent-swatch-option', { hasText: 'Graphite' })).toBeVisible();
         await expect(appearance.locator('label.accent-swatch-option', { hasText: 'Lavender' })).toBeVisible();
+        await expect(appearance.locator('label.accent-swatch-option', { hasText: 'Navy' })).toBeVisible();
+        await expect(appearance.locator('label.accent-swatch-option', { hasText: 'Copper' })).toBeVisible();
+        await expect(appearance.locator('label.accent-swatch-option', { hasText: 'Olive' })).toBeVisible();
 
-        await appearance.locator('label.accent-swatch-option', { hasText: 'Jade' }).click();
-        await expect(page.locator('#settingsAccentSelected')).toHaveText('Selected: Jade');
-        await expect(page.locator('html')).toHaveAttribute('data-accent', 'jade');
+        await appearance.locator('label.accent-swatch-option', { hasText: 'Olive' }).click();
+        await expect(page.locator('#settingsAccentSelected')).toHaveText('Selected: Olive');
+        await expect(page.locator('html')).toHaveAttribute('data-accent', 'olive');
 
         await appearance.getByRole('button', { name: 'Randomize' }).click();
         await expect.poll(() => page.evaluate(() => Boolean(sessionStorage.getItem('bb_session_accent_color')))).toBe(true);

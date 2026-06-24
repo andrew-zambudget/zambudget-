@@ -201,8 +201,10 @@ test.describe('list density cleanup', () => {
         await page.locator('#categoryList .category-item[data-category-name="Category 1"] .category-reorder-btn[aria-label="Move Category 1 down"]').click();
         await expect(page.locator('#categoryList .category-item').nth(0)).toHaveAttribute('data-category-name', 'Category 2');
         await expect(page.locator('#categoryList .category-item').nth(1)).toHaveAttribute('data-category-name', 'Category 1');
-        await expect(page.locator('#categoryList .category-item[data-category-name="Category 1"] .category-reorder-feedback')).toContainText('Moved to position 2');
-        await expect(page.locator('#categoryReorderLiveRegion')).toContainText('Moved Category 1 to position 2');
+        await expect(page.locator('#categoryList .category-item[data-category-name="Category 1"] .category-reorder-feedback')).toContainText('Moved from 1 to 2');
+        await expect(page.locator('#categoryList .category-item[data-category-name="Category 2"] .category-reorder-feedback')).toContainText('Moved from 2 to 1');
+        await expect(page.locator('#categoryReorderLiveRegion')).toContainText('Category 1 moved from 1 to 2');
+        await expect(page.locator('#categoryReorderLiveRegion')).toContainText('Category 2 moved from 2 to 1');
 
         const categoryOnePosition = page.locator('#categoryList .category-item[data-category-name="Category 1"] .category-position-input');
         await categoryOnePosition.click();
@@ -210,8 +212,10 @@ test.describe('list density cleanup', () => {
         await categoryOnePosition.pressSequentially('4');
         await categoryOnePosition.press('Enter');
         await expect(page.locator('#categoryList .category-item').nth(3)).toHaveAttribute('data-category-name', 'Category 1');
-        await expect(page.locator('#categoryList .category-item[data-category-name="Category 1"] .category-reorder-feedback')).toContainText('Moved to position 4');
-        await expect(page.locator('#categoryReorderLiveRegion')).toContainText('Moved Category 1 to position 4');
+        await expect(page.locator('#categoryList .category-item[data-category-name="Category 1"] .category-reorder-feedback')).toContainText('Moved from 2 to 4');
+        await expect(page.locator('#categoryList .category-item[data-category-name="Category 3"] .category-reorder-feedback')).toContainText('Moved from 3 to 2');
+        await expect(page.locator('#categoryList .category-item[data-category-name="Category 4"] .category-reorder-feedback')).toContainText('Moved from 4 to 3');
+        await expect(page.locator('#categoryReorderLiveRegion')).toContainText('Category 1 moved from 2 to 4');
 
         const persistedOrder = await page.evaluate(() =>
             window.getCategoriesForSort?.('manual')

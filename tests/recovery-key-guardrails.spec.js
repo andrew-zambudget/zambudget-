@@ -238,6 +238,34 @@ test.describe('recovery key setup guardrails', () => {
         await expect(nudge).toContainText('reset Cloud Sync before relying on this backup');
     });
 
+    test('recovery help does not offer save key when trusted key is not viewable', async ({ page }) => {
+        const setupModal = await waitForRecoveryKeySetupModal(page);
+
+        await page.waitForTimeout(11000);
+        await setupModal.getByRole('button', { name: 'I understand - remind me for 72 hours' }).click();
+        await expect(setupModal).toBeHidden();
+
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await waitForAppReady(page);
+        await page.waitForFunction(() => {
+            const status = window.BuddyCloud?.getStatus?.() || {};
+            return Boolean(status.signedIn && status.enabled && status.hasKey && !status.hasExportableKey);
+        });
+
+        await page.locator('#syncStatusBtn').click();
+        await expect(page.locator('#syncHistoryPanel')).toBeVisible();
+
+        const recoveryButton = page.locator('#syncKeyBtn');
+        await expect(recoveryButton).toHaveText('Recovery Help');
+        await recoveryButton.click();
+
+        const recoveryModal = page.locator('#buddyCloudModal');
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Recovery Help');
+        await expect(recoveryModal.getByRole('button', { name: 'Save Key' })).toHaveCount(0);
+        await expect(recoveryModal.getByRole('button', { name: 'Import Key' })).toBeVisible();
+        await expect(recoveryModal.getByRole('button', { name: 'Lost Recovery Key' })).toBeVisible();
+    });
+
     test('fresh setup validates pasted recovery key before marking it saved', async ({ page }) => {
         const modal = await waitForRecoveryKeySetupModal(page);
         const recoveryKey = await page.locator('#buddyCloudModalInput').inputValue();
