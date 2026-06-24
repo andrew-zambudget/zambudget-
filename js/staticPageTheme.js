@@ -6,6 +6,7 @@
     const AUTH_METADATA_NAME = 'supabase_auth_session';
     const LEGACY_AUTH_KEY_PATTERN = /^sb-.+-auth-token$/;
     const FALLBACK_ACCENT = 'slate';
+    const SESSION_ACCENT_PREFIX = 'zac:v1:';
     const ACCENTS = {
         teal: ['#14b8a6', '#0f766e', '20, 184, 166', '#ffffff'],
         blue: ['#3b82f6', '#1d4ed8', '59, 130, 246', '#ffffff'],
@@ -36,6 +37,7 @@
         copper: ['#b45309', '#7c2d12', '180, 83, 9', '#ffffff'],
         olive: ['#4d7c0f', '#365314', '77, 124, 15', '#ffffff']
     };
+    const ACCENT_ORDER = Object.freeze(Object.keys(ACCENTS));
 
     function isValidAccent(accent) {
         return Object.prototype.hasOwnProperty.call(ACCENTS, accent);
@@ -58,6 +60,54 @@
         }
     }
 
+    function removeStorage(storage, key) {
+        try {
+            storage.removeItem(key);
+        } catch {
+            // Ignore storage failures; the active theme still applies in memory.
+        }
+    }
+
+    function encodeSessionAccent(accent) {
+        const index = ACCENT_ORDER.indexOf(accent);
+        if (index < 0) return '';
+        const checksum = ((index + 17) * 131).toString(36);
+        return `${SESSION_ACCENT_PREFIX}${index.toString(36)}:${checksum}`;
+    }
+
+    function decodeSessionAccent(value = '') {
+        const rawValue = String(value || '').trim();
+        if (!rawValue.startsWith(SESSION_ACCENT_PREFIX)) return '';
+
+        const [indexValue, checksumValue] = rawValue.slice(SESSION_ACCENT_PREFIX.length).split(':');
+        const index = Number.parseInt(indexValue, 36);
+        if (!Number.isInteger(index) || index < 0 || index >= ACCENT_ORDER.length) return '';
+
+        const expectedChecksum = ((index + 17) * 131).toString(36);
+        if (checksumValue !== expectedChecksum) return '';
+
+        return ACCENT_ORDER[index] || '';
+    }
+
+    function readSessionAccent() {
+        const rawValue = readStorage(sessionStorage, SESSION_ACCENT_KEY);
+        const decodedAccent = decodeSessionAccent(rawValue);
+        if (isValidAccent(decodedAccent)) return decodedAccent;
+
+        if (isValidAccent(rawValue)) {
+            writeSessionAccent(rawValue);
+            return rawValue;
+        }
+
+        if (rawValue) removeStorage(sessionStorage, SESSION_ACCENT_KEY);
+        return '';
+    }
+
+    function writeSessionAccent(accent) {
+        if (!isValidAccent(accent)) return false;
+        return writeStorage(sessionStorage, SESSION_ACCENT_KEY, encodeSessionAccent(accent));
+    }
+
     function chooseRandomAccent() {
         const accents = Object.keys(ACCENTS);
         return accents[Math.floor(Math.random() * accents.length)] || FALLBACK_ACCENT;
@@ -71,11 +121,11 @@
         const savedAccent = readStorage(localStorage, ACCENT_KEY);
         if (isValidAccent(savedAccent)) return savedAccent;
 
-        const sessionAccent = readStorage(sessionStorage, SESSION_ACCENT_KEY);
+        const sessionAccent = readSessionAccent();
         if (isValidAccent(sessionAccent)) return sessionAccent;
 
         const randomAccent = chooseRandomAccent();
-        if (writeStorage(sessionStorage, SESSION_ACCENT_KEY, randomAccent)) {
+        if (writeSessionAccent(randomAccent)) {
             return randomAccent;
         }
 

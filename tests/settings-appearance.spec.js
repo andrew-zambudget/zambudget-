@@ -88,7 +88,13 @@ test.describe('settings appearance panel', () => {
         await expect(page.locator('html')).toHaveAttribute('data-accent', 'olive');
 
         await appearance.getByRole('button', { name: 'Randomize' }).click();
-        await expect.poll(() => page.evaluate(() => Boolean(sessionStorage.getItem('bb_session_accent_color')))).toBe(true);
+        await expect.poll(() => page.evaluate(() => {
+            const stored = sessionStorage.getItem('bb_session_accent_color') || '';
+            const accent = document.documentElement.getAttribute('data-accent') || '';
+            return stored.startsWith('zac:v1:')
+                && stored !== accent
+                && !stored.includes(accent);
+        })).toBe(true);
         await expect(appearance.getByRole('button', { name: 'Randomize' })).toBeEnabled();
 
         await appearance.getByRole('button', { name: 'Save Accent Color' }).click();
@@ -96,7 +102,13 @@ test.describe('settings appearance panel', () => {
 
         await appearance.getByRole('button', { name: 'Use Random by Default' }).click();
         await expect.poll(() => page.evaluate(() => localStorage.getItem('bb_accent_color'))).toBeNull();
-        await expect.poll(() => page.evaluate(() => Boolean(sessionStorage.getItem('bb_session_accent_color')))).toBe(true);
+        await expect.poll(() => page.evaluate(() => {
+            const stored = sessionStorage.getItem('bb_session_accent_color') || '';
+            const accent = document.documentElement.getAttribute('data-accent') || '';
+            return stored.startsWith('zac:v1:')
+                && stored !== accent
+                && !stored.includes(accent);
+        })).toBe(true);
         await expect(page.locator('#settingsAccentModeStatus')).toContainText('Random by default');
     });
 });

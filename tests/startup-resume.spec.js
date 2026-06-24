@@ -129,6 +129,28 @@ test.describe('startup and tab resume behavior', () => {
         await settleInitialRecoveryPromptIfShown(page);
         await waitForBudgetPrepInactive(page);
 
+        const setupMarkerState = await page.evaluate((userId) => {
+            const sessionKeys = Object.keys(sessionStorage);
+            const hardenedKeys = sessionKeys.filter(key => key.startsWith('bb_cloud_default_setup_attempted_v1_'));
+            const legacyKey = `bb_cloud_default_setup_attempted_${userId}`;
+            return {
+                legacySessionMarker: sessionStorage.getItem(legacyKey),
+                legacyLocalMarker: localStorage.getItem(legacyKey),
+                hardenedKeys,
+                hardenedValues: hardenedKeys.map(key => sessionStorage.getItem(key))
+            };
+        }, RESUME_SESSION.user.id);
+
+        expect(setupMarkerState.legacySessionMarker).toBeNull();
+        expect(setupMarkerState.legacyLocalMarker).toBeNull();
+        setupMarkerState.hardenedKeys.forEach((key) => {
+            expect(key).not.toContain(RESUME_SESSION.user.id);
+        });
+        setupMarkerState.hardenedValues.forEach((value) => {
+            expect(value).toMatch(/^zcs-default-setup:v1:/);
+            expect(value).not.toBe('true');
+        });
+
         await page.evaluate(() => {
             window.replaceSnapshot({
                 transactions: [{

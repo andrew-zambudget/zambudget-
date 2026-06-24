@@ -172,8 +172,9 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 1rem;
-  padding: 0.75rem 2rem;
+  padding: 0.75rem clamp(1rem, 3vw, 2rem);
   border-bottom: 1px solid var(--border);
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 56%),
@@ -183,15 +184,23 @@ textarea:focus-visible {
 .beta-support-copy {
   display: flex;
   align-items: center;
+  flex: 1 1 28rem;
   gap: 0.55rem;
   min-width: 0;
+  max-width: 100%;
   color: var(--text-dim);
   font-size: 0.92rem;
   line-height: 1.35;
 }
 
+.beta-support-copy span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .beta-support-copy strong {
   color: var(--text);
+  flex: 0 0 auto;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -200,8 +209,11 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
   gap: 0.5rem;
-  flex: 0 0 auto;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .beta-support-primary,
@@ -210,11 +222,15 @@ textarea:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 1 auto;
+  max-width: 100%;
   padding: 0.4rem 0.8rem;
   border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 0.86rem;
   font-weight: 800;
+  line-height: 1.15;
+  text-align: center;
   text-decoration: none;
   transition: transform 0.16s ease, border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease;
 }
@@ -878,7 +894,17 @@ footer {
   }
   .beta-support-primary,
   .beta-support-secondary {
-    flex: 1 1 0;
+    flex: 1 1 9.5rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .beta-support-actions {
+    flex-direction: column;
+  }
+  .beta-support-primary,
+  .beta-support-secondary {
+    width: 100%;
   }
 }
 

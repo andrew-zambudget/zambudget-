@@ -41,6 +41,7 @@ const ACCOUNT_SCOPED_PREFIXES = Object.freeze([
     'bb_cloud_recovery_key_backed_up_',
     'bb_cloud_recovery_key_grace_started_',
     'bb_cloud_recovery_key_unlocked_until_',
+    'bb_cloud_default_setup_attempted_v1_',
     'bb_cloud_default_setup_attempted_',
     'bb_cloud_force_pull_after_sign_in_',
     'bb_cloud_recent_restore_',

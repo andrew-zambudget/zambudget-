@@ -1241,6 +1241,9 @@ const RECOVERY_KEY_BACKED_UP_PREFIX = 'bb_cloud_recovery_key_backed_up_';
 const RECOVERY_KEY_GRACE_STARTED_PREFIX = 'bb_cloud_recovery_key_grace_started_';
 const RECOVERY_KEY_UNLOCK_PREFIX = 'bb_cloud_recovery_key_unlocked_until_';
 const BUDDY_CLOUD_DEFAULT_SETUP_PREFIX = 'bb_cloud_default_setup_attempted_';
+const BUDDY_CLOUD_DEFAULT_SETUP_KEY = 'bb_cloud_default_setup_attempted_v1';
+const BUDDY_CLOUD_DEFAULT_SETUP_KEY_PREFIX = `${BUDDY_CLOUD_DEFAULT_SETUP_KEY}_`;
+const BUDDY_CLOUD_DEFAULT_SETUP_VALUE = 'zcs-default-setup:v1:7b91d6';
 const RECOVERY_KEY_GRACE_MS = 72 * 60 * 60 * 1000;
 const RECOVERY_KEY_UNLOCK_MS = 5 * 60 * 1000;
 let recoveryKeyClipboardClearTimer = null;
@@ -1289,8 +1292,21 @@ function getRecoveryKeyUnlockName() {
     return window.currentUser?.id ? `${RECOVERY_KEY_UNLOCK_PREFIX}${window.currentUser.id}` : '';
 }
 
+function hashStorageScopeId(value = '') {
+    const input = String(value || '').trim();
+    if (!input) return '';
+
+    let hash = 0x811c9dc5;
+    for (let index = 0; index < input.length; index += 1) {
+        hash ^= input.charCodeAt(index);
+        hash = Math.imul(hash, 0x01000193);
+    }
+    return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
 function getBuddyCloudDefaultSetupAttemptName() {
-    return window.currentUser?.id ? `${BUDDY_CLOUD_DEFAULT_SETUP_PREFIX}${window.currentUser.id}` : '';
+    const userHash = hashStorageScopeId(window.currentUser?.id);
+    return userHash ? `${BUDDY_CLOUD_DEFAULT_SETUP_KEY_PREFIX}${userHash}` : '';
 }
 
 function getBuddyCloudForcePullAfterSignInName(userId = window.currentUser?.id) {
@@ -1305,11 +1321,40 @@ function markBuddyCloudForcePullAfterSignIn() {
     if (keyName) localStorage.setItem(keyName, 'true');
 }
 
+function cleanupLegacyBuddyCloudDefaultSetupMarkers() {
+    try {
+        [sessionStorage, localStorage].forEach(storage => {
+            if (!storage) return;
+            Object.keys(storage)
+                .filter(key => key.startsWith(BUDDY_CLOUD_DEFAULT_SETUP_PREFIX) && !key.startsWith(BUDDY_CLOUD_DEFAULT_SETUP_KEY_PREFIX))
+                .forEach(key => storage.removeItem(key));
+        });
+    } catch {
+        // Storage enumeration can be blocked in hardened browser modes.
+    }
+}
+
 function hasAttemptedBuddyCloudDefaultSetup() {
     const keyName = getBuddyCloudDefaultSetupAttemptName();
     if (!keyName) return true;
     try {
-        return sessionStorage.getItem(keyName) === 'true';
+        if (sessionStorage.getItem(keyName) === BUDDY_CLOUD_DEFAULT_SETUP_VALUE) {
+            cleanupLegacyBuddyCloudDefaultSetupMarkers();
+            return true;
+        }
+
+        const legacyName = window.currentUser?.id ? `${BUDDY_CLOUD_DEFAULT_SETUP_PREFIX}${window.currentUser.id}` : '';
+        const hasLegacyMarker = legacyName
+            && (sessionStorage.getItem(legacyName) === 'true' || localStorage.getItem(legacyName) === 'true');
+
+        if (hasLegacyMarker) {
+            sessionStorage.setItem(keyName, BUDDY_CLOUD_DEFAULT_SETUP_VALUE);
+            cleanupLegacyBuddyCloudDefaultSetupMarkers();
+            return true;
+        }
+
+        cleanupLegacyBuddyCloudDefaultSetupMarkers();
+        return false;
     } catch {
         return false;
     }
@@ -1319,7 +1364,8 @@ function markBuddyCloudDefaultSetupAttempted() {
     const keyName = getBuddyCloudDefaultSetupAttemptName();
     if (!keyName) return;
     try {
-        sessionStorage.setItem(keyName, 'true');
+        sessionStorage.setItem(keyName, BUDDY_CLOUD_DEFAULT_SETUP_VALUE);
+        cleanupLegacyBuddyCloudDefaultSetupMarkers();
     } catch {
         // Session storage can be unavailable in some hardened browsers.
     }
@@ -13930,6 +13976,8 @@ const ACCENT_THEME_VALUES = new Set([
     'copper',
     'olive'
 ]);
+const ACCENT_THEME_ORDER = Object.freeze([...ACCENT_THEME_VALUES]);
+const ACCENT_THEME_SESSION_PREFIX = 'zac:v1:';
 
 const ACCENT_THEME_LABELS = {
     teal: 'Teal',
@@ -14024,6 +14072,50 @@ function removeAccentStorage(storage, key) {
     }
 }
 
+function encodeSessionAccentTheme(accent) {
+    const index = ACCENT_THEME_ORDER.indexOf(accent);
+    if (index < 0) return '';
+    const checksum = ((index + 17) * 131).toString(36);
+    return `${ACCENT_THEME_SESSION_PREFIX}${index.toString(36)}:${checksum}`;
+}
+
+function decodeSessionAccentTheme(value = '') {
+    const rawValue = String(value || '').trim();
+    if (!rawValue.startsWith(ACCENT_THEME_SESSION_PREFIX)) return '';
+
+    const [indexValue, checksumValue] = rawValue.slice(ACCENT_THEME_SESSION_PREFIX.length).split(':');
+    const index = Number.parseInt(indexValue, 36);
+    if (!Number.isInteger(index) || index < 0 || index >= ACCENT_THEME_ORDER.length) return '';
+
+    const expectedChecksum = ((index + 17) * 131).toString(36);
+    if (checksumValue !== expectedChecksum) return '';
+
+    return ACCENT_THEME_ORDER[index] || '';
+}
+
+function readSessionAccentTheme() {
+    const rawValue = readAccentStorage(sessionStorage, ACCENT_THEME_SESSION_KEY);
+    const decodedAccent = decodeSessionAccentTheme(rawValue);
+    if (isValidAccentTheme(decodedAccent)) return decodedAccent;
+
+    if (isValidAccentTheme(rawValue)) {
+        writeSessionAccentTheme(rawValue);
+        return rawValue;
+    }
+
+    if (rawValue) removeAccentStorage(sessionStorage, ACCENT_THEME_SESSION_KEY);
+    return '';
+}
+
+function writeSessionAccentTheme(accent) {
+    if (!isValidAccentTheme(accent)) return false;
+    return writeAccentStorage(sessionStorage, ACCENT_THEME_SESSION_KEY, encodeSessionAccentTheme(accent));
+}
+
+function removeSessionAccentTheme() {
+    removeAccentStorage(sessionStorage, ACCENT_THEME_SESSION_KEY);
+}
+
 function isValidThemeMode(theme) {
     return theme === 'light' || theme === 'dark' || theme === 'system';
 }
@@ -14080,11 +14172,11 @@ export function resolveAccentTheme() {
     const savedAccent = readAccentStorage(localStorage, ACCENT_THEME_KEY);
     if (isValidAccentTheme(savedAccent)) return savedAccent;
 
-    const sessionAccent = readAccentStorage(sessionStorage, ACCENT_THEME_SESSION_KEY);
+    const sessionAccent = readSessionAccentTheme();
     if (isValidAccentTheme(sessionAccent)) return sessionAccent;
 
     const randomAccent = chooseRandomAccentTheme();
-    if (writeAccentStorage(sessionStorage, ACCENT_THEME_SESSION_KEY, randomAccent)) {
+    if (writeSessionAccentTheme(randomAccent)) {
         return randomAccent;
     }
 
@@ -14275,7 +14367,7 @@ export function applyAccentTheme(accent = ACCENT_THEME_FALLBACK) {
 export function setAccentTheme(accent = ACCENT_THEME_FALLBACK) {
     const safeAccent = isValidAccentTheme(accent) ? accent : ACCENT_THEME_FALLBACK;
     writeAccentStorage(localStorage, ACCENT_THEME_KEY, safeAccent);
-    removeAccentStorage(sessionStorage, ACCENT_THEME_SESSION_KEY);
+    removeSessionAccentTheme();
     applyAccentTheme(safeAccent);
 }
 
@@ -14306,7 +14398,7 @@ export async function randomizeAccentTheme() {
             }
         }
 
-        writeAccentStorage(sessionStorage, ACCENT_THEME_SESSION_KEY, finalAccent);
+        writeSessionAccentTheme(finalAccent);
         applyAccentTheme(finalAccent);
         refreshSettingsDirtyState();
         showToast('Color randomized for this session.');
@@ -14330,7 +14422,7 @@ export function saveCurrentAccentTheme() {
 export function useRandomAccentByDefault() {
     removeAccentStorage(localStorage, ACCENT_THEME_KEY);
     const randomAccent = chooseRandomAccentTheme(getActiveAccentTheme());
-    writeAccentStorage(sessionStorage, ACCENT_THEME_SESSION_KEY, randomAccent);
+    writeSessionAccentTheme(randomAccent);
     applyAccentTheme(randomAccent);
     captureSettingsBaseline();
     showToast('Random color mode is on.');

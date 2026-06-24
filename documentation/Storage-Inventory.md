@@ -89,7 +89,8 @@ CSV-imported transaction details are stored inside `bb_data`, including import m
 | `bb_cloud_recovery_key_backed_up_<userId>` | localStorage | Auth or sync helper, legacy | Old recovery-key backup status flag pattern | Legacy flags are migrated into `bb_cloud_recovery_key_backed_up_v1` and removed. This key should not remain after migration. |
 | `bb_cloud_recovery_key_grace_started_<userId>` | localStorage | Auth or sync helper | Grace-period timestamp | Status timestamp only. Does not store the key text. |
 | `bb_cloud_recovery_key_unlocked_until_<userId>` | sessionStorage | Auth or sync helper | Short recovery-key view unlock timestamp | Session-only UI unlock marker. |
-| `bb_cloud_default_setup_attempted_<userId>` | localStorage | Auth or sync helper | Default setup attempt marker | Setup helper flag. |
+| `bb_cloud_default_setup_attempted_v1_<hash>` | sessionStorage | Auth or sync helper | Opaque default setup attempt marker | Session-scoped setup helper flag. Visible key does not include the raw user ID. Legacy `bb_cloud_default_setup_attempted_<userId>` values are migrated/removed. |
+| `bb_cloud_default_setup_attempted_<userId>` | sessionStorage/localStorage | Auth or sync helper, legacy | Old default setup attempt marker | Legacy key exposed raw user ID. Current code migrates/removes this pattern and should not leave it behind. |
 | `bb_cloud_key_<userId>` | localStorage | Critical, legacy forbidden | Old raw recovery-key storage pattern | Current cleanup removes these keys. Do not reintroduce. |
 | `zam_local_vault_keys` | IndexedDB | Auth or sync helper | Non-extractable AES-GCM CryptoKey records for local vault storage | Encrypts and decrypts persisted local `bb_data` envelopes and local metadata envelopes such as `bb_sync_history` and `bb_browser_access_tokens_v1`. Local-only. Not uploaded to Zam!. |
 | `budgetbuddy_buddy_cloud_keys` | IndexedDB | Auth or sync helper | Non-extractable AES-GCM CryptoKey | Lets trusted browser sync after refresh without storing raw recovery-key text in localStorage. |
@@ -117,7 +118,7 @@ CSV-imported transaction details are stored inside `bb_data`, including import m
 | `zam_site_data_notice` | cookie | Preference or notice | `required` | First-party host-only required site-data notice cookie. |
 | `bb_theme_mode` | localStorage | Preference or notice | Theme mode | Shared by app and marketing/static pages. |
 | `bb_accent_color` | localStorage | Preference or notice | Saved accent palette | UI preference. |
-| `bb_session_accent_color` | sessionStorage | Preference or notice | Session-random accent palette | UI preference. |
+| `bb_session_accent_color` | sessionStorage | Preference or notice | Encoded session-random accent palette | UI preference. Current value is an encoded session token, not the readable accent name. Legacy readable values are migrated on read. |
 | `bb_skip_cat_warn` | localStorage | Preference or notice | Category warning dismissal | UI preference. |
 | `bb_skip_income_warn` | localStorage | Preference or notice | Income warning dismissal | UI preference. |
 | `bb_skip_tx_warn` | localStorage | Preference or notice | Transaction warning dismissal | UI preference. |

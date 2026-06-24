@@ -286,6 +286,8 @@ test.describe('Zam! storage lifecycle', () => {
             localStorage.setItem('bb_cloud_sync_slot_v1', 'new-slot-token');
             localStorage.setItem('bb_cloud_sync_slot_deleted-user-id', 'old-slot-token');
             localStorage.setItem('bb_browser_access_token_deleted-user-id', 'old-browser-token');
+            localStorage.setItem('bb_cloud_default_setup_attempted_deleted-user-id', 'true');
+            localStorage.setItem('bb_cloud_default_setup_attempted_v1_deadbeef', 'zcs-default-setup:v1:test');
             localStorage.setItem('bb_cloud_recovery_key_saved_v1', 'true');
             localStorage.setItem('bb_cloud_recovery_key_backed_up_v1', 'true');
             localStorage.setItem('bb_cloud_recovery_key_saved_deleted-user-id', 'true');
@@ -305,6 +307,8 @@ test.describe('Zam! storage lifecycle', () => {
                 genericSlot: localStorage.getItem('bb_cloud_sync_slot_v1'),
                 slot: localStorage.getItem('bb_cloud_sync_slot_deleted-user-id'),
                 browserToken: localStorage.getItem('bb_browser_access_token_deleted-user-id'),
+                defaultSetupLegacy: localStorage.getItem('bb_cloud_default_setup_attempted_deleted-user-id'),
+                defaultSetupHardened: localStorage.getItem('bb_cloud_default_setup_attempted_v1_deadbeef'),
                 genericRecoverySaved: localStorage.getItem('bb_cloud_recovery_key_saved_v1'),
                 genericRecoveryBackedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_v1'),
                 recoverySaved: localStorage.getItem('bb_cloud_recovery_key_saved_deleted-user-id'),
@@ -326,6 +330,8 @@ test.describe('Zam! storage lifecycle', () => {
         expect(result.genericSlot).toBeNull();
         expect(result.slot).toBeNull();
         expect(result.browserToken).toBeNull();
+        expect(result.defaultSetupLegacy).toBeNull();
+        expect(result.defaultSetupHardened).toBeNull();
         expect(result.genericRecoverySaved).toBeNull();
         expect(result.genericRecoveryBackedUp).toBeNull();
         expect(result.recoverySaved).toBeNull();
