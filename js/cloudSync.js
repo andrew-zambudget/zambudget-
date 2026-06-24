@@ -36,6 +36,7 @@ const FREE_SYNC_SLOT_IDLE_RECLAIM_MINUTES = 60;
 const FREE_SYNC_SLOT_IDLE_RECLAIM_MS = FREE_SYNC_SLOT_IDLE_RECLAIM_MINUTES * 60 * 1000;
 const FREE_SYNC_SLOT_IDLE_RECLAIM_LABEL = `${FREE_SYNC_SLOT_IDLE_RECLAIM_MINUTES} minutes`;
 const MULTI_DEVICE_LIMIT_CODE = 'BUDDY_CLOUD_MULTI_DEVICE_LIMIT';
+const CLOUD_AUTH_SESSION_MISMATCH_CODE = 'BUDDY_CLOUD_AUTH_SESSION_MISMATCH';
 
 let sb = null;
 let currentUser = null;
@@ -949,6 +950,36 @@ function canUseCloud() {
     return Boolean(sb?.from && currentUser?.id && crypto?.subtle);
 }
 
+function createCloudAuthSessionError(message) {
+    const error = new Error(message || 'Cloud Sync needs a fresh sign-in before it can back up this budget.');
+    error.code = CLOUD_AUTH_SESSION_MISMATCH_CODE;
+    return error;
+}
+
+async function getCloudAuthSessionUser() {
+    if (!sb?.auth?.getSession) return currentUser || null;
+    const { data, error } = await sb.auth.getSession();
+    if (error) throw error;
+    return data?.session?.user || null;
+}
+
+async function assertCloudSessionMatchesCurrentUser() {
+    if (!currentUser?.id) {
+        throw createCloudAuthSessionError('Sign in before using Cloud Sync.');
+    }
+
+    const sessionUser = await getCloudAuthSessionUser();
+    if (!sessionUser?.id) {
+        throw createCloudAuthSessionError('Cloud Sync needs a fresh sign-in session before it can back up this budget. Sign out and sign in again, then retry sync.');
+    }
+
+    if (sessionUser.id !== currentUser.id) {
+        throw createCloudAuthSessionError('Cloud Sync sign-in changed in this browser. Refresh or sign in again before syncing.');
+    }
+
+    return sessionUser;
+}
+
 function getConflictState() {
     return {
         remoteUpdatedAt: localStorage.getItem(CLOUD_CONFLICT_REMOTE_KEY) || '',
@@ -1054,6 +1085,14 @@ function getCloudErrorMessage(error, fallback = 'Cloud Sync failed.') {
     const message = String(error?.message || error || '').trim();
     const code = String(error?.code || '').trim();
 
+    if (
+        code === CLOUD_AUTH_SESSION_MISMATCH_CODE
+        || code === '42501'
+        || message.toLowerCase().includes('row-level security policy')
+    ) {
+        return 'Cloud Sync needs a fresh sign-in session before it can back up this budget. Your budget is still saved locally. Sign out and sign in again, then retry sync.';
+    }
+
     if (code === MULTI_DEVICE_LIMIT_CODE) {
         return `Free Tier includes ${FREE_SYNC_DEVICE_LIMIT} active Cloud Sync slots. Browsers inactive for ${FREE_SYNC_SLOT_IDLE_RECLAIM_LABEL} are released automatically, or use this browser instead.`;
     }
@@ -1117,6 +1156,8 @@ function createMultiDeviceLimitError(remote = null, slots = normalizeSyncOwnerSl
 }
 
 async function fetchRemoteVault() {
+    await assertCloudSessionMatchesCurrentUser();
+
     const { data, error } = await sb
         .from(CLOUD_TABLE)
         .select('payload, payload_checksum, client_updated_at, updated_at, sync_owner_hash, sync_owner_claimed_at, sync_owner_last_seen_at, sync_owner_slots')
@@ -1129,6 +1170,8 @@ async function fetchRemoteVault() {
 }
 
 async function fetchLatestVaultSnapshot() {
+    await assertCloudSessionMatchesCurrentUser();
+
     const { data, error } = await sb
         .from(CLOUD_SNAPSHOT_TABLE)
         .select('snapshot_id, client_updated_at, created_at')
@@ -1144,6 +1187,7 @@ async function fetchLatestVaultSnapshot() {
 
 async function fetchLatestRecoverableVaultSnapshot(keyMaterial) {
     if (!keyMaterial) return null;
+    await assertCloudSessionMatchesCurrentUser();
 
     const retentionLimit = getVersionHistoryLimit();
     const { data, error } = await sb
@@ -1168,6 +1212,8 @@ async function fetchLatestRecoverableVaultSnapshot(keyMaterial) {
 }
 
 async function pruneVaultSnapshots() {
+    await assertCloudSessionMatchesCurrentUser();
+
     const retentionLimit = getVersionHistoryLimit();
     const { data, error } = await sb
         .from(CLOUD_SNAPSHOT_TABLE)
@@ -1194,6 +1240,7 @@ async function pruneVaultSnapshots() {
 
 async function maybeCreateVaultSnapshot({ payload, checksum, clientUpdatedAt, reason }) {
     if (!payload || !currentUser?.id || !sb?.from) return false;
+    await assertCloudSessionMatchesCurrentUser();
 
     const normalizedReason = String(reason || 'Synced to Cloud Sync.').slice(0, 120);
     const loweredReason = normalizedReason.toLowerCase();
@@ -1296,6 +1343,7 @@ async function recoverLatestVersionSnapshot(keyMaterial, reason = 'Recovered Clo
 
 async function claimSyncSlot(remote = null, { replace = false } = {}) {
     if (!currentUser?.id || !sb?.from) return { allowed: true, premium: false };
+    await assertCloudSessionMatchesCurrentUser();
 
     if (canUseMultipleSyncDevices()) {
         rememberStatus({
@@ -1351,6 +1399,7 @@ async function claimSyncSlot(remote = null, { replace = false } = {}) {
 
 async function persistPrunedSyncSlots(remote = null, slots = []) {
     if (!remote || !currentUser?.id || !sb?.from) return false;
+    await assertCloudSessionMatchesCurrentUser();
 
     const { error } = await sb
         .from(CLOUD_TABLE)
@@ -1466,6 +1515,7 @@ async function performPushSnapshotNow(reason = 'Budget synced to Cloud Sync.') {
         rememberStatus({ syncing: false, nextSyncAt: '', nextSyncReason: '' });
         return false;
     }
+    await assertCloudSessionMatchesCurrentUser();
 
     const keyMaterial = getStoredCloudKeyMaterial();
     if (!keyMaterial) {

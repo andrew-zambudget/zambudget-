@@ -181,6 +181,159 @@ test.describe('Cloud Sync conflict sensitivity', () => {
         await resetStorage(page);
     });
 
+    test('missing Supabase session stops Cloud Sync before vault upload', async ({ page }) => {
+        const result = await page.evaluate(async ({ stateModulePath, cloudModulePath }) => {
+            const State = await import(stateModulePath);
+            const Cloud = await import(cloudModulePath);
+            const user = { id: 'rls-session-guard-user', email: 'rls-session@example.invalid' };
+            const store = { vault: null, snapshots: [] };
+            let sessionUser = user;
+            let upsertCalls = 0;
+
+            function makeQuery(table) {
+                const query = {
+                    _limit: 0,
+                    select() { return this; },
+                    eq() { return this; },
+                    order() { return this; },
+                    limit(value) {
+                        this._limit = Number(value) || 0;
+                        return this;
+                    },
+                    range() { return this; },
+                    in() { return this; },
+                    maybeSingle() {
+                        if (table === 'buddy_cloud_vaults') {
+                            return Promise.resolve({ data: store.vault ? { ...store.vault } : null, error: null });
+                        }
+                        if (table === 'buddy_cloud_vault_snapshots') {
+                            return Promise.resolve({ data: store.snapshots[0] ? { ...store.snapshots[0] } : null, error: null });
+                        }
+                        return Promise.resolve({ data: null, error: null });
+                    },
+                    insert(row) {
+                        if (table === 'buddy_cloud_vault_snapshots') {
+                            store.snapshots.unshift({ ...row });
+                        }
+                        return Promise.resolve({ data: row, error: null });
+                    },
+                    upsert(row) {
+                        upsertCalls += 1;
+                        if (table === 'buddy_cloud_vaults') {
+                            store.vault = {
+                                ...(store.vault || {}),
+                                ...row,
+                                updated_at: row.updated_at || row.client_updated_at
+                            };
+                        }
+                        return Promise.resolve({ data: store.vault, error: null });
+                    },
+                    update(fields) {
+                        if (table === 'buddy_cloud_vaults') {
+                            store.vault = {
+                                ...(store.vault || {}),
+                                ...fields
+                            };
+                        }
+                        this._result = { data: store.vault, error: null };
+                        return this;
+                    },
+                    delete() {
+                        this._result = { data: null, error: null };
+                        return this;
+                    },
+                    then(resolve, reject) {
+                        if (this._result) return Promise.resolve(this._result).then(resolve, reject);
+                        if (table === 'buddy_cloud_vault_snapshots') {
+                            const rows = this._limit ? store.snapshots.slice(0, this._limit) : [...store.snapshots];
+                            return Promise.resolve({ data: rows, error: null }).then(resolve, reject);
+                        }
+                        return Promise.resolve({ data: [], error: null }).then(resolve, reject);
+                    }
+                };
+                return query;
+            }
+
+            const supabaseClient = {
+                auth: {
+                    getSession: async () => ({ data: { session: sessionUser ? { user: sessionUser } : null }, error: null })
+                },
+                from: makeQuery,
+                channel: () => ({
+                    on() { return this; },
+                    subscribe(callback) {
+                        if (typeof callback === 'function') callback('SUBSCRIBED');
+                        return this;
+                    },
+                    unsubscribe() {}
+                }),
+                removeChannel: async () => ({ error: null })
+            };
+
+            State.replaceSnapshot({
+                transactions: [{
+                    id: 'tx-rls-session-guard',
+                    type: 'expense',
+                    amount: 25,
+                    category: 'Testing',
+                    description: 'Session guard local data',
+                    date: '2026-06-23',
+                    createdAt: '2026-06-23T01:00:00.000Z',
+                    createdAtUTC: '2026-06-23T01:00:00.000Z',
+                    serverLoggedAtUTC: '2026-06-23T01:00:00.000Z',
+                    updatedAtUTC: '2026-06-23T01:00:00.000Z'
+                }],
+                categories: [{
+                    id: 'cat-rls-session-guard',
+                    type: 'expense',
+                    name: 'Testing',
+                    icon: 'T',
+                    budget: 100,
+                    createdAt: '2026-06-23T01:00:00.000Z'
+                }],
+                settings: { currency: '$' }
+            });
+
+            await Cloud.init({
+                supabaseClient,
+                user,
+                getSnapshot: State.getSnapshot,
+                replaceSnapshot: State.replaceSnapshot,
+                afterRemoteApply: () => {},
+                isPremiumAccount: () => false
+            });
+            const setup = await Cloud.enableSync();
+            const upsertCallsAfterSetup = upsertCalls;
+            sessionUser = null;
+
+            let syncError = '';
+            try {
+                await Cloud.forcePush();
+            } catch (error) {
+                syncError = error?.message || String(error || '');
+            }
+            const status = Cloud.getStatus();
+
+            return {
+                setupCreatedVault: Boolean(setup?.recoveryKey && store.vault?.payload),
+                upsertCallsAfterSetup,
+                upsertCallsAfterMissingSession: upsertCalls,
+                syncError,
+                statusLastError: status.lastError,
+                localTransactions: State.getSnapshot().transactions?.length || 0
+            };
+        }, {
+            stateModulePath: modulePath('/js/state.js'),
+            cloudModulePath: modulePath('/js/cloudSync.js')
+        });
+
+        expect(result.setupCreatedVault).toBe(true);
+        expect(result.upsertCallsAfterSetup).toBe(1);
+        expect(result.upsertCallsAfterMissingSession).toBe(1);
+        expect(result.syncError).toContain('fresh sign-in session');
+        expect(result.localTransactions).toBe(1);
+    });
+
     test('stale enabled state without a remote vault allows fresh recovery key setup', async ({ page }) => {
         const result = await page.evaluate(async ({ stateModulePath, cloudModulePath }) => {
             const State = await import(stateModulePath);
