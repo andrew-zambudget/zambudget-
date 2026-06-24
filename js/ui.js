@@ -3839,9 +3839,18 @@ async function showLostRecoveryKeyModal() {
 async function runRecoveryKeyImportFlow() {
     const recoveryKey = await askForRecoveryKey();
     if (!recoveryKey) return false;
-    const result = await completeBuddyCloudEnableFlow({ recoveryKey });
-    if (!result) return false;
+    try {
+        await window.BuddyCloud?.importRecoveryKey?.(recoveryKey);
+    } catch (error) {
+        const message = error?.message || 'Recovery key could not be verified.';
+        recordSyncEvent(message, 'error');
+        if (window.showToast) window.showToast(message);
+        return false;
+    }
     markRecoveryKeyBackedUp();
+    syncCloudActionButtons();
+    syncAccountRecoveryUi();
+    if (window.showToast) window.showToast('Recovery key verified on this browser.');
     return true;
 }
 

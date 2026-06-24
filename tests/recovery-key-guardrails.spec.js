@@ -266,6 +266,51 @@ test.describe('recovery key setup guardrails', () => {
         await expect(recoveryModal.getByRole('button', { name: 'Lost Recovery Key' })).toBeVisible();
     });
 
+    test('recovery help import verifies saved key without rerunning sync choice flow', async ({ page }) => {
+        const setupModal = await waitForRecoveryKeySetupModal(page);
+        const recoveryKey = await page.locator('#buddyCloudModalInput').inputValue();
+
+        await page.waitForTimeout(11000);
+        await setupModal.getByRole('button', { name: 'I understand - remind me for 72 hours' }).click();
+        await expect(setupModal).toBeHidden();
+
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await waitForAppReady(page);
+        await page.waitForFunction(() => {
+            const status = window.BuddyCloud?.getStatus?.() || {};
+            return Boolean(status.signedIn && status.enabled && status.hasKey && !status.hasExportableKey);
+        });
+
+        await page.locator('#syncStatusBtn').click();
+        await expect(page.locator('#syncHistoryPanel')).toBeVisible();
+        await page.locator('#syncKeyBtn').click();
+
+        const recoveryModal = page.locator('#buddyCloudModal');
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Recovery Help');
+        await recoveryModal.getByRole('button', { name: 'Import Key' }).click();
+
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Enter Recovery Key');
+        await page.locator('#buddyCloudModalInput').fill(recoveryKey);
+        await recoveryModal.getByRole('button', { name: 'Import Key' }).click();
+
+        await expect(page.locator('#buddyCloudModalTitle')).toHaveText('Recovery Help');
+        await expect(recoveryModal).not.toContainText('Recovery key not verified');
+        await expect(recoveryModal).not.toContainText('Import Key');
+        await expect(page.locator('#buddyCloudModalTitle')).not.toHaveText('Review Cloud Sync Versions');
+
+        const flags = await page.evaluate((userId) => ({
+            backedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_v1'),
+            saved: localStorage.getItem('bb_cloud_recovery_key_saved_v1'),
+            graceStarted: localStorage.getItem('bb_cloud_recovery_key_grace_started_' + userId),
+            status: window.BuddyCloud?.getStatus?.() || {}
+        }), TEST_USER_ID);
+
+        expect(flags.backedUp).toMatch(/^zrk:v1:/);
+        expect(flags.saved).toMatch(/^zrk:v1:/);
+        expect(flags.graceStarted).toBeNull();
+        expect(flags.status.hasExportableKey).toBe(true);
+    });
+
     test('fresh setup validates pasted recovery key before marking it saved', async ({ page }) => {
         const modal = await waitForRecoveryKeySetupModal(page);
         const recoveryKey = await page.locator('#buddyCloudModalInput').inputValue();
