@@ -18,11 +18,13 @@ export const LEGACY_CLOUD_LAST_PUSHED_KEY = 'bb_cloud_last_pushed_at';
 export const LEGACY_CLOUD_LAST_REMOTE_KEY = 'bb_cloud_last_remote_at';
 export const LEGACY_CLOUD_SYNC_SLOT_KEY = 'bb_cloud_sync_slot_v1';
 export const LEGACY_CLOUD_SYNC_SLOT_PREFIX = 'bb_cloud_sync_slot_';
+export const LEGACY_RECOVERY_KEY_GRACE_STARTED_PREFIX = 'bb_cloud_recovery_key_grace_started_';
 
 const FIELD_LOCAL_UPDATED_AT = 'localUpdatedAt';
 const FIELD_CLOUD_LAST_PUSHED_AT = 'cloudLastPushedAt';
 const FIELD_CLOUD_LAST_REMOTE_AT = 'cloudLastRemoteAt';
 const FIELD_CLOUD_SYNC_SLOT_TOKEN = 'cloudSyncSlotToken';
+const FIELD_RECOVERY_KEY_GRACE_STARTED_AT = 'recoveryKeyGraceStartedAt';
 
 const LEGACY_DIRECT_KEYS = Object.freeze([
     [LEGACY_LOCAL_UPDATED_AT_KEY, FIELD_LOCAL_UPDATED_AT],
@@ -51,7 +53,8 @@ function normalizePayload(payload = {}) {
         localUpdatedAt: cleanValue(source.localUpdatedAt, 48),
         cloudLastPushedAt: cleanValue(source.cloudLastPushedAt, 48),
         cloudLastRemoteAt: cleanValue(source.cloudLastRemoteAt, 48),
-        cloudSyncSlotToken: cleanValue(source.cloudSyncSlotToken, 320)
+        cloudSyncSlotToken: cleanValue(source.cloudSyncSlotToken, 320),
+        recoveryKeyGraceStartedAt: cleanValue(source.recoveryKeyGraceStartedAt, 48)
     };
 }
 
@@ -63,7 +66,8 @@ function mergeOperationalMetadataPayloads(primary = {}, fallback = {}) {
         localUpdatedAt: safePrimary.localUpdatedAt || safeFallback.localUpdatedAt,
         cloudLastPushedAt: safePrimary.cloudLastPushedAt || safeFallback.cloudLastPushedAt,
         cloudLastRemoteAt: safePrimary.cloudLastRemoteAt || safeFallback.cloudLastRemoteAt,
-        cloudSyncSlotToken: safePrimary.cloudSyncSlotToken || safeFallback.cloudSyncSlotToken
+        cloudSyncSlotToken: safePrimary.cloudSyncSlotToken || safeFallback.cloudSyncSlotToken,
+        recoveryKeyGraceStartedAt: safePrimary.recoveryKeyGraceStartedAt || safeFallback.recoveryKeyGraceStartedAt
     });
 }
 
@@ -121,6 +125,27 @@ function getLegacySyncSlotKeys(storage) {
     return Array.from(keys);
 }
 
+function getLegacyPrefixedKeys(storage, prefix) {
+    const keys = new Set();
+    try {
+        for (let index = 0; index < storage.length; index += 1) {
+            const key = storage.key(index);
+            if (key && key.startsWith(prefix)) keys.add(key);
+        }
+    } catch {
+        // Key enumeration may be blocked. Direct keys are still handled.
+    }
+    return Array.from(keys);
+}
+
+function chooseLatestIsoTimestamp(values = []) {
+    return values
+        .map(value => cleanValue(value, 48))
+        .filter(Boolean)
+        .filter(value => Number.isFinite(new Date(value).getTime()))
+        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || '';
+}
+
 function readLegacyPayload(storage) {
     const legacy = {};
 
@@ -137,12 +162,22 @@ function readLegacyPayload(storage) {
         }
     }
 
+    const legacyGraceStartedAt = chooseLatestIsoTimestamp(
+        getLegacyPrefixedKeys(storage, LEGACY_RECOVERY_KEY_GRACE_STARTED_PREFIX)
+            .map(key => readStorage(storage, key))
+    );
+    if (legacyGraceStartedAt) {
+        legacy.recoveryKeyGraceStartedAt = legacyGraceStartedAt;
+    }
+
     return normalizePayload(legacy);
 }
 
 function removeLegacyPayload(storage) {
     LEGACY_DIRECT_KEYS.forEach(([key]) => removeStorage(storage, key));
     getLegacySyncSlotKeys(storage).forEach(key => removeStorage(storage, key));
+    getLegacyPrefixedKeys(storage, LEGACY_RECOVERY_KEY_GRACE_STARTED_PREFIX)
+        .forEach(key => removeStorage(storage, key));
 }
 
 async function readEncryptedPayload(storage, storageKey, options = {}) {
@@ -226,10 +261,12 @@ export async function initLocalOperationalMetadataStorage(options = {}) {
         || legacyPayload.cloudLastPushedAt
         || legacyPayload.cloudLastRemoteAt
         || legacyPayload.cloudSyncSlotToken
+        || legacyPayload.recoveryKeyGraceStartedAt
         || encryptedPayload.localUpdatedAt
         || encryptedPayload.cloudLastPushedAt
         || encryptedPayload.cloudLastRemoteAt
         || encryptedPayload.cloudSyncSlotToken
+        || encryptedPayload.recoveryKeyGraceStartedAt
     ) {
         await writeEncryptedPayload(merged, options);
     }
@@ -243,6 +280,7 @@ export async function initLocalOperationalMetadataStorage(options = {}) {
             || legacyPayload.cloudLastPushedAt
             || legacyPayload.cloudLastRemoteAt
             || legacyPayload.cloudSyncSlotToken
+            || legacyPayload.recoveryKeyGraceStartedAt
         ),
         payload: { ...cache }
     };
@@ -315,6 +353,18 @@ export function setCloudSyncSlotToken(value = '', options = {}) {
 
 export function removeCloudSyncSlotToken(options = {}) {
     removeOperationalMetadataValue(FIELD_CLOUD_SYNC_SLOT_TOKEN, options);
+}
+
+export function getRecoveryKeyGraceStartedAt() {
+    return getOperationalMetadataValue(FIELD_RECOVERY_KEY_GRACE_STARTED_AT);
+}
+
+export function setRecoveryKeyGraceStartedAt(value = new Date().toISOString(), options = {}) {
+    return setOperationalMetadataValue(FIELD_RECOVERY_KEY_GRACE_STARTED_AT, value, options);
+}
+
+export function removeRecoveryKeyGraceStartedAt(options = {}) {
+    removeOperationalMetadataValue(FIELD_RECOVERY_KEY_GRACE_STARTED_AT, options);
 }
 
 export function removeLegacyOperationalMetadata(options = {}) {

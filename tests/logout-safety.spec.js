@@ -159,15 +159,21 @@ test.describe('logout safety', () => {
 
         await page.waitForURL(/sessionCleared=/, { timeout: 10000 });
 
-        const flags = await page.evaluate(() => ({
-            backedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_v1'),
-            saved: localStorage.getItem('bb_cloud_recovery_key_saved_v1'),
-            graceStarted: localStorage.getItem('bb_cloud_recovery_key_grace_started_logout-recovery-key-preserve-user')
-        }));
+        const flags = await page.evaluate(async () => {
+            const Operational = await import('/js/localOperationalMetadataStorage.js');
+            await Operational.flushLocalOperationalMetadataWrites();
+            return {
+                backedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_v1'),
+                saved: localStorage.getItem('bb_cloud_recovery_key_saved_v1'),
+                legacyGraceStarted: localStorage.getItem('bb_cloud_recovery_key_grace_started_logout-recovery-key-preserve-user'),
+                graceStarted: Operational.getRecoveryKeyGraceStartedAt()
+            };
+        });
 
         expect(flags.backedUp).toMatch(/^zrk:v1:/);
         expect(flags.saved).toMatch(/^zrk:v1:/);
-        expect(flags.graceStarted).toBeNull();
+        expect(flags.legacyGraceStarted).toBeNull();
+        expect(flags.graceStarted).toBe('');
     });
 
     test('trusted key without verified backup shows recovery warning before sign out', async ({ page }) => {

@@ -34,7 +34,7 @@ Current local-first behavior:
 | Key | Storage | Classification | Contents | Notes |
 | --- | --- | --- | --- | --- |
 | `bb_data` | localStorage | Critical | Encrypted local vault envelope for transactions, categories, settings, gift cards | Current real budget store. Envelope metadata may be visible, but budget contents should not be readable in localStorage. |
-| `bb_local_operational_metadata_v1` | localStorage | Sensitive metadata | Encrypted local metadata envelope for local write timestamp, Cloud Sync verification timestamps, and sync-slot token | Per-browser operational metadata. Runtime values use `zam_local_metadata_vault` and are not uploaded through Cloud Sync. |
+| `bb_local_operational_metadata_v1` | localStorage | Sensitive metadata | Encrypted local metadata envelope for local write timestamp, Cloud Sync verification timestamps, sync-slot token, and recovery grace timestamp | Per-browser operational metadata. Runtime values use `zam_local_metadata_vault` and are not uploaded through Cloud Sync. |
 | `bb_local_updated_at` | localStorage | Sensitive metadata, legacy | Old last local budget write timestamp | Migrated into `bb_local_operational_metadata_v1` and removed. This key should not remain after migration. |
 | `zam_demo_data` | sessionStorage | Critical, demo-only | Sample/demo budget payload | Demo edits are sandboxed and should not contain real financial data. |
 | `zam_demo_local_updated_at` | sessionStorage | Sensitive metadata, demo-only | Demo local write timestamp | Cleared with demo/session reset. |
@@ -87,7 +87,7 @@ CSV-imported transaction details are stored inside `bb_data`, including import m
 | `bb_cloud_recovery_key_backed_up_v1` | localStorage | Auth or sync helper | Opaque recovery-key backup verified marker | Status marker only. Does not store the key text. Visible key name does not include the user ID. Legacy `true` values are migrated to an opaque marker. |
 | `bb_cloud_recovery_key_saved_<userId>` | localStorage | Auth or sync helper, legacy | Old recovery-key saved status flag pattern | Legacy flags are migrated into `bb_cloud_recovery_key_saved_v1` and removed. This key should not remain after migration. |
 | `bb_cloud_recovery_key_backed_up_<userId>` | localStorage | Auth or sync helper, legacy | Old recovery-key backup status flag pattern | Legacy flags are migrated into `bb_cloud_recovery_key_backed_up_v1` and removed. This key should not remain after migration. |
-| `bb_cloud_recovery_key_grace_started_<userId>` | localStorage | Auth or sync helper | Grace-period timestamp | Status timestamp only. Does not store the key text. |
+| `bb_cloud_recovery_key_grace_started_<userId>` | localStorage | Auth or sync helper, legacy | Old recovery grace-period timestamp pattern | Migrated into `bb_local_operational_metadata_v1` and removed. This key exposed a raw user ID in the visible key name and should not remain after migration. Does not store the recovery-key text. |
 | `bb_cloud_recovery_key_unlocked_until_<userId>` | sessionStorage | Auth or sync helper | Short recovery-key view unlock timestamp | Session-only UI unlock marker. |
 | `bb_cloud_default_setup_attempted_v1_<hash>` | sessionStorage | Auth or sync helper | Opaque default setup attempt marker | Session-scoped setup helper flag. Visible key does not include the raw user ID. Legacy `bb_cloud_default_setup_attempted_<userId>` values are migrated/removed. |
 | `bb_cloud_default_setup_attempted_<userId>` | sessionStorage/localStorage | Auth or sync helper, legacy | Old default setup attempt marker | Legacy key exposed raw user ID. Current code migrates/removes this pattern and should not leave it behind. |
@@ -156,6 +156,6 @@ The implementation must preserve:
 
 Cloud/browser access tokens must not be used as local vault encryption keys. Session credentials, browser access tokens, sync-slot tokens, and vault decryption material must remain separate.
 
-If legacy `bb_browser_access_token_<userId>` values, `bb_browser_access_tokens_v1`, `bb_local_operational_metadata_v1`, legacy `bb_cloud_sync_slot_v1`, or legacy `bb_cloud_sync_slot_<userId>` values leak, rotate or revoke them as auth/sync helper material. Do not treat them as vault decryption material.
+If legacy `bb_browser_access_token_<userId>` values, `bb_browser_access_tokens_v1`, `bb_local_operational_metadata_v1`, legacy `bb_cloud_sync_slot_v1`, legacy `bb_cloud_sync_slot_<userId>`, or legacy `bb_cloud_recovery_key_grace_started_<userId>` values leak, rotate or revoke them as auth/sync helper material. Do not treat them as vault decryption material.
 
 Local storage encryption protects persisted browser storage at rest. It does not fully protect data while the app is unlocked and decrypted in memory, and it does not eliminate XSS risk.

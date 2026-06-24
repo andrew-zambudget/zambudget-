@@ -1295,8 +1295,41 @@ function getLegacyRecoveryKeyFlagNames(prefix, exactName = '') {
     return Array.from(names);
 }
 
-function getRecoveryKeyGraceStartedName() {
-    return window.currentUser?.id ? `${RECOVERY_KEY_GRACE_STARTED_PREFIX}${window.currentUser.id}` : '';
+function getLegacyRecoveryKeyGraceStartedNames() {
+    try {
+        return Object.keys(localStorage)
+            .filter(key => key.startsWith(RECOVERY_KEY_GRACE_STARTED_PREFIX));
+    } catch {
+        return [];
+    }
+}
+
+function cleanupLegacyRecoveryKeyGraceStartedMarkers() {
+    getLegacyRecoveryKeyGraceStartedNames()
+        .forEach(name => localStorage.removeItem(name));
+}
+
+function readLegacyRecoveryKeyGraceStartedAt() {
+    const values = getLegacyRecoveryKeyGraceStartedNames()
+        .map(name => localStorage.getItem(name) || '')
+        .filter(Boolean)
+        .filter(value => Number.isFinite(new Date(value).getTime()))
+        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    return values[0] || '';
+}
+
+function getRecoveryKeyGraceStartedAt() {
+    const encryptedStartedAt = OperationalMetadata.getRecoveryKeyGraceStartedAt();
+    const legacyStartedAt = readLegacyRecoveryKeyGraceStartedAt();
+
+    if (legacyStartedAt && !encryptedStartedAt) {
+        OperationalMetadata.setRecoveryKeyGraceStartedAt(legacyStartedAt);
+    }
+    if (legacyStartedAt) {
+        cleanupLegacyRecoveryKeyGraceStartedMarkers();
+    }
+
+    return encryptedStartedAt || legacyStartedAt || '';
 }
 
 function getRecoveryKeyUnlockName() {
@@ -1668,20 +1701,19 @@ window.addEventListener('pagehide', () => {
 });
 
 function startRecoveryKeyGracePeriod() {
-    const keyName = getRecoveryKeyGraceStartedName();
-    if (keyName && !localStorage.getItem(keyName)) {
-        localStorage.setItem(keyName, new Date().toISOString());
+    if (!getRecoveryKeyGraceStartedAt()) {
+        OperationalMetadata.setRecoveryKeyGraceStartedAt(new Date().toISOString());
     }
+    cleanupLegacyRecoveryKeyGraceStartedMarkers();
 }
 
 function clearRecoveryKeyGracePeriod() {
-    getLegacyRecoveryKeyFlagNames(RECOVERY_KEY_GRACE_STARTED_PREFIX, getRecoveryKeyGraceStartedName())
-        .forEach(name => localStorage.removeItem(name));
+    OperationalMetadata.removeRecoveryKeyGraceStartedAt();
+    cleanupLegacyRecoveryKeyGraceStartedMarkers();
 }
 
 function getRecoveryKeyGraceState() {
-    const keyName = getRecoveryKeyGraceStartedName();
-    const startedAt = keyName ? localStorage.getItem(keyName) || '' : '';
+    const startedAt = getRecoveryKeyGraceStartedAt();
     const startedMs = startedAt ? new Date(startedAt).getTime() : NaN;
 
     if (!startedAt || Number.isNaN(startedMs)) {
@@ -24501,7 +24533,6 @@ function getTrustedBuddyCloudPreservedLocalStorage() {
         RECOVERY_KEY_BACKED_UP_STORAGE_KEY,
         `${RECOVERY_KEY_SAVED_PREFIX}${userId}`,
         `${RECOVERY_KEY_BACKED_UP_PREFIX}${userId}`,
-        `${RECOVERY_KEY_GRACE_STARTED_PREFIX}${userId}`,
         `${BUDDY_CLOUD_FORCE_PULL_AFTER_SIGN_IN_PREFIX}${userId}`,
         `${BUDDY_CLOUD_RECENT_RESTORE_PREFIX}${userId}`
     ];

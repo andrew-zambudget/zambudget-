@@ -210,19 +210,27 @@ test.describe('recovery key setup guardrails', () => {
         await remindButton.click();
 
         await expect(modal).toBeHidden();
-        const flags = await page.evaluate((userId) => ({
-            backedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_v1'),
-            saved: localStorage.getItem('bb_cloud_recovery_key_saved_v1'),
-            legacyBackedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_' + userId),
-            legacySaved: localStorage.getItem('bb_cloud_recovery_key_saved_' + userId),
-            graceStarted: localStorage.getItem('bb_cloud_recovery_key_grace_started_' + userId)
-        }), TEST_USER_ID);
+        const flags = await page.evaluate(async (userId) => {
+            const Operational = await import('/js/localOperationalMetadataStorage.js');
+            await Operational.flushLocalOperationalMetadataWrites();
+            return {
+                backedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_v1'),
+                saved: localStorage.getItem('bb_cloud_recovery_key_saved_v1'),
+                legacyBackedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_' + userId),
+                legacySaved: localStorage.getItem('bb_cloud_recovery_key_saved_' + userId),
+                legacyGraceStarted: localStorage.getItem('bb_cloud_recovery_key_grace_started_' + userId),
+                operationalGraceStarted: Operational.getRecoveryKeyGraceStartedAt(),
+                storageKeys: Object.keys(localStorage)
+            };
+        }, TEST_USER_ID);
 
         expect(flags.backedUp).toBeNull();
         expect(flags.saved).toBeNull();
         expect(flags.legacyBackedUp).toBeNull();
         expect(flags.legacySaved).toBeNull();
-        expect(flags.graceStarted).toBeTruthy();
+        expect(flags.legacyGraceStarted).toBeNull();
+        expect(flags.operationalGraceStarted).toBeTruthy();
+        expect(JSON.stringify(flags.storageKeys)).not.toContain(TEST_USER_ID);
 
         await page.reload({ waitUntil: 'domcontentloaded' });
         await waitForAppReady(page);
@@ -298,16 +306,22 @@ test.describe('recovery key setup guardrails', () => {
         await expect(recoveryModal).not.toContainText('Import Key');
         await expect(page.locator('#buddyCloudModalTitle')).not.toHaveText('Review Cloud Sync Versions');
 
-        const flags = await page.evaluate((userId) => ({
-            backedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_v1'),
-            saved: localStorage.getItem('bb_cloud_recovery_key_saved_v1'),
-            graceStarted: localStorage.getItem('bb_cloud_recovery_key_grace_started_' + userId),
-            status: window.BuddyCloud?.getStatus?.() || {}
-        }), TEST_USER_ID);
+        const flags = await page.evaluate(async (userId) => {
+            const Operational = await import('/js/localOperationalMetadataStorage.js');
+            await Operational.flushLocalOperationalMetadataWrites();
+            return {
+                backedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_v1'),
+                saved: localStorage.getItem('bb_cloud_recovery_key_saved_v1'),
+                graceStarted: Operational.getRecoveryKeyGraceStartedAt(),
+                legacyGraceStarted: localStorage.getItem('bb_cloud_recovery_key_grace_started_' + userId),
+                status: window.BuddyCloud?.getStatus?.() || {}
+            };
+        }, TEST_USER_ID);
 
         expect(flags.backedUp).toMatch(/^zrk:v1:/);
         expect(flags.saved).toMatch(/^zrk:v1:/);
-        expect(flags.graceStarted).toBeNull();
+        expect(flags.graceStarted).toBe('');
+        expect(flags.legacyGraceStarted).toBeNull();
         expect(flags.status.hasExportableKey).toBe(true);
     });
 
@@ -342,16 +356,22 @@ test.describe('recovery key setup guardrails', () => {
         await expect(nudge).not.toContainText('Recovery key reminder');
         await expect(nudge).toContainText('Cloud Sync active');
 
-        const flags = await page.evaluate((userId) => ({
-            backedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_v1'),
-            saved: localStorage.getItem('bb_cloud_recovery_key_saved_v1'),
-            graceStarted: localStorage.getItem('bb_cloud_recovery_key_grace_started_' + userId),
-            status: window.BuddyCloud?.getStatus?.() || {}
-        }), TEST_USER_ID);
+        const flags = await page.evaluate(async (userId) => {
+            const Operational = await import('/js/localOperationalMetadataStorage.js');
+            await Operational.flushLocalOperationalMetadataWrites();
+            return {
+                backedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_v1'),
+                saved: localStorage.getItem('bb_cloud_recovery_key_saved_v1'),
+                graceStarted: Operational.getRecoveryKeyGraceStartedAt(),
+                legacyGraceStarted: localStorage.getItem('bb_cloud_recovery_key_grace_started_' + userId),
+                status: window.BuddyCloud?.getStatus?.() || {}
+            };
+        }, TEST_USER_ID);
 
         expect(flags.backedUp).toMatch(/^zrk:v1:/);
         expect(flags.saved).toMatch(/^zrk:v1:/);
-        expect(flags.graceStarted).toBeNull();
+        expect(flags.graceStarted).toBe('');
+        expect(flags.legacyGraceStarted).toBeNull();
         expect(flags.status.hasKey).toBe(true);
         expect(flags.status.hasExportableKey).toBe(false);
     });
@@ -384,13 +404,18 @@ test.describe('recovery key setup guardrails', () => {
         await confirmButton.click();
         await expect(confirmModal).toBeHidden();
 
-        const flags = await page.evaluate((userId) => ({
-            backedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_v1'),
-            saved: localStorage.getItem('bb_cloud_recovery_key_saved_v1'),
-            legacyBackedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_' + userId),
-            legacySaved: localStorage.getItem('bb_cloud_recovery_key_saved_' + userId),
-            graceStarted: localStorage.getItem('bb_cloud_recovery_key_grace_started_' + userId)
-        }), TEST_USER_ID);
+        const flags = await page.evaluate(async (userId) => {
+            const Operational = await import('/js/localOperationalMetadataStorage.js');
+            await Operational.flushLocalOperationalMetadataWrites();
+            return {
+                backedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_v1'),
+                saved: localStorage.getItem('bb_cloud_recovery_key_saved_v1'),
+                legacyBackedUp: localStorage.getItem('bb_cloud_recovery_key_backed_up_' + userId),
+                legacySaved: localStorage.getItem('bb_cloud_recovery_key_saved_' + userId),
+                graceStarted: Operational.getRecoveryKeyGraceStartedAt(),
+                legacyGraceStarted: localStorage.getItem('bb_cloud_recovery_key_grace_started_' + userId)
+            };
+        }, TEST_USER_ID);
 
         expect(flags.backedUp).toMatch(/^zrk:v1:/);
         expect(flags.backedUp).not.toBe('true');
@@ -398,6 +423,7 @@ test.describe('recovery key setup guardrails', () => {
         expect(flags.saved).not.toBe('true');
         expect(flags.legacyBackedUp).toBeNull();
         expect(flags.legacySaved).toBeNull();
-        expect(flags.graceStarted).toBeNull();
+        expect(flags.graceStarted).toBe('');
+        expect(flags.legacyGraceStarted).toBeNull();
     });
 });

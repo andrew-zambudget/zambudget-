@@ -6,6 +6,7 @@ const LOCAL_UPDATED_SENTINEL = '2026-06-21T22:01:02.003Z';
 const CLOUD_PUSHED_SENTINEL = '2026-06-21T22:02:03.004Z';
 const CLOUD_REMOTE_SENTINEL = '2026-06-21T22:03:04.005Z';
 const SYNC_SLOT_SENTINEL = 'OPERATIONAL_SYNC_SLOT_TOKEN_SENTINEL';
+const RECOVERY_GRACE_SENTINEL = '2026-06-22T01:02:03.004Z';
 
 function modulePath(pathname) {
     return `${pathname}?test=${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -68,7 +69,8 @@ test.describe('encrypted local operational metadata storage', () => {
             localUpdatedAt: LOCAL_UPDATED_SENTINEL,
             cloudLastPushedAt: CLOUD_PUSHED_SENTINEL,
             cloudLastRemoteAt: CLOUD_REMOTE_SENTINEL,
-            cloudSyncSlotToken: SYNC_SLOT_SENTINEL
+            cloudSyncSlotToken: SYNC_SLOT_SENTINEL,
+            recoveryKeyGraceStartedAt: ''
         });
         expect(result.raw).toContain('zam_local_metadata_vault');
         expect(result.raw).toContain('local_operational_metadata');
@@ -114,6 +116,40 @@ test.describe('encrypted local operational metadata storage', () => {
         expect(result.raw).not.toContain(CLOUD_PUSHED_SENTINEL);
         expect(result.raw).not.toContain(CLOUD_REMOTE_SENTINEL);
         expect(result.raw).not.toContain(SYNC_SLOT_SENTINEL);
+    });
+
+    test('migrates recovery grace timestamp without exposing user id in storage keys', async ({ page }) => {
+        const result = await page.evaluate(async ({ moduleUrl, sentinels }) => {
+            const Operational = await import(moduleUrl);
+
+            localStorage.setItem('bb_cloud_recovery_key_grace_started_raw-user-id', sentinels.recoveryGraceStartedAt);
+
+            const initResult = await Operational.initLocalOperationalMetadataStorage();
+            await Operational.flushLocalOperationalMetadataWrites();
+
+            const raw = localStorage.getItem(Operational.LOCAL_OPERATIONAL_METADATA_KEY) || '';
+
+            return {
+                initResult,
+                classification: Operational.classifyLocalOperationalMetadataRecord(),
+                snapshot: Operational.getOperationalMetadataSnapshot(),
+                raw,
+                keys: Object.keys(localStorage).sort()
+            };
+        }, {
+            moduleUrl: modulePath('/js/localOperationalMetadataStorage.js'),
+            sentinels: {
+                recoveryGraceStartedAt: RECOVERY_GRACE_SENTINEL
+            }
+        });
+
+        expect(result.initResult.migratedLegacy).toBe(true);
+        expect(result.classification.kind).toBe('encrypted');
+        expect(result.snapshot.recoveryKeyGraceStartedAt).toBe(RECOVERY_GRACE_SENTINEL);
+        expect(result.keys).toEqual([OPERATIONAL_STORAGE_KEY]);
+        expect(JSON.stringify(result.keys)).not.toContain('raw-user-id');
+        expect(result.raw).not.toContain(RECOVERY_GRACE_SENTINEL);
+        expect(result.raw).not.toContain('raw-user-id');
     });
 
     test('corrupt encrypted operational metadata fails safe and keeps no stale cache', async ({ page }) => {
