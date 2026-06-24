@@ -4,7 +4,7 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const outDir = path.join(root, 'dist');
 const copyDirs = ['css', 'js', 'data', 'assets'];
-const copyFiles = ['config.json', 'robots.txt', '_headers', 'favicon.ico', 'site.webmanifest'];
+const copyFiles = ['config.json', 'robots.txt', '_headers', 'favicon.ico', 'site.webmanifest', 'BingSiteAuth.xml'];
 const routeAliases = [
   { route: 'login', source: 'login.html' },
   { route: 'auth/callback', source: 'login.html' },
